@@ -259,20 +259,41 @@
             </Grid>
 
             <StackPanel Grid.Column="2" Orientation="Horizontal">
-                <Image
+                <Rectangle
                     Width="20"
                     Height="20"
                     Margin="2,0,0,0"
-                    Source="{Binding PinIcon}"
                     ToolTip="Pinned"
-                    Visibility="{Binding IsPinned, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                <Image
+                    Visibility="{Binding IsPinned, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <Rectangle.OpacityMask>
+                        <ImageBrush ImageSource="{Binding PinIcon}" Stretch="Uniform" />
+                    </Rectangle.OpacityMask>
+                    <Rectangle.Style>
+                        <Style TargetType="Rectangle">
+                            <Setter Property="Fill" Value="{DynamicResource AccentBrush}" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListViewItem}}" Value="True">
+                                    <Setter Property="Fill" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListViewItem}}" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Rectangle.Style>
+                </Rectangle>
+                <Rectangle
                     Width="20"
                     Height="20"
                     Margin="2,0,0,0"
-                    Source="{Binding MultiLineIcon}"
                     ToolTip="Multi-line Content"
-                    Visibility="{Binding IsMultiLine, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                    Visibility="{Binding IsMultiLine, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <Rectangle.OpacityMask>
+                        <ImageBrush ImageSource="{Binding MultiLineIcon}" Stretch="Uniform" />
+                    </Rectangle.OpacityMask>
+                    <Rectangle.Style>
+                        <Style TargetType="Rectangle">
+                            <Setter Property="Fill" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListViewItem}}" />
+                        </Style>
+                    </Rectangle.Style>
+                </Rectangle>
             </StackPanel>
         </Grid>
     </Grid>

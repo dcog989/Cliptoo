@@ -1,4 +1,3 @@
-using Cliptoo.Core;
 using Cliptoo.Core.Configuration;
 using Cliptoo.Core.Services;
 using SkiaSharp;
@@ -22,15 +21,13 @@ namespace Cliptoo.UI.Services
             _iconCachePath = Path.Combine(appDataLocalPath, "Cliptoo", "IconCache");
             Directory.CreateDirectory(_iconCachePath);
         }
-
         public async Task<ImageSource?> GetIconAsync(string key, int size = 20)
         {
             if (string.IsNullOrEmpty(key)) return null;
 
             var dpiScale = GetDpiScale();
-            var accentColor = _settingsManager.Load().AccentColor;
 
-            var cacheKey = $"{key}_{size}_{dpiScale}_{accentColor}";
+            var cacheKey = $"{key}_{size}_{dpiScale}";
             if (_cache.TryGetValue(cacheKey, out var cachedImage))
             {
                 return cachedImage;
@@ -108,8 +105,6 @@ namespace Cliptoo.UI.Services
 
                 if (svgContent == null) return null;
 
-                bool isPinIcon = key == AppConstants.IconKeys.Pin;
-
                 if (int.TryParse(key, out _))
                 {
                     var settings = _settingsManager.Load();
@@ -125,16 +120,14 @@ namespace Cliptoo.UI.Services
                     svgContent = svgContent.Replace(@"fill=""black""", $"fill=\"{darkAccentColorHex}\"", StringComparison.OrdinalIgnoreCase);
                     svgContent = svgContent.Replace(@"fill=""white""", $"fill=\"{textColorHex}\"", StringComparison.OrdinalIgnoreCase);
                 }
-                else if (isPinIcon)
+                else if (svgContent.Contains("currentColor", StringComparison.OrdinalIgnoreCase))
                 {
-                    var settings = _settingsManager.Load();
-                    svgContent = svgContent.Replace("currentColor", settings.AccentColor, StringComparison.OrdinalIgnoreCase);
+                    // Create a white stencil for any icon that uses currentColor
+                    svgContent = svgContent.Replace("currentColor", "#FFFFFF", StringComparison.OrdinalIgnoreCase);
                 }
                 else
                 {
-                    var foregroundBrush = (SolidColorBrush)Application.Current.FindResource("PrimaryForeground");
-                    var colorHex = $"#{foregroundBrush.Color.R:X2}{foregroundBrush.Color.G:X2}{foregroundBrush.Color.B:X2}";
-                    svgContent = svgContent.Replace("currentColor", colorHex, StringComparison.OrdinalIgnoreCase);
+                    // For multi-color icons like the logo, do nothing and let them render as-is.
                 }
 
                 return await Task.Run(() =>
@@ -179,7 +172,6 @@ namespace Cliptoo.UI.Services
                 return null;
             }
         }
-
         private string GetIconFileName(string key)
         {
             if (int.TryParse(key, out int num) && num >= 1 && num <= 9)
