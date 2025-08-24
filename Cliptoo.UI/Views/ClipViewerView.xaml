@@ -1,0 +1,65 @@
+<UserControl
+    x:Class="Cliptoo.UI.Views.ClipViewerView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:avalonedit="http://icsharpcode.net/sharpdevelop/avalonedit"
+    xmlns:converters="clr-namespace:Cliptoo.UI.Converters"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:helpers="clr-namespace:Cliptoo.UI.Helpers"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    xmlns:viewModels="clr-namespace:Cliptoo.UI.ViewModels"
+    d:DataContext="{d:DesignInstance Type=viewModels:ClipViewerViewModel}"
+    mc:Ignorable="d">
+    <UserControl.Resources>
+        <converters:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+    </UserControl.Resources>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Margin="12,0,12,0">
+            <avalonedit:TextEditor
+                x:Name="TextEditor"
+                helpers:AvalonEditHelper.DocumentText="{Binding DocumentContent, UpdateSourceTrigger=PropertyChanged}"
+                Background="{DynamicResource SecondaryBackground}"
+                FontFamily="{Binding EditorFontFamily}"
+                FontSize="{Binding EditorFontSize}"
+                Foreground="{DynamicResource PrimaryForeground}"
+                HorizontalScrollBarVisibility="Auto"
+                ShowLineNumbers="True"
+                VerticalScrollBarVisibility="Auto"
+                WordWrap="True" />
+        </Grid>
+
+        <Border
+            Grid.Row="1"
+            Margin="12,0,12,0"
+            Padding="5"
+            BorderBrush="{DynamicResource PrimaryBorderBrush}"
+            BorderThickness="0,1,0,0">
+            <TextBlock Foreground="{StaticResource SecondaryForeground}" Text="{Binding ClipInfo}" />
+        </Border>
+
+        <StackPanel
+            Grid.Row="2"
+            Margin="12"
+            HorizontalAlignment="Right"
+            Orientation="Horizontal">
+            <ui:Button
+                Appearance="Primary"
+                Command="{Binding SaveChangesCommand}"
+                Content="Save Changes"
+                IsDefault="True" />
+            <ui:Button
+                Margin="10,0,0,0"
+                Appearance="Secondary"
+                Command="{Binding CancelCommand}"
+                Content="Cancel"
+                IsCancel="True" />
+        </StackPanel>
+    </Grid>
+</UserControl>

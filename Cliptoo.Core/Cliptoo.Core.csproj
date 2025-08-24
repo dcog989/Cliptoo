@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net9.0-windows</TargetFramework>
+        <Nullable>enable</Nullable>
+        <UseWPF>true</UseWPF>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <Platforms>AnyCPU;x64</Platforms>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="JxlNet" Version="0.11.1.1" />
+        <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.8" />
+        <PackageReference Include="SixLabors.ImageSharp" Version="3.1.11" />
+        <PackageReference Include="SkiaSharp" Version="3.119.0" />
+        <PackageReference Include="Svg.Skia" Version="3.0.5" />
+    </ItemGroup>
+
+</Project>

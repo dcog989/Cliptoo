@@ -1,0 +1,281 @@
+<ui:FluentWindow
+    x:Class="Cliptoo.UI.Views.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="clr-namespace:Cliptoo.UI.Controls"
+    xmlns:core="clr-namespace:Cliptoo.Core;assembly=Cliptoo.Core"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:helpers="clr-namespace:Cliptoo.UI.Helpers"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:tooltips="clr-namespace:Cliptoo.UI.Controls.Tooltips"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    xmlns:viewModels="clr-namespace:Cliptoo.UI.ViewModels"
+    Title="Cliptoo"
+    Width="400"
+    Height="500"
+    MinWidth="250"
+    MinHeight="150"
+    d:DataContext="{d:DesignInstance Type=viewModels:MainViewModel}"
+    helpers:WindowInputBehavior.ClipListView="{Binding ElementName=ClipListView}"
+    helpers:WindowInputBehavior.IsEnabled="True"
+    helpers:WindowInputBehavior.SearchTextBox="{Binding ElementName=SearchTextBox}"
+    Activated="MainWindow_Activated"
+    Deactivated="MainWindow_Deactivated"
+    ExtendsContentIntoTitleBar="True"
+    IsVisibleChanged="MainWindow_IsVisibleChanged"
+    PreviewMouseDown="MainWindow_PreviewMouseDown"
+    ShowInTaskbar="False"
+    SnapsToDevicePixels="True"
+    TextOptions.TextFormattingMode="Display"
+    TextOptions.TextRenderingMode="ClearType"
+    WindowBackdropType="Mica"
+    mc:Ignorable="d">
+
+    <ui:FluentWindow.Resources>
+        <Style x:Key="IconButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Width" Value="32" />
+            <Setter Property="Height" Value="32" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border
+                            x:Name="border"
+                            Background="{TemplateBinding Background}"
+                            CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="{DynamicResource AccentBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="IconToggleButton" TargetType="ToggleButton">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Width" Value="32" />
+            <Setter Property="Height" Value="32" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border
+                            x:Name="border"
+                            Background="{TemplateBinding Background}"
+                            CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="{DynamicResource AccentBrushHover}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </ui:FluentWindow.Resources>
+
+    <ui:FluentWindow.InputBindings>
+        <KeyBinding
+            Key="Enter"
+            Command="{Binding PasteClipCommand}"
+            CommandParameter="{Binding ElementName=ClipListView, Path=SelectedItem}" />
+    </ui:FluentWindow.InputBindings>
+
+    <ui:ClientAreaBorder x:Name="ClientBorder" BorderThickness="1">
+
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <DockPanel Grid.Row="0" Margin="8,8,8,0">
+                <ListView
+                    x:Name="ClipListView"
+                    HorizontalContentAlignment="Stretch"
+                    AlternationCount="2"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    ItemsSource="{Binding Clips}"
+                    MouseLeftButtonUp="ClipListView_MouseLeftButtonUp"
+                    PreviewKeyDown="ClipListView_PreviewKeyDown"
+                    ScrollViewer.CanContentScroll="True"
+                    ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                    ScrollViewer.ScrollChanged="ClipListView_ScrollChanged"
+                    VirtualizingPanel.IsVirtualizing="True"
+                    VirtualizingPanel.VirtualizationMode="Recycling">
+                    <ListView.ItemTemplate>
+                        <DataTemplate>
+                            <controls:ClipItemControl DataContext="{Binding}" />
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+            </DockPanel>
+
+            <Border Grid.Row="1" Margin="8">
+                <Grid Background="Transparent">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <Border
+                        Grid.Column="0"
+                        Width="32"
+                        Height="32"
+                        Cursor="SizeAll"
+                        MouseLeftButtonDown="Logo_MouseLeftButtonDown"
+                        Visibility="{Binding DisplayLogo, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <Image
+                            Width="24"
+                            Height="24"
+                            RenderOptions.BitmapScalingMode="Fant"
+                            Source="{Binding LogoIcon}" />
+                    </Border>
+
+                    <Grid Grid.Column="1" Margin="4,0,0,0">
+                        <ui:TextBox
+                            x:Name="SearchTextBox"
+                            Padding="2,2,32,2"
+                            Text="{Binding SearchTerm, UpdateSourceTrigger=PropertyChanged}" />
+                        <Button
+                            x:Name="FilterButton"
+                            HorizontalAlignment="Right"
+                            Style="{StaticResource IconButton}"
+                            ToolTip="{Binding SelectedFilter.Name}">
+                            <Image
+                                Width="20"
+                                Height="20"
+                                RenderOptions.BitmapScalingMode="HighQuality"
+                                Source="{Binding SelectedFilter.Icon}" />
+                        </Button>
+                        <Popup
+                            x:Name="FilterPopup"
+                            AllowsTransparency="True"
+                            IsOpen="{Binding IsFilterPopupOpen, Mode=OneWay}"
+                            Placement="Top"
+                            PlacementTarget="{Binding ElementName=FilterButton}">
+                            <Border
+                                Padding="5"
+                                Background="{StaticResource SecondaryBackground}"
+                                BorderBrush="{StaticResource PrimaryBorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="4">
+                                <controls:FilterBar DataContext="{Binding}" />
+                            </Border>
+                        </Popup>
+                    </Grid>
+
+                    <Button
+                        x:Name="MenuButton"
+                        Grid.Column="2"
+                        Margin="4,0,0,0"
+                        Click="MenuButton_Click"
+                        Style="{StaticResource IconButton}">
+                        <Button.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Command="{Binding OpenSettingsCommand}" Header="Settings..." />
+                                <MenuItem
+                                    Header="Always on Top"
+                                    IsCheckable="True"
+                                    IsChecked="{Binding IsAlwaysOnTop, Mode=TwoWay}" />
+                                <MenuItem Command="{Binding HideWindowCommand}" Header="Send to Tray" />
+                            </ContextMenu>
+                        </Button.ContextMenu>
+                        <Image
+                            Width="28"
+                            Height="28"
+                            RenderOptions.BitmapScalingMode="HighQuality"
+                            Source="{Binding MenuIcon}" />
+                    </Button>
+                </Grid>
+            </Border>
+
+            <Popup
+                x:Name="PreviewPopup"
+                AllowsTransparency="True"
+                DataContext="{Binding}"
+                IsOpen="{Binding IsPreviewOpen, Mode=TwoWay}"
+                MouseEnter="PreviewPopup_MouseEnter"
+                MouseLeave="PreviewPopup_MouseLeave"
+                Placement="Mouse"
+                PopupAnimation="Fade">
+                <Border
+                    MaxWidth="{Binding DataContext.CurrentSettings.PreviewTooltipMaxWidth, ElementName=ClipListView}"
+                    Padding="0"
+                    Background="{StaticResource PrimaryBackground}"
+                    BorderBrush="{DynamicResource AccentBrush}"
+                    BorderThickness="1"
+                    CornerRadius="4">
+                    <ContentControl Content="{Binding PreviewClip}">
+                        <ContentControl.Style>
+                            <Style TargetType="ContentControl">
+                                <Setter Property="MinWidth" Value="150" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Content.ClipType, RelativeSource={RelativeSource Self}}" Value="color">
+                                        <Setter Property="ContentTemplate">
+                                            <Setter.Value>
+                                                <DataTemplate>
+                                                    <tooltips:ColorPreviewTooltip />
+                                                </DataTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Content.IsLinkToolTip, RelativeSource={RelativeSource Self}}" Value="True">
+                                        <Setter Property="ContentTemplate">
+                                            <Setter.Value>
+                                                <DataTemplate>
+                                                    <tooltips:LinkPreviewTooltip />
+                                                </DataTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Content.ShowTextualTooltip, RelativeSource={RelativeSource Self}}" Value="True">
+                                        <Setter Property="ContentTemplate">
+                                            <Setter.Value>
+                                                <DataTemplate>
+                                                    <tooltips:TextPreviewTooltip />
+                                                </DataTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Content.ShowFileInfoTooltip, RelativeSource={RelativeSource Self}}" Value="True">
+                                        <Setter Property="ContentTemplate">
+                                            <Setter.Value>
+                                                <DataTemplate>
+                                                    <tooltips:FilePreviewTooltip />
+                                                </DataTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Content.IsImage, RelativeSource={RelativeSource Self}}" Value="True">
+                                        <Setter Property="ContentTemplate">
+                                            <Setter.Value>
+                                                <DataTemplate>
+                                                    <tooltips:ImagePreviewTooltip />
+                                                </DataTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ContentControl.Style>
+                    </ContentControl>
+                </Border>
+            </Popup>
+
+            <ui:SnackbarPresenter x:Name="SnackbarPresenter" Grid.RowSpan="2" />
+            <ContentPresenter Grid.RowSpan="2" Content="{Binding CurrentModalViewModel}" />
+        </Grid>
+
+    </ui:ClientAreaBorder>
+</ui:FluentWindow>

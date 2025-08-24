@@ -1,0 +1,83 @@
+<UserControl
+    x:Class="Cliptoo.UI.Views.SettingsPages.AboutSettingsView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:sys="clr-namespace:System;assembly=mscorlib"
+    d:DesignHeight="450"
+    d:DesignWidth="800"
+    mc:Ignorable="d">
+    <ScrollViewer Padding="15,20,15,15">
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Top">
+
+            <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                <Image
+                    Width="138"
+                    Height="138"
+                    Margin="0,0,15,0"
+                    RenderOptions.BitmapScalingMode="HighQuality"
+                    Source="{Binding LogoIcon}" />
+                <StackPanel VerticalAlignment="Center" TextBlock.TextAlignment="Center">
+                    <TextBlock
+                        FontFamily="{Binding SystemFonts[0].FontFamily, Mode=OneWay}"
+                        FontSize="32"
+                        FontWeight="SemiBold"
+                        Text="Cliptoo" />
+                    <TextBlock Foreground="{StaticResource SecondaryForeground}" Text="{Binding AppVersion, StringFormat='Version: {0}'}" />
+                    <TextBlock
+                        Margin="0,10,0,0"
+                        FontSize="16"
+                        Foreground="{StaticResource SecondaryForeground}">
+                        <TextBlock.Text>
+                            The advanced clipboard manager.
+                        </TextBlock.Text>
+                    </TextBlock>
+                    <TextBlock
+                        Margin="0,10,0,0"
+                        FontFamily="{Binding SystemFonts[0].FontFamily, Mode=OneWay}"
+                        FontSize="16"
+                        FontStyle="Italic"
+                        Foreground="{StaticResource SecondaryForeground}">
+                        <TextBlock.Text>
+                            "Klaatu barada nikto!"
+                        </TextBlock.Text>
+                    </TextBlock>
+                    <TextBlock Margin="0,5,0,0">
+                        <Hyperlink Command="{Binding OpenGitHubUrlCommand}">
+                            <Run Text="{Binding GitHubUrl, Mode=OneWay}" />
+                        </Hyperlink>
+                    </TextBlock>
+                </StackPanel>
+            </StackPanel>
+
+            <Separator Margin="0,15,0,15" />
+
+            <TextBlock Margin="0,15,0,0" TextBlock.TextAlignment="Center">
+                <Hyperlink Command="{Binding OpenExeFolderCommand}">
+                    <Run FontFamily="Source Code Pro" Text="{Binding ExePathDir, Mode=OneWay}" />
+                </Hyperlink>
+                <Run FontFamily="Source Code Pro" Text="\" />
+                <Run FontFamily="Source Code Pro" Text="{Binding ExePathFile, Mode=OneWay}" />
+            </TextBlock>
+            <TextBlock Margin="0,5,0,0" TextBlock.TextAlignment="Center">
+                <Run Text="Settings + data stored at " />
+                <Hyperlink Command="{Binding OpenSettingsFolderCommand}">
+                    <Run Text="{Binding SettingsFolderPath, Mode=OneWay}" />
+                </Hyperlink>
+            </TextBlock>
+            <TextBlock Margin="0,5,0,0" TextBlock.TextAlignment="Center">
+                <Run Text="Cached images stored at " />
+                <Hyperlink Command="{Binding OpenTempDataFolderCommand}">
+                    <Run Text="{Binding TempDataPath, Mode=OneWay}" />
+                </Hyperlink>
+            </TextBlock>
+
+            <TextBlock Margin="0,20,0,0" TextBlock.TextAlignment="Center">
+                <Hyperlink Command="{Binding OpenAcknowledgementsWindowCommand}">
+                    <Run Text="Thanks, acknowledgements, and attributions" />
+                </Hyperlink>
+            </TextBlock>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

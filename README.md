@@ -1,0 +1,1 @@
+# Cliptoo for Windows

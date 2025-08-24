@@ -1,0 +1,158 @@
+<ui:FluentWindow
+    x:Class="Cliptoo.UI.Views.SettingsWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:helpers="clr-namespace:Cliptoo.UI.Helpers"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:pages="clr-namespace:Cliptoo.UI.Views.SettingsPages"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    xmlns:viewModels="clr-namespace:Cliptoo.UI.ViewModels"
+    x:Name="RootSettingsWindow"
+    Title="Cliptoo Settings"
+    Width="800"
+    Height="600"
+    MinWidth="800"
+    MinHeight="600"
+    d:DataContext="{d:DesignInstance Type=viewModels:SettingsViewModel}"
+    ExtendsContentIntoTitleBar="True"
+    PreviewKeyDown="SettingsWindow_PreviewKeyDown"
+    WindowBackdropType="Mica"
+    WindowStartupLocation="CenterOwner"
+    mc:Ignorable="d">
+    <ui:ClientAreaBorder x:Name="ClientBorder" BorderThickness="1">
+        <ui:ClientAreaBorder.Style>
+            <Style TargetType="ui:ClientAreaBorder">
+                <Setter Property="Opacity" Value="1.0" />
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding IsActive, ElementName=RootSettingsWindow}" Value="False">
+                        <Setter Property="Opacity" Value="0.6" />
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+        </ui:ClientAreaBorder.Style>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <ui:TitleBar Title="Cliptoo Settings" Grid.Row="0">
+                <ui:TitleBar.Icon>
+                    <ui:ImageIcon Source="pack://application:,,,/Assets/Icons/cliptoo.ico" />
+                </ui:TitleBar.Icon>
+            </ui:TitleBar>
+
+            <StackPanel
+                Grid.Row="1"
+                Margin="10,10,10,0"
+                Orientation="Horizontal">
+                <RadioButton
+                    Command="{Binding ChangePageCommand}"
+                    CommandParameter="General"
+                    Content="General"
+                    GroupName="SettingsTabs"
+                    IsChecked="True"
+                    Style="{StaticResource SettingsTabRadioButton}" />
+                <RadioButton
+                    Command="{Binding ChangePageCommand}"
+                    CommandParameter="Visuals"
+                    Content="Visuals"
+                    GroupName="SettingsTabs"
+                    Style="{StaticResource SettingsTabRadioButton}" />
+                <RadioButton
+                    Command="{Binding ChangePageCommand}"
+                    CommandParameter="Keyboard"
+                    Content="Keyboard"
+                    GroupName="SettingsTabs"
+                    Style="{StaticResource SettingsTabRadioButton}" />
+                <RadioButton
+                    Command="{Binding ChangePageCommand}"
+                    CommandParameter="Data"
+                    Content="Data"
+                    GroupName="SettingsTabs"
+                    Style="{StaticResource SettingsTabRadioButton}" />
+                <RadioButton
+                    Command="{Binding ChangePageCommand}"
+                    CommandParameter="About"
+                    Content="About"
+                    GroupName="SettingsTabs"
+                    Style="{StaticResource SettingsTabRadioButton}" />
+            </StackPanel>
+
+            <Border Grid.Row="2" Margin="10,5,10,10">
+                <Grid>
+                    <ContentControl>
+                        <ContentControl.Style>
+                            <Style TargetType="ContentControl">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding CurrentPage}" Value="General">
+                                        <Setter Property="Content">
+                                            <Setter.Value>
+                                                <pages:GeneralSettingsView />
+                                            </Setter.Value>
+                                        </Setter>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding CurrentPage}" Value="Visuals">
+                                        <Setter Property="Content">
+                                            <Setter.Value>
+                                                <pages:VisualsSettingsView />
+                                            </Setter.Value>
+                                        </Setter>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding CurrentPage}" Value="Keyboard">
+                                        <Setter Property="Content">
+                                            <Setter.Value>
+                                                <pages:KeyboardSettingsView />
+                                            </Setter.Value>
+                                        </Setter>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding CurrentPage}" Value="Data">
+                                        <Setter Property="Content">
+                                            <Setter.Value>
+                                                <pages:DataSettingsView />
+                                            </Setter.Value>
+                                        </Setter>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding CurrentPage}" Value="About">
+                                        <Setter Property="Content">
+                                            <Setter.Value>
+                                                <pages:AboutSettingsView />
+                                            </Setter.Value>
+                                        </Setter>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ContentControl.Style>
+                    </ContentControl>
+                    <ui:ProgressRing
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        IsIndeterminate="{Binding IsBusy}"
+                        Visibility="{Binding IsBusy, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                </Grid>
+            </Border>
+
+            <StackPanel
+                Grid.Row="3"
+                Margin="0,10,30,30"
+                HorizontalAlignment="Right"
+                Orientation="Horizontal">
+                <ui:Button
+                    Padding="30,10"
+                    Appearance="Primary"
+                    Background="{DynamicResource AccentBrush}"
+                    Click="Close_Click"
+                    Content="Close"
+                    IsDefault="True" />
+            </StackPanel>
+
+            <ContentPresenter x:Name="RootContentDialogPresenter" Grid.RowSpan="4" />
+        </Grid>
+    </ui:ClientAreaBorder>
+
+
+
+</ui:FluentWindow>

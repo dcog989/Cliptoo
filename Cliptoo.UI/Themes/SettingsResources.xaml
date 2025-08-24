@@ -1,0 +1,170 @@
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:helpers="clr-namespace:Cliptoo.UI.Helpers"
+    xmlns:sys="clr-namespace:System;assembly=mscorlib"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    xmlns:viewModels="clr-namespace:Cliptoo.UI.ViewModels">
+
+    <x:Array x:Key="LaunchPositionOptions" Type="sys:String">
+        <sys:String>cursor</sys:String>
+        <sys:String>center</sys:String>
+        <sys:String>top left</sys:String>
+        <sys:String>top right</sys:String>
+        <sys:String>bottom left</sys:String>
+        <sys:String>bottom right</sys:String>
+        <sys:String>fixed</sys:String>
+    </x:Array>
+
+    <x:Array x:Key="PaddingOptions" Type="sys:String">
+        <sys:String>compact</sys:String>
+        <sys:String>standard</sys:String>
+        <sys:String>luxury</sys:String>
+    </x:Array>
+
+    <Style x:Key="SettingLabel" TargetType="TextBlock">
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Margin" Value="0,0,10,0" />
+        <Setter Property="FontSize" Value="14" />
+    </Style>
+
+    <Style
+        x:Key="SettingsComboBoxStyle"
+        BasedOn="{StaticResource {x:Type ComboBox}}"
+        TargetType="ComboBox">
+        <Setter Property="Height" Value="32" />
+        <Setter Property="Padding" Value="8,4" />
+    </Style>
+
+    <Style
+        x:Key="SettingsTextBoxStyle"
+        BasedOn="{StaticResource {x:Type ui:TextBox}}"
+        TargetType="ui:TextBox">
+        <Setter Property="Height" Value="32" />
+        <Setter Property="Padding" Value="2,2" />
+        <Style.Triggers>
+            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                <Setter Property="Background" Value="{DynamicResource SecondaryBackground}" />
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style
+        x:Key="SettingsNumberBoxStyle"
+        BasedOn="{StaticResource {x:Type ui:NumberBox}}"
+        TargetType="ui:NumberBox">
+        <Setter Property="Height" Value="32" />
+        <Setter Property="Padding" Value="8,4" />
+        <Style.Triggers>
+            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                <Setter Property="Background" Value="{DynamicResource SecondaryBackground}" />
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style
+        x:Key="SettingsButtonStyle"
+        BasedOn="{StaticResource {x:Type ui:Button}}"
+        TargetType="ui:Button">
+        <Setter Property="Height" Value="32" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+
+    <Style
+        x:Key="CaptureHotkeyStyle"
+        BasedOn="{StaticResource SettingsTextBoxStyle}"
+        TargetType="ui:TextBox">
+        <Setter Property="IsReadOnly" Value="True" />
+        <Setter Property="ToolTip" Value="Click to set a new hotkey" />
+        <Style.Triggers>
+            <DataTrigger Value="True">
+                <DataTrigger.Binding>
+                    <MultiBinding Converter="{StaticResource IsTargetedForHotkeyCaptureConverter}">
+                        <Binding Path="IsCapturingHotkey" />
+                        <Binding Path="CapturingHotkeyTarget" />
+                        <Binding Path="(helpers:HotkeyInputBehavior.HotkeyTarget)" RelativeSource="{RelativeSource Self}" />
+                    </MultiBinding>
+                </DataTrigger.Binding>
+                <Setter Property="IsReadOnly" Value="False" />
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style x:Key="SettingsTabRadioButton" TargetType="RadioButton">
+        <Setter Property="Foreground" Value="{StaticResource SecondaryForeground}" />
+        <Setter Property="Padding" Value="24,8" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="FontSize" Value="16" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <Border
+                        Name="Bd"
+                        Padding="{TemplateBinding Padding}"
+                        Background="{TemplateBinding Background}"
+                        BorderBrush="Transparent"
+                        BorderThickness="0,0,0,2">
+                        <TextBlock
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            FontSize="{TemplateBinding FontSize}"
+                            Text="{TemplateBinding Content}" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="HueSliderThumbStyle" TargetType="{x:Type Thumb}">
+        <Setter Property="OverridesDefaultStyle" Value="True" />
+        <Setter Property="Height" Value="28" />
+        <Setter Property="Width" Value="28" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type Thumb}">
+                    <Border
+                        Background="{Binding DataContext.AccentBrush, RelativeSource={RelativeSource AncestorType=Window}}"
+                        BorderBrush="{StaticResource PrimaryBorderBrush}"
+                        BorderThickness="2"
+                        CornerRadius="14" />
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="HueSliderStyle" TargetType="{x:Type Slider}">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type Slider}">
+                    <Grid VerticalAlignment="Center">
+                        <Border
+                            Height="14"
+                            Background="{Binding DataContext.OklchHueBrush, RelativeSource={RelativeSource AncestorType=Window}}"
+                            BorderBrush="{StaticResource PrimaryBorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="7" />
+                        <Track x:Name="PART_Track">
+                            <Track.Thumb>
+                                <Thumb Style="{StaticResource HueSliderThumbStyle}" />
+                            </Track.Thumb>
+                        </Track>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+</ResourceDictionary>

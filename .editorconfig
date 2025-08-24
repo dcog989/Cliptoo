@@ -1,0 +1,11 @@
+# Root file, so settings from parent directories are not applied
+root = true
+
+[*.cs]
+# Enforce that unnecessary using directives are removed
+dotnet_diagnostic.IDE0005.severity = warning
+csharp_remove_unnecessary_usings = true
+
+# Enforce consistent sorting of using directives
+dotnet_sort_system_directives_first = true
+csharp_using_directive_placement = outside_namespace

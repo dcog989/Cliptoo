@@ -1,0 +1,156 @@
+<?xml version="1.0"?>
+<SyntaxDefinition name="C# Dark" xmlns="http://icsharpcode.net/sharpdevelop/syntaxdefinition/2008">
+    <Color name="Comment" foreground="#6A9955" />
+    <Color name="String" foreground="#D69D85" />
+    <Color name="Char" foreground="#D69D85" />
+    <Color name="Preprocessor" foreground="#808080" />
+    <Color name="Punctuation" foreground="#D4D4D4" />
+    <Color name="MethodCall" foreground="#DCDCAA" />
+    <Color name="NumberLiteral" foreground="#B5CEA8" />
+    <Color name="Keywords" foreground="#569CD6" />
+    <Color name="TypeName" foreground="#4EC9B0" />
+    <Color name="NullLiteral" foreground="#569CD6" />
+    <Color name="BooleanLiteral" foreground="#569CD6" />
+    <Color name="Link" foreground="#569CD6" />
+
+    <RuleSet>
+        <Span color="Preprocessor">
+            <Begin>\#</Begin>
+        </Span>
+
+        <Span color="Comment">
+            <Begin>//</Begin>
+        </Span>
+        <Span color="Comment" multiline="true">
+            <Begin>/\*</Begin>
+            <End>\*/</End>
+        </Span>
+
+        <Span color="String">
+            <Begin>"</Begin>
+            <End>"</End>
+            <RuleSet>
+                <Span>
+                    <Begin>\\</Begin>
+                    <End>.</End>
+                </Span>
+            </RuleSet>
+        </Span>
+
+        <Span color="Char">
+            <Begin>'</Begin>
+            <End>'</End>
+            <RuleSet>
+                <Span>
+                    <Begin>\\</Begin>
+                    <End>.</End>
+                </Span>
+            </RuleSet>
+        </Span>
+
+        <Keywords color="BooleanLiteral">
+            <Word>true</Word>
+            <Word>false</Word>
+        </Keywords>
+
+        <Keywords color="NullLiteral">
+            <Word>null</Word>
+        </Keywords>
+
+        <Keywords color="Keywords">
+            <Word>abstract</Word>
+            <Word>as</Word>
+            <Word>base</Word>
+            <Word>break</Word>
+            <Word>case</Word>
+            <Word>catch</Word>
+            <Word>checked</Word>
+            <Word>class</Word>
+            <Word>const</Word>
+            <Word>continue</Word>
+            <Word>default</Word>
+            <Word>delegate</Word>
+            <Word>do</Word>
+            <Word>else</Word>
+            <Word>enum</Word>
+            <Word>event</Word>
+            <Word>explicit</Word>
+            <Word>extern</Word>
+            <Word>finally</Word>
+            <Word>fixed</Word>
+            <Word>for</Word>
+            <Word>foreach</Word>
+            <Word>goto</Word>
+            <Word>if</Word>
+            <Word>implicit</Word>
+            <Word>in</Word>
+            <Word>interface</Word>
+            <Word>internal</Word>
+            <Word>is</Word>
+            <Word>lock</Word>
+            <Word>namespace</Word>
+            <Word>new</Word>
+            <Word>operator</Word>
+            <Word>out</Word>
+            <Word>override</Word>
+            <Word>params</Word>
+            <Word>private</Word>
+            <Word>protected</Word>
+            <Word>public</Word>
+            <Word>readonly</Word>
+            <Word>ref</Word>
+            <Word>return</Word>
+            <Word>sealed</Word>
+            <Word>sizeof</Word>
+            <Word>stackalloc</Word>
+            <Word>static</Word>
+            <Word>struct</Word>
+            <Word>switch</Word>
+            <Word>this</Word>
+            <Word>throw</Word>
+            <Word>try</Word>
+            <Word>typeof</Word>
+            <Word>unchecked</Word>
+            <Word>unsafe</Word>
+            <Word>using</Word>
+            <Word>virtual</Word>
+            <Word>void</Word>
+            <Word>volatile</Word>
+            <Word>while</Word>
+        </Keywords>
+
+        <Keywords color="Keywords">
+            <Word>get</Word>
+            <Word>set</Word>
+            <Word>add</Word>
+            <Word>remove</Word>
+            <Word>var</Word>
+            <Word>global</Word>
+            <Word>partial</Word>
+            <Word>where</Word>
+            <Word>yield</Word>
+        </Keywords>
+
+        <Rule color="Punctuation">
+            [?,.;()\[\]{}+\-/%*&lt;&gt;^+~!|&amp;]
+        </Rule>
+
+        <Rule color="MethodCall">
+            \b[\d\w_]+(?=\s*\()
+        </Rule>
+
+        <Rule color="NumberLiteral">
+            \b0[xX][0-9a-fA-F]+(\.[0-9a-fA-F]+)?([eE][+-]?[0-9]+)?([fFdDMm]|\b)
+            |
+            (\b\d+(\.[0-9]+)?|\.[0-9]+)([eE][+-]?[0-9]+)?([fFdDMm]|\b)
+        </Rule>
+
+        <Rule color="TypeName">
+            \b(bool|byte|char|decimal|double|float|int|long|sbyte|short|string|uint|ulong|ushort|object)\b
+        </Rule>
+
+        <Rule color="Link">
+            \b(http|ftp|https)://([\w+?\.\w+])+([a-zA-Z0-9\~\!\@\#\$\%\^\&amp;\*\(\)_\-\=\+\\\/\?\.\:\;\'\,]*)?
+        </Rule>
+    </RuleSet>
+</SyntaxDefinition>

@@ -1,0 +1,418 @@
+using Cliptoo.Core.Configuration;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats.Png;
+using SixLabors.ImageSharp.Processing;
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
+
+namespace Cliptoo.Core.Services
+{
+    public class WebMetadataService : IWebMetadataService
+    {
+        private const int ThumbnailSize = 32;
+        private static readonly TimeSpan FailureCacheDuration = TimeSpan.FromDays(7);
+        private readonly string _faviconCacheDir;
+        private readonly HttpClient _httpClient;
+        private readonly PngEncoder _pngEncoder;
+
+        private record FaviconCandidate(string Url, int Priority);
+
+        private static readonly Regex LinkTagRegex = new("<link[^>]+>", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private static readonly Regex RelAttributeRegex = new("rel\\s*=\\s*(?:['\"](?:shortcut\\s+)?icon['\"]|(?:shortcut\\s+)?icon\\b)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private static readonly Regex HrefAttributeRegex = new("href\\s*=\\s*(?:['\"]([^'\"]+)['\"]|([^>\\s]+))", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private static readonly Regex SizesAttributeRegex = new("sizes\\s*=\\s*['\"](\\d+x\\d+)['\"]", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        private static readonly Regex TitleRegex = new("<title>\\s*(.+?)\\s*</title>", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private readonly ConcurrentDictionary<string, string> _titleCache = new();
+        private readonly ConcurrentDictionary<string, bool> _failedFaviconUrls = new();
+
+        public WebMetadataService(string appCachePath)
+        {
+            _faviconCacheDir = Path.Combine(appCachePath, "Cliptoo", "FaviconCache");
+            Directory.CreateDirectory(_faviconCacheDir);
+
+            _httpClient = new HttpClient();
+            _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Cliptoo/1.0");
+            _httpClient.Timeout = TimeSpan.FromSeconds(5);
+
+            _pngEncoder = new PngEncoder { CompressionLevel = PngCompressionLevel.Level6 };
+        }
+
+        public async Task<string?> GetFaviconAsync(string url)
+        {
+            if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)) return null;
+            if (_failedFaviconUrls.ContainsKey(url)) return null;
+
+            var successCachePath = ServiceUtils.GetCachePath(url, _faviconCacheDir, ".png");
+            if (File.Exists(successCachePath)) return successCachePath;
+
+            var failureCachePath = ServiceUtils.GetCachePath(url, _faviconCacheDir, ".failed");
+            if (File.Exists(failureCachePath))
+            {
+                try
+                {
+                    var timestampText = await File.ReadAllTextAsync(failureCachePath);
+                    if (DateTime.TryParse(timestampText, null, System.Globalization.DateTimeStyles.RoundtripKind, out var timestamp))
+                    {
+                        if ((DateTime.UtcNow - timestamp) < FailureCacheDuration)
+                        {
+                            _failedFaviconUrls.TryAdd(url, true);
+                            return null;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    LogManager.Log(ex, $"Failed to read failure cache file for {url}");
+                }
+            }
+
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            string? finalIconPath = null;
+            try
+            {
+                LogManager.LogDebug($"Favicon Discovery for {url}: Starting Stage 1 (Root Icon Check).");
+                finalIconPath = await TryFetchRootIconsAsync(uri, successCachePath);
+
+                if (finalIconPath == null)
+                {
+                    LogManager.LogDebug($"Favicon Discovery for {url}: Stage 1 failed. Starting Stage 2 (HTML Head Parse).");
+                    finalIconPath = await TryFetchIconsFromHtmlAsync(uri, successCachePath);
+                }
+
+                if (finalIconPath != null)
+                {
+                    if (File.Exists(failureCachePath))
+                    {
+                        try
+                        {
+                            File.Delete(failureCachePath);
+                        }
+                        catch (Exception ex)
+                        {
+                            LogManager.Log(ex, $"Could not delete stale failure cache file: {failureCachePath}");
+                        }
+                    }
+                }
+                else
+                {
+                    LogManager.LogDebug($"Favicon Discovery for {url}: All stages failed. Caching failure.");
+                    _failedFaviconUrls.TryAdd(url, true);
+                    try
+                    {
+                        await File.WriteAllTextAsync(failureCachePath, DateTime.UtcNow.ToString("o"));
+                    }
+                    catch (Exception ex)
+                    {
+                        LogManager.Log(ex, $"Failed to create/update failure cache file for {url}");
+                    }
+                }
+            }
+            finally
+            {
+                stopwatch.Stop();
+                LogManager.LogDebug($"PERF_DIAG: Favicon discovery for '{url}' took {stopwatch.ElapsedMilliseconds}ms.");
+            }
+
+            return finalIconPath;
+        }
+
+        private async Task<string?> TryFetchRootIconsAsync(Uri baseUri, string cachePath)
+        {
+            var rootIconNames = new[] { "/favicon.ico", "/favicon.png", "/favicon.svg", "/favicon.webp" };
+            foreach (var iconName in rootIconNames)
+            {
+                var faviconUrl = new Uri(baseUri, iconName);
+                if (await FetchAndProcessFavicon(faviconUrl.ToString(), cachePath))
+                {
+                    return cachePath;
+                }
+            }
+            return null;
+        }
+
+        private async Task<string?> TryFetchIconsFromHtmlAsync(Uri pageUri, string cachePath)
+        {
+            string? headContent;
+            try
+            {
+                var response = await _httpClient.GetAsync(pageUri, HttpCompletionOption.ResponseHeadersRead);
+                if (!response.IsSuccessStatusCode) return null;
+
+                using var stream = await response.Content.ReadAsStreamAsync();
+                headContent = await ReadHeadContentAsync(stream);
+            }
+            catch (Exception ex)
+            {
+                LogManager.Log(ex, $"Failed to fetch HTML head for {pageUri}");
+                return null;
+            }
+
+
+            if (string.IsNullOrEmpty(headContent)) return null;
+
+            var candidates = new List<FaviconCandidate>();
+            foreach (Match linkMatch in LinkTagRegex.Matches(headContent))
+            {
+                var linkTag = linkMatch.Value;
+                if (!RelAttributeRegex.IsMatch(linkTag)) continue;
+
+                var hrefMatch = HrefAttributeRegex.Match(linkTag);
+                if (!hrefMatch.Success) continue;
+
+                var href = hrefMatch.Groups[1].Success ? hrefMatch.Groups[1].Value : hrefMatch.Groups[2].Value;
+                if (!href.EndsWith(".png") && !href.EndsWith(".ico") && !href.EndsWith(".webp") && !href.EndsWith(".svg"))
+                {
+                    continue;
+                }
+
+                var sizesMatch = SizesAttributeRegex.Match(linkTag);
+                var size = sizesMatch.Success ? sizesMatch.Groups[1].Value : string.Empty;
+                var priority = GetPriorityFromSize(size);
+
+                string fullUrl;
+                if (href.StartsWith("//"))
+                {
+                    fullUrl = $"{pageUri.Scheme}:{href}";
+                }
+                else
+                {
+                    fullUrl = new Uri(pageUri, href).ToString();
+                }
+
+                candidates.Add(new FaviconCandidate(fullUrl, priority));
+            }
+
+            foreach (var candidate in candidates.OrderBy(c => c.Priority))
+            {
+                if (await FetchAndProcessFavicon(candidate.Url, cachePath))
+                {
+                    return cachePath;
+                }
+            }
+
+            return null;
+        }
+
+        private static async Task<string?> ReadHeadContentAsync(Stream stream)
+        {
+            using var reader = new StreamReader(stream, Encoding.UTF8, true, 1024, true);
+            var buffer = new char[4096];
+            var content = new StringBuilder();
+            bool inScript = false;
+            bool inStyle = false;
+
+            while (true)
+            {
+                int charsRead = await reader.ReadAsync(buffer, 0, buffer.Length);
+                if (charsRead == 0) break;
+
+                content.Append(buffer, 0, charsRead);
+                var currentContent = content.ToString();
+
+                int searchIndex = 0;
+                while (searchIndex < currentContent.Length)
+                {
+                    int scriptIndex = currentContent.IndexOf(inScript ? "</script>" : "<script", searchIndex, StringComparison.OrdinalIgnoreCase);
+                    int styleIndex = currentContent.IndexOf(inStyle ? "</style>" : "<style", searchIndex, StringComparison.OrdinalIgnoreCase);
+                    int headIndex = currentContent.IndexOf("</head>", searchIndex, StringComparison.OrdinalIgnoreCase);
+
+                    int firstIndex = new[] { scriptIndex, styleIndex, headIndex }.Where(i => i != -1).DefaultIfEmpty(-1).Min();
+
+                    if (firstIndex == -1)
+                    {
+                        searchIndex = currentContent.Length;
+                        continue;
+                    }
+
+                    if (firstIndex == headIndex && !inScript && !inStyle)
+                    {
+                        return currentContent.Substring(0, headIndex + "</head>".Length);
+                    }
+                    if (firstIndex == scriptIndex)
+                    {
+                        inScript = !inScript;
+                        searchIndex = scriptIndex + (inScript ? "<script".Length : "</script>".Length);
+                    }
+                    else if (firstIndex == styleIndex)
+                    {
+                        inStyle = !inStyle;
+                        searchIndex = styleIndex + (inStyle ? "<style".Length : "</style>".Length);
+                    }
+                }
+
+                if (content.Length > 100 * 1024)
+                {
+                    LogManager.LogDebug("HTML head section not found within the first 100KB. Aborting parse.");
+                    return content.ToString();
+                }
+            }
+
+            return content.ToString();
+        }
+
+
+        private static int GetPriorityFromSize(string size)
+        {
+            return size switch
+            {
+                "32x32" => 0,
+                "48x48" => 1,
+                "24x24" => 2,
+                var s when !string.IsNullOrEmpty(s) => 3,
+                _ => 4
+            };
+        }
+
+        public async Task<string?> GetPageTitleAsync(string url)
+        {
+            if (_titleCache.TryGetValue(url, out var cachedTitle))
+            {
+                return cachedTitle;
+            }
+
+            try
+            {
+                var html = await _httpClient.GetStringAsync(url);
+                var match = TitleRegex.Match(html);
+                if (match.Success)
+                {
+                    var title = System.Net.WebUtility.HtmlDecode(match.Groups[1].Value.Trim());
+                    _titleCache.TryAdd(url, title);
+                    return title;
+                }
+            }
+            catch (Exception ex)
+            {
+                LogManager.Log(ex, $"Failed to fetch page title for {url}");
+            }
+
+            _titleCache.TryAdd(url, string.Empty);
+            return null;
+        }
+
+        private async Task<bool> FetchAndProcessFavicon(string faviconUrl, string cachePath)
+        {
+            try
+            {
+                LogManager.LogDebug($"Attempting to fetch favicon: {faviconUrl}");
+                var response = await _httpClient.GetAsync(faviconUrl);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    LogManager.LogDebug($"Favicon fetch failed for {faviconUrl} with status code {response.StatusCode}.");
+                    return false;
+                }
+
+                var contentType = response.Content.Headers.ContentType?.MediaType;
+                LogManager.LogDebug($"Received response for {faviconUrl}. Status: {response.StatusCode}, Content-Type: {contentType}");
+
+                byte[]? outputBytes = null;
+                var uri = new Uri(faviconUrl);
+                var extension = Path.GetExtension(uri.AbsolutePath).ToLowerInvariant();
+
+                if (extension == ".svg")
+                {
+                    if (contentType?.Contains("svg") != true)
+                    {
+                        LogManager.LogDebug($"Expected SVG content-type for {faviconUrl}, but received {contentType}. Skipping parse.");
+                        return false;
+                    }
+                    var svgContent = await response.Content.ReadAsStringAsync();
+                    outputBytes = await ServiceUtils.GenerateSvgPreviewAsync(svgContent, ThumbnailSize, "light", true);
+                }
+                else
+                {
+                    if (contentType?.StartsWith("image/") != true)
+                    {
+                        LogManager.LogDebug($"Expected an image content-type for {faviconUrl}, but received {contentType}. Skipping parse.");
+                        return false;
+                    }
+                    await using var contentStream = await response.Content.ReadAsStreamAsync();
+                    using var image = await ImageDecoder.DecodeAsync(contentStream, extension);
+                    if (image != null)
+                    {
+                        image.Mutate(x => x.Resize(ThumbnailSize, ThumbnailSize));
+                        await using var ms = new MemoryStream();
+                        await image.SaveAsPngAsync(ms, _pngEncoder);
+                        outputBytes = ms.ToArray();
+                    }
+                }
+
+                if (outputBytes != null)
+                {
+                    await File.WriteAllBytesAsync(cachePath, outputBytes);
+                    LogManager.LogDebug($"Successfully processed and cached favicon for {faviconUrl}.");
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                LogManager.Log(ex, $"Favicon fetch/process failed for {faviconUrl}.");
+            }
+            return false;
+        }
+
+        public void ClearCache()
+        {
+            try
+            {
+                ServiceUtils.DeleteDirectoryContents(_faviconCacheDir);
+                _titleCache.Clear();
+                _failedFaviconUrls.Clear();
+                LogManager.Log("Web metadata caches cleared successfully.");
+            }
+            catch (Exception ex)
+            {
+                LogManager.Log(ex, "Failed to clear web caches.");
+            }
+        }
+
+        public void ClearCacheForUrl(string url)
+        {
+            if (string.IsNullOrEmpty(url)) return;
+
+            try
+            {
+                var successCachePath = ServiceUtils.GetCachePath(url, _faviconCacheDir, ".png");
+                if (File.Exists(successCachePath))
+                {
+                    File.Delete(successCachePath);
+                }
+
+                var failureCachePath = ServiceUtils.GetCachePath(url, _faviconCacheDir, ".failed");
+                if (File.Exists(failureCachePath))
+                {
+                    File.Delete(failureCachePath);
+                }
+
+                _failedFaviconUrls.TryRemove(url, out _);
+
+                LogManager.LogDebug($"Cleared favicon cache for URL: {url}");
+            }
+            catch (Exception ex)
+            {
+                LogManager.Log(ex, $"Failed to clear cache for URL: {url}");
+            }
+        }
+
+        public async Task<int> PruneCacheAsync(IAsyncEnumerable<string> validUrls)
+        {
+            var validCacheFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            await foreach (var url in validUrls)
+            {
+                validCacheFiles.Add(ServiceUtils.GetCachePath(url, _faviconCacheDir, ".png"));
+                validCacheFiles.Add(ServiceUtils.GetCachePath(url, _faviconCacheDir, ".failed"));
+            }
+
+            return await ServiceUtils.PruneDirectoryAsync(_faviconCacheDir, validCacheFiles);
+        }
+    }
+}

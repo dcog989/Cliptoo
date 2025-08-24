@@ -1,0 +1,39 @@
+<UserControl
+    x:Class="Cliptoo.UI.Views.ClearOversizedDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    xmlns:viewModels="clr-namespace:Cliptoo.UI.ViewModels"
+    d:DataContext="{d:DesignInstance Type=viewModels:ClearOversizedDialogViewModel}"
+    d:DesignHeight="150"
+    d:DesignWidth="300"
+    mc:Ignorable="d">
+    <StackPanel>
+        <TextBlock
+            FontSize="16"
+            FontWeight="SemiBold"
+            Text="Clear Oversized Clips?" />
+        <TextBlock
+            Margin="0,12,0,0"
+            Text="This will permanently delete non-pinned items from your history and cannot be undone."
+            TextWrapping="Wrap" />
+        <StackPanel Margin="0,15,0,0" Orientation="Horizontal">
+            <TextBlock
+                VerticalAlignment="Center"
+                Style="{StaticResource SettingLabel}"
+                Text="Larger than" />
+            <ui:NumberBox
+                Width="100"
+                Margin="5,0,5,0"
+                ClearButtonEnabled="False"
+                Minimum="1"
+                Value="{Binding SizeMb, UpdateSourceTrigger=PropertyChanged}" />
+            <TextBlock
+                VerticalAlignment="Center"
+                Style="{StaticResource SettingLabel}"
+                Text="MB" />
+        </StackPanel>
+    </StackPanel>
+</UserControl>

@@ -1,0 +1,48 @@
+<UserControl
+    x:Class="Cliptoo.UI.Views.SettingsPages.KeyboardSettingsView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:helpers="clr-namespace:Cliptoo.UI.Helpers"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    d:DesignHeight="450"
+    d:DesignWidth="800"
+    mc:Ignorable="d">
+    <ScrollViewer Padding="15,20,15,15">
+        <StackPanel>
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Style="{StaticResource SettingLabel}" Text="Launch with hotkey" />
+                <ui:TextBox
+                    Width="160"
+                    helpers:HotkeyInputBehavior.HotkeyTarget="Main"
+                    helpers:HotkeyInputBehavior.IsEnabled="True"
+                    Style="{StaticResource CaptureHotkeyStyle}"
+                    Text="{Binding Hotkey, Mode=OneWay}" />
+            </StackPanel>
+            <StackPanel Margin="0,15,0,0" Orientation="Horizontal">
+                <TextBlock Style="{StaticResource SettingLabel}" Text="Display preview tooltip hotkey" />
+                <ui:TextBox
+                    Width="160"
+                    helpers:HotkeyInputBehavior.HotkeyTarget="Preview"
+                    helpers:HotkeyInputBehavior.IsEnabled="True"
+                    Style="{StaticResource CaptureHotkeyStyle}"
+                    Text="{Binding PreviewHotkey, Mode=OneWay}" />
+            </StackPanel>
+            <StackPanel Margin="0,15,0,0" Orientation="Horizontal">
+                <TextBlock Style="{StaticResource SettingLabel}" Text="Quick paste hotkey" />
+                <ui:TextBox
+                    Width="160"
+                    helpers:HotkeyInputBehavior.HotkeyTarget="QuickPaste"
+                    helpers:HotkeyInputBehavior.IsEnabled="True"
+                    Style="{StaticResource CaptureHotkeyStyle}"
+                    Text="{Binding QuickPasteHotkey, Mode=OneWay}"
+                    ToolTip="Hold this combination to show paste numbers, then press 1-9 to paste" />
+                <TextBlock
+                    Margin="5,0,0,0"
+                    VerticalAlignment="Center"
+                    Text="(activates 1-9)" />
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

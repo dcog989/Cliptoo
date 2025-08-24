@@ -1,0 +1,279 @@
+<UserControl
+    x:Class="Cliptoo.UI.Controls.ClipItemControl"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:converters="clr-namespace:Cliptoo.UI.Converters"
+    xmlns:core="clr-namespace:Cliptoo.Core;assembly=Cliptoo.Core"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:helpers="clr-namespace:Cliptoo.UI.Helpers"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:tooltips="clr-namespace:Cliptoo.UI.Controls.Tooltips"
+    xmlns:viewModels="clr-namespace:Cliptoo.UI.ViewModels"
+    Height="Auto"
+    Padding="{Binding PaddingSize, Converter={StaticResource PaddingSizeToThicknessConverter}}"
+    d:DataContext="{d:DesignInstance Type=viewModels:ClipViewModel}"
+    Background="Transparent"
+    SnapsToDevicePixels="True"
+    TextOptions.TextFormattingMode="Display"
+    TextOptions.TextRenderingMode="ClearType"
+    mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <helpers:BindingProxy x:Key="Proxy" Data="{Binding DataContext, RelativeSource={RelativeSource AncestorType=ListView}}" />
+        <DrawingBrush
+            x:Key="CheckerboardBrush"
+            TileMode="Tile"
+            Viewport="0,0,10,10"
+            ViewportUnits="Absolute">
+            <DrawingBrush.Drawing>
+                <DrawingGroup>
+                    <GeometryDrawing Brush="#FFF">
+                        <GeometryDrawing.Geometry>
+                            <RectangleGeometry Rect="0,0,10,10" />
+                        </GeometryDrawing.Geometry>
+                    </GeometryDrawing>
+                    <GeometryDrawing Brush="#DDD">
+                        <GeometryDrawing.Geometry>
+                            <GeometryGroup>
+                                <RectangleGeometry Rect="0,0,5,5" />
+                                <RectangleGeometry Rect="5,5,5,5" />
+                            </GeometryGroup>
+                        </GeometryDrawing.Geometry>
+                    </GeometryDrawing>
+                </DrawingGroup>
+            </DrawingBrush.Drawing>
+        </DrawingBrush>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid Background="Transparent" Tag="{StaticResource Proxy}">
+            <Grid.ContextMenu>
+                <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                    <MenuItem
+                        Command="{Binding EditClipCommand}"
+                        Header="Edit"
+                        Visibility="{Binding IsEditable, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                    <MenuItem
+                        Command="{Binding TogglePinCommand}"
+                        Header="Pin"
+                        IsCheckable="True"
+                        IsChecked="{Binding IsPinned, Mode=OneWay}">
+                        <MenuItem.Icon>
+                            <Image
+                                Width="16"
+                                Height="16"
+                                Source="{Binding PinIcon16}" />
+                        </MenuItem.Icon>
+                    </MenuItem>
+                    <MenuItem Command="{Binding MoveToTopCommand}" Header="Move to Top" />
+                    <Separator />
+                    <MenuItem
+                        Command="{Binding PasteAsPlainTextCommand}"
+                        Header="Plain Text"
+                        Visibility="{Binding CanPasteAsPlainText, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                    <MenuItem
+                        Command="{Binding PasteAsRtfCommand}"
+                        Header="RTF Text"
+                        Visibility="{Binding CanPasteAsRtf, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                    <MenuItem Header="Paste Transform" Visibility="{Binding IsTextTransformable, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <MenuItem
+                            Command="{Binding TransformAndPasteCommand}"
+                            CommandParameter="{x:Static core:AppConstants+TransformTypes.Trim}"
+                            Header="Trim White Space" />
+                        <MenuItem
+                            Command="{Binding TransformAndPasteCommand}"
+                            CommandParameter="{x:Static core:AppConstants+TransformTypes.Lf1}"
+                            Header="1 Line Feed After" />
+                        <MenuItem
+                            Command="{Binding TransformAndPasteCommand}"
+                            CommandParameter="{x:Static core:AppConstants+TransformTypes.Lf2}"
+                            Header="2 Line Feeds After" />
+                        <MenuItem
+                            Command="{Binding TransformAndPasteCommand}"
+                            CommandParameter="{x:Static core:AppConstants+TransformTypes.RemoveLf}"
+                            Header="Remove Line Feeds" />
+                        <MenuItem
+                            Command="{Binding TransformAndPasteCommand}"
+                            CommandParameter="{x:Static core:AppConstants+TransformTypes.Timestamp}"
+                            Header="Timestamp" />
+                    </MenuItem>
+                    <MenuItem Header="Paste Case" Visibility="{Binding IsTextTransformable, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <MenuItem
+                            Command="{Binding TransformAndPasteCommand}"
+                            CommandParameter="{x:Static core:AppConstants+TransformTypes.Upper}"
+                            Header="UPPER CASE" />
+                        <MenuItem
+                            Command="{Binding TransformAndPasteCommand}"
+                            CommandParameter="{x:Static core:AppConstants+TransformTypes.Lower}"
+                            Header="lower case" />
+                        <MenuItem
+                            Command="{Binding TransformAndPasteCommand}"
+                            CommandParameter="{x:Static core:AppConstants+TransformTypes.Capitalize}"
+                            Header="Capitalize Case" />
+                        <MenuItem
+                            Command="{Binding TransformAndPasteCommand}"
+                            CommandParameter="{x:Static core:AppConstants+TransformTypes.Sentence}"
+                            Header="Sentence case" />
+                        <MenuItem
+                            Command="{Binding TransformAndPasteCommand}"
+                            CommandParameter="{x:Static core:AppConstants+TransformTypes.Invert}"
+                            Header="iNVERT cASE" />
+                        <MenuItem
+                            Command="{Binding TransformAndPasteCommand}"
+                            CommandParameter="{x:Static core:AppConstants+TransformTypes.Kebab}"
+                            Header="kebab-case" />
+                        <MenuItem
+                            Command="{Binding TransformAndPasteCommand}"
+                            CommandParameter="{x:Static core:AppConstants+TransformTypes.Snake}"
+                            Header="snake__case" />
+                        <MenuItem
+                            Command="{Binding TransformAndPasteCommand}"
+                            CommandParameter="{x:Static core:AppConstants+TransformTypes.Camel}"
+                            Header="CamelCase" />
+                        <MenuItem
+                            Command="{Binding TransformAndPasteCommand}"
+                            CommandParameter="{x:Static core:AppConstants+TransformTypes.Deslug}"
+                            Header="Deslug" />
+                    </MenuItem>
+                    <Separator />
+                    <MenuItem
+                        Command="{Binding SelectForCompareLeftCommand}"
+                        Header="{Binding CompareLeftHeader}"
+                        Visibility="{Binding ShowCompareMenu, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                    <MenuItem Command="{Binding CompareWithSelectedRightCommand}" Header="Compare Right">
+                        <MenuItem.Style>
+                            <Style TargetType="MenuItem">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <MultiDataTrigger>
+                                        <MultiDataTrigger.Conditions>
+                                            <Condition Binding="{Binding ShowCompareMenu}" Value="True" />
+                                            <Condition Binding="{Binding ShowCompareRightOption}" Value="True" />
+                                        </MultiDataTrigger.Conditions>
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </MultiDataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </MenuItem.Style>
+                    </MenuItem>
+                    <Separator />
+                    <MenuItem
+                        Command="{Binding DeleteCommand}"
+                        Foreground="{DynamicResource ErrorTextBrush}"
+                        Header="DELETE" />
+                </ContextMenu>
+            </Grid.ContextMenu>
+
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <Grid
+                Grid.Column="0"
+                Width="Auto"
+                Height="Auto"
+                Margin="0,0,10,0"
+                VerticalAlignment="Center"
+                ToolTip="{Binding ClipType, Converter={StaticResource ClipTypeToFriendlyNameConverter}}">
+                <Grid
+                    Width="20"
+                    Height="20"
+                    Visibility="{Binding ClipType, Converter={StaticResource EqualityToVisibilityConverter}, ConverterParameter=color}">
+                    <Rectangle Fill="{StaticResource CheckerboardBrush}" Visibility="{Binding Content, Converter={StaticResource ColorToTransparencyVisibilityConverter}}" />
+                    <Border
+                        Background="{Binding Content, Converter={StaticResource ColorToBrushConverter}}"
+                        BorderBrush="Gray"
+                        BorderThickness="1"
+                        CornerRadius="3" />
+                </Grid>
+
+                <StackPanel Orientation="Horizontal">
+                    <StackPanel.Style>
+                        <Style TargetType="StackPanel">
+                            <Setter Property="Visibility" Value="Visible" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding ClipType}" Value="color">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </StackPanel.Style>
+
+                    <Grid Width="20" Height="20">
+                        <Grid Visibility="{Binding HasThumbnail, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <Image
+                                RenderOptions.BitmapScalingMode="Fant"
+                                Source="{Binding ThumbnailSource}"
+                                Stretch="Uniform" />
+                        </Grid>
+                        <Image
+                            RenderOptions.BitmapScalingMode="Fant"
+                            Source="{Binding ClipTypeIcon}"
+                            Stretch="Uniform"
+                            Visibility="{Binding HasThumbnail, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=inverse}" />
+                    </Grid>
+                </StackPanel>
+            </Grid>
+            <Grid
+                Grid.Column="1"
+                Background="Transparent"
+                MouseEnter="ClipItem_MouseEnter"
+                MouseLeave="ClipItem_MouseLeave">
+                <Grid.Style>
+                    <Style TargetType="Grid">
+                        <Setter Property="ToolTipService.IsEnabled" Value="{Binding DataContext.CurrentSettings.ShowHoverPreview, RelativeSource={RelativeSource AncestorType=ListView}}" />
+                    </Style>
+                </Grid.Style>
+                <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
+                    <Image
+                        Width="20"
+                        Height="20"
+                        Margin="0,0,4,0"
+                        VerticalAlignment="Center"
+                        Source="{Binding WasTrimmedIcon}"
+                        ToolTip="Content was modified (e.g., whitespace trimmed or content truncated)"
+                        Visibility="{Binding WasTrimmed, Converter={StaticResource BooleanToVisibilityConverter}}" />
+
+                    <TextBlock
+                        x:Name="PreviewTextBlock"
+                        VerticalAlignment="Center"
+                        helpers:TextBlockHighlighter.FormattedText="{Binding Preview}"
+                        FontFamily="{Binding CurrentFontFamily}"
+                        FontSize="{Binding CurrentFontSize}"
+                        TextTrimming="CharacterEllipsis">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Foreground" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListViewItem}, FallbackValue={StaticResource PrimaryForeground}}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsSourceMissing}" Value="True">
+                                        <Setter Property="Foreground" Value="{StaticResource SecondaryForeground}" />
+                                        <Setter Property="TextDecorations" Value="Strikethrough" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </StackPanel>
+            </Grid>
+
+            <StackPanel Grid.Column="2" Orientation="Horizontal">
+                <Image
+                    Width="20"
+                    Height="20"
+                    Margin="2,0,0,0"
+                    Source="{Binding PinIcon}"
+                    ToolTip="Pinned"
+                    Visibility="{Binding IsPinned, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                <Image
+                    Width="20"
+                    Height="20"
+                    Margin="2,0,0,0"
+                    Source="{Binding MultiLineIcon}"
+                    ToolTip="Multi-line Content"
+                    Visibility="{Binding IsMultiLine, Converter={StaticResource BooleanToVisibilityConverter}}" />
+            </StackPanel>
+        </Grid>
+    </Grid>
+</UserControl>

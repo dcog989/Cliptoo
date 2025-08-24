@@ -1,0 +1,90 @@
+<UserControl
+    x:Class="Cliptoo.UI.Controls.Tooltips.TextPreviewTooltip"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:converters="clr-namespace:Cliptoo.UI.Converters"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:helpers="clr-namespace:Cliptoo.UI.Helpers"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    d:DesignHeight="300"
+    d:DesignWidth="400"
+    mc:Ignorable="d">
+    <Grid>
+        <StackPanel
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center"
+            Orientation="Horizontal"
+            Visibility="{Binding IsSourceMissing, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <Image
+                Width="32"
+                Height="32"
+                Margin="0,0,8,0"
+                Source="{Binding ErrorIcon}" />
+            <TextBlock
+                VerticalAlignment="Center"
+                FontStyle="Italic"
+                FontWeight="Bold"
+                Foreground="{DynamicResource ErrorTextBrush}"
+                Text="File not found - moved or deleted?" />
+        </StackPanel>
+
+        <Grid Visibility="{Binding IsSourceMissing, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=inverse}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <TextBox
+                Grid.Row="0"
+                Margin="5"
+                Background="{StaticResource SecondaryBackground}"
+                BorderThickness="0"
+                FontFamily="{Binding PreviewFont}"
+                FontSize="{Binding PreviewFontSize}"
+                Foreground="{StaticResource PrimaryForeground}"
+                HorizontalScrollBarVisibility="Disabled"
+                IsReadOnly="True"
+                Text="{Binding TooltipTextContent, Mode=OneWay}"
+                TextWrapping="Wrap"
+                VerticalScrollBarVisibility="Auto" />
+            <Border
+                Grid.Row="1"
+                BorderBrush="{DynamicResource PrimaryBorderBrush}"
+                BorderThickness="0,1,0,0">
+                <StackPanel Margin="5">
+                    <TextBlock
+                        FontFamily="{Binding PreviewFont}"
+                        FontSize="{Binding PreviewFontSize}"
+                        FontWeight="Bold"
+                        Foreground="{StaticResource PrimaryForeground}"
+                        Text="{Binding FileName}"
+                        TextWrapping="Wrap"
+                        Visibility="{Binding FileName, Converter={StaticResource NullToVisibilityConverter}}" />
+                    <TextBlock
+                        FontFamily="{Binding PreviewFont}"
+                        FontSize="{Binding PreviewFontSize}"
+                        FontStyle="Italic"
+                        Foreground="{StaticResource SecondaryForeground}"
+                        Text="{Binding FileProperties}"
+                        TextWrapping="Wrap"
+                        Visibility="{Binding FileProperties, Converter={StaticResource NullToVisibilityConverter}}" />
+                    <TextBlock
+                        FontFamily="{Binding PreviewFont}"
+                        FontSize="{Binding PreviewFontSize}"
+                        FontStyle="Italic"
+                        Foreground="{StaticResource SecondaryForeground}"
+                        Text="{Binding FileTypeInfo}"
+                        TextWrapping="Wrap"
+                        Visibility="{Binding FileTypeInfo, Converter={StaticResource NullToVisibilityConverter}}" />
+                    <TextBlock
+                        HorizontalAlignment="Left"
+                        FontFamily="{Binding PreviewFont}"
+                        FontSize="{Binding PreviewFontSize}"
+                        FontStyle="Italic"
+                        Foreground="{StaticResource SecondaryForeground}"
+                        Text="{Binding LineCountInfo}"
+                        Visibility="{Binding LineCountInfo, Converter={StaticResource NullToVisibilityConverter}}" />
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

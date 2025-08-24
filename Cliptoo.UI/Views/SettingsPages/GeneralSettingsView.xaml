@@ -1,0 +1,119 @@
+<UserControl
+    x:Class="Cliptoo.UI.Views.SettingsPages.GeneralSettingsView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:helpers="clr-namespace:Cliptoo.UI.Helpers"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:sys="clr-namespace:System;assembly=mscorlib"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    d:DesignHeight="450"
+    d:DesignWidth="800"
+    mc:Ignorable="d">
+    <UserControl.Resources>
+        <x:Array x:Key="LoggingLevelOptions" Type="sys:String">
+            <sys:String>None</sys:String>
+            <sys:String>Info</sys:String>
+            <sys:String>Debug</sys:String>
+        </x:Array>
+    </UserControl.Resources>
+    <ScrollViewer Padding="15,20,15,15" VerticalScrollBarVisibility="Auto">
+        <StackPanel>
+            <StackPanel Margin="0,0,0,0" Orientation="Horizontal">
+                <TextBlock Style="{StaticResource SettingLabel}" Text="Launch at" />
+                <ComboBox
+                    HorizontalAlignment="Left"
+                    ItemsSource="{StaticResource LaunchPositionOptions}"
+                    SelectedItem="{Binding LaunchPosition}"
+                    Style="{StaticResource SettingsComboBoxStyle}" />
+                <TextBlock
+                    Margin="10,0,10,0"
+                    Style="{StaticResource SettingLabel}"
+                    Text="using hotkey" />
+                <ui:TextBox
+                    Width="160"
+                    helpers:HotkeyInputBehavior.HotkeyTarget="Main"
+                    helpers:HotkeyInputBehavior.IsEnabled="True"
+                    Style="{StaticResource CaptureHotkeyStyle}"
+                    Text="{Binding Hotkey, Mode=OneWay}" />
+            </StackPanel>
+
+            <StackPanel Margin="20,15,0,0" Visibility="{Binding LaunchPosition, Converter={StaticResource EqualityToVisibilityConverter}, ConverterParameter=fixed}">
+                <TextBlock Style="{StaticResource SettingLabel}" Text="Fixed Position (X, Y):" />
+                <StackPanel Margin="0,5,0,0" Orientation="Horizontal">
+                    <ui:NumberBox
+                        Width="100"
+                        ClearButtonEnabled="False"
+                        Style="{StaticResource SettingsNumberBoxStyle}"
+                        Value="{Binding Settings.FixedX}" />
+                    <ui:NumberBox
+                        Width="100"
+                        Margin="10,0,0,0"
+                        ClearButtonEnabled="False"
+                        Style="{StaticResource SettingsNumberBoxStyle}"
+                        Value="{Binding Settings.FixedY}" />
+                </StackPanel>
+            </StackPanel>
+
+            <CheckBox
+                Margin="0,15,0,0"
+                Content="Start with Windows"
+                IsChecked="{Binding StartWithWindows}" />
+            <CheckBox
+                Margin="0,15,0,0"
+                Content="Always paste as plain text"
+                IsChecked="{Binding PasteAsPlainText}"
+                ToolTip="Strips formatting from clips like RTF or images before pasting." />
+            <CheckBox
+                Margin="0,15,0,0"
+                Content="Remember search input"
+                IsChecked="{Binding Settings.RememberSearchInput}"
+                ToolTip="Keep the search term in the search box when the window is reopened." />
+            <CheckBox
+                Margin="0,15,0,0"
+                Content="Remember filter selection"
+                IsChecked="{Binding Settings.RememberFilterSelection}"
+                ToolTip="Keep the last used filter active when the window is reopened." />
+
+            <CheckBox
+                Margin="0,15,0,0"
+                Content="Display logo"
+                IsChecked="{Binding DisplayLogo}" />
+
+            <Grid Margin="0,15,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock
+                    Grid.Column="0"
+                    Style="{StaticResource SettingLabel}"
+                    Text="Path to compare program" />
+                <ui:TextBox
+                    Grid.Column="1"
+                    Style="{StaticResource SettingsTextBoxStyle}"
+                    Text="{Binding CompareToolPath, UpdateSourceTrigger=PropertyChanged}" />
+                <ui:Button
+                    Grid.Column="2"
+                    Margin="5,0,0,0"
+                    Command="{Binding BrowseCompareToolCommand}"
+                    Content="Browse..."
+                    Style="{StaticResource SettingsButtonStyle}" />
+            </Grid>
+
+            <StackPanel Margin="0,15,0,0" Orientation="Horizontal">
+                <TextBlock
+                    Margin="0,0,10,0"
+                    VerticalAlignment="Center"
+                    Style="{StaticResource SettingLabel}"
+                    Text="Logging" />
+                <ComboBox
+                    MinWidth="100"
+                    ItemsSource="{StaticResource LoggingLevelOptions}"
+                    SelectedItem="{Binding LoggingLevel}"
+                    Style="{StaticResource SettingsComboBoxStyle}" />
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
