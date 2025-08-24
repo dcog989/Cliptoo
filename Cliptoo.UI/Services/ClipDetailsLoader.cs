@@ -81,7 +81,7 @@ namespace Cliptoo.UI.Services
                     {
                         var dirInfo = new DirectoryInfo(path);
                         sb.AppendLine($"Modified: {dirInfo.LastWriteTime:yyyy-MM-dd HH:mm}");
-                        fileTypeInfo = GetFriendlyClipTypeName(vm.ClipType);
+                        fileTypeInfo = FormatUtils.GetFriendlyClipTypeName(vm.ClipType);
                         try
                         {
                             var dirSize = await Task.Run(() => CalculateDirectorySize(dirInfo, token), token);
@@ -103,7 +103,7 @@ namespace Cliptoo.UI.Services
                         var fileInfo = new FileInfo(path);
                         sb.AppendLine($"Size: {FormatUtils.FormatBytes(fileInfo.Length)}");
                         sb.AppendLine($"Modified: {fileInfo.LastWriteTime:yyyy-MM-dd HH:mm}");
-                        fileTypeInfo = $"{fileInfo.Extension.ToLower()} ({GetFriendlyClipTypeName(vm.ClipType)})";
+                        fileTypeInfo = $"{fileInfo.Extension.ToLower()} ({FormatUtils.GetFriendlyClipTypeName(vm.ClipType)})";
 
                         if (vm.IsImage)
                         {
@@ -182,26 +182,5 @@ namespace Cliptoo.UI.Services
             return (size, fileCount, folderCount);
         }
 
-        private string GetFriendlyClipTypeName(string clipType)
-        {
-            return clipType switch
-            {
-                AppConstants.ClipTypes.Archive => "Archive File",
-                AppConstants.ClipTypes.Audio => "Audio File",
-                AppConstants.ClipTypes.Dev => "Dev File",
-                AppConstants.ClipTypes.Danger => "Potentially Unsafe File",
-                AppConstants.ClipTypes.Database => "Database File",
-                AppConstants.ClipTypes.Document => "Document File",
-                AppConstants.ClipTypes.FileLink => "Link File",
-                AppConstants.ClipTypes.FileText => "Text File",
-                AppConstants.ClipTypes.Folder => "Folder",
-                AppConstants.ClipTypes.Font => "Font File",
-                AppConstants.ClipTypes.Generic => "Generic File",
-                AppConstants.ClipTypes.Image => "Image File",
-                AppConstants.ClipTypes.System => "System File",
-                AppConstants.ClipTypes.Video => "Video File",
-                _ => "File"
-            };
-        }
     }
 }
