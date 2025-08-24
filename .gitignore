@@ -1,6 +1,7 @@
 
 .repomixignore
 repomix.config.json
+TODO.md
 .archive/
 .gemini/
 

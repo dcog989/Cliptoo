@@ -1,1 +1,3 @@
-# Cliptoo for Windows
+# Cliptoo
+
+The advanced clipboard manager.
