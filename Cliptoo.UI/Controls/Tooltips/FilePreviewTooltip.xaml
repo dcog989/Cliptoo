@@ -10,7 +10,7 @@
     d:DesignHeight="100"
     d:DesignWidth="300"
     mc:Ignorable="d">
-    <StackPanel Margin="5">
+    <StackPanel Margin="10">
         <TextBlock
             FontStyle="Italic"
             Foreground="{StaticResource SecondaryForeground}"
@@ -45,12 +45,24 @@
                     FontSize="{Binding PreviewFontSize}"
                     Foreground="{StaticResource PrimaryForeground}"
                     Text="{Binding FileProperties}" />
-                <TextBlock
+                <StackPanel
                     Margin="0,2,0,0"
-                    FontFamily="{Binding PreviewFont}"
-                    FontSize="{Binding PreviewFontSize}"
-                    Foreground="{StaticResource SecondaryForeground}"
-                    Text="{Binding FileTypeInfo}" />
+                    Orientation="Horizontal"
+                    Visibility="{Binding FileTypeInfo, Converter={StaticResource NullToVisibilityConverter}}">
+                    <Image
+                        Width="16"
+                        Height="16"
+                        Margin="0,0,5,0"
+                        VerticalAlignment="Center"
+                        RenderOptions.BitmapScalingMode="Fant"
+                        Source="{Binding FileTypeInfoIcon}" />
+                    <TextBlock
+                        VerticalAlignment="Center"
+                        FontFamily="{Binding PreviewFont}"
+                        FontSize="{Binding PreviewFontSize}"
+                        Foreground="{StaticResource SecondaryForeground}"
+                        Text="{Binding FileTypeInfo}" />
+                </StackPanel>
             </StackPanel>
         </StackPanel>
     </StackPanel>

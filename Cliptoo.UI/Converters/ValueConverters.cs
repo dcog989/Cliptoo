@@ -184,7 +184,7 @@ namespace Cliptoo.UI.Converters
                 AppConstants.ClipTypes.Audio => "Audio File",
                 AppConstants.ClipTypes.Archive => "Archive File",
                 AppConstants.ClipTypes.Document => "Document File",
-                AppConstants.ClipTypes.Dev => "Code File",
+                AppConstants.ClipTypes.Dev => "Dev File",
                 AppConstants.ClipTypes.CodeSnippet => "Code Snippet",
                 AppConstants.ClipTypes.Folder => "Folder",
                 AppConstants.ClipTypes.Danger => "Potentially Unsafe File",

@@ -59,6 +59,8 @@ namespace Cliptoo.UI.ViewModels
         private ImageSource? _pinIcon16;
         private ImageSource? _quickPasteIcon;
         private ImageSource? _errorIcon;
+        private ImageSource? _fileTypeInfoIcon;
+        public ImageSource? FileTypeInfoIcon { get => _fileTypeInfoIcon; private set => SetProperty(ref _fileTypeInfoIcon, value); }
         public ImageSource? ClipTypeIcon { get => _clipTypeIcon; private set => SetProperty(ref _clipTypeIcon, value); }
         public ImageSource? WasTrimmedIcon { get => _wasTrimmedIcon; private set => SetProperty(ref _wasTrimmedIcon, value); }
         public ImageSource? MultiLineIcon { get => _multiLineIcon; private set => SetProperty(ref _multiLineIcon, value); }
@@ -66,6 +68,7 @@ namespace Cliptoo.UI.ViewModels
         public ImageSource? PinIcon16 { get => _pinIcon16; private set => SetProperty(ref _pinIcon16, value); }
         public ImageSource? QuickPasteIcon { get => _quickPasteIcon; private set => SetProperty(ref _quickPasteIcon, value); }
         public ImageSource? ErrorIcon { get => _errorIcon; private set => SetProperty(ref _errorIcon, value); }
+
         public bool IsTextTransformable => IsEditable;
         public bool IsCompareToolAvailable => MainViewModel.IsCompareToolAvailable;
         public bool ShowCompareMenu => IsComparable && IsCompareToolAvailable;
@@ -578,6 +581,7 @@ namespace Cliptoo.UI.ViewModels
             IsFilePropertiesLoading = true;
             FileProperties = null;
             FileTypeInfo = null;
+            FileTypeInfoIcon = null;
 
             var (properties, typeInfo, isMissing) = await _clipDetailsLoader.GetFilePropertiesAsync(this, token);
 
@@ -587,6 +591,11 @@ namespace Cliptoo.UI.ViewModels
                 FileTypeInfo = typeInfo;
                 IsSourceMissing = isMissing;
                 IsFilePropertiesLoading = false;
+
+                if (!isMissing && !string.IsNullOrEmpty(ClipType))
+                {
+                    FileTypeInfoIcon = await _iconProvider.GetIconAsync(this.ClipType, 16);
+                }
             }
         }
 

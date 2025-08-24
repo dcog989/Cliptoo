@@ -266,7 +266,7 @@ namespace Cliptoo.UI.ViewModels
                 { AppConstants.FilterKeys.Pinned, "Pinned" },
                 { AppConstants.ClipTypes.Archive, "Archives" },
                 { AppConstants.ClipTypes.Audio, "Audio" },
-                { AppConstants.ClipTypes.Dev, "Code Files" },
+                { AppConstants.ClipTypes.Dev, "Dev Files" },
                 { AppConstants.ClipTypes.CodeSnippet, "Code Snippets" },
                 { AppConstants.ClipTypes.Color, "Colors" },
                 { AppConstants.ClipTypes.Danger, "Dangerous" },

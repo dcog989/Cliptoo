@@ -45,9 +45,11 @@
             Foreground="{StaticResource SecondaryForeground}"
             Text="Loading..."
             Visibility="{Binding IsFilePropertiesLoading, Converter={StaticResource BooleanToVisibilityConverter}}" />
-        <StackPanel Visibility="{Binding IsFilePropertiesLoading, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=inverse}">
+        <StackPanel
+            Margin="10"
+            VerticalAlignment="Center"
+            Visibility="{Binding IsFilePropertiesLoading, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=inverse}">
             <TextBlock
-                Margin="10,6,10,0"
                 FontFamily="{Binding PreviewFont}"
                 FontSize="{Binding PreviewFontSize}"
                 FontWeight="Bold"
@@ -56,19 +58,30 @@
                 TextWrapping="Wrap"
                 Visibility="{Binding FileName, Converter={StaticResource NullToVisibilityConverter}}" />
             <TextBlock
-                Margin="10,0,10,0"
                 FontFamily="{Binding PreviewFont}"
                 FontSize="{Binding PreviewFontSize}"
                 Foreground="{StaticResource PrimaryForeground}"
                 Text="{Binding FileProperties}"
                 TextWrapping="Wrap" />
-            <TextBlock
-                Margin="10,4,0,10"
-                FontFamily="{Binding PreviewFont}"
-                FontSize="{Binding PreviewFontSize}"
-                Foreground="{StaticResource SecondaryForeground}"
-                Text="{Binding FileTypeInfo}"
-                TextWrapping="Wrap" />
+            <StackPanel
+                Margin="0,4,0,0"
+                Orientation="Horizontal"
+                Visibility="{Binding FileTypeInfo, Converter={StaticResource NullToVisibilityConverter}}">
+                <Image
+                    Width="16"
+                    Height="16"
+                    Margin="0,0,5,0"
+                    VerticalAlignment="Center"
+                    RenderOptions.BitmapScalingMode="Fant"
+                    Source="{Binding FileTypeInfoIcon}" />
+                <TextBlock
+                    VerticalAlignment="Center"
+                    FontFamily="{Binding PreviewFont}"
+                    FontSize="{Binding PreviewFontSize}"
+                    Foreground="{StaticResource SecondaryForeground}"
+                    Text="{Binding FileTypeInfo}"
+                    TextWrapping="Wrap" />
+            </StackPanel>
         </StackPanel>
     </StackPanel>
 </UserControl>

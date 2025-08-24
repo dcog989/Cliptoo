@@ -47,45 +47,49 @@
                 Text="{Binding TooltipTextContent, Mode=OneWay}"
                 TextWrapping="Wrap"
                 VerticalScrollBarVisibility="Disabled" />
-            <Border
-                Grid.Row="1"
-                BorderBrush="{DynamicResource PrimaryBorderBrush}"
-                BorderThickness="0,1,0,0">
-                <StackPanel Margin="5">
+            <StackPanel Grid.Row="1" Margin="10">
+                <TextBlock
+                    FontFamily="{Binding PreviewFont}"
+                    FontSize="{Binding PreviewFontSize}"
+                    FontWeight="Bold"
+                    Foreground="{StaticResource PrimaryForeground}"
+                    Text="{Binding FileName}"
+                    TextWrapping="Wrap"
+                    Visibility="{Binding FileName, Converter={StaticResource NullToVisibilityConverter}}" />
+                <TextBlock
+                    FontFamily="{Binding PreviewFont}"
+                    FontSize="{Binding PreviewFontSize}"
+                    Foreground="{StaticResource SecondaryForeground}"
+                    Text="{Binding FileProperties}"
+                    TextWrapping="Wrap"
+                    Visibility="{Binding FileProperties, Converter={StaticResource NullToVisibilityConverter}}" />
+                <StackPanel
+                    Margin="0,2,0,0"
+                    Orientation="Horizontal"
+                    Visibility="{Binding FileTypeInfo, Converter={StaticResource NullToVisibilityConverter}}">
+                    <Image
+                        Width="16"
+                        Height="16"
+                        Margin="0,0,5,0"
+                        VerticalAlignment="Center"
+                        RenderOptions.BitmapScalingMode="Fant"
+                        Source="{Binding FileTypeInfoIcon}" />
                     <TextBlock
+                        VerticalAlignment="Center"
                         FontFamily="{Binding PreviewFont}"
                         FontSize="{Binding PreviewFontSize}"
-                        FontWeight="Bold"
-                        Foreground="{StaticResource PrimaryForeground}"
-                        Text="{Binding FileName}"
-                        TextWrapping="Wrap"
-                        Visibility="{Binding FileName, Converter={StaticResource NullToVisibilityConverter}}" />
-                    <TextBlock
-                        FontFamily="{Binding PreviewFont}"
-                        FontSize="{Binding PreviewFontSize}"
-                        FontStyle="Italic"
-                        Foreground="{StaticResource SecondaryForeground}"
-                        Text="{Binding FileProperties}"
-                        TextWrapping="Wrap"
-                        Visibility="{Binding FileProperties, Converter={StaticResource NullToVisibilityConverter}}" />
-                    <TextBlock
-                        FontFamily="{Binding PreviewFont}"
-                        FontSize="{Binding PreviewFontSize}"
-                        FontStyle="Italic"
                         Foreground="{StaticResource SecondaryForeground}"
                         Text="{Binding FileTypeInfo}"
-                        TextWrapping="Wrap"
-                        Visibility="{Binding FileTypeInfo, Converter={StaticResource NullToVisibilityConverter}}" />
-                    <TextBlock
-                        HorizontalAlignment="Left"
-                        FontFamily="{Binding PreviewFont}"
-                        FontSize="{Binding PreviewFontSize}"
-                        FontStyle="Italic"
-                        Foreground="{StaticResource SecondaryForeground}"
-                        Text="{Binding LineCountInfo}"
-                        Visibility="{Binding LineCountInfo, Converter={StaticResource NullToVisibilityConverter}}" />
+                        TextWrapping="Wrap" />
                 </StackPanel>
-            </Border>
+                <TextBlock
+                    HorizontalAlignment="Left"
+                    FontFamily="{Binding PreviewFont}"
+                    FontSize="{Binding PreviewFontSize}"
+                    Foreground="{StaticResource SecondaryForeground}"
+                    Text="{Binding LineCountInfo}"
+                    Visibility="{Binding LineCountInfo, Converter={StaticResource NullToVisibilityConverter}}" />
+            </StackPanel>
         </Grid>
     </Grid>
 </UserControl>

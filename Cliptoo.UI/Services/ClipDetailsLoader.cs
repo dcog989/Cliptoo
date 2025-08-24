@@ -109,10 +109,22 @@ namespace Cliptoo.UI.Services
                         {
                             try
                             {
-                                var imageInfo = await Image.IdentifyAsync(path, token);
-                                if (imageInfo != null)
+                                var extension = Path.GetExtension(path).ToLowerInvariant();
+                                if (extension == ".jxl")
                                 {
-                                    sb.AppendLine($"Dimensions: {imageInfo.Width} x {imageInfo.Height}");
+                                    using var image = await Core.Services.ImageDecoder.DecodeAsync(path);
+                                    if (image != null)
+                                    {
+                                        sb.AppendLine($"Dimensions: {image.Width} x {image.Height}");
+                                    }
+                                }
+                                else
+                                {
+                                    var imageInfo = await Image.IdentifyAsync(path, token);
+                                    if (imageInfo != null)
+                                    {
+                                        sb.AppendLine($"Dimensions: {imageInfo.Width} x {imageInfo.Height}");
+                                    }
                                 }
                             }
                             catch { /* Ignore */ }
@@ -176,7 +188,7 @@ namespace Cliptoo.UI.Services
             {
                 AppConstants.ClipTypes.Archive => "Archive File",
                 AppConstants.ClipTypes.Audio => "Audio File",
-                AppConstants.ClipTypes.Dev => "Code File",
+                AppConstants.ClipTypes.Dev => "Dev File",
                 AppConstants.ClipTypes.Danger => "Potentially Unsafe File",
                 AppConstants.ClipTypes.Database => "Database File",
                 AppConstants.ClipTypes.Document => "Document File",
