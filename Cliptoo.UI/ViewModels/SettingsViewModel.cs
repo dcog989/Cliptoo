@@ -11,6 +11,7 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using Wpf.Ui;
@@ -413,47 +414,56 @@ namespace Cliptoo.UI.ViewModels
                 try
                 {
                     await Task.Run(() => _controller.ClearCaches());
-                    await ShowInformationDialogAsync("Caches Cleared", "All cached thumbnails and temporary files have been deleted.");
+                    await ShowInformationDialogAsync("Caches Cleared", new System.Windows.Controls.TextBlock { Text = "All cached thumbnails and temporary files have been deleted." });
                 }
                 finally
                 {
                     IsBusy = false;
                 }
             }, _ => !IsBusy);
+
             RunHeavyMaintenanceCommand = new RelayCommand(async _ =>
+                {
+                    if (IsBusy) return;
+                    IsBusy = true;
+                    try
+                    {
+                        var result = await Task.Run(() => _controller.RunHeavyMaintenanceNowAsync());
+                        await InitializeAsync();
+
+                        var results = new List<string>();
+                        if (result.DbClipsCleaned > 0) results.Add($"- Removed {result.DbClipsCleaned} old clips.");
+                        if (result.ImageCachePruned > 0) results.Add($"- Pruned {result.ImageCachePruned} orphaned image previews.");
+                        if (result.FaviconCachePruned > 0) results.Add($"- Pruned {result.FaviconCachePruned} orphaned favicons.");
+                        if (result.IconCachePruned > 0) results.Add($"- Pruned {result.IconCachePruned} old icons.");
+                        if (result.ReclassifiedClips > 0) results.Add($"- Re-classified {result.ReclassifiedClips} file types.");
+                        if (result.TempFilesCleaned > 0) results.Add($"- Cleaned {result.TempFilesCleaned} temporary files.");
+                        if (result.SpaceReclaimedMb > 0.0) results.Add($"- Reclaimed {result.SpaceReclaimedMb} MB of database space.");
+
+                        UIElement dialogContent;
+                        if (results.Any())
                         {
-                            if (IsBusy) return;
-                            IsBusy = true;
-                            try
+                            var stackPanel = new System.Windows.Controls.StackPanel();
+                            stackPanel.Children.Add(new System.Windows.Controls.TextBlock { Text = "Maintenance routine completed.", Margin = new Thickness(0, 0, 0, 10) });
+                            foreach (var line in results)
                             {
-                                var result = await Task.Run(() => _controller.RunHeavyMaintenanceNowAsync());
-                                await InitializeAsync();
-
-                                var sb = new System.Text.StringBuilder();
-                                sb.AppendLine("Maintenance routine completed.");
-                                sb.AppendLine();
-
-                                if (result.DbClipsCleaned > 0) sb.AppendLine($"- Removed {result.DbClipsCleaned} old clips.");
-                                if (result.ImageCachePruned > 0) sb.AppendLine($"- Pruned {result.ImageCachePruned} orphaned image previews.");
-                                if (result.FaviconCachePruned > 0) sb.AppendLine($"- Pruned {result.FaviconCachePruned} orphaned favicons.");
-                                if (result.IconCachePruned > 0) sb.AppendLine($"- Pruned {result.IconCachePruned} old icons.");
-                                if (result.ReclassifiedClips > 0) sb.AppendLine($"- Re-classified {result.ReclassifiedClips} file types.");
-                                if (result.TempFilesCleaned > 0) sb.AppendLine($"- Cleaned {result.TempFilesCleaned} temporary files.");
-
-                                if (result.DbClipsCleaned > 0 || result.ImageCachePruned > 0 || result.FaviconCachePruned > 0 || result.ReclassifiedClips > 0 || result.TempFilesCleaned > 0 || result.IconCachePruned > 0)
-                                {
-                                    await ShowInformationDialogAsync("Maintenance Complete", sb.ToString());
-                                }
-                                else
-                                {
-                                    await ShowInformationDialogAsync("Maintenance Complete", "No items required cleaning.");
-                                }
+                                stackPanel.Children.Add(new System.Windows.Controls.TextBlock { Text = line });
                             }
-                            finally
-                            {
-                                IsBusy = false;
-                            }
-                        }, _ => !IsBusy);
+                            dialogContent = stackPanel;
+                        }
+                        else
+                        {
+                            dialogContent = new System.Windows.Controls.TextBlock { Text = "No items required cleaning." };
+                        }
+
+                        await ShowInformationDialogAsync("Maintenance Complete", dialogContent);
+                    }
+                    finally
+                    {
+                        IsBusy = false;
+                    }
+                }, _ => !IsBusy);
+
             RemoveDeadheadClipsCommand = new RelayCommand(async _ => await HandleRemoveDeadheadClips(), _ => !IsBusy);
             ClearOversizedCommand = new RelayCommand(async _ => await HandleClearOversized(), _ => !IsBusy);
             ChangePageCommand = new RelayCommand(p => CurrentPage = p as string ?? "General");
@@ -696,7 +706,7 @@ namespace Cliptoo.UI.ViewModels
             {
                 int count = await Task.Run(() => _controller.ClearOversizedClipsAsync(viewModel.SizeMb));
                 await InitializeAsync();
-                await ShowInformationDialogAsync("Oversized Clips Removed", $"{count} clip(s) larger than {viewModel.SizeMb} MB have been removed.");
+                await ShowInformationDialogAsync("Oversized Clips Removed", new System.Windows.Controls.TextBlock { Text = $"{count} clip(s) larger than {viewModel.SizeMb} MB have been removed." });
             }
             finally
             {
@@ -712,7 +722,7 @@ namespace Cliptoo.UI.ViewModels
             {
                 int count = await Task.Run(() => _controller.RemoveDeadheadClipsAsync());
                 await InitializeAsync();
-                await ShowInformationDialogAsync("Deadhead Clips Removed", $"{count} clip(s) pointing to non-existent files or folders have been removed.");
+                await ShowInformationDialogAsync("Deadhead Clips Removed", new System.Windows.Controls.TextBlock { Text = $"{count} clip(s) pointing to non-existent files or folders have been removed." });
             }
             finally
             {
@@ -720,7 +730,7 @@ namespace Cliptoo.UI.ViewModels
             }
         }
 
-        private async Task ShowInformationDialogAsync(string title, string content)
+        private async Task ShowInformationDialogAsync(string title, UIElement content)
         {
             var dialog = new ContentDialog
             {

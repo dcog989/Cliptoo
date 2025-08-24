@@ -21,7 +21,8 @@ namespace Cliptoo.Core
         int FaviconCachePruned,
         int ReclassifiedClips,
         int TempFilesCleaned,
-        int IconCachePruned
+        int IconCachePruned,
+        double SpaceReclaimedMb
     );
 
     public class CliptooController
@@ -405,6 +406,7 @@ namespace Cliptoo.Core
         {
             LogManager.Log("Starting heavy maintenance routine...");
             var settings = GetSettings();
+            var initialStats = await _dbManager.GetStatsAsync();
 
             int tempFilesCleaned = CleanupTempFiles();
 
@@ -437,6 +439,10 @@ namespace Cliptoo.Core
             }
 
             await _dbManager.UpdateLastCleanupTimestampAsync();
+
+            var finalStats = await _dbManager.GetStatsAsync();
+            double spaceReclaimed = Math.Max(0, Math.Round(initialStats.DatabaseSizeMb - finalStats.DatabaseSizeMb, 2));
+
             LogManager.Log("Heavy maintenance routine finished.");
 
             return new MaintenanceResult(
@@ -445,7 +451,8 @@ namespace Cliptoo.Core
                 prunedFaviconCount,
                 reclassifiedCount,
                 tempFilesCleaned,
-                iconCacheCleaned
+                iconCacheCleaned,
+                spaceReclaimed
             );
         }
 
