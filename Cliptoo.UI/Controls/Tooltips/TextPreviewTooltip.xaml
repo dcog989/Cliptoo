@@ -35,6 +35,7 @@
             </Grid.RowDefinitions>
             <TextBox
                 Grid.Row="0"
+                MaxHeight="{Binding PreviewFontSize, Converter={StaticResource MultiplyConverter}, ConverterParameter=44}"
                 Margin="5"
                 Background="{StaticResource SecondaryBackground}"
                 BorderThickness="0"
@@ -45,7 +46,7 @@
                 IsReadOnly="True"
                 Text="{Binding TooltipTextContent, Mode=OneWay}"
                 TextWrapping="Wrap"
-                VerticalScrollBarVisibility="Auto" />
+                VerticalScrollBarVisibility="Disabled" />
             <Border
                 Grid.Row="1"
                 BorderBrush="{DynamicResource PrimaryBorderBrush}"

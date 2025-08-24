@@ -17,7 +17,7 @@ namespace Cliptoo.UI.ViewModels
 
     public class ClipViewModel : ViewModelBase
     {
-        private const int MaxTooltipLines = 50;
+        private const int MaxTooltipLines = 40;
 
         private Clip _clip;
         public CliptooController Controller { get; }
@@ -359,7 +359,7 @@ namespace Cliptoo.UI.ViewModels
         {
             if (_isTooltipContentLoaded) return;
 
-            var clipForTooltip = _clip;
+            var clipForTooltip = await GetFullClipAsync();
 
             string? textFileContent = null;
             if (IsPreviewableAsTextFile)
@@ -416,32 +416,42 @@ namespace Cliptoo.UI.ViewModels
             }
 
             string contentForTooltip = textFileContent ?? (clipToDisplay.ClipType == AppConstants.ClipTypes.Rtf
-                ? RtfUtils.ToPlainText(clipToDisplay.PreviewContent ?? "")
-                : clipToDisplay.PreviewContent ?? "");
+                ? RtfUtils.ToPlainText(clipToDisplay.Content ?? "")
+                : clipToDisplay.Content ?? "");
 
 
             if (ShowTextualTooltip && !string.IsNullOrEmpty(contentForTooltip))
             {
-                var sb = new StringBuilder();
+                // First pass: Count total lines accurately
                 int totalLines = 0;
+                using (var reader = new StringReader(contentForTooltip))
+                {
+                    while (reader.ReadLine() != null)
+                    {
+                        totalLines++;
+                    }
+                }
+                if (totalLines == 0 && contentForTooltip.Length > 0 && !contentForTooltip.Contains('\n'))
+                {
+                    totalLines = 1;
+                }
 
+                // Second pass: Build the formatted string with line numbers
+                var sb = new StringBuilder();
+                int numberPadding = totalLines.ToString().Length;
+                int currentLineNumber = 0;
                 using (var reader = new StringReader(contentForTooltip))
                 {
                     string? line;
                     while ((line = reader.ReadLine()) != null)
                     {
-                        if (totalLines < MaxTooltipLines)
+                        currentLineNumber++;
+                        if (currentLineNumber > MaxTooltipLines)
                         {
-                            sb.AppendLine(line);
+                            break;
                         }
-                        totalLines++;
+                        sb.AppendLine($"{(currentLineNumber).ToString().PadLeft(numberPadding)} | {line}");
                     }
-                }
-
-                if (totalLines == 0 && contentForTooltip.Length > 0)
-                {
-                    totalLines = 1;
-                    sb.Append(contentForTooltip);
                 }
 
                 if (!IsFileBased)
