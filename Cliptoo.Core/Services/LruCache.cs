@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
@@ -11,10 +12,7 @@ namespace Cliptoo.Core.Services
 
         public LruCache(int capacity)
         {
-            if (capacity <= 0)
-            {
-                throw new System.ArgumentOutOfRangeException(nameof(capacity), "Capacity must be positive.");
-            }
+            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(capacity);
             _capacity = capacity;
             _cache = new Dictionary<TKey, LinkedListNode<LruCacheItem>>();
             _lruList = new LinkedList<LruCacheItem>();
