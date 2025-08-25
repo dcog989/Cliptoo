@@ -440,7 +440,19 @@ namespace Cliptoo.UI.ViewModels
                         if (result.IconCachePruned > 0) results.Add($"- Pruned {result.IconCachePruned} old icons.");
                         if (result.ReclassifiedClips > 0) results.Add($"- Re-classified {result.ReclassifiedClips} file types.");
                         if (result.TempFilesCleaned > 0) results.Add($"- Cleaned {result.TempFilesCleaned} temporary files.");
-                        if (result.SpaceReclaimedMb > 0.0) results.Add($"- Reclaimed {result.SpaceReclaimedMb} MB of database space.");
+
+                        if (result.DatabaseSizeChangeMb > 0.0)
+                        {
+                            results.Add($"- Reclaimed {result.DatabaseSizeChangeMb:F2} MB of database space.");
+                        }
+                        else if (result.DatabaseSizeChangeMb < 0.0)
+                        {
+                            results.Add($"- Database size increased by {-result.DatabaseSizeChangeMb:F2} MB.");
+                        }
+                        else
+                        {
+                            results.Add("- Database compaction ran, but size did not change.");
+                        }
 
                         UIElement dialogContent;
                         if (results.Any())

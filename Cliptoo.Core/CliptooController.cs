@@ -22,7 +22,7 @@ namespace Cliptoo.Core
         int ReclassifiedClips,
         int TempFilesCleaned,
         int IconCachePruned,
-        double SpaceReclaimedMb
+        double DatabaseSizeChangeMb
     );
 
     public class CliptooController
@@ -441,7 +441,7 @@ namespace Cliptoo.Core
             await _dbManager.UpdateLastCleanupTimestampAsync();
 
             var finalStats = await _dbManager.GetStatsAsync();
-            double spaceReclaimed = Math.Max(0, Math.Round(initialStats.DatabaseSizeMb - finalStats.DatabaseSizeMb, 2));
+            double sizeChange = Math.Round(initialStats.DatabaseSizeMb - finalStats.DatabaseSizeMb, 2);
 
             LogManager.Log("Heavy maintenance routine finished.");
 
@@ -452,7 +452,7 @@ namespace Cliptoo.Core
                 reclassifiedCount,
                 tempFilesCleaned,
                 iconCacheCleaned,
-                spaceReclaimed
+                sizeChange
             );
         }
 
