@@ -556,5 +556,10 @@ namespace Cliptoo.Core
         {
             _lastActivityTimestamp = DateTime.UtcNow;
         }
+
+        public void SuppressNextClip(ulong hash)
+        {
+            ClipboardMonitor.SuppressNextClip(hash);
+        }
     }
 }

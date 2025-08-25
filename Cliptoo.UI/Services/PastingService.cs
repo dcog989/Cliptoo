@@ -1,8 +1,10 @@
 using Cliptoo.Core;
 using Cliptoo.Core.Database.Models;
 using Cliptoo.Core.Native;
+using Cliptoo.Core.Services;
 using Cliptoo.UI.Helpers;
 using System.IO;
+using System.Text;
 using System.Windows;
 using System.Windows.Media.Imaging;
 
@@ -67,12 +69,29 @@ namespace Cliptoo.UI.Services
             {
                 if (await ClipboardUtils.SafeSet(() => Clipboard.SetDataObject(dataObject, true)))
                 {
+                    if (dataObject.GetDataPresent(DataFormats.UnicodeText))
+                    {
+                        var text = dataObject.GetData(DataFormats.UnicodeText) as string ?? "";
+                        _controller.SuppressNextClip(HashingUtils.ComputeHash(Encoding.UTF8.GetBytes(text)));
+                    }
+                    else if (dataObject.GetDataPresent(DataFormats.Bitmap))
+                    {
+                        var bitmapSource = dataObject.GetData(DataFormats.Bitmap) as BitmapSource;
+                        if (bitmapSource != null)
+                        {
+                            using var stream = new MemoryStream();
+                            var encoder = new PngBitmapEncoder();
+                            encoder.Frames.Add(BitmapFrame.Create(bitmapSource));
+                            encoder.Save(stream);
+                            _controller.SuppressNextClip(HashingUtils.ComputeHash(stream.ToArray()));
+                        }
+                    }
+
                     _inputSimulator.SendPaste();
                 }
             }
             finally
             {
-                await Task.Delay(300);
                 _controller.ClipboardMonitor.Resume();
             }
         }
@@ -87,13 +106,13 @@ namespace Cliptoo.UI.Services
             {
                 if (await ClipboardUtils.SafeSet(() => Clipboard.SetDataObject(dataObject, true)))
                 {
+                    var hash = HashingUtils.ComputeHash(Encoding.UTF8.GetBytes(text));
+                    _controller.SuppressNextClip(hash);
                     _inputSimulator.SendPaste();
                 }
             }
             finally
             {
-                // TODO: A more robust solution would be a short-term hash suppression in the ClipboardMonitor - ignore the next clipboard change if it matches the hash of the content just pasted.
-                await Task.Delay(300);
                 _controller.ClipboardMonitor.Resume();
             }
         }
