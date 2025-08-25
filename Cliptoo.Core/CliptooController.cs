@@ -215,7 +215,7 @@ namespace Cliptoo.Core
 
             var clip = await _dbManager.GetClipByIdAsync(id);
 
-            if (clip.SizeInBytes < 512 * 1024) // Only cache clips smaller than 512 KB
+            if (clip.SizeInBytes < 100 * 1024) // Only cache clips < 100 KB
             {
                 _clipCache.Add(id, clip);
             }
