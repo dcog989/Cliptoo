@@ -183,8 +183,9 @@ namespace Cliptoo.UI.ViewModels
 
         private async Task<Clip> GetFullClipAsync()
         {
+            // This now fetches the full clip but does NOT store it in the viewmodel's state.
+            // It's used as a temporary object for operations like paste, open, or tooltip generation.
             var fullClip = await Controller.GetClipByIdAsync(Id);
-            _clip.Content = fullClip.Content;
             return fullClip;
         }
 

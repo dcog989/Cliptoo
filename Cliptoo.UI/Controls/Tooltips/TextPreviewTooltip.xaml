@@ -34,20 +34,15 @@
                 <RowDefinition Height="*" />
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
-            <TextBox
+            <TextBlock
                 Grid.Row="0"
                 MaxHeight="{Binding PreviewFontSize, Converter={StaticResource MultiplyConverter}, ConverterParameter=44}"
                 Margin="5"
-                Background="{StaticResource SecondaryBackground}"
-                BorderThickness="0"
                 FontFamily="{Binding PreviewFont}"
                 FontSize="{Binding PreviewFontSize}"
                 Foreground="{StaticResource PrimaryForeground}"
-                HorizontalScrollBarVisibility="Disabled"
-                IsReadOnly="True"
                 Text="{Binding TooltipTextContent, Mode=OneWay}"
-                TextWrapping="Wrap"
-                VerticalScrollBarVisibility="Disabled" />
+                TextWrapping="Wrap" />
             <StackPanel Grid.Row="1" Margin="10">
                 <TextBlock
                     FontFamily="{Binding PreviewFont}"
