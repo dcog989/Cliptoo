@@ -101,12 +101,12 @@
                 Orientation="Horizontal">
                 <TextBlock>
                     <Run FontWeight="SemiBold" Text="{Binding Stats.TotalClipsEver, Mode=OneWay, StringFormat={}{0:N0}}" />
-                    <Run Text=" clips copied and " />
+                    <Run Text="clips copied and" />
                     <Run FontWeight="SemiBold" Text="{Binding Stats.PasteCount, Mode=OneWay, StringFormat={}{0:N0}}" />
-                    <Run Text=" pastes" />
+                    <Run Text="pastes" />
                 </TextBlock>
                 <TextBlock Visibility="{Binding Stats.CreationTimestamp, Converter={StaticResource NullToVisibilityConverter}}">
-                    <Run Text=" since DB created at " />
+                    <Run Text=" since DB created on" />
                     <Run Text="{Binding Stats.CreationTimestamp, Mode=OneWay, StringFormat='{}{0:yyyy/MM/dd}'}" />
                 </TextBlock>
                 <TextBlock>
