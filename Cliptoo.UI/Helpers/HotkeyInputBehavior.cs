@@ -63,11 +63,12 @@ namespace Cliptoo.UI.Helpers
 
         private static void TextBox_LostFocus(object sender, RoutedEventArgs e)
         {
-            if ((sender as FrameworkElement)?.DataContext is SettingsViewModel vm)
-            {
-                vm.IsCapturingHotkey = false;
-                vm.CapturingHotkeyTarget = null;
-            }
+            if (sender is not TextBox textBox || textBox.DataContext is not SettingsViewModel vm) return;
+
+            vm.ValidateHotkey(GetHotkeyTarget(textBox));
+
+            vm.IsCapturingHotkey = false;
+            vm.CapturingHotkeyTarget = null;
         }
 
         private static void TextBox_PreviewKeyDown(object sender, KeyEventArgs e)

@@ -780,8 +780,20 @@ namespace Cliptoo.UI.ViewModels
 
             var key = (e.Key == Key.System) ? e.SystemKey : e.Key;
 
-            if (key == Key.LeftCtrl || key == Key.RightCtrl || key == Key.LeftAlt || key == Key.RightAlt ||
-                key == Key.LeftShift || key == Key.RightShift || key == Key.LWin || key == Key.RWin || key == Key.None)
+            if (key is Key.Back or Key.Delete)
+            {
+                switch (target)
+                {
+                    case "Main": this.Hotkey = string.Empty; break;
+                    case "Preview": this.PreviewHotkey = string.Empty; break;
+                    case "QuickPaste": this.QuickPasteHotkey = string.Empty; break;
+                }
+                return;
+            }
+
+            bool isModifierKey = key is Key.LeftCtrl or Key.RightCtrl or Key.LeftAlt or Key.RightAlt or Key.LeftShift or Key.RightShift or Key.LWin or Key.RWin or Key.None;
+
+            if (target != "QuickPaste" && isModifierKey)
             {
                 return;
             }
@@ -791,9 +803,13 @@ namespace Cliptoo.UI.ViewModels
             if (Keyboard.Modifiers.HasFlag(ModifierKeys.Alt)) hotkeyParts.Add("Alt");
             if (Keyboard.Modifiers.HasFlag(ModifierKeys.Shift)) hotkeyParts.Add("Shift");
 
-            hotkeyParts.Add(key.ToString());
+            if (!isModifierKey)
+            {
+                hotkeyParts.Add(key.ToString());
+            }
 
             var newHotkey = string.Join("+", hotkeyParts);
+
             switch (target)
             {
                 case "Main":
@@ -805,6 +821,27 @@ namespace Cliptoo.UI.ViewModels
                 case "QuickPaste":
                     this.QuickPasteHotkey = newHotkey;
                     break;
+            }
+        }
+
+        public async void ValidateHotkey(string target)
+        {
+            if (target == "QuickPaste")
+            {
+                var parts = this.QuickPasteHotkey.Split(new[] { '+' }, StringSplitOptions.RemoveEmptyEntries);
+                bool allModifiers = parts.All(p => p is "Ctrl" or "Alt" or "Shift" or "Win");
+
+                if (!allModifiers || parts.Length < 2)
+                {
+                    this.QuickPasteHotkey = "Ctrl+Alt";
+                    var dialog = new ContentDialog
+                    {
+                        Title = "Invalid Hotkey",
+                        Content = "The Quick Paste hotkey must consist of at least two modifier keys (e.g., Ctrl, Alt, Shift). It has been reset to the default 'Ctrl+Alt'.",
+                        CloseButtonText = "OK"
+                    };
+                    await _contentDialogService.ShowAsync(dialog, CancellationToken.None);
+                }
             }
         }
 
