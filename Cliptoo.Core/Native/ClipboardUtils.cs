@@ -1,8 +1,8 @@
-using Cliptoo.Core.Configuration;
 using System;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Cliptoo.Core.Configuration;
 
 namespace Cliptoo.Core.Native
 {

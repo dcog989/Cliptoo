@@ -1,9 +1,9 @@
-using JxlNet;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
 using System;
 using System.IO;
 using System.Threading.Tasks;
+using JxlNet;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
 
 namespace Cliptoo.Core.Services
 {

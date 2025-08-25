@@ -1,12 +1,12 @@
+using System.IO;
+using System.Text;
+using System.Windows;
+using System.Windows.Media.Imaging;
 using Cliptoo.Core;
 using Cliptoo.Core.Database.Models;
 using Cliptoo.Core.Native;
 using Cliptoo.Core.Services;
 using Cliptoo.UI.Helpers;
-using System.IO;
-using System.Text;
-using System.Windows;
-using System.Windows.Media.Imaging;
 
 namespace Cliptoo.UI.Services
 {

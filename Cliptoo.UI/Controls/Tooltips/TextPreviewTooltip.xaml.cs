@@ -1,6 +1,5 @@
-using Cliptoo.UI.Helpers;
-using System.Windows;
 using System.Windows.Controls;
+using Cliptoo.UI.Helpers;
 
 namespace Cliptoo.UI.Controls.Tooltips
 {

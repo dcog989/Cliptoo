@@ -1,9 +1,9 @@
+using System.Windows.Input;
+using System.Windows.Media;
 using Cliptoo.Core;
 using Cliptoo.UI.Helpers;
 using Cliptoo.UI.Services;
 using Cliptoo.UI.ViewModels.Base;
-using System.Windows.Input;
-using System.Windows.Media;
 
 namespace Cliptoo.UI.ViewModels
 {

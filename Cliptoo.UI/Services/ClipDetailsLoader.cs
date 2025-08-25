@@ -1,10 +1,10 @@
+using System.IO;
+using System.Text;
 using Cliptoo.Core;
 using Cliptoo.Core.Services;
 using Cliptoo.UI.Helpers;
 using Cliptoo.UI.ViewModels;
 using SixLabors.ImageSharp;
-using System.IO;
-using System.Text;
 
 namespace Cliptoo.UI.Services
 {

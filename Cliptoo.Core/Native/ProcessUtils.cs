@@ -1,8 +1,8 @@
-using Cliptoo.Core.Configuration;
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
+using Cliptoo.Core.Configuration;
 
 namespace Cliptoo.Core.Native
 {

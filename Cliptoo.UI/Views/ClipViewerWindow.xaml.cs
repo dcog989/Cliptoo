@@ -1,6 +1,6 @@
-using Cliptoo.UI.ViewModels;
 using System.Windows;
 using System.Windows.Input;
+using Cliptoo.UI.ViewModels;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
 

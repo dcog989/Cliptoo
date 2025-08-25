@@ -1,10 +1,10 @@
-using Cliptoo.Core;
-using Cliptoo.UI.ViewModels;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
+using Cliptoo.Core;
+using Cliptoo.UI.ViewModels;
 using Wpf.Ui.Controls;
 
 namespace Cliptoo.UI.Views

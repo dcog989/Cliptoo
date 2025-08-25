@@ -1,5 +1,5 @@
-using ICSharpCode.AvalonEdit;
 using System.Windows;
+using ICSharpCode.AvalonEdit;
 
 namespace Cliptoo.UI.Helpers
 {

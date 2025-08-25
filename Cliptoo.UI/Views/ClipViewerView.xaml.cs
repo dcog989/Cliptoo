@@ -1,11 +1,11 @@
+using System.Windows;
+using System.Windows.Controls;
+using System.Xml;
 using Cliptoo.Core.Services;
 using Cliptoo.UI.ViewModels;
 using ICSharpCode.AvalonEdit.Highlighting;
 using ICSharpCode.AvalonEdit.Highlighting.Xshd;
 using Microsoft.Extensions.DependencyInjection;
-using System.Windows;
-using System.Windows.Controls;
-using System.Xml;
 using Wpf.Ui.Appearance;
 
 namespace Cliptoo.UI.Views

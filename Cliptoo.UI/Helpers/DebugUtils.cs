@@ -1,5 +1,5 @@
-using Cliptoo.Core.Configuration;
 using System.Diagnostics;
+using Cliptoo.Core.Configuration;
 
 namespace Cliptoo.UI.Helpers
 {

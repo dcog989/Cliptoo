@@ -1,7 +1,7 @@
 using System;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Windows.Input;
-using System.Linq;
 
 namespace Cliptoo.Core.Native
 {

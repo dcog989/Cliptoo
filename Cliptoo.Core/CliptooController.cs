@@ -1,10 +1,3 @@
-using Cliptoo.Core.Configuration;
-using Cliptoo.Core.Database;
-using Cliptoo.Core.Database.Models;
-using Cliptoo.Core.Native;
-using Cliptoo.Core.Native.Models;
-using Cliptoo.Core.Services;
-using Cliptoo.Core.Services.Models;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -12,6 +5,13 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Cliptoo.Core.Configuration;
+using Cliptoo.Core.Database;
+using Cliptoo.Core.Database.Models;
+using Cliptoo.Core.Native;
+using Cliptoo.Core.Native.Models;
+using Cliptoo.Core.Services;
+using Cliptoo.Core.Services.Models;
 
 namespace Cliptoo.Core
 {

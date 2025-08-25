@@ -1,7 +1,7 @@
-using Cliptoo.Core.Configuration;
-using Cliptoo.UI.Views;
 using System.Runtime.InteropServices;
 using System.Windows;
+using Cliptoo.Core.Configuration;
+using Cliptoo.UI.Views;
 
 namespace Cliptoo.UI.Services
 {

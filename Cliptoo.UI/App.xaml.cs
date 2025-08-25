@@ -1,3 +1,6 @@
+using System.IO;
+using System.Windows;
+using System.Windows.Threading;
 using Cliptoo.Core;
 using Cliptoo.Core.Configuration;
 using Cliptoo.Core.Database;
@@ -8,9 +11,6 @@ using Cliptoo.UI.ViewModels;
 using Cliptoo.UI.Views;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using System.IO;
-using System.Windows;
-using System.Windows.Threading;
 using Wpf.Ui;
 using Wpf.Ui.Tray;
 

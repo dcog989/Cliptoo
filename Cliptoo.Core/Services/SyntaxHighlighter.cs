@@ -1,5 +1,3 @@
-using System.IO;
-
 namespace Cliptoo.Core.Services
 {
     public class SyntaxHighlighter : ISyntaxHighlighter

@@ -1,10 +1,9 @@
-using Cliptoo.Core;
-using Cliptoo.Core.Services;
-using Cliptoo.UI.Helpers;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Data;
 using System.Windows.Media;
+using Cliptoo.Core.Services;
+using Cliptoo.UI.Helpers;
 
 namespace Cliptoo.UI.Converters
 {

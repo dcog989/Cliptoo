@@ -13,6 +13,11 @@
         <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     </PropertyGroup>
 
+    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+        <AnalysisLevel>latest-All</AnalysisLevel>
+        <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    </PropertyGroup>
+
     <ItemGroup>
         <None Remove="Assets\Fonts\SourceCodePro-Regular.ttf" />
         <Resource Include="Assets\Fonts\SourceCodePro-Regular.ttf" />

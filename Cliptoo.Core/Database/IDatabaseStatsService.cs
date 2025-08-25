@@ -1,5 +1,5 @@
-using Cliptoo.Core.Database.Models;
 using System.Threading.Tasks;
+using Cliptoo.Core.Database.Models;
 
 namespace Cliptoo.Core.Database
 {

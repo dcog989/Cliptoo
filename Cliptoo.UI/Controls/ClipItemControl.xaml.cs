@@ -1,6 +1,6 @@
-using Cliptoo.UI.ViewModels;
 using System.Windows.Controls;
 using System.Windows.Input;
+using Cliptoo.UI.ViewModels;
 
 namespace Cliptoo.UI.Controls
 {

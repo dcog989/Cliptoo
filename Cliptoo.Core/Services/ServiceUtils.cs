@@ -1,12 +1,12 @@
-using Cliptoo.Core.Configuration;
-using SkiaSharp;
-using Svg.Skia;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
+using Cliptoo.Core.Configuration;
+using SkiaSharp;
+using Svg.Skia;
 
 namespace Cliptoo.Core.Services
 {

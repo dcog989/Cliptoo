@@ -1,8 +1,8 @@
-using Cliptoo.Core.Database.Models;
 using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Cliptoo.Core.Database.Models;
 
 namespace Cliptoo.Core.Database
 {

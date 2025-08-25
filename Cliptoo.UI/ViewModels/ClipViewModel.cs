@@ -1,10 +1,3 @@
-using Cliptoo.Core;
-using Cliptoo.Core.Configuration;
-using Cliptoo.Core.Database.Models;
-using Cliptoo.Core.Services;
-using Cliptoo.UI.Helpers;
-using Cliptoo.UI.Services;
-using Cliptoo.UI.ViewModels.Base;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
@@ -12,6 +5,13 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using Cliptoo.Core;
+using Cliptoo.Core.Configuration;
+using Cliptoo.Core.Database.Models;
+using Cliptoo.Core.Services;
+using Cliptoo.UI.Helpers;
+using Cliptoo.UI.Services;
+using Cliptoo.UI.ViewModels.Base;
 using Wpf.Ui.Controls;
 
 namespace Cliptoo.UI.ViewModels

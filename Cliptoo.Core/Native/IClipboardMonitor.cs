@@ -1,5 +1,5 @@
-using Cliptoo.Core.Native.Models;
 using System;
+using Cliptoo.Core.Native.Models;
 
 namespace Cliptoo.Core.Native
 {
