@@ -21,12 +21,31 @@ namespace Cliptoo.UI.Views
             Loaded += async (s, e) =>
             {
                 await _viewModel.InitializeAsync();
+                var settings = _viewModel.Settings;
+                this.Width = settings.SettingsWindowWidth;
+                this.Height = settings.SettingsWindowHeight;
+                if (settings.SettingsWindowX != -1 && settings.SettingsWindowY != -1)
+                {
+                    this.WindowStartupLocation = WindowStartupLocation.Manual;
+                    this.Left = settings.SettingsWindowX;
+                    this.Top = settings.SettingsWindowY;
+                }
             };
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            _viewModel.Settings.SettingsWindowWidth = Math.Round(this.Width);
+            _viewModel.Settings.SettingsWindowHeight = Math.Round(this.Height);
+            _viewModel.Settings.SettingsWindowX = Math.Round(this.Left);
+            _viewModel.Settings.SettingsWindowY = Math.Round(this.Top);
+            _viewModel.SaveSettingsCommand.Execute(null);
+
+            base.OnClosed(e);
         }
 
         private void Close_Click(object sender, System.Windows.RoutedEventArgs e)
         {
-            _viewModel.SaveSettingsCommand.Execute(null);
             _viewModel.Cleanup();
             this.Close();
         }

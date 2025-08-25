@@ -156,7 +156,21 @@ namespace Cliptoo.Core.Configuration
 
         [DefaultValue(false)]
         public bool PasteAsPlainText { get; set; } = false;
+
+        [DefaultValue(800.0)]
+        public double SettingsWindowWidth { get; set; } = 800.0;
+
+        [DefaultValue(650.0)]
+        public double SettingsWindowHeight { get; set; } = 650.0;
+
+        [DefaultValue(-1.0)]
+        public double SettingsWindowX { get; set; } = -1.0;
+
+        [DefaultValue(-1.0)]
+        public double SettingsWindowY { get; set; } = -1.0;
         public List<SendToTarget> SendToTargets { get; set; } = new();
+
+
     }
 
 }

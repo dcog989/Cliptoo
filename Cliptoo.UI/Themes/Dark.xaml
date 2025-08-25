@@ -185,9 +185,13 @@
         <Setter Property="Padding" Value="6" />
         <Setter Property="CaretBrush" Value="{StaticResource PrimaryForeground}" />
         <Style.Triggers>
-            <Trigger Property="IsFocused" Value="True">
+            <MultiDataTrigger>
+                <MultiDataTrigger.Conditions>
+                    <Condition Binding="{Binding Path=IsFocused, RelativeSource={RelativeSource Self}}" Value="True" />
+                    <Condition Binding="{Binding Path=IsActive, RelativeSource={RelativeSource AncestorType=Window}}" Value="True" />
+                </MultiDataTrigger.Conditions>
                 <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
-            </Trigger>
+            </MultiDataTrigger>
         </Style.Triggers>
     </Style>
 
@@ -211,11 +215,6 @@
                                 VerticalScrollBarVisibility="Hidden" />
                         </Grid>
                     </Border>
-                    <ControlTemplate.Triggers>
-                        <Trigger Property="IsKeyboardFocusWithin" Value="True">
-                            <Setter TargetName="PART_Border" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
-                        </Trigger>
-                    </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>

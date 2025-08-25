@@ -9,11 +9,10 @@
     d:DesignHeight="300"
     d:DesignWidth="300"
     mc:Ignorable="d">
-    <StackPanel Margin="5">
+    <StackPanel Margin="10">
         <Grid>
             <Image
                 MaxWidth="{Binding HoverImagePreviewSize}"
-                MaxHeight="{Binding HoverImagePreviewSize}"
                 HorizontalAlignment="Center"
                 VerticalAlignment="Center"
                 RenderOptions.BitmapScalingMode="Fant"
@@ -26,8 +25,8 @@
                 Orientation="Horizontal"
                 Visibility="{Binding IsSourceMissing, Converter={StaticResource BooleanToVisibilityConverter}}">
                 <Image
-                    Width="32"
-                    Height="32"
+                    Width="24"
+                    Height="24"
                     Margin="0,0,8,0"
                     Source="{Binding ErrorIcon}" />
                 <TextBlock
