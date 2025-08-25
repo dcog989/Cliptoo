@@ -121,12 +121,12 @@
             <TextBlock
                 FontSize="16"
                 FontWeight="SemiBold"
-                Text="Send To Applications" />
+                Text="Send To Apps" />
 
             <TextBlock
                 Margin="0,5,0,10"
                 Foreground="{StaticResource SecondaryForeground}"
-                Text="Configure external applications to appear in the 'Send To' context menu. Use {0} as a placeholder for the file path."
+                Text="Configure apps for the 'Send To' context menu. &quot;{0}&quot; is used as a placeholder for the file path."
                 TextWrapping="Wrap" />
 
             <ListView

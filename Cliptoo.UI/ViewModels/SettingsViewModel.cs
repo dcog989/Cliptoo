@@ -501,10 +501,6 @@ namespace Cliptoo.UI.ViewModels
             SendToTargets = new ObservableCollection<SendToTarget>(Settings.SendToTargets);
             foreach (var target in SendToTargets)
             {
-                if (target.Arguments == "\"{0}\"")
-                {
-                    target.Arguments = string.Empty;
-                }
                 target.PropertyChanged += (s, e) => DebounceSave();
             }
             SendToTargets.CollectionChanged += (s, e) => DebounceSave();
@@ -825,7 +821,8 @@ namespace Cliptoo.UI.ViewModels
                 var newTarget = new SendToTarget
                 {
                     Path = openFileDialog.FileName,
-                    Name = Path.GetFileNameWithoutExtension(openFileDialog.FileName)
+                    Name = Path.GetFileNameWithoutExtension(openFileDialog.FileName),
+                    Arguments = "\"{0}\""
                 };
                 (newTarget as INotifyPropertyChanged).PropertyChanged += (s, e) => DebounceSave();
                 SendToTargets.Add(newTarget);
