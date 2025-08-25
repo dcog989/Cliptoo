@@ -1,17 +1,25 @@
 # Get the directory of the currently running script to build robust paths
 $scriptRoot = Split-Path -Parent -Path $MyInvocation.MyCommand.Definition
 
-Write-Host "Building and publishing Cliptoo.UI for production (Release configuration)..."
-# Publish the UI project directly to ensure the RuntimeIdentifier is correctly used.
-dotnet publish (Join-Path $scriptRoot "Cliptoo.UI\Cliptoo.UI.csproj") -c Release
+while ($true) {
+    Write-Host "Building and publishing Cliptoo.UI for production (Release configuration)..."
+    # Publish the UI project directly to ensure the RuntimeIdentifier is correctly used.
+    dotnet publish (Join-Path $scriptRoot "Cliptoo.UI\Cliptoo.UI.csproj") -c Release
 
-if ($LASTEXITCODE -ne 0) {
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "Publish successful."
+        break # Exit the loop on success
+    }
+
+    # Handle failure
     Write-Host "PUBLISH FAILED. Please review the errors above."
-    pause
-    exit 1
+    $response = Read-Host "Do you want to try again? (y/n)"
+    if ($response.ToLower() -ne 'y') {
+        Write-Host "Exiting build process."
+        pause
+        exit 1 # Exit the script
+    }
 }
-
-Write-Host "Publish successful."
 
 $exePath = Join-Path $scriptRoot "Cliptoo.UI\bin\Release\net9.0-windows\win-x64\publish\Cliptoo.UI.exe"
 

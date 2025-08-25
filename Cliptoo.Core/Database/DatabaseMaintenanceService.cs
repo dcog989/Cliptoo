@@ -8,7 +8,11 @@ namespace Cliptoo.Core.Database
 {
     public class DatabaseMaintenanceService : RepositoryBase, IDatabaseMaintenanceService
     {
-        public DatabaseMaintenanceService(string dbPath) : base(dbPath) { }
+        private readonly string _dbPath;
+        public DatabaseMaintenanceService(string dbPath) : base(dbPath)
+        {
+            _dbPath = dbPath;
+        }
 
         public async Task<int> ClearHistoryAsync()
         {
@@ -33,6 +37,15 @@ namespace Cliptoo.Core.Database
         public async Task CompactDbAsync()
         {
             Configuration.LogManager.LogDebug("DB_LOCK_DIAG: Starting database compaction.");
+
+            // Connection pooling with WAL mode prevents VACUUM from getting an exclusive lock.
+            // We must clear the pool to force all connections to the database file to close.
+            var connectionForPoolClear = new SqliteConnection($"Data Source={_dbPath}");
+            Configuration.LogManager.LogDebug("DB_LOCK_DIAG: Clearing SQLite connection pool...");
+            SqliteConnection.ClearPool(connectionForPoolClear);
+            Configuration.LogManager.LogDebug("DB_LOCK_DIAG: SQLite connection pool cleared.");
+            await Task.Delay(100); // Give a moment for file locks to be released.
+
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             await using var connection = await GetOpenConnectionAsync();
             await using var command = connection.CreateCommand();
@@ -199,5 +212,6 @@ namespace Cliptoo.Core.Database
 
             return totalAffected;
         }
+
     }
 }
