@@ -30,7 +30,7 @@ namespace Cliptoo.Core.Services
         private static readonly Regex SizesAttributeRegex = new("sizes\\s*=\\s*['\"](\\d+x\\d+)['\"]", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         private static readonly Regex TitleRegex = new("<title>\\s*(.+?)\\s*</title>", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-        private readonly ConcurrentDictionary<string, string> _titleCache = new();
+        private readonly LruCache<string, string> _titleCache;
         private readonly ConcurrentDictionary<string, bool> _failedFaviconUrls = new();
 
         public WebMetadataService(string appCachePath)
@@ -43,6 +43,7 @@ namespace Cliptoo.Core.Services
             _httpClient.Timeout = TimeSpan.FromSeconds(5);
 
             _pngEncoder = new PngEncoder { CompressionLevel = PngCompressionLevel.Level6 };
+            _titleCache = new LruCache<string, string>(100);
         }
 
         public async Task<string?> GetFaviconAsync(string url)
@@ -275,7 +276,7 @@ namespace Cliptoo.Core.Services
         {
             if (_titleCache.TryGetValue(url, out var cachedTitle))
             {
-                return cachedTitle;
+                return string.IsNullOrEmpty(cachedTitle) ? null : cachedTitle;
             }
 
             try
@@ -285,7 +286,7 @@ namespace Cliptoo.Core.Services
                 if (match.Success)
                 {
                     var title = System.Net.WebUtility.HtmlDecode(match.Groups[1].Value.Trim());
-                    _titleCache.TryAdd(url, title);
+                    _titleCache.Add(url, title);
                     return title;
                 }
             }
@@ -294,7 +295,7 @@ namespace Cliptoo.Core.Services
                 LogManager.Log(ex, $"Failed to fetch page title for {url}");
             }
 
-            _titleCache.TryAdd(url, string.Empty);
+            _titleCache.Add(url, string.Empty);
             return null;
         }
 
