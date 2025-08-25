@@ -39,7 +39,6 @@ namespace Cliptoo.UI.ViewModels
         private int _currentThumbnailLoadId;
         private bool _hasThumbnail;
         private string _theme = "light";
-        private bool _isImageMissing;
         private string? _fileProperties;
         private string? _fileTypeInfo;
         private bool _isFilePropertiesLoading;
@@ -109,9 +108,9 @@ namespace Cliptoo.UI.ViewModels
         public bool IsPreviewableAsTextFile =>
             ClipType is AppConstants.ClipTypes.FileText or AppConstants.ClipTypes.Dev ||
             (ClipType == AppConstants.ClipTypes.Document &&
-             (Content.EndsWith(".md", StringComparison.OrdinalIgnoreCase) ||
-              Content.EndsWith(".markdown", StringComparison.OrdinalIgnoreCase) ||
-              Content.EndsWith(".csv", StringComparison.OrdinalIgnoreCase)));
+            (Content.EndsWith(".md", StringComparison.OrdinalIgnoreCase) ||
+                Content.EndsWith(".markdown", StringComparison.OrdinalIgnoreCase) ||
+                Content.EndsWith(".csv", StringComparison.OrdinalIgnoreCase)));
 
         public bool ShowFileInfoTooltip => IsFileBased && !IsImage && !IsPreviewableAsTextFile;
         public bool ShowTextualTooltip => IsPreviewableAsTextFile || (!IsFileBased && !IsLinkToolTip && ClipType != AppConstants.ClipTypes.Color);
@@ -128,7 +127,6 @@ namespace Cliptoo.UI.ViewModels
         public bool IsFilePropertiesLoading { get => _isFilePropertiesLoading; private set => SetProperty(ref _isFilePropertiesLoading, value); }
         public string? PageTitle { get => _pageTitle; private set => SetProperty(ref _pageTitle, value); }
         public bool IsPageTitleLoading { get => _isPageTitleLoading; private set => SetProperty(ref _isPageTitleLoading, value); }
-        public bool IsImageMissing { get => _isImageMissing; private set => SetProperty(ref _isImageMissing, value); }
         public string? ImagePreviewPath { get => _imagePreviewPath; private set => SetProperty(ref _imagePreviewPath, value); }
         public bool HasThumbnail { get => _hasThumbnail; private set => SetProperty(ref _hasThumbnail, value); }
 

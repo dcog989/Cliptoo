@@ -19,7 +19,6 @@
     mc:Ignorable="d">
 
     <UserControl.Resources>
-        <helpers:BindingProxy x:Key="Proxy" Data="{Binding DataContext, RelativeSource={RelativeSource AncestorType=ListView}}" />
         <DrawingBrush
             x:Key="CheckerboardBrush"
             TileMode="Tile"
@@ -46,10 +45,10 @@
     </UserControl.Resources>
 
     <Grid>
-        <Grid Background="Transparent" Tag="{StaticResource Proxy}">
+        <Grid Background="Transparent">
 
             <Grid.ContextMenu>
-                <ContextMenu>
+                <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
                     <ContextMenu.Resources>
                         <Style x:Key="ContextMenuSeparatorStyle" TargetType="Separator">
                             <Setter Property="Template">
@@ -72,12 +71,12 @@
                         Command="{Binding OpenCommand}"
                         Header="{Binding OpenCommandHeader}"
                         Visibility="{Binding IsOpenable, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                    <MenuItem Header="Send To" ItemsSource="{Binding Data.SendToTargets, Source={StaticResource Proxy}}">
+                    <MenuItem Header="Send To" ItemsSource="{Binding MainViewModel.SendToTargets}">
                         <MenuItem.Style>
                             <Style TargetType="MenuItem">
                                 <Setter Property="Visibility" Value="Visible" />
                                 <Style.Triggers>
-                                    <DataTrigger Binding="{Binding Data.SendToTargets.Count, Source={StaticResource Proxy}}" Value="0">
+                                    <DataTrigger Binding="{Binding MainViewModel.SendToTargets.Count}" Value="0">
                                         <Setter Property="Visibility" Value="Collapsed" />
                                     </DataTrigger>
                                 </Style.Triggers>
@@ -96,7 +95,7 @@
                             <Style BasedOn="{StaticResource ContextMenuSeparatorStyle}" TargetType="Separator">
                                 <Setter Property="Visibility" Value="Visible" />
                                 <Style.Triggers>
-                                    <DataTrigger Binding="{Binding Data.SendToTargets.Count, Source={StaticResource Proxy}}" Value="0">
+                                    <DataTrigger Binding="{Binding MainViewModel.SendToTargets.Count}" Value="0">
                                         <Setter Property="Visibility" Value="Collapsed" />
                                     </DataTrigger>
                                 </Style.Triggers>

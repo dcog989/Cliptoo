@@ -13,6 +13,7 @@
         <Grid>
             <Image
                 MaxWidth="{Binding HoverImagePreviewSize}"
+                MaxHeight="{Binding HoverImagePreviewSize}"
                 HorizontalAlignment="Center"
                 VerticalAlignment="Center"
                 RenderOptions.BitmapScalingMode="Fant"
