@@ -102,65 +102,75 @@ namespace Cliptoo.Core.Database
         public async Task<int> RemoveDeadheadClipsAsync()
         {
             await using var connection = await GetOpenConnectionAsync();
-
-            var clipsToCheck = new List<(int Id, string Content, string ClipType)>();
-            await using (var command = connection.CreateCommand())
-            {
-                command.CommandText = "SELECT Id, Content, ClipType FROM clips WHERE ClipType LIKE 'file_%' OR ClipType = 'folder'";
-                await using var reader = await command.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
-                {
-                    clipsToCheck.Add((reader.GetInt32(0), reader.GetString(1), reader.GetString(2)));
-                }
-            }
-
             var idsToDelete = new List<int>();
-            await Task.Run(() =>
-            {
-                foreach (var clip in clipsToCheck)
-                {
-                    var contentPath = clip.Content.Trim();
-                    bool shouldDelete = false;
-
-                    if (clip.ClipType == AppConstants.ClipTypes.Folder)
-                    {
-                        if (!Directory.Exists(contentPath))
-                        {
-                            shouldDelete = true;
-                        }
-                    }
-                    else if (clip.ClipType.StartsWith("file_"))
-                    {
-                        if (!File.Exists(contentPath))
-                        {
-                            shouldDelete = true;
-                        }
-                    }
-
-                    if (shouldDelete)
-                    {
-                        idsToDelete.Add(clip.Id);
-                    }
-                }
-            });
-
-            if (idsToDelete.Count == 0)
-            {
-                return 0;
-            }
-
+            const int batchSize = 500;
+            var hasMoreRows = true;
+            var offset = 0;
             int totalAffected = 0;
-            await using (var transaction = (SqliteTransaction)await connection.BeginTransactionAsync())
+
+            while (hasMoreRows)
             {
-                foreach (var id in idsToDelete)
+                var clipsToCheck = new List<(int Id, string Content, string ClipType)>();
+                await using (var command = connection.CreateCommand())
                 {
-                    await using var deleteCmd = connection.CreateCommand();
-                    deleteCmd.Transaction = transaction;
-                    deleteCmd.CommandText = "DELETE FROM clips WHERE Id = @Id";
-                    deleteCmd.Parameters.AddWithValue("@Id", id);
-                    totalAffected += await deleteCmd.ExecuteNonQueryAsync();
+                    command.CommandText = "SELECT Id, Content, ClipType FROM clips WHERE ClipType LIKE 'file_%' OR ClipType = 'folder' LIMIT @BatchSize OFFSET @Offset";
+                    command.Parameters.AddWithValue("@BatchSize", batchSize);
+                    command.Parameters.AddWithValue("@Offset", offset);
+
+                    await using var reader = await command.ExecuteReaderAsync();
+                    while (await reader.ReadAsync())
+                    {
+                        clipsToCheck.Add((reader.GetInt32(0), reader.GetString(1), reader.GetString(2)));
+                    }
                 }
-                await transaction.CommitAsync();
+
+                if (clipsToCheck.Count < batchSize)
+                {
+                    hasMoreRows = false;
+                }
+
+                offset += clipsToCheck.Count;
+
+                await Task.Run(() =>
+                {
+                    foreach (var clip in clipsToCheck)
+                    {
+                        var contentPath = clip.Content.Trim();
+                        bool shouldDelete = false;
+
+                        if (clip.ClipType == AppConstants.ClipTypes.Folder)
+                        {
+                            if (!Directory.Exists(contentPath)) shouldDelete = true;
+                        }
+                        else if (clip.ClipType.StartsWith("file_"))
+                        {
+                            if (!File.Exists(contentPath)) shouldDelete = true;
+                        }
+
+                        if (shouldDelete)
+                        {
+                            lock (idsToDelete)
+                            {
+                                idsToDelete.Add(clip.Id);
+                            }
+                        }
+                    }
+                });
+
+                if (idsToDelete.Count > 0)
+                {
+                    await using var transaction = (SqliteTransaction)await connection.BeginTransactionAsync();
+                    foreach (var id in idsToDelete)
+                    {
+                        await using var deleteCmd = connection.CreateCommand();
+                        deleteCmd.Transaction = transaction;
+                        deleteCmd.CommandText = "DELETE FROM clips WHERE Id = @Id";
+                        deleteCmd.Parameters.AddWithValue("@Id", id);
+                        totalAffected += await deleteCmd.ExecuteNonQueryAsync();
+                    }
+                    await transaction.CommitAsync();
+                    idsToDelete.Clear();
+                }
             }
 
             if (totalAffected > 0)

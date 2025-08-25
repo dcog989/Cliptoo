@@ -43,7 +43,7 @@ namespace Cliptoo.Core.Services
                     ExeName = "totalcmd64.exe", Args = "/S=C",
                     RelativePaths = new List<string> { "totalcmd" }
                 },
-                 new() {
+                new() {
                     ExeName = "totalcmd.exe", Args = "/S=C",
                     RelativePaths = new List<string> { "totalcmd" }
                 },
