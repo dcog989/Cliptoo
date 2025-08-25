@@ -13,7 +13,9 @@
     <SolidColorBrush x:Key="AccentBrush" Color="{DynamicResource SystemAccentColor}" />
     <SolidColorBrush x:Key="AccentBrushHover" Color="{DynamicResource SystemAccentColorLight2}" />
     <SolidColorBrush x:Key="AlternateRowBackground" Color="#292929" />
-    <SolidColorBrush x:Key="ErrorTextBrush" Color="#FF8080" />
+    <SolidColorBrush x:Key="ErrorTextBrush" Color="#FFAAAA" />
+    <SolidColorBrush x:Key="HyperlinkBlueBrush" Color="#70acff" />
+    <SolidColorBrush x:Key="HyperlinkBlueBrushHover" Color="#a3c9ff" />
 
     <Style x:Key="AppBorderStyle" TargetType="Border">
         <Setter Property="Background" Value="{StaticResource PrimaryBackground}" />
@@ -325,6 +327,16 @@
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
+    </Style>
+
+    <Style TargetType="Hyperlink">
+        <Setter Property="Foreground" Value="{StaticResource HyperlinkBlueBrush}" />
+        <Setter Property="TextBlock.TextDecorations" Value="Underline" />
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Foreground" Value="{StaticResource HyperlinkBlueBrushHover}" />
+            </Trigger>
+        </Style.Triggers>
     </Style>
 
 </ResourceDictionary>

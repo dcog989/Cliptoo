@@ -94,9 +94,10 @@ namespace Cliptoo.UI.ViewModels
             get => _leftCompareClipId;
             set
             {
+                var oldValue = _leftCompareClipId;
                 if (SetProperty(ref _leftCompareClipId, value))
                 {
-                    UpdateCompareState();
+                    UpdateCompareState(oldValue, value);
                 }
             }
         }
@@ -256,14 +257,31 @@ namespace Cliptoo.UI.ViewModels
             });
         }
 
-        private void UpdateCompareState()
+        private void UpdateCompareState(int? oldClipId, int? newClipId)
         {
-            foreach (var vm in Clips)
+            if (oldClipId.HasValue)
             {
-                vm.ShowCompareRightOption = LeftCompareClipId.HasValue && vm.Id != LeftCompareClipId.Value;
-                vm.CompareLeftHeader = LeftCompareClipId.HasValue && vm.Id == LeftCompareClipId.Value
-                    ? "✓ Comparing with this"
-                    : "Compare Left";
+                var oldVm = Clips.FirstOrDefault(vm => vm.Id == oldClipId.Value);
+                if (oldVm != null)
+                {
+                    oldVm.ShowCompareRightOption = newClipId.HasValue && oldVm.Id != newClipId.Value;
+                    oldVm.CompareLeftHeader = "Compare Left";
+                }
+            }
+
+            if (newClipId.HasValue)
+            {
+                var newVm = Clips.FirstOrDefault(vm => vm.Id == newClipId.Value);
+                if (newVm != null)
+                {
+                    newVm.CompareLeftHeader = "✓ Comparing with this";
+                }
+            }
+
+            // Update all other clips to show/hide the "Compare Right" option
+            foreach (var vm in Clips.Where(c => c.Id != oldClipId && c.Id != newClipId))
+            {
+                vm.ShowCompareRightOption = newClipId.HasValue && vm.Id != newClipId.Value;
             }
         }
 
