@@ -111,7 +111,7 @@
                             <Image
                                 Width="16"
                                 Height="16"
-                                Source="{Binding PinIcon16}" />
+                                Source="{Binding MainViewModel.PinIcon16}" />
                         </MenuItem.Icon>
                     </MenuItem>
                     <MenuItem Command="{Binding MoveToTopCommand}" Header="Move to Top" />
@@ -281,7 +281,7 @@
                         Height="20"
                         Margin="0,0,4,0"
                         VerticalAlignment="Center"
-                        Source="{Binding WasTrimmedIcon}"
+                        Source="{Binding MainViewModel.WasTrimmedIcon}"
                         ToolTip="Content was modified (e.g., whitespace trimmed or content truncated)"
                         Visibility="{Binding WasTrimmed, Converter={StaticResource BooleanToVisibilityConverter}}" />
 
@@ -315,7 +315,7 @@
                     ToolTip="Pinned"
                     Visibility="{Binding IsPinned, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <Rectangle.OpacityMask>
-                        <ImageBrush ImageSource="{Binding PinIcon}" Stretch="Uniform" />
+                        <ImageBrush ImageSource="{Binding MainViewModel.PinIcon}" Stretch="Uniform" />
                     </Rectangle.OpacityMask>
                     <Rectangle.Style>
                         <Style TargetType="Rectangle">
@@ -335,7 +335,7 @@
                     ToolTip="Multi-line Content"
                     Visibility="{Binding IsMultiLine, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <Rectangle.OpacityMask>
-                        <ImageBrush ImageSource="{Binding MultiLineIcon}" Stretch="Uniform" />
+                        <ImageBrush ImageSource="{Binding MainViewModel.MultiLineIcon}" Stretch="Uniform" />
                     </Rectangle.OpacityMask>
                     <Rectangle.Style>
                         <Style TargetType="Rectangle">

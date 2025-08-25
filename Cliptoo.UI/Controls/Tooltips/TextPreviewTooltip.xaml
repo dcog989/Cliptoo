@@ -20,7 +20,7 @@
                 Width="24"
                 Height="24"
                 Margin="0,0,8,0"
-                Source="{Binding ErrorIcon}" />
+                Source="{Binding MainViewModel.ErrorIcon}" />
             <TextBlock
                 VerticalAlignment="Center"
                 FontStyle="Italic"
