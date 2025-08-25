@@ -396,6 +396,7 @@ namespace Cliptoo.UI.ViewModels
         public async Task LoadTooltipContentAsync()
         {
             if (_isTooltipContentLoaded) return;
+            DebugUtils.LogMemoryUsage($"LoadTooltipContentAsync START (ID: {Id})");
 
             var clipForTooltip = await GetFullClipAsync();
 
@@ -433,6 +434,7 @@ namespace Cliptoo.UI.ViewModels
 
             GenerateTooltipProperties(clipForTooltip, textFileContent);
             _isTooltipContentLoaded = true;
+            DebugUtils.LogMemoryUsage($"LoadTooltipContentAsync END (ID: {Id})");
         }
 
         public void ClearTooltipContent()

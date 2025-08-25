@@ -63,6 +63,7 @@ namespace Cliptoo.UI.Services
             {
                 return (null, null, false);
             }
+            DebugUtils.LogMemoryUsage($"GetFilePropertiesAsync START (Path: {vm.Content})");
 
             string? fileProperties = null;
             string? fileTypeInfo = null;
@@ -76,15 +77,20 @@ namespace Cliptoo.UI.Services
                 await Task.Run(async () =>
                 {
                     if (token.IsCancellationRequested) return;
+                    DebugUtils.LogMemoryUsage("GetFilePropertiesAsync - Before file system access");
 
                     if (Directory.Exists(path))
                     {
+                        DebugUtils.LogMemoryUsage("GetFilePropertiesAsync - Directory.Exists passed");
                         var dirInfo = new DirectoryInfo(path);
+                        DebugUtils.LogMemoryUsage("GetFilePropertiesAsync - After new DirectoryInfo()");
                         sb.AppendLine($"Modified: {dirInfo.LastWriteTime:yyyy-MM-dd HH:mm}");
                         fileTypeInfo = FormatUtils.GetFriendlyClipTypeName(vm.ClipType);
                         try
                         {
+                            DebugUtils.LogMemoryUsage("GetFilePropertiesAsync - Before CalculateDirectorySize");
                             var dirSize = await Task.Run(() => CalculateDirectorySize(dirInfo, token), token);
+                            DebugUtils.LogMemoryUsage("GetFilePropertiesAsync - After CalculateDirectorySize");
                             if (token.IsCancellationRequested) return;
                             sb.AppendLine($"Size: {FormatUtils.FormatBytes(dirSize.Size)}");
                             sb.AppendLine($"Contains: {dirSize.FileCount} files, {dirSize.FolderCount} folders");
@@ -100,7 +106,9 @@ namespace Cliptoo.UI.Services
                     }
                     else if (File.Exists(path))
                     {
+                        DebugUtils.LogMemoryUsage("GetFilePropertiesAsync - File.Exists passed");
                         var fileInfo = new FileInfo(path);
+                        DebugUtils.LogMemoryUsage("GetFilePropertiesAsync - After new FileInfo()");
                         sb.AppendLine($"Size: {FormatUtils.FormatBytes(fileInfo.Length)}");
                         sb.AppendLine($"Modified: {fileInfo.LastWriteTime:yyyy-MM-dd HH:mm}");
                         fileTypeInfo = $"{fileInfo.Extension.ToLower()} ({FormatUtils.GetFriendlyClipTypeName(vm.ClipType)})";

@@ -3,6 +3,7 @@ using Cliptoo.Core.Configuration;
 using Cliptoo.Core.Database.Models;
 using Cliptoo.Core.Native;
 using Cliptoo.Core.Services;
+using Cliptoo.UI.Helpers;
 using Cliptoo.UI.Services;
 using Cliptoo.UI.ViewModels.Base;
 using Cliptoo.UI.Views;
@@ -696,6 +697,7 @@ namespace Cliptoo.UI.ViewModels
                 }
                 return;
             }
+            DebugUtils.LogMemoryUsage($"Before Tooltip Load (Clip ID: {currentPreviewClip.Id})");
 
             var loadTasks = new List<Task>
             {
@@ -708,6 +710,7 @@ namespace Cliptoo.UI.ViewModels
             }
 
             await Task.WhenAll(loadTasks);
+            DebugUtils.LogMemoryUsage($"After Tooltip Load (Clip ID: {currentPreviewClip.Id})");
 
             if (PreviewClip?.Id == currentPreviewClip.Id)
             {
@@ -727,6 +730,7 @@ namespace Cliptoo.UI.ViewModels
                 IsPreviewOpen = false;
                 PreviewClip?.ClearTooltipContent();
                 _previewClipRef = null;
+                OnPropertyChanged(nameof(PreviewClip));
             }
         }
 

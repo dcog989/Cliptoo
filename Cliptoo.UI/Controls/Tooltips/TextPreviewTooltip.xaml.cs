@@ -1,3 +1,5 @@
+using Cliptoo.UI.Helpers;
+using System.Windows;
 using System.Windows.Controls;
 
 namespace Cliptoo.UI.Controls.Tooltips
@@ -7,6 +9,8 @@ namespace Cliptoo.UI.Controls.Tooltips
         public TextPreviewTooltip()
         {
             InitializeComponent();
+            DebugUtils.LogMemoryUsage("TextPreviewTooltip Constructor");
+            Loaded += (s, e) => DebugUtils.LogMemoryUsage("TextPreviewTooltip Loaded");
         }
     }
 }
