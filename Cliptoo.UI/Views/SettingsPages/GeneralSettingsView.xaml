@@ -55,30 +55,31 @@
                 </StackPanel>
             </StackPanel>
 
-            <CheckBox
-                Margin="0,15,0,0"
-                Content="Start with Windows"
-                IsChecked="{Binding StartWithWindows}" />
-            <CheckBox
-                Margin="0,15,0,0"
-                Content="Always paste as plain text"
-                IsChecked="{Binding PasteAsPlainText}"
-                ToolTip="Strips formatting from clips like RTF or images before pasting." />
-            <CheckBox
-                Margin="0,15,0,0"
-                Content="Remember search input"
-                IsChecked="{Binding Settings.RememberSearchInput}"
-                ToolTip="Keep the search term in the search box when the window is reopened." />
-            <CheckBox
-                Margin="0,15,0,0"
-                Content="Remember filter selection"
-                IsChecked="{Binding Settings.RememberFilterSelection}"
-                ToolTip="Keep the last used filter active when the window is reopened." />
-
-            <CheckBox
-                Margin="0,15,0,0"
-                Content="Display logo"
-                IsChecked="{Binding DisplayLogo}" />
+            <UniformGrid Margin="0,15,0,0" Columns="3">
+                <CheckBox
+                    Margin="0,0,10,15"
+                    Content="Start with Windows"
+                    IsChecked="{Binding StartWithWindows}" />
+                <CheckBox
+                    Margin="0,0,10,15"
+                    Content="Display logo"
+                    IsChecked="{Binding DisplayLogo}" />
+                <CheckBox
+                    Margin="0,0,10,15"
+                    Content="Always paste as plain text"
+                    IsChecked="{Binding PasteAsPlainText}"
+                    ToolTip="Strips formatting from clips like RTF or images before pasting." />
+                <CheckBox
+                    Margin="0,0,10,0"
+                    Content="Remember search input"
+                    IsChecked="{Binding Settings.RememberSearchInput}"
+                    ToolTip="Keep the search term in the search box when the window is reopened." />
+                <CheckBox
+                    Margin="0,0,10,0"
+                    Content="Remember filter selection"
+                    IsChecked="{Binding Settings.RememberFilterSelection}"
+                    ToolTip="Keep the last used filter active when the window is reopened." />
+            </UniformGrid>
 
             <Grid Margin="0,15,0,0">
                 <Grid.ColumnDefinitions>
@@ -114,6 +115,83 @@
                     SelectedItem="{Binding LoggingLevel}"
                     Style="{StaticResource SettingsComboBoxStyle}" />
             </StackPanel>
+
+            <Separator Margin="0,20,0,15" />
+
+            <TextBlock
+                FontSize="16"
+                FontWeight="SemiBold"
+                Text="Send To Applications" />
+
+            <TextBlock
+                Margin="0,5,0,10"
+                Foreground="{StaticResource SecondaryForeground}"
+                Text="Configure external applications to appear in the 'Send To' context menu. Use {0} as a placeholder for the file path."
+                TextWrapping="Wrap" />
+
+            <ListView
+                MaxHeight="200"
+                Background="Transparent"
+                BorderThickness="0"
+                ItemsSource="{Binding SendToTargets}"
+                ScrollViewer.VerticalScrollBarVisibility="Auto">
+                <ListView.ItemContainerStyle>
+                    <Style TargetType="ListViewItem">
+                        <Setter Property="Background" Value="Transparent" />
+                        <Setter Property="BorderThickness" Value="0" />
+                        <Setter Property="Padding" Value="0" />
+                        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                    </Style>
+                </ListView.ItemContainerStyle>
+                <ListView.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Margin="0,5">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="150" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="150" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <ui:TextBox
+                                Grid.Column="0"
+                                Margin="0,0,10,0"
+                                VerticalAlignment="Center"
+                                PlaceholderText="Display Name"
+                                Style="{StaticResource SettingsTextBoxStyle}"
+                                Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" />
+                            <ui:TextBox
+                                Grid.Column="1"
+                                Margin="0,0,10,0"
+                                VerticalAlignment="Center"
+                                IsReadOnly="True"
+                                Style="{StaticResource SettingsTextBoxStyle}"
+                                Text="{Binding Path}" />
+                            <ui:TextBox
+                                Grid.Column="2"
+                                Margin="0,0,10,0"
+                                VerticalAlignment="Center"
+                                PlaceholderText="Optional. Use {0} for path."
+                                Style="{StaticResource SettingsTextBoxStyle}"
+                                Text="{Binding Arguments, UpdateSourceTrigger=PropertyChanged}" />
+                            <ui:Button
+                                Grid.Column="3"
+                                VerticalAlignment="Center"
+                                Appearance="Secondary"
+                                Command="{Binding DataContext.RemoveSendToTargetCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
+                                CommandParameter="{Binding}"
+                                Content="Remove"
+                                Style="{StaticResource SettingsButtonStyle}" />
+                        </Grid>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
+            <ui:Button
+                Margin="0,10,0,0"
+                HorizontalAlignment="Left"
+                Command="{Binding AddSendToTargetCommand}"
+                Content="Add Application..."
+                Style="{StaticResource SecondaryAccentButton}" />
+
         </StackPanel>
     </ScrollViewer>
 </UserControl>

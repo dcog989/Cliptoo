@@ -74,6 +74,7 @@ namespace Cliptoo.UI.ViewModels
         public Settings CurrentSettings { get => _currentSettings; private set => SetProperty(ref _currentSettings, value); }
         public FontFamily MainFont { get => _mainFont; private set => SetProperty(ref _mainFont, value); }
         public FontFamily PreviewFont { get => _previewFont; private set => SetProperty(ref _previewFont, value); }
+        public ObservableCollection<SendToTarget> SendToTargets { get; }
         public double TooltipMaxHeight { get; }
         public string CurrentThemeString => Application.Current.Dispatcher.Invoke(() =>
         {
@@ -189,6 +190,7 @@ namespace Cliptoo.UI.ViewModels
 
             Clips = new ObservableCollection<ClipViewModel>();
             FilterOptions = new ObservableCollection<FilterOption>();
+            SendToTargets = new ObservableCollection<SendToTarget>(CurrentSettings.SendToTargets);
             _selectedFilter = new FilterOption("All", AppConstants.FilterKeys.All, null);
 
             PasteClipCommand = new RelayCommand(async param => await ExecutePasteClip(param));
@@ -238,6 +240,13 @@ namespace Cliptoo.UI.ViewModels
                 CurrentSettings = _controller.GetSettings();
                 MainFont = _fontProvider.GetFont(CurrentSettings.FontFamily);
                 PreviewFont = _fontProvider.GetFont(CurrentSettings.PreviewFontFamily);
+
+                SendToTargets.Clear();
+                foreach (var target in CurrentSettings.SendToTargets)
+                {
+                    SendToTargets.Add(target);
+                }
+
                 UpdateAllClipViewModelsAppearance();
                 OnPropertyChanged(nameof(DisplayLogo));
                 foreach (var clipVM in Clips)

@@ -47,12 +47,62 @@
 
     <Grid>
         <Grid Background="Transparent" Tag="{StaticResource Proxy}">
+
             <Grid.ContextMenu>
-                <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                <ContextMenu>
+                    <ContextMenu.Resources>
+                        <Style x:Key="ContextMenuSeparatorStyle" TargetType="Separator">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Separator">
+                                        <Rectangle
+                                            Height="1"
+                                            Margin="0,6,0,6"
+                                            Fill="#666666" />
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </ContextMenu.Resources>
                     <MenuItem
                         Command="{Binding EditClipCommand}"
                         Header="Edit"
                         Visibility="{Binding IsEditable, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                    <MenuItem
+                        Command="{Binding OpenCommand}"
+                        Header="{Binding OpenCommandHeader}"
+                        Visibility="{Binding IsOpenable, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                    <MenuItem Header="Send To" ItemsSource="{Binding Data.SendToTargets, Source={StaticResource Proxy}}">
+                        <MenuItem.Style>
+                            <Style TargetType="MenuItem">
+                                <Setter Property="Visibility" Value="Visible" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Data.SendToTargets.Count, Source={StaticResource Proxy}}" Value="0">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </MenuItem.Style>
+                        <MenuItem.ItemContainerStyle>
+                            <Style TargetType="MenuItem">
+                                <Setter Property="Header" Value="{Binding Name}" />
+                                <Setter Property="Command" Value="{Binding DataContext.SendToCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                <Setter Property="CommandParameter" Value="{Binding}" />
+                            </Style>
+                        </MenuItem.ItemContainerStyle>
+                    </MenuItem>
+                    <Separator>
+                        <Separator.Style>
+                            <Style BasedOn="{StaticResource ContextMenuSeparatorStyle}" TargetType="Separator">
+                                <Setter Property="Visibility" Value="Visible" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Data.SendToTargets.Count, Source={StaticResource Proxy}}" Value="0">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Separator.Style>
+                    </Separator>
                     <MenuItem
                         Command="{Binding TogglePinCommand}"
                         Header="Pin"
@@ -66,7 +116,7 @@
                         </MenuItem.Icon>
                     </MenuItem>
                     <MenuItem Command="{Binding MoveToTopCommand}" Header="Move to Top" />
-                    <Separator />
+                    <Separator Style="{StaticResource ContextMenuSeparatorStyle}" />
                     <MenuItem
                         Command="{Binding PasteAsPlainTextCommand}"
                         Header="Plain Text"
@@ -135,7 +185,7 @@
                             CommandParameter="{x:Static core:AppConstants+TransformTypes.Deslug}"
                             Header="Deslug" />
                     </MenuItem>
-                    <Separator />
+                    <Separator Style="{StaticResource ContextMenuSeparatorStyle}" />
                     <MenuItem
                         Command="{Binding SelectForCompareLeftCommand}"
                         Header="{Binding CompareLeftHeader}"
@@ -156,7 +206,7 @@
                             </Style>
                         </MenuItem.Style>
                     </MenuItem>
-                    <Separator />
+                    <Separator Style="{StaticResource ContextMenuSeparatorStyle}" />
                     <MenuItem
                         Command="{Binding DeleteCommand}"
                         Foreground="{DynamicResource ErrorTextBrush}"

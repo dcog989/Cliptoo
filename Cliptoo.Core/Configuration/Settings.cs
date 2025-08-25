@@ -1,7 +1,54 @@
+using System.Collections.Generic;
 using System.ComponentModel;
+using System.Runtime.CompilerServices;
 
 namespace Cliptoo.Core.Configuration
 {
+    public class SendToTarget : INotifyPropertyChanged
+    {
+        private string _name = string.Empty;
+        public string Name
+        {
+            get => _name;
+            set
+            {
+                if (_name == value) return;
+                _name = value;
+                OnPropertyChanged();
+            }
+        }
+
+        private string _path = string.Empty;
+        public string Path
+        {
+            get => _path;
+            set
+            {
+                if (_path == value) return;
+                _path = value;
+                OnPropertyChanged();
+            }
+        }
+
+        private string _arguments = string.Empty;
+        public string Arguments
+        {
+            get => _arguments;
+            set
+            {
+                if (_arguments == value) return;
+                _arguments = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+    }
 
     public class Settings
     {
@@ -11,8 +58,8 @@ namespace Cliptoo.Core.Configuration
         [DefaultValue("")]
         public string CompareToolPath { get; set; } = "";
 
-        [DefaultValue("Ctrl+Alt+X")]
-        public string Hotkey { get; set; } = "Ctrl+Alt+X";
+        [DefaultValue("Ctrl+Alt+Q")]
+        public string Hotkey { get; set; } = "Ctrl+Alt+Q";
 
         [DefaultValue("#007ACC")]
         public string AccentColor { get; set; } = "#007ACC";
@@ -32,11 +79,11 @@ namespace Cliptoo.Core.Configuration
         [DefaultValue(14.0f)]
         public float FontSize { get; set; } = 14.0f;
 
-        [DefaultValue(500.0)]
-        public double WindowWidth { get; set; } = 500.0;
+        [DefaultValue(400.0)]
+        public double WindowWidth { get; set; } = 400.0;
 
-        [DefaultValue(350.0)]
-        public double WindowHeight { get; set; } = 350.0;
+        [DefaultValue(500.0)]
+        public double WindowHeight { get; set; } = 500.0;
 
         [DefaultValue(100)]
         public int FixedX { get; set; } = 100;
@@ -63,10 +110,10 @@ namespace Cliptoo.Core.Configuration
         public bool ShowHoverPreview { get; set; } = true;
 
         [DefaultValue(1250)]
-        public uint HoverPreviewDelay { get; set; } = 1350;
+        public uint HoverPreviewDelay { get; set; } = 1250;
 
-        [DefaultValue(400)]
-        public uint HoverImagePreviewSize { get; set; } = 400;
+        [DefaultValue(350)]
+        public uint HoverImagePreviewSize { get; set; } = 350;
 
         [DefaultValue("F3")]
         public string PreviewHotkey { get; set; } = "F3";
@@ -109,6 +156,7 @@ namespace Cliptoo.Core.Configuration
 
         [DefaultValue(false)]
         public bool PasteAsPlainText { get; set; } = false;
+        public List<SendToTarget> SendToTargets { get; set; } = new();
     }
 
 }

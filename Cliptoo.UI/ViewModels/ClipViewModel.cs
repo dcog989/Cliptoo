@@ -1,9 +1,11 @@
 using Cliptoo.Core;
+using Cliptoo.Core.Configuration;
 using Cliptoo.Core.Database.Models;
 using Cliptoo.Core.Services;
 using Cliptoo.UI.Helpers;
 using Cliptoo.UI.Services;
 using Cliptoo.UI.ViewModels.Base;
+using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Windows;
@@ -60,7 +62,6 @@ namespace Cliptoo.UI.ViewModels
         private ImageSource? _quickPasteIcon;
         private ImageSource? _errorIcon;
         private ImageSource? _fileTypeInfoIcon;
-        public ImageSource? FileTypeInfoIcon { get => _fileTypeInfoIcon; private set => SetProperty(ref _fileTypeInfoIcon, value); }
         public ImageSource? ClipTypeIcon { get => _clipTypeIcon; private set => SetProperty(ref _clipTypeIcon, value); }
         public ImageSource? WasTrimmedIcon { get => _wasTrimmedIcon; private set => SetProperty(ref _wasTrimmedIcon, value); }
         public ImageSource? MultiLineIcon { get => _multiLineIcon; private set => SetProperty(ref _multiLineIcon, value); }
@@ -68,7 +69,7 @@ namespace Cliptoo.UI.ViewModels
         public ImageSource? PinIcon16 { get => _pinIcon16; private set => SetProperty(ref _pinIcon16, value); }
         public ImageSource? QuickPasteIcon { get => _quickPasteIcon; private set => SetProperty(ref _quickPasteIcon, value); }
         public ImageSource? ErrorIcon { get => _errorIcon; private set => SetProperty(ref _errorIcon, value); }
-
+        public ImageSource? FileTypeInfoIcon { get => _fileTypeInfoIcon; private set => SetProperty(ref _fileTypeInfoIcon, value); }
         public bool IsTextTransformable => IsEditable;
         public bool IsCompareToolAvailable => MainViewModel.IsCompareToolAvailable;
         public bool ShowCompareMenu => IsComparable && IsCompareToolAvailable;
@@ -119,12 +120,7 @@ namespace Cliptoo.UI.ViewModels
         public bool CanPasteAsRtf => Controller.GetSettings().PasteAsPlainText && IsRtf;
         public bool IsEditable => !IsImage && !ClipType.StartsWith("file_") && ClipType != AppConstants.ClipTypes.Folder;
         public bool IsOpenable => IsImage || ClipType.StartsWith("file_") || ClipType == AppConstants.ClipTypes.Folder || ClipType == AppConstants.ClipTypes.Link;
-        public string OpenCommandHeader => ClipType switch
-        {
-            AppConstants.ClipTypes.Link => "Open Link",
-            AppConstants.ClipTypes.Folder => "Open Folder",
-            _ => "Open File"
-        };
+        public string OpenCommandHeader => "Open";
 
         public bool IsFileBased => IsImage || ClipType.StartsWith("file_") || ClipType == AppConstants.ClipTypes.Folder;
         public string? FileProperties { get => _fileProperties; private set => SetProperty(ref _fileProperties, value); }
@@ -156,8 +152,6 @@ namespace Cliptoo.UI.ViewModels
         public FontFamily CurrentFontFamily { get => _currentFontFamily; set => SetProperty(ref _currentFontFamily, value); }
         public double CurrentFontSize { get => _currentFontSize; set => SetProperty(ref _currentFontSize, value); }
 
-
-
         public ICommand TogglePinCommand { get; }
         public ICommand DeleteCommand { get; }
         public ICommand EditClipCommand { get; }
@@ -169,6 +163,7 @@ namespace Cliptoo.UI.ViewModels
         public ICommand PasteAsPlainTextCommand { get; }
         public ICommand PasteAsRtfCommand { get; }
         public ICommand TransformAndPasteCommand { get; }
+        public ICommand SendToCommand { get; }
 
         public ClipViewModel(Clip clip, CliptooController controller, IPastingService pastingService, INotificationService notificationService, IClipDetailsLoader clipDetailsLoader, string paddingSize, MainViewModel mainViewModel, IIconProvider iconProvider, IThumbnailService thumbnailService, IWebMetadataService webMetadataService)
         {
@@ -195,6 +190,7 @@ namespace Cliptoo.UI.ViewModels
             PasteAsPlainTextCommand = new RelayCommand(async _ => await ExecutePasteAs(plainText: true));
             PasteAsRtfCommand = new RelayCommand(async _ => await ExecutePasteAs(plainText: false));
             TransformAndPasteCommand = new RelayCommand(async param => await ExecuteTransformAndPaste(param as string));
+            SendToCommand = new RelayCommand(async param => await ExecuteSendTo(param as SendToTarget));
         }
 
         private async Task<Clip> GetFullClipAsync()
@@ -251,6 +247,61 @@ namespace Cliptoo.UI.ViewModels
             {
                 Core.Configuration.LogManager.Log(ex, $"Failed to open path: {fullClip.Content}");
                 _notificationService.Show("Error", $"Could not open path: {ex.Message}", ControlAppearance.Danger, SymbolRegular.ErrorCircle24);
+            }
+        }
+
+        private async Task ExecuteSendTo(SendToTarget? target)
+        {
+            if (target == null)
+            {
+                Core.Configuration.LogManager.LogDebug("SENDTO_DIAG: ExecuteSendTo called with null target.");
+                return;
+            }
+            Core.Configuration.LogManager.LogDebug($"SENDTO_DIAG: ExecuteSendTo called for target: {target.Name} ({target.Path})");
+
+            var clip = await GetFullClipAsync();
+            if (clip?.Content == null)
+            {
+                Core.Configuration.LogManager.LogDebug("SENDTO_DIAG: Clip content is null, aborting.");
+                return;
+            }
+
+            string contentPath;
+
+            if (IsFileBased)
+            {
+                contentPath = clip.Content.Trim();
+            }
+            else
+            {
+                var extension = ClipType switch
+                {
+                    AppConstants.ClipTypes.CodeSnippet => ".txt",
+                    AppConstants.ClipTypes.Rtf => ".rtf",
+                    _ => ".txt"
+                };
+                var tempFilePath = Path.Combine(Path.GetTempPath(), $"cliptoo_sendto_{Guid.NewGuid()}{extension}");
+                await File.WriteAllTextAsync(tempFilePath, clip.Content);
+                contentPath = tempFilePath;
+            }
+
+            try
+            {
+                string args;
+                if (string.IsNullOrWhiteSpace(target.Arguments))
+                {
+                    args = $"\"{contentPath}\"";
+                }
+                else
+                {
+                    args = string.Format(target.Arguments, contentPath);
+                }
+                Process.Start(new ProcessStartInfo(target.Path, args) { UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                Core.Configuration.LogManager.Log(ex, $"Failed to send to path: {target.Path} with content {contentPath}");
+                _notificationService.Show("Error", $"Could not send to '{target.Name}'.", ControlAppearance.Danger, SymbolRegular.ErrorCircle24);
             }
         }
 

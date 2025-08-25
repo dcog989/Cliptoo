@@ -3,7 +3,6 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
 
-    <!--  Brushes  -->
     <SolidColorBrush x:Key="PrimaryBackground" Color="#242424" />
     <SolidColorBrush x:Key="SecondaryBackground" Color="#2f2f2f" />
     <SolidColorBrush x:Key="TertiaryBackground" Color="#3a3a3a" />
@@ -16,7 +15,6 @@
     <SolidColorBrush x:Key="AlternateRowBackground" Color="#292929" />
     <SolidColorBrush x:Key="ErrorTextBrush" Color="#FF8080" />
 
-    <!--  Base Styles  -->
     <Style x:Key="AppBorderStyle" TargetType="Border">
         <Setter Property="Background" Value="{StaticResource PrimaryBackground}" />
         <Setter Property="BorderBrush" Value="{StaticResource PrimaryBorderBrush}" />
@@ -24,7 +22,12 @@
         <Setter Property="CornerRadius" Value="8" />
     </Style>
 
-    <!--  Control Styles  -->
+    <Style TargetType="Separator">
+        <Setter Property="Background" Value="#666666" />
+        <Setter Property="Height" Value="1" />
+        <Setter Property="Margin" Value="4,6,4,6" />
+    </Style>
+
     <Style TargetType="Button">
         <Setter Property="Background" Value="{StaticResource TertiaryBackground}" />
         <Setter Property="BorderBrush" Value="{StaticResource SecondaryBorderBrush}" />

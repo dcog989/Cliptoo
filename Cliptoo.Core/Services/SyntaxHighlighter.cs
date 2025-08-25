@@ -8,8 +8,8 @@ namespace Cliptoo.Core.Services
         {
             if (clipType == "file_dev" || clipType.StartsWith("code_"))
             {
-                if (IsLikelyXml(content)) return "XML";
-                if (IsLikelyJson(content)) return "JavaScript"; // AvalonEdit uses JS for JSON
+                if (TextAnalysisUtils.IsLikelyXml(content)) return "XML";
+                if (TextAnalysisUtils.IsJson(content)) return "JavaScript"; // AvalonEdit uses JS for JSON
 
                 // This could be expanded with more sophisticated language detection
                 // For now, we'll return a common default for code.
@@ -17,18 +17,6 @@ namespace Cliptoo.Core.Services
             }
 
             return null; // No highlighting for non-code types
-        }
-
-        private bool IsLikelyXml(string content)
-        {
-            var trimmed = content.Trim();
-            return trimmed.StartsWith("<") && trimmed.EndsWith(">");
-        }
-
-        private bool IsLikelyJson(string content)
-        {
-            var trimmed = content.Trim();
-            return (trimmed.StartsWith("{") && trimmed.EndsWith("}")) || (trimmed.StartsWith("[") && trimmed.EndsWith("]"));
         }
     }
 }

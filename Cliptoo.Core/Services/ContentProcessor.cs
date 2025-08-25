@@ -143,37 +143,12 @@ namespace Cliptoo.Core.Services
             return ColorParser.TryParseColor(input, out _);
         }
 
-        private bool IsJson(string input)
-        {
-            if (string.IsNullOrWhiteSpace(input) || !((input.StartsWith('{') && input.EndsWith('}')) || (input.StartsWith('[') && input.EndsWith(']'))))
-            {
-                return false;
-            }
-
-            try
-            {
-                JsonDocument.Parse(input);
-                return true;
-            }
-            catch (JsonException)
-            {
-                return false;
-            }
-        }
-
-        private bool IsLikelyXml(string input)
-        {
-            if (string.IsNullOrWhiteSpace(input)) return false;
-            var trimmed = input.Trim();
-            return trimmed.StartsWith("<") && trimmed.EndsWith(">");
-        }
-
         private bool IsCodeSnippet(string content)
         {
             if (string.IsNullOrWhiteSpace(content) || content.Length < 10) return false;
 
             var trimmedForCheck = content.Trim();
-            if (IsJson(trimmedForCheck) || IsLikelyXml(trimmedForCheck)) return true;
+            if (TextAnalysisUtils.IsJson(trimmedForCheck) || TextAnalysisUtils.IsLikelyXml(trimmedForCheck)) return true;
 
             var lines = content.Split('\n');
             int lineCount = lines.Length;

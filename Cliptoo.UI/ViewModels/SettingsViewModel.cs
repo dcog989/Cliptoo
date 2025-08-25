@@ -11,7 +11,7 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Windows;
-using System.Windows.Controls;
+using System.ComponentModel;
 using System.Windows.Input;
 using System.Windows.Media;
 using Wpf.Ui;
@@ -49,7 +49,7 @@ namespace Cliptoo.UI.ViewModels
         public bool IsBusy { get => _isBusy; set => SetProperty(ref _isBusy, value); }
         private ImageSource? _logoIcon;
         public ImageSource? LogoIcon { get => _logoIcon; private set => SetProperty(ref _logoIcon, value); }
-
+        public ObservableCollection<SendToTarget> SendToTargets { get; }
         public Settings Settings { get => _settings; set => SetProperty(ref _settings, value); }
         public DbStats Stats { get => _stats; set => SetProperty(ref _stats, value); }
         public SolidColorBrush AccentBrush { get => _accentBrush; set => SetProperty(ref _accentBrush, value); }
@@ -386,6 +386,8 @@ namespace Cliptoo.UI.ViewModels
         public ICommand OpenAcknowledgementsWindowCommand { get; }
         public ICommand OpenExeFolderCommand { get; }
         public ICommand BrowseCompareToolCommand { get; }
+        public ICommand AddSendToTargetCommand { get; }
+        public ICommand RemoveSendToTargetCommand { get; }
 
         public SettingsViewModel(CliptooController controller, IContentDialogService contentDialogService, IStartupManagerService startupManagerService, IServiceProvider serviceProvider, IFontProvider fontProvider, IIconProvider iconProvider)
         {
@@ -477,9 +479,23 @@ namespace Cliptoo.UI.ViewModels
             OpenTempDataFolderCommand = new RelayCommand(_ => Process.Start(new ProcessStartInfo(TempDataPath) { UseShellExecute = true }));
             OpenAcknowledgementsWindowCommand = new RelayCommand(_ => ShowAcknowledgementsWindow());
             OpenExeFolderCommand = new RelayCommand(_ => Process.Start(new ProcessStartInfo(ExePathDir) { UseShellExecute = true }));
+            BrowseCompareToolCommand = new RelayCommand(_ => ExecuteBrowseCompareTool());
+            AddSendToTargetCommand = new RelayCommand(_ => ExecuteAddSendToTarget());
+            RemoveSendToTargetCommand = new RelayCommand(param => ExecuteRemoveSendToTarget(param as SendToTarget));
 
             SystemFonts = new ObservableCollection<string>();
             _ = PopulateFontsAsync();
+
+            SendToTargets = new ObservableCollection<SendToTarget>(Settings.SendToTargets);
+            foreach (var target in SendToTargets)
+            {
+                if (target.Arguments == "\"{0}\"")
+                {
+                    target.Arguments = string.Empty;
+                }
+                target.PropertyChanged += (s, e) => DebounceSave();
+            }
+            SendToTargets.CollectionChanged += (s, e) => DebounceSave();
 
             _saveDebounceTimer = new System.Timers.Timer(500);
             _saveDebounceTimer.Elapsed += OnDebounceTimerElapsed;
@@ -547,6 +563,7 @@ namespace Cliptoo.UI.ViewModels
 
         private void OnDebounceTimerElapsed(object? sender, System.Timers.ElapsedEventArgs e)
         {
+            Settings.SendToTargets = new List<SendToTarget>(SendToTargets);
             _controller.SaveSettings(Settings);
         }
 
@@ -782,6 +799,34 @@ namespace Cliptoo.UI.ViewModels
                     break;
             }
         }
+
+        private void ExecuteAddSendToTarget()
+        {
+            var openFileDialog = new OpenFileDialog
+            {
+                Filter = "Executable files (*.exe)|*.exe|All files (*.*)|*.*",
+                Title = "Select an Application"
+            };
+
+            if (openFileDialog.ShowDialog() == true)
+            {
+                var newTarget = new SendToTarget
+                {
+                    Path = openFileDialog.FileName,
+                    Name = Path.GetFileNameWithoutExtension(openFileDialog.FileName)
+                };
+                (newTarget as INotifyPropertyChanged).PropertyChanged += (s, e) => DebounceSave();
+                SendToTargets.Add(newTarget);
+            }
+        }
+
+        private void ExecuteRemoveSendToTarget(SendToTarget? target)
+        {
+            if (target != null)
+            {
+                SendToTargets.Remove(target);
+            }
+        }
     }
 
     public enum ClearHistoryResult { Cancel, ClearUnpinned, ClearAll }
@@ -792,7 +837,5 @@ namespace Cliptoo.UI.ViewModels
         public bool DeletePinned { get => _deletePinned; set => SetProperty(ref _deletePinned, value); }
         public ClearHistoryResult Result { get; set; } = ClearHistoryResult.Cancel;
     }
-
-
 
 }
