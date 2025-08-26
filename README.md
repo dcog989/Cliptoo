@@ -13,8 +13,16 @@ It has been carefully designed to remain performant whether you have 10 clips or
 
 ## Screenshots
 
-<!-- TODO: Add a high-quality GIF or screenshot of the application in action -->
-*(A preview of Cliptoo's interface, showing the virtualized list, search highlighting, and a color preview tooltip)*
+![screen 1](.assets/screen-01.webp)
+![screen 2](.assets/screen-02.webp)
+![screen 3](.assets/screen-03.webp)
+![screen 4](.assets/screen-04.webp)
+![screen 5](.assets/screen-05.webp)
+![screen 6](.assets/screen-06.webp)
+![screen 7](.assets/screen-07.webp)
+![screen 8](.assets/screen-08.webp)
+![screen 9](.assets/screen-09.webp)
+![screen 10](.assets/screen-10.webp)
 
 ## Features
 
