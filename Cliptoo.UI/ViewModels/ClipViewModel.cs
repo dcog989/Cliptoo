@@ -52,7 +52,7 @@ namespace Cliptoo.UI.ViewModels
         private FontFamily _previewFont = new("Segoe UI");
         private double _previewFontSize = 14;
         private string _compareLeftHeader = "Compare Left";
-        private bool _showCompareRightOption = false;
+        private bool _showCompareRightOption;
         private ImageSource? _clipTypeIcon;
         private ImageSource? _quickPasteIcon;
         private ImageSource? _fileTypeInfoIcon;

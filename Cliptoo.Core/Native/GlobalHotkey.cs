@@ -13,9 +13,11 @@ namespace Cliptoo.Core.Native
         private const int HotkeyId = 9000;
 
         // Win32 API
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [DllImport("user32.dll")]
         private static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
 
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [DllImport("user32.dll")]
         private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
 
@@ -51,7 +53,7 @@ namespace Cliptoo.Core.Native
                 if (modifiers.Contains("SHIFT")) modifierFlags |= (uint)ModifierKeys.Shift;
                 if (modifiers.Contains("WIN")) modifierFlags |= (uint)ModifierKeys.Win;
 
-                var key = (Key)Enum.Parse(typeof(Key), keyStr, true);
+                var key = Enum.Parse<Key>(keyStr, true);
                 uint virtualKey = (uint)KeyInterop.VirtualKeyFromKey(key);
 
                 return RegisterHotKey(_windowHandle, HotkeyId, modifierFlags, virtualKey);

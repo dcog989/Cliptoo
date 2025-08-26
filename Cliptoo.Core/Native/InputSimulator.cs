@@ -62,6 +62,7 @@ namespace Cliptoo.Core.Native
             public ushort wParamH;
         }
 
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [DllImport("user32.dll", SetLastError = true)]
         private static extern uint SendInput(uint nInputs, [In] INPUT[] pInputs, int cbSize);
 

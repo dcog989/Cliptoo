@@ -12,6 +12,7 @@ namespace Cliptoo.UI.Services
 
     public class WindowPositioner : IWindowPositioner
     {
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [DllImport("user32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool GetCursorPos(out POINT lpPoint);

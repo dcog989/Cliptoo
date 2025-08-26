@@ -14,9 +14,9 @@ namespace Cliptoo.Core.Native
 
         private IntPtr _windowHandle;
         private bool _isStarted;
-        private ulong _lastTextHash = 0;
-        private ulong _lastImageHash = 0;
-        private ulong _lastFileDropHash = 0;
+        private ulong _lastTextHash;
+        private ulong _lastImageHash;
+        private ulong _lastFileDropHash;
         private bool _isPaused;
         private ulong _hashToSuppress;
         public void Pause() => _isPaused = true;
@@ -161,10 +161,12 @@ namespace Cliptoo.Core.Native
             Stop();
         }
 
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [DllImport("user32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool AddClipboardFormatListener(IntPtr hwnd);
 
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [DllImport("user32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool RemoveClipboardFormatListener(IntPtr hwnd);

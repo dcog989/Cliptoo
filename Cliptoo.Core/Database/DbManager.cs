@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -5,7 +6,7 @@ using Cliptoo.Core.Database.Models;
 
 namespace Cliptoo.Core.Database
 {
-    public class DbManager : IDbManager
+    public sealed class DbManager : IDbManager
     {
         private readonly IDatabaseInitializer _initializer;
         private readonly IClipRepository _clipRepository;
@@ -46,6 +47,11 @@ namespace Cliptoo.Core.Database
         public IAsyncEnumerable<string> GetAllImageClipPathsAsync() => _clipRepository.GetAllImageClipPathsAsync();
         public IAsyncEnumerable<string> GetAllLinkClipUrlsAsync() => _clipRepository.GetAllLinkClipUrlsAsync();
         public Task UpdateLastCleanupTimestampAsync() => _statsService.UpdateLastCleanupTimestampAsync();
-        public void Dispose() { }
+        public void Dispose()
+        {
+            // This class doesn't own any disposable resources directly.
+            // The DI container manages the lifetime of the injected services.
+            GC.SuppressFinalize(this);
+        }
     }
 }

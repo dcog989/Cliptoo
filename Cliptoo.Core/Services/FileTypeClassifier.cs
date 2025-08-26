@@ -166,7 +166,7 @@ namespace Cliptoo.Core.Services
                 {
                     foreach (var ext in categoryData.Extensions)
                     {
-                        newExtToCategory[ext.TrimStart('.').ToLowerInvariant()] = categoryName;
+                        newExtToCategory[ext.TrimStart('.').ToUpperInvariant()] = categoryName;
                     }
                 }
             }
@@ -193,7 +193,7 @@ namespace Cliptoo.Core.Services
             var extension = Path.GetExtension(trimmedPath);
             if (!string.IsNullOrEmpty(extension))
             {
-                string extKey = extension.TrimStart('.').ToLowerInvariant();
+                string extKey = extension.TrimStart('.').ToUpperInvariant();
                 lock (_extToCategory)
                 {
                     if (_extToCategory.TryGetValue(extKey, out var category))

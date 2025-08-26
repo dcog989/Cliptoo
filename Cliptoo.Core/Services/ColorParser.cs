@@ -98,7 +98,7 @@ namespace Cliptoo.Core.Services
             if (string.IsNullOrWhiteSpace(input)) return false;
 
             var str = input.Trim();
-            var lowerStr = str.ToLowerInvariant();
+            var lowerStr = str.ToUpperInvariant();
             if (NamedColors.TryGetValue(lowerStr, out var hex))
             {
                 str = hex;
@@ -216,7 +216,7 @@ namespace Cliptoo.Core.Services
         }
 
         private static double Clamp(double value, double min, double max) => Math.Max(min, Math.Min(value, max));
-        private static bool IsPercentage(string s) => s.EndsWith("%");
+        private static bool IsPercentage(string s) => s.EndsWith('%');
 
         private static double ParseCssNumber(string value)
         {
@@ -230,7 +230,7 @@ namespace Cliptoo.Core.Services
 
         private static double ParseHue(string value)
         {
-            var str = value.ToLowerInvariant().Trim();
+            var str = value.ToUpperInvariant().Trim();
             var num = double.Parse(Regex.Match(str, @"[+\-\d.]+").Value, CultureInfo.InvariantCulture);
             var normalized = 0.0;
             if (str.Contains("deg", StringComparison.Ordinal) || !Regex.IsMatch(str, "[a-z]")) normalized = num;

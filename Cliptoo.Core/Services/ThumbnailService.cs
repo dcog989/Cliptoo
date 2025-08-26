@@ -30,7 +30,7 @@ namespace Cliptoo.Core.Services
 
         private string GetTargetExtension(string imagePath)
         {
-            var sourceExtension = Path.GetExtension(imagePath).ToLowerInvariant();
+            var sourceExtension = Path.GetExtension(imagePath).ToUpperInvariant();
             switch (sourceExtension)
             {
                 // Photographic or complex images that benefit from JPEG
@@ -61,7 +61,7 @@ namespace Cliptoo.Core.Services
 
         private async Task<string?> GetImageInternalAsync(string imagePath, string? theme, int size, string cacheDirectory)
         {
-            var sourceExtension = Path.GetExtension(imagePath).ToLowerInvariant();
+            var sourceExtension = Path.GetExtension(imagePath).ToUpperInvariant();
             var targetExtension = GetTargetExtension(imagePath);
 
             var cacheKey = (sourceExtension == ".svg" && !string.IsNullOrEmpty(theme)) ? $"{imagePath}_{theme}_{size}" : $"{imagePath}_{size}";
@@ -148,7 +148,7 @@ namespace Cliptoo.Core.Services
 
             await foreach (var imagePath in validImagePaths)
             {
-                var sourceExtension = Path.GetExtension(imagePath).ToLowerInvariant();
+                var sourceExtension = Path.GetExtension(imagePath).ToUpperInvariant();
                 var targetExtension = GetTargetExtension(imagePath);
 
                 validCacheFiles.Add(GenerateCachePath(imagePath, null, ThumbnailSize, _cacheDir, targetExtension));
@@ -172,7 +172,7 @@ namespace Cliptoo.Core.Services
 
         private string GenerateCachePath(string imagePath, string? theme, int size, string cacheDirectory, string targetExtension)
         {
-            var sourceExtension = Path.GetExtension(imagePath).ToLowerInvariant();
+            var sourceExtension = Path.GetExtension(imagePath).ToUpperInvariant();
             var cacheKey = (sourceExtension == ".svg" && !string.IsNullOrEmpty(theme))
                 ? $"{imagePath}_{theme}_{size}"
                 : $"{imagePath}_{size}";

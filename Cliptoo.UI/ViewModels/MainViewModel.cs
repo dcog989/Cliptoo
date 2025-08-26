@@ -53,7 +53,7 @@ namespace Cliptoo.UI.ViewModels
         private readonly DispatcherTimer _hidePreviewTimer;
         private WeakReference<ClipViewModel>? _previewClipRef;
         private bool _isPreviewOpen;
-        private bool _isReadyForEvents = false; // Start false, ApplicationHostService will set it to true.
+        private bool _isReadyForEvents; // Start false, ApplicationHostService will set it to true.
         public bool IsReadyForEvents { get => _isReadyForEvents; set => _isReadyForEvents = value; }
         private ImageSource? _logoIcon;
         public ImageSource? LogoIcon { get => _logoIcon; private set => SetProperty(ref _logoIcon, value); }

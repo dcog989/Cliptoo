@@ -175,7 +175,7 @@ namespace Cliptoo.Core
                         return;
                     }
 
-                    var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(imageBytes)).ToLowerInvariant();
+                    var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(imageBytes)).ToUpperInvariant();
                     var permanentImagePath = Path.Combine(_imageCachePath, $"{hash}.png");
 
                     if (!File.Exists(permanentImagePath))

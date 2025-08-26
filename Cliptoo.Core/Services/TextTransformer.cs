@@ -14,12 +14,12 @@ namespace Cliptoo.Core.Services
             _transformations = new Dictionary<string, Func<string, string>>
             {
                 { AppConstants.TransformTypes.Upper, content => content.ToUpperInvariant() },
-                { AppConstants.TransformTypes.Lower, content => content.ToLowerInvariant() },
+                { AppConstants.TransformTypes.Lower, content => content.ToUpperInvariant() },
                 { AppConstants.TransformTypes.Trim, content => content.Trim() },
-                { AppConstants.TransformTypes.Capitalize, content => System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(content.ToLowerInvariant()) },
+                { AppConstants.TransformTypes.Capitalize, content => System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(content.ToUpperInvariant()) },
                 { AppConstants.TransformTypes.Sentence, content => {
                     var sentenceRegex = new Regex(@"(^\s*\w|[.!?]\s*\w)");
-                    return sentenceRegex.Replace(content.ToLowerInvariant(), m => m.Value.ToUpperInvariant());
+                    return sentenceRegex.Replace(content.ToUpperInvariant(), m => m.Value.ToUpperInvariant());
                 }},
                 { AppConstants.TransformTypes.Invert, content => {
                     var charArray = content.ToCharArray();
@@ -34,19 +34,19 @@ namespace Cliptoo.Core.Services
                 }},
                 { AppConstants.TransformTypes.Kebab, content => {
                     var kebabTemp = Regex.Replace(content.Trim(), @"(?<=\w)([A-Z])", "-$1");
-                    return Regex.Replace(kebabTemp, @"[\s_]+", "-").ToLowerInvariant();
+                    return Regex.Replace(kebabTemp, @"[\s_]+", "-").ToUpperInvariant();
                 }},
                 { AppConstants.TransformTypes.Snake, content => {
                     var snakeTemp = Regex.Replace(content.Trim(), @"(?<=\w)([A-Z])", "_$1");
-                    return Regex.Replace(snakeTemp, @"[\s-]+", "_").ToLowerInvariant();
+                    return Regex.Replace(snakeTemp, @"[\s-]+", "_").ToUpperInvariant();
                 }},
                 { AppConstants.TransformTypes.Camel, content => {
                     var words = content.Split(new[] { ' ', '-', '_' }, StringSplitOptions.RemoveEmptyEntries);
                     if (words.Length == 0) return "";
-                    var camelResult = new StringBuilder(words[0].ToLowerInvariant());
+                    var camelResult = new StringBuilder(words[0].ToUpperInvariant());
                     for (int i = 1; i < words.Length; i++)
                     {
-                        camelResult.Append(char.ToUpperInvariant(words[i][0]) + words[i].Substring(1).ToLowerInvariant());
+                        camelResult.Append(char.ToUpperInvariant(words[i][0]) + words[i].Substring(1).ToUpperInvariant());
                     }
                     return camelResult.ToString();
                 }},

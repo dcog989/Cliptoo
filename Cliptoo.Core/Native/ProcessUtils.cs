@@ -8,9 +8,11 @@ namespace Cliptoo.Core.Native
 {
     public static class ProcessUtils
     {
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [DllImport("user32.dll")]
         private static extern IntPtr GetForegroundWindow();
 
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [DllImport("user32.dll", SetLastError = true)]
         private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
 

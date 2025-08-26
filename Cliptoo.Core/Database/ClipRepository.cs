@@ -15,7 +15,7 @@ namespace Cliptoo.Core.Database
 
         public ClipRepository(string dbPath) : base(dbPath) { }
 
-        private string CreatePreview(string content)
+        private static string CreatePreview(string content)
         {
             if (Encoding.UTF8.GetByteCount(content) <= MaxPreviewBytes)
             {
@@ -179,7 +179,7 @@ namespace Cliptoo.Core.Database
                 var existingIdObj = await selectCmd.ExecuteScalarAsync().ConfigureAwait(false);
                 if (existingIdObj != null)
                 {
-                    var existingId = Convert.ToInt32(existingIdObj);
+                    var existingId = Convert.ToInt32(existingIdObj, System.Globalization.CultureInfo.InvariantCulture);
                     await using var updateCmd = connection.CreateCommand();
                     updateCmd.CommandText = "UPDATE clips SET Timestamp = @Timestamp, SourceApp = @SourceApp WHERE Id = @Id";
                     updateCmd.Parameters.AddWithValue("@Timestamp", DateTime.UtcNow.ToString("o"));

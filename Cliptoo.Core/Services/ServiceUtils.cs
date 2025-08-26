@@ -15,7 +15,7 @@ namespace Cliptoo.Core.Services
         public static string GetCachePath(string key, string directory, string extension)
         {
             var hash = SHA256.HashData(Encoding.UTF8.GetBytes(key));
-            var hex = Convert.ToHexString(hash).ToLowerInvariant();
+            var hex = Convert.ToHexString(hash).ToUpperInvariant();
             return Path.Combine(directory, $"{hex}{extension}");
         }
 
