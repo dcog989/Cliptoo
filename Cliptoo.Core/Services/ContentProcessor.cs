@@ -59,7 +59,7 @@ namespace Cliptoo.Core.Services
                 return new ProcessingResult(AppConstants.ClipTypes.Link, content, hadLeadingWhitespace);
             }
 
-            if (!content.Contains('\n') && Path.IsPathRooted(trimmedContent) && (Directory.Exists(trimmedContent) || File.Exists(trimmedContent)))
+            if (!content.Contains('\n', StringComparison.Ordinal) && Path.IsPathRooted(trimmedContent) && (Directory.Exists(trimmedContent) || File.Exists(trimmedContent)))
             {
                 if (trimmedContent.EndsWith(".url", StringComparison.OrdinalIgnoreCase))
                 {
@@ -73,7 +73,7 @@ namespace Cliptoo.Core.Services
                 return new ProcessingResult(fileType, content, hadLeadingWhitespace);
             }
 
-            if (content.Contains('\n'))
+            if (content.Contains('\n', StringComparison.Ordinal))
             {
                 using (var reader = new StringReader(content))
                 {

@@ -233,10 +233,10 @@ namespace Cliptoo.Core.Services
             var str = value.ToLowerInvariant().Trim();
             var num = double.Parse(Regex.Match(str, @"[+\-\d.]+").Value, CultureInfo.InvariantCulture);
             var normalized = 0.0;
-            if (str.Contains("deg") || !Regex.IsMatch(str, "[a-z]")) normalized = num;
-            else if (str.Contains("rad")) normalized = num * 180 / Math.PI;
-            else if (str.Contains("grad")) normalized = num * 0.9;
-            else if (str.Contains("turn")) normalized = num * 360;
+            if (str.Contains("deg", StringComparison.Ordinal) || !Regex.IsMatch(str, "[a-z]")) normalized = num;
+            else if (str.Contains("rad", StringComparison.Ordinal)) normalized = num * 180 / Math.PI;
+            else if (str.Contains("grad", StringComparison.Ordinal)) normalized = num * 0.9;
+            else if (str.Contains("turn", StringComparison.Ordinal)) normalized = num * 360;
             var result = normalized % 360;
             return result < 0 ? result + 360 : result;
         }

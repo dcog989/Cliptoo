@@ -92,7 +92,6 @@ namespace Cliptoo.Core.Services
         {
             int count = 0;
             if (!Directory.Exists(directoryPath)) return 0;
-
             var filesToDelete = new List<string>();
             try
             {
@@ -104,6 +103,7 @@ namespace Cliptoo.Core.Services
                     }
                 }
             }
+
             catch (Exception ex)
             {
                 LogManager.Log(ex, $"Failed to enumerate files for pruning in {directoryPath}");

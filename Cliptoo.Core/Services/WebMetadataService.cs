@@ -380,7 +380,7 @@ namespace Cliptoo.Core.Services
 
                 if (extension == ".SVG")
                 {
-                    if (contentType?.Contains("svg") != true)
+                    if (contentType?.Contains("svg", StringComparison.Ordinal) != true)
                     {
                         LogManager.LogDebug($"Expected SVG content-type for {faviconUrl}, but received {contentType}. Skipping parse.");
                         return false;

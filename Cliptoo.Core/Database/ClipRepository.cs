@@ -108,17 +108,22 @@ namespace Cliptoo.Core.Database
 
             while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
+                var sourceApp = await reader.IsDBNullAsync(ordinals.SourceApp, CancellationToken.None).ConfigureAwait(false) ? null : reader.GetString(ordinals.SourceApp);
+                var previewContent = await reader.IsDBNullAsync(ordinals.PreviewContent, CancellationToken.None).ConfigureAwait(false) ? null : reader.GetString(ordinals.PreviewContent);
+                var wasTrimmedDbNull = await reader.IsDBNullAsync(ordinals.WasTrimmed, CancellationToken.None).ConfigureAwait(false);
+                var matchContext = ordinals.MatchContext != -1 && !await reader.IsDBNullAsync(ordinals.MatchContext, CancellationToken.None).ConfigureAwait(false) ? reader.GetString(ordinals.MatchContext) : null;
+
                 clips.Add(new Clip
                 {
                     Id = reader.GetInt32(ordinals.Id),
                     Timestamp = DateTime.Parse(reader.GetString(ordinals.Timestamp)).ToLocalTime(),
                     ClipType = reader.GetString(ordinals.ClipType),
-                    SourceApp = reader.IsDBNull(ordinals.SourceApp) ? null : reader.GetString(ordinals.SourceApp),
+                    SourceApp = sourceApp,
                     IsPinned = reader.GetInt64(ordinals.IsPinned) == 1,
-                    WasTrimmed = !reader.IsDBNull(ordinals.WasTrimmed) && reader.GetInt64(ordinals.WasTrimmed) == 1,
+                    WasTrimmed = !wasTrimmedDbNull && reader.GetInt64(ordinals.WasTrimmed) == 1,
                     SizeInBytes = reader.GetInt64(ordinals.SizeInBytes),
-                    PreviewContent = reader.IsDBNull(ordinals.PreviewContent) ? null : reader.GetString(ordinals.PreviewContent),
-                    MatchContext = ordinals.MatchContext != -1 && !reader.IsDBNull(ordinals.MatchContext) ? reader.GetString(ordinals.MatchContext) : null
+                    PreviewContent = previewContent,
+                    MatchContext = matchContext
                 });
             }
             return clips;
@@ -134,16 +139,28 @@ namespace Cliptoo.Core.Database
             await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
             if (await reader.ReadAsync().ConfigureAwait(false))
             {
+                var idOrdinal = reader.GetOrdinal("Id");
+                var previewContentOrdinal = reader.GetOrdinal("PreviewContent");
+                var timestampOrdinal = reader.GetOrdinal("Timestamp");
+                var clipTypeOrdinal = reader.GetOrdinal("ClipType");
+                var sourceAppOrdinal = reader.GetOrdinal("SourceApp");
+                var isPinnedOrdinal = reader.GetOrdinal("IsPinned");
+                var wasTrimmedOrdinal = reader.GetOrdinal("WasTrimmed");
+                var sizeInBytesOrdinal = reader.GetOrdinal("SizeInBytes");
+
+                var previewContent = await reader.IsDBNullAsync(previewContentOrdinal, CancellationToken.None).ConfigureAwait(false) ? null : reader.GetString(previewContentOrdinal);
+                var sourceApp = await reader.IsDBNullAsync(sourceAppOrdinal, CancellationToken.None).ConfigureAwait(false) ? null : reader.GetString(sourceAppOrdinal);
+
                 return new Clip
                 {
-                    Id = reader.GetInt32(reader.GetOrdinal("Id")),
-                    PreviewContent = reader.IsDBNull(reader.GetOrdinal("PreviewContent")) ? null : reader.GetString(reader.GetOrdinal("PreviewContent")),
-                    Timestamp = DateTime.Parse(reader.GetString(reader.GetOrdinal("Timestamp"))).ToLocalTime(),
-                    ClipType = reader.GetString(reader.GetOrdinal("ClipType")),
-                    SourceApp = reader.IsDBNull(reader.GetOrdinal("SourceApp")) ? null : reader.GetString(reader.GetOrdinal("SourceApp")),
-                    IsPinned = reader.GetInt64(reader.GetOrdinal("IsPinned")) == 1,
-                    WasTrimmed = reader.GetInt64(reader.GetOrdinal("WasTrimmed")) == 1,
-                    SizeInBytes = reader.GetInt64(reader.GetOrdinal("SizeInBytes"))
+                    Id = reader.GetInt32(idOrdinal),
+                    PreviewContent = previewContent,
+                    Timestamp = DateTime.Parse(reader.GetString(timestampOrdinal)).ToLocalTime(),
+                    ClipType = reader.GetString(clipTypeOrdinal),
+                    SourceApp = sourceApp,
+                    IsPinned = reader.GetInt64(isPinnedOrdinal) == 1,
+                    WasTrimmed = reader.GetInt64(wasTrimmedOrdinal) == 1,
+                    SizeInBytes = reader.GetInt64(sizeInBytesOrdinal)
                 };
             }
             throw new InvalidOperationException($"Clip with ID {id} not found.");
@@ -282,17 +299,27 @@ namespace Cliptoo.Core.Database
             await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
             if (await reader.ReadAsync().ConfigureAwait(false))
             {
+                var idOrdinal = reader.GetOrdinal("Id");
+                var contentOrdinal = reader.GetOrdinal("Content");
+                var previewContentOrdinal = reader.GetOrdinal("PreviewContent");
+                var timestampOrdinal = reader.GetOrdinal("Timestamp");
+                var clipTypeOrdinal = reader.GetOrdinal("ClipType");
+                var sourceAppOrdinal = reader.GetOrdinal("SourceApp");
+                var isPinnedOrdinal = reader.GetOrdinal("IsPinned");
+                var wasTrimmedOrdinal = reader.GetOrdinal("WasTrimmed");
+                var sizeInBytesOrdinal = reader.GetOrdinal("SizeInBytes");
+
                 return new Clip
                 {
-                    Id = reader.GetInt32(reader.GetOrdinal("Id")),
-                    Content = reader.IsDBNull(reader.GetOrdinal("Content")) ? null : reader.GetString(reader.GetOrdinal("Content")),
-                    PreviewContent = reader.IsDBNull(reader.GetOrdinal("PreviewContent")) ? null : reader.GetString(reader.GetOrdinal("PreviewContent")),
-                    Timestamp = DateTime.Parse(reader.GetString(reader.GetOrdinal("Timestamp"))).ToLocalTime(),
-                    ClipType = reader.GetString(reader.GetOrdinal("ClipType")),
-                    SourceApp = reader.IsDBNull(reader.GetOrdinal("SourceApp")) ? null : reader.GetString(reader.GetOrdinal("SourceApp")),
-                    IsPinned = reader.GetInt64(reader.GetOrdinal("IsPinned")) == 1,
-                    WasTrimmed = reader.GetInt64(reader.GetOrdinal("WasTrimmed")) == 1,
-                    SizeInBytes = reader.GetInt64(reader.GetOrdinal("SizeInBytes"))
+                    Id = reader.GetInt32(idOrdinal),
+                    Content = await reader.IsDBNullAsync(contentOrdinal, CancellationToken.None).ConfigureAwait(false) ? null : reader.GetString(contentOrdinal),
+                    PreviewContent = await reader.IsDBNullAsync(previewContentOrdinal, CancellationToken.None).ConfigureAwait(false) ? null : reader.GetString(previewContentOrdinal),
+                    Timestamp = DateTime.Parse(reader.GetString(timestampOrdinal)).ToLocalTime(),
+                    ClipType = reader.GetString(clipTypeOrdinal),
+                    SourceApp = await reader.IsDBNullAsync(sourceAppOrdinal, CancellationToken.None).ConfigureAwait(false) ? null : reader.GetString(sourceAppOrdinal),
+                    IsPinned = reader.GetInt64(isPinnedOrdinal) == 1,
+                    WasTrimmed = reader.GetInt64(wasTrimmedOrdinal) == 1,
+                    SizeInBytes = reader.GetInt64(sizeInBytesOrdinal)
                 };
             }
             throw new InvalidOperationException($"Clip with ID {id} not found.");

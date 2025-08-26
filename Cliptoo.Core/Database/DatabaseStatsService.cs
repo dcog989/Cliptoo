@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using Cliptoo.Core.Database.Models;
 
@@ -71,19 +72,19 @@ namespace Cliptoo.Core.Database
                     var key = reader.GetString(0);
                     switch (key)
                     {
-                        case "PasteCount" when !reader.IsDBNull(1):
+                        case "PasteCount" when !await reader.IsDBNullAsync(1, CancellationToken.None).ConfigureAwait(false):
                             pasteCount = reader.GetInt64(1);
                             break;
-                        case "TotalClipsEver" when !reader.IsDBNull(1):
+                        case "TotalClipsEver" when !await reader.IsDBNullAsync(1, CancellationToken.None).ConfigureAwait(false):
                             totalClipsEver = reader.GetInt64(1);
                             break;
-                        case "CreationTimestamp" when !reader.IsDBNull(2):
+                        case "CreationTimestamp" when !await reader.IsDBNullAsync(2, CancellationToken.None).ConfigureAwait(false):
                             if (DateTime.TryParse(reader.GetString(2), null, System.Globalization.DateTimeStyles.RoundtripKind, out var createDt))
                             {
                                 creationTimestamp = createDt.ToLocalTime();
                             }
                             break;
-                        case "LastCleanupTimestamp" when !reader.IsDBNull(2):
+                        case "LastCleanupTimestamp" when !await reader.IsDBNullAsync(2, CancellationToken.None).ConfigureAwait(false):
                             if (DateTime.TryParse(reader.GetString(2), null, System.Globalization.DateTimeStyles.RoundtripKind, out var cleanupDt))
                             {
                                 lastCleanupTimestamp = cleanupDt.ToLocalTime();
