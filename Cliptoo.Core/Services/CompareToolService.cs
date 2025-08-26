@@ -67,7 +67,7 @@ namespace Cliptoo.Core.Services
 
             var exeName = Path.GetFileName(toolPath).ToLowerInvariant();
             if (exeName.Contains("code.exe")) return "--diff";
-            if (exeName.StartsWith("totalcmd")) return "/S=C";
+            if (exeName.StartsWith("totalcmd", StringComparison.Ordinal)) return "/S=C";
             return "";
         }
 

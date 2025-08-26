@@ -558,7 +558,7 @@ namespace Cliptoo.UI.ViewModels
 
                 if (token.IsCancellationRequested) return;
 
-                if (clipsData.Any())
+                if (clipsData.Count > 0)
                 {
                     await Application.Current.Dispatcher.InvokeAsync(() =>
                     {

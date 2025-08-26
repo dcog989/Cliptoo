@@ -26,7 +26,7 @@ namespace Cliptoo.Core.Services
         {
             if (string.IsNullOrWhiteSpace(input)) return false;
             var trimmed = input.Trim();
-            return trimmed.StartsWith("<") && trimmed.EndsWith(">");
+            return trimmed.StartsWith('<') && trimmed.EndsWith('>');
         }
     }
 }

@@ -188,7 +188,7 @@ namespace Cliptoo.Core.Services
                 var priority = GetPriorityFromSize(size);
 
                 string fullUrl;
-                if (href.StartsWith("//"))
+                if (href.StartsWith("//", StringComparison.Ordinal))
                 {
                     fullUrl = $"{pageUri.Scheme}:{href}";
                 }

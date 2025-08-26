@@ -155,7 +155,7 @@ namespace Cliptoo.Core.Database
                         {
                             if (!Directory.Exists(contentPath)) shouldDelete = true;
                         }
-                        else if (clip.ClipType.StartsWith("file_"))
+                        else if (clip.ClipType.StartsWith("file_", StringComparison.Ordinal))
                         {
                             if (!File.Exists(contentPath)) shouldDelete = true;
                         }

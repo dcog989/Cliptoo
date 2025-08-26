@@ -2,7 +2,7 @@ namespace Cliptoo.Core
 {
     public static class AppConstants
     {
-        public static class ClipTypes
+        internal static class ClipTypes
         {
             public const string Text = "text";
             public const string Link = "link";
@@ -25,7 +25,7 @@ namespace Cliptoo.Core
             public const string System = "file_system";
         }
 
-        public static class FilterKeys
+        internal static class FilterKeys
         {
             public const string All = "all";
             public const string Pinned = "pinned";
@@ -35,7 +35,7 @@ namespace Cliptoo.Core
             public const string Color = "color";
         }
 
-        public static class IconKeys
+        internal static class IconKeys
         {
             public const string Pin = "pin";
             public const string Multiline = "multiline";
@@ -45,7 +45,7 @@ namespace Cliptoo.Core
             public const string Error = "error";
         }
 
-        public static class TransformTypes
+        internal static class TransformTypes
         {
             public const string Upper = "upper";
             public const string Lower = "lower";
@@ -63,7 +63,7 @@ namespace Cliptoo.Core
             public const string Timestamp = "timestamp";
         }
 
-        public static class UITags
+        internal static class UITags
         {
             public const string AlwaysOnTop = "always_on_top";
             public const string ShowHide = "show_hide";

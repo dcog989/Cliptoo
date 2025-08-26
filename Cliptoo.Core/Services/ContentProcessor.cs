@@ -170,7 +170,7 @@ namespace Cliptoo.Core.Services
 
                 totalChars += trimmedLine.Length;
 
-                if (line.Length > trimmedLine.Length && (line.StartsWith("    ") || line.StartsWith("\t")))
+                if (line.Length > trimmedLine.Length && (line.StartsWith("    ", StringComparison.Ordinal) || line.StartsWith("\t", StringComparison.Ordinal)))
                 {
                     indentedLines++;
                 }

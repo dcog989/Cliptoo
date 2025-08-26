@@ -455,7 +455,7 @@ namespace Cliptoo.UI.ViewModels
                         }
 
                         UIElement dialogContent;
-                        if (results.Any())
+                        if (results.Count > 0)
                         {
                             var stackPanel = new System.Windows.Controls.StackPanel();
                             stackPanel.Children.Add(new System.Windows.Controls.TextBlock { Text = "Maintenance routine completed.", Margin = new Thickness(0, 0, 0, 10) });

@@ -127,7 +127,7 @@ namespace Cliptoo.Core
             });
         }
 
-        private (string, bool) TruncateText(string text, long maxBytes, string logContext)
+        private static (string, bool) TruncateText(string text, long maxBytes, string logContext)
         {
             if (Encoding.UTF8.GetByteCount(text) <= maxBytes)
             {
@@ -261,7 +261,7 @@ namespace Cliptoo.Core
             var clip = await GetClipByIdAsync(id).ConfigureAwait(false);
             if (clip?.Content == null) return string.Empty;
 
-            if (clip.ClipType != AppConstants.ClipTypes.Text && !clip.ClipType.StartsWith("code"))
+            if (clip.ClipType != AppConstants.ClipTypes.Text && !clip.ClipType.StartsWith("code", StringComparison.Ordinal))
             {
                 return clip.Content;
             }
@@ -377,7 +377,7 @@ namespace Cliptoo.Core
                 }
             }
 
-            if (updates.Any())
+            if (updates.Count > 0)
             {
                 await _dbManager.UpdateClipTypesAsync(updates).ConfigureAwait(false);
                 HistoryCleared?.Invoke();

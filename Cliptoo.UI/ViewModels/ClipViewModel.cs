@@ -107,11 +107,11 @@ namespace Cliptoo.UI.ViewModels
 
         public bool CanPasteAsPlainText => IsRtf;
         public bool CanPasteAsRtf => Controller.GetSettings().PasteAsPlainText && IsRtf;
-        public bool IsEditable => !IsImage && !ClipType.StartsWith("file_") && ClipType != AppConstants.ClipTypes.Folder;
-        public bool IsOpenable => IsImage || ClipType.StartsWith("file_") || ClipType == AppConstants.ClipTypes.Folder || ClipType == AppConstants.ClipTypes.Link;
+        public bool IsEditable => !IsImage && !ClipType.StartsWith("file_", StringComparison.Ordinal) && ClipType != AppConstants.ClipTypes.Folder;
+        public bool IsOpenable => IsImage || ClipType.StartsWith("file_", StringComparison.Ordinal) || ClipType == AppConstants.ClipTypes.Folder || ClipType == AppConstants.ClipTypes.Link;
         public string OpenCommandHeader => "Open";
 
-        public bool IsFileBased => IsImage || ClipType.StartsWith("file_") || ClipType == AppConstants.ClipTypes.Folder;
+        public bool IsFileBased => IsImage || ClipType.StartsWith("file_", StringComparison.Ordinal) || ClipType == AppConstants.ClipTypes.Folder;
         public string? FileProperties { get => _fileProperties; private set => SetProperty(ref _fileProperties, value); }
         public string? FileTypeInfo { get => _fileTypeInfo; private set => SetProperty(ref _fileTypeInfo, value); }
         public bool IsFilePropertiesLoading { get => _isFilePropertiesLoading; private set => SetProperty(ref _isFilePropertiesLoading, value); }

@@ -1,10 +1,14 @@
+using System;
+
 namespace Cliptoo.Core.Services
 {
     public class SyntaxHighlighter : ISyntaxHighlighter
     {
         public string? GetHighlightingDefinition(string clipType, string content)
         {
-            if (clipType == "file_dev" || clipType.StartsWith("code_"))
+            ArgumentNullException.ThrowIfNull(clipType);
+
+            if (clipType == "file_dev" || clipType.StartsWith("code_", StringComparison.Ordinal))
             {
                 if (TextAnalysisUtils.IsLikelyXml(content)) return "XML";
                 if (TextAnalysisUtils.IsJson(content)) return "JavaScript"; // AvalonEdit uses JS for JSON

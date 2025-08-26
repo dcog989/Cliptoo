@@ -111,7 +111,7 @@ namespace Cliptoo.Core.Services
             {
                 // A short hex code (e.g., "F00") is only valid if it starts with '#'.
                 // A long hex code (e.g., "FF0000") is valid with or without '#'.
-                if (match.Groups[1].Success && !str.StartsWith("#"))
+                if (match.Groups[1].Success && !str.StartsWith("#", StringComparison.Ordinal))
                 {
                     return false;
                 }
