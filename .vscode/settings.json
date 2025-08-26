@@ -1,17 +1,19 @@
 {
-    "cSpell.words": [
-        "clin",
-        "HARDWAREINPUT",
-        "Initialise",
-        "Initialising",
-        "Inlines",
-        "MOUSEACTIVATE",
-        "MOUSEINPUT",
-        "mscorlib",
-        "Stringcenter",
-        "Stringcursor",
-        "Stringfixed"
-    ],
-    "editor.formatOnSave": true,
-    "editor.formatOnPaste": true
+  "cSpell.words": [
+    "clin",
+    "HARDWAREINPUT",
+    "Initialise",
+    "Initialising",
+    "Inlines",
+    "MOUSEACTIVATE",
+    "MOUSEINPUT",
+    "mscorlib",
+    "Stringcenter",
+    "Stringcursor",
+    "Stringfixed",
+    "xsize",
+    "ysize"
+  ],
+  "editor.formatOnSave": true,
+  "editor.formatOnPaste": true
 }

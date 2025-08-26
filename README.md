@@ -1,29 +1,22 @@
-# Cliptoo
+# ![Cliptoo logo](./Cliptoo.UI/Assets/Icons/cliptoo-64.svg) Cliptoo: The Advanced Clipboard Manager
 
-<p align="center">
-  <img src="Cliptoo.UI/Assets/Icons/cliptoo.svg" alt="Cliptoo Logo" width="128">
-</p>
+Cliptoo is a high-performance clipboard manager for Windows, filled with the features you need - as well as some you didn't know you needed.
 
-<p align="center">
-  <strong>The advanced clipboard manager for Windows.</strong>
-</p>
+It has been carefully designed to remain performant whether you have 10 clips or 10,000 saved. With the fuzzy search and filter system, you can easily find the clip you need, and confirm it with preview tooltip for text, colors, images, URLs, etc.
 
-<p align="center">
-  <img src="https://img.shields.io/badge/build-passing-brightgreen?style=for-the-badge" alt="Build Status">
-  <img src="https://img.shields.io/github/license/dcog989/cliptoo?style=for-the-badge" alt="License">
-  <img src="https://img.shields.io/github/v/release/dcog989/cliptoo?style=for-the-badge" alt="Latest Release">
-</p>
+[Download the latest release now](./Cliptoo/releases/latest/).
 
-Cliptoo is a modern, high-performance clipboard manager for Windows, designed for developers, designers, and power users. It offers a rich feature set focused on performance, usability, and deep customization.
+![License](https://img.shields.io/github/license/dcog989/cliptoo?style=for-the-badge)
+![Latest Release](https://img.shields.io/github/v/release/dcog989/cliptoo?style=for-the-badge)
 
 ---
 
-## Showcase
+## Screenshots
 
 <!-- TODO: Add a high-quality GIF or screenshot of the application in action -->
 *(A preview of Cliptoo's interface, showing the virtualized list, search highlighting, and a color preview tooltip)*
 
-## Core Features
+## Features
 
 ### Advanced Clipboard Management
 

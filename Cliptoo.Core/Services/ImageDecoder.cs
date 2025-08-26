@@ -1,6 +1,9 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
+using System.Linq;
+using System.Runtime.InteropServices;
+using System.Windows.Media.Imaging;
 using JxlNet;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
@@ -11,27 +14,86 @@ namespace Cliptoo.Core.Services
     {
         public static async Task<Image?> DecodeAsync(string imagePath)
         {
-            var extension = Path.GetExtension(imagePath).ToLowerInvariant();
-            await using var stream = File.OpenRead(imagePath);
-            return await DecodeAsync(stream, extension);
+            var extension = Path.GetExtension(imagePath).ToUpperInvariant();
+            FileStream stream = File.OpenRead(imagePath);
+            try
+            {
+                return await DecodeAsync(stream, extension).ConfigureAwait(false);
+            }
+            finally
+            {
+                await stream.DisposeAsync().ConfigureAwait(false);
+            }
         }
 
         public static async Task<Image?> DecodeAsync(Stream stream, string extension)
         {
-            // JXL is special because JxlNet takes a byte array
-            if (extension == ".jxl")
+            ArgumentNullException.ThrowIfNull(stream);
+
+            if (extension == ".ICO")
             {
-                await using var ms = new MemoryStream();
-                await stream.CopyToAsync(ms);
-                return await Task.Run(() => DecodeJxl(ms.ToArray()));
+                return await Task.Run(async () =>
+                {
+                    try
+                    {
+                        Stream processStream = stream;
+                        MemoryStream? createdMemoryStream = null;
+
+                        if (!stream.CanSeek)
+                        {
+                            createdMemoryStream = new MemoryStream();
+                            await stream.CopyToAsync(createdMemoryStream).ConfigureAwait(false);
+                            createdMemoryStream.Position = 0;
+                            processStream = createdMemoryStream;
+                        }
+                        else
+                        {
+                            stream.Position = 0;
+                        }
+
+                        try
+                        {
+                            var decoder = new IconBitmapDecoder(processStream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad);
+                            var bestFrame = decoder.Frames.OrderByDescending(f => f.Width * f.Height).FirstOrDefault();
+
+                            if (bestFrame == null) return null;
+
+                            using var ms = new MemoryStream();
+                            var encoder = new PngBitmapEncoder();
+                            encoder.Frames.Add(bestFrame);
+                            encoder.Save(ms);
+                            ms.Position = 0;
+                            return await Image.LoadAsync(ms).ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            if (createdMemoryStream is not null)
+                            {
+                                await createdMemoryStream.DisposeAsync().ConfigureAwait(false);
+                            }
+                        }
+                    }
+                    catch (Exception ex) when (ex is FileFormatException or NotSupportedException)
+                    {
+                        return null;
+                    }
+                }).ConfigureAwait(false);
+            }
+
+            // JXL is special because JxlNet takes a byte array
+            if (extension == ".JXL")
+            {
+                using var ms = new MemoryStream();
+                await stream.CopyToAsync(ms).ConfigureAwait(false);
+                return await Task.Run(() => DecodeJxl(ms.ToArray())).ConfigureAwait(false);
             }
 
             // Default to ImageSharp for everything else
-            return await Image.LoadAsync(stream);
+            return await Image.LoadAsync(stream).ConfigureAwait(false);
         }
 
 
-        private static unsafe Image? DecodeJxl(byte[] jxlBytes)
+        private static unsafe Image<Rgba32>? DecodeJxl(byte[] jxlBytes)
         {
             var decoder = Jxl.JxlDecoderCreate(null);
             if (decoder == null) return null;
@@ -69,7 +131,7 @@ namespace Cliptoo.Core.Services
                     }
                 }
             }
-            catch (Exception)
+            catch (ExternalException)
             {
                 return null;
             }
