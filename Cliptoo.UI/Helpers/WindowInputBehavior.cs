@@ -76,17 +76,11 @@ namespace Cliptoo.UI.Helpers
         {
             if (sender is not Window window) return;
             var searchTextBox = GetSearchTextBox(window);
-            var clipListView = GetClipListView(window);
             var focusedElement = Keyboard.FocusedElement as DependencyObject;
 
             Core.Configuration.LogManager.LogDebug($"DIAG_INPUT: PreviewTextInput: Text='{e.Text}', Focused={focusedElement?.GetType().Name}, SearchFocused={searchTextBox?.IsKeyboardFocusWithin}");
 
-            if (searchTextBox == null || searchTextBox.IsKeyboardFocusWithin || clipListView == null || focusedElement == null)
-            {
-                return;
-            }
-
-            if (!IsDescendantOf(focusedElement, clipListView))
+            if (searchTextBox == null || searchTextBox.IsKeyboardFocusWithin)
             {
                 return;
             }
