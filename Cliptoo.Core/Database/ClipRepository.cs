@@ -31,7 +31,7 @@ namespace Cliptoo.Core.Database
         public async Task<List<Clip>> GetClipsAsync(uint limit, uint offset, string searchTerm, string filterType, CancellationToken cancellationToken)
         {
             var clips = new List<Clip>();
-            await using var connection = await GetOpenConnectionAsync();
+            await using var connection = await GetOpenConnectionAsync().ConfigureAwait(false);
             await using var command = connection.CreateCommand();
 
             const string columns = "c.Id, c.Timestamp, c.ClipType, c.SourceApp, c.IsPinned, c.WasTrimmed, c.SizeInBytes, c.PreviewContent";
@@ -88,7 +88,7 @@ namespace Cliptoo.Core.Database
             Configuration.LogManager.LogDebug($"SEARCH_DIAG: SQL: {command.CommandText}");
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
-            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
 
             stopwatch.Stop();
             Configuration.LogManager.LogDebug($"SEARCH_DIAG: Query executed in {stopwatch.ElapsedMilliseconds}ms.");
@@ -106,7 +106,7 @@ namespace Cliptoo.Core.Database
                 MatchContext = HasColumn(reader, "MatchContext") ? reader.GetOrdinal("MatchContext") : -1
             };
 
-            while (await reader.ReadAsync(cancellationToken))
+            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
                 clips.Add(new Clip
                 {
@@ -126,13 +126,13 @@ namespace Cliptoo.Core.Database
 
         public async Task<Clip> GetClipPreviewContentByIdAsync(int id)
         {
-            await using var connection = await GetOpenConnectionAsync();
+            await using var connection = await GetOpenConnectionAsync().ConfigureAwait(false);
             await using var command = connection.CreateCommand();
             command.CommandText = "SELECT Id, PreviewContent, Timestamp, ClipType, SourceApp, IsPinned, WasTrimmed, SizeInBytes FROM clips WHERE Id = @Id";
             command.Parameters.AddWithValue("@Id", id);
 
-            await using var reader = await command.ExecuteReaderAsync();
-            if (await reader.ReadAsync())
+            await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
+            if (await reader.ReadAsync().ConfigureAwait(false))
             {
                 return new Clip
                 {
@@ -151,7 +151,7 @@ namespace Cliptoo.Core.Database
 
         public async Task<int> AddClipAsync(string content, string clipType, string? sourceApp, bool wasTrimmed)
         {
-            await using var connection = await GetOpenConnectionAsync();
+            await using var connection = await GetOpenConnectionAsync().ConfigureAwait(false);
             var contentSize = (long)System.Text.Encoding.UTF8.GetByteCount(content);
             var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(content)));
 
@@ -159,7 +159,7 @@ namespace Cliptoo.Core.Database
             {
                 selectCmd.CommandText = "SELECT Id FROM clips WHERE ContentHash = @Hash";
                 selectCmd.Parameters.AddWithValue("@Hash", hash);
-                var existingIdObj = await selectCmd.ExecuteScalarAsync();
+                var existingIdObj = await selectCmd.ExecuteScalarAsync().ConfigureAwait(false);
                 if (existingIdObj != null)
                 {
                     var existingId = Convert.ToInt32(existingIdObj);
@@ -168,7 +168,7 @@ namespace Cliptoo.Core.Database
                     updateCmd.Parameters.AddWithValue("@Timestamp", DateTime.UtcNow.ToString("o"));
                     updateCmd.Parameters.AddWithValue("@SourceApp", sourceApp ?? (object)DBNull.Value);
                     updateCmd.Parameters.AddWithValue("@Id", existingId);
-                    await updateCmd.ExecuteNonQueryAsync();
+                    await updateCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
                     return existingId;
                 }
             }
@@ -188,12 +188,12 @@ namespace Cliptoo.Core.Database
             insertCmd.Parameters.AddWithValue("@Timestamp", DateTime.UtcNow.ToString("o"));
             insertCmd.Parameters.AddWithValue("@WasTrimmed", wasTrimmed ? 1 : 0);
             insertCmd.Parameters.AddWithValue("@SizeInBytes", contentSize);
-            var newId = (long)(await insertCmd.ExecuteScalarAsync() ?? -1L);
+            var newId = (long)(await insertCmd.ExecuteScalarAsync().ConfigureAwait(false) ?? -1L);
 
             await using (var updateTotalCmd = connection.CreateCommand())
             {
                 updateTotalCmd.CommandText = "UPDATE stats SET Value = COALESCE(Value, 0) + 1 WHERE Key = 'TotalClipsEver'";
-                await updateTotalCmd.ExecuteNonQueryAsync();
+                await updateTotalCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
 
             return (int)newId;
@@ -201,7 +201,7 @@ namespace Cliptoo.Core.Database
 
         public async Task UpdateClipContentAsync(int id, string content)
         {
-            await using var connection = await GetOpenConnectionAsync();
+            await using var connection = await GetOpenConnectionAsync().ConfigureAwait(false);
             await using var command = connection.CreateCommand();
             var previewContent = CreatePreview(content);
             var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(content)));
@@ -212,18 +212,18 @@ namespace Cliptoo.Core.Database
             command.Parameters.AddWithValue("@PreviewContent", previewContent);
             command.Parameters.AddWithValue("@SizeInBytes", (long)System.Text.Encoding.UTF8.GetByteCount(content));
             command.Parameters.AddWithValue("@Id", id);
-            await command.ExecuteNonQueryAsync();
+            await command.ExecuteNonQueryAsync().ConfigureAwait(false);
         }
 
         public async IAsyncEnumerable<string> GetAllImageClipPathsAsync()
         {
-            await using var connection = await GetOpenConnectionAsync();
+            await using var connection = await GetOpenConnectionAsync().ConfigureAwait(false);
             await using var command = connection.CreateCommand();
             command.CommandText = "SELECT Content FROM clips WHERE ClipType = @ClipType";
             command.Parameters.AddWithValue("@ClipType", AppConstants.ClipTypes.Image);
 
-            await using var reader = await command.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
+            await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
+            while (await reader.ReadAsync().ConfigureAwait(false))
             {
                 yield return reader.GetString(0);
             }
@@ -231,13 +231,13 @@ namespace Cliptoo.Core.Database
 
         public async IAsyncEnumerable<string> GetAllLinkClipUrlsAsync()
         {
-            await using var connection = await GetOpenConnectionAsync();
+            await using var connection = await GetOpenConnectionAsync().ConfigureAwait(false);
             await using var command = connection.CreateCommand();
             command.CommandText = "SELECT DISTINCT Content FROM clips WHERE ClipType = @ClipType";
             command.Parameters.AddWithValue("@ClipType", AppConstants.ClipTypes.Link);
 
-            await using var reader = await command.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
+            await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
+            while (await reader.ReadAsync().ConfigureAwait(false))
             {
                 yield return reader.GetString(0);
             }
@@ -245,42 +245,42 @@ namespace Cliptoo.Core.Database
 
         public async Task DeleteClipAsync(int id)
         {
-            await using var connection = await GetOpenConnectionAsync();
+            await using var connection = await GetOpenConnectionAsync().ConfigureAwait(false);
             await using var command = connection.CreateCommand();
             command.CommandText = "DELETE FROM clips WHERE Id = @Id";
             command.Parameters.AddWithValue("@Id", id);
-            await command.ExecuteNonQueryAsync();
+            await command.ExecuteNonQueryAsync().ConfigureAwait(false);
         }
 
         public async Task TogglePinAsync(int id, bool isPinned)
         {
-            await using var connection = await GetOpenConnectionAsync();
+            await using var connection = await GetOpenConnectionAsync().ConfigureAwait(false);
             await using var command = connection.CreateCommand();
             command.CommandText = "UPDATE clips SET IsPinned = @IsPinned WHERE Id = @Id";
             command.Parameters.AddWithValue("@IsPinned", isPinned ? 1 : 0);
             command.Parameters.AddWithValue("@Id", id);
-            await command.ExecuteNonQueryAsync();
+            await command.ExecuteNonQueryAsync().ConfigureAwait(false);
         }
 
         public async Task UpdateTimestampAsync(int id)
         {
-            await using var connection = await GetOpenConnectionAsync();
+            await using var connection = await GetOpenConnectionAsync().ConfigureAwait(false);
             await using var command = connection.CreateCommand();
             command.CommandText = "UPDATE clips SET Timestamp = @Timestamp WHERE Id = @Id";
             command.Parameters.AddWithValue("@Timestamp", DateTime.UtcNow.ToString("o"));
             command.Parameters.AddWithValue("@Id", id);
-            await command.ExecuteNonQueryAsync();
+            await command.ExecuteNonQueryAsync().ConfigureAwait(false);
         }
 
         public async Task<Clip> GetClipByIdAsync(int id)
         {
-            await using var connection = await GetOpenConnectionAsync();
+            await using var connection = await GetOpenConnectionAsync().ConfigureAwait(false);
             await using var command = connection.CreateCommand();
             command.CommandText = "SELECT * FROM clips WHERE Id = @Id";
             command.Parameters.AddWithValue("@Id", id);
 
-            await using var reader = await command.ExecuteReaderAsync();
-            if (await reader.ReadAsync())
+            await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
+            if (await reader.ReadAsync().ConfigureAwait(false))
             {
                 return new Clip
                 {
@@ -311,12 +311,12 @@ namespace Cliptoo.Core.Database
         public async Task<List<Clip>> GetAllFileBasedClipsAsync()
         {
             var clips = new List<Clip>();
-            await using var connection = await GetOpenConnectionAsync();
+            await using var connection = await GetOpenConnectionAsync().ConfigureAwait(false);
             await using var command = connection.CreateCommand();
             command.CommandText = "SELECT Id, Content, ClipType FROM clips WHERE ClipType LIKE 'file_%' OR ClipType = 'folder'";
 
-            await using var reader = await command.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
+            await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
+            while (await reader.ReadAsync().ConfigureAwait(false))
             {
                 clips.Add(new Clip
                 {
@@ -330,8 +330,8 @@ namespace Cliptoo.Core.Database
 
         public async Task UpdateClipTypesAsync(Dictionary<int, string> updates)
         {
-            await using var connection = await GetOpenConnectionAsync();
-            await using var transaction = (SqliteTransaction)await connection.BeginTransactionAsync();
+            await using var connection = await GetOpenConnectionAsync().ConfigureAwait(false);
+            await using var transaction = (SqliteTransaction)await connection.BeginTransactionAsync().ConfigureAwait(false);
 
             foreach (var update in updates)
             {
@@ -340,10 +340,10 @@ namespace Cliptoo.Core.Database
                 command.CommandText = "UPDATE clips SET ClipType = @ClipType WHERE Id = @Id";
                 command.Parameters.AddWithValue("@Id", update.Key);
                 command.Parameters.AddWithValue("@ClipType", update.Value);
-                await command.ExecuteNonQueryAsync();
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
 
-            await transaction.CommitAsync();
+            await transaction.CommitAsync().ConfigureAwait(false);
         }
     }
 }

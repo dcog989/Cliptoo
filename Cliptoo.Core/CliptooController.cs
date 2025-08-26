@@ -98,7 +98,7 @@ namespace Cliptoo.Core
             LogManager.Log("CliptooController initializing...");
             LogManager.LoggingLevel = GetSettings().LoggingLevel;
             CleanupTempFiles();
-            await _dbManager.InitializeAsync();
+            await _dbManager.InitializeAsync().ConfigureAwait(false);
             LogManager.Log("Database initialized successfully.");
 
             ClipboardMonitor.ClipboardChanged += OnClipboardChangedAsync;
@@ -114,7 +114,7 @@ namespace Cliptoo.Core
             {
                 try
                 {
-                    await action();
+                    await action().ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
@@ -180,10 +180,10 @@ namespace Cliptoo.Core
 
                     if (!File.Exists(permanentImagePath))
                     {
-                        await File.WriteAllBytesAsync(permanentImagePath, imageBytes);
+                        await File.WriteAllBytesAsync(permanentImagePath, imageBytes).ConfigureAwait(false);
                     }
 
-                    await _thumbnailService.GetThumbnailAsync(permanentImagePath, null);
+                    await _thumbnailService.GetThumbnailAsync(permanentImagePath, null).ConfigureAwait(false);
                     result = new ProcessingResult(AppConstants.ClipTypes.Image, permanentImagePath);
                 }
 
@@ -191,7 +191,7 @@ namespace Cliptoo.Core
                 {
                     bool finalWasTrimmed = result.WasTrimmed || wasTruncated;
                     string? sourceApp = result.SourceAppOverride ?? e.SourceApp;
-                    int newClipId = await _dbManager.AddClipAsync(result.Content, result.ClipType, sourceApp, finalWasTrimmed);
+                    int newClipId = await _dbManager.AddClipAsync(result.Content, result.ClipType, sourceApp, finalWasTrimmed).ConfigureAwait(false);
                     NewClipAdded?.Invoke();
                     NotifyUiActivity();
                 }
@@ -213,7 +213,7 @@ namespace Cliptoo.Core
                 return cachedClip;
             }
 
-            var clip = await _dbManager.GetClipByIdAsync(id);
+            var clip = await _dbManager.GetClipByIdAsync(id).ConfigureAwait(false);
 
             if (clip.SizeInBytes < 100 * 1024) // Only cache clips < 100 KB
             {
@@ -225,7 +225,7 @@ namespace Cliptoo.Core
 
         public async Task DeleteClipAsync(Clip clip)
         {
-            await _dbManager.DeleteClipAsync(clip.Id);
+            await _dbManager.DeleteClipAsync(clip.Id).ConfigureAwait(false);
             _clipCache.Remove(clip.Id);
 
             if (clip.ClipType == AppConstants.ClipTypes.Link && clip.Content is not null)
@@ -241,7 +241,7 @@ namespace Cliptoo.Core
 
         public async Task UpdateClipContentAsync(int id, string newContent)
         {
-            await _dbManager.UpdateClipContentAsync(id, newContent);
+            await _dbManager.UpdateClipContentAsync(id, newContent).ConfigureAwait(false);
             _clipCache.Remove(id);
         }
 
@@ -252,13 +252,13 @@ namespace Cliptoo.Core
 
         public async Task MoveClipToTopAsync(int id)
         {
-            await _dbManager.UpdateTimestampAsync(id);
+            await _dbManager.UpdateTimestampAsync(id).ConfigureAwait(false);
             _clipCache.Remove(id);
         }
 
         public async Task<string> GetTransformedContentAsync(int id, string transformType)
         {
-            var clip = await GetClipByIdAsync(id);
+            var clip = await GetClipByIdAsync(id).ConfigureAwait(false);
             if (clip?.Content == null) return string.Empty;
 
             if (clip.ClipType != AppConstants.ClipTypes.Text && !clip.ClipType.StartsWith("code"))
@@ -290,14 +290,14 @@ namespace Cliptoo.Core
 
             try
             {
-                var leftClip = await GetClipByIdAsync(leftClipId);
-                var rightClip = await GetClipByIdAsync(rightClipId);
+                var leftClip = await GetClipByIdAsync(leftClipId).ConfigureAwait(false);
+                var rightClip = await GetClipByIdAsync(rightClipId).ConfigureAwait(false);
 
                 var leftFilePath = Path.Combine(_tempPath, $"cliptoo_compare_left_{Guid.NewGuid()}.txt");
                 var rightFilePath = Path.Combine(_tempPath, $"cliptoo_compare_right_{Guid.NewGuid()}.txt");
 
-                await File.WriteAllTextAsync(leftFilePath, leftClip.Content ?? "");
-                await File.WriteAllTextAsync(rightFilePath, rightClip.Content ?? "");
+                await File.WriteAllTextAsync(leftFilePath, leftClip.Content ?? "").ConfigureAwait(false);
+                await File.WriteAllTextAsync(rightFilePath, rightClip.Content ?? "").ConfigureAwait(false);
 
                 var process = new System.Diagnostics.Process();
                 process.StartInfo.FileName = toolPath;
@@ -327,25 +327,25 @@ namespace Cliptoo.Core
 
         public async Task ClearHistoryAsync()
         {
-            await _dbManager.ClearHistoryAsync();
+            await _dbManager.ClearHistoryAsync().ConfigureAwait(false);
             HistoryCleared?.Invoke();
         }
 
         public async Task ClearAllHistoryAsync()
         {
-            await _dbManager.ClearAllHistoryAsync();
+            await _dbManager.ClearAllHistoryAsync().ConfigureAwait(false);
             HistoryCleared?.Invoke();
         }
 
         public async Task<MaintenanceResult> RunHeavyMaintenanceNowAsync()
         {
             LogManager.Log("User triggered heavy maintenance routine.");
-            return await RunHeavyMaintenanceAsync();
+            return await RunHeavyMaintenanceAsync().ConfigureAwait(false);
         }
 
         public async Task<int> RemoveDeadheadClipsAsync()
         {
-            int count = await _dbManager.RemoveDeadheadClipsAsync();
+            int count = await _dbManager.RemoveDeadheadClipsAsync().ConfigureAwait(false);
             if (count > 0)
             {
                 HistoryCleared?.Invoke();
@@ -355,7 +355,7 @@ namespace Cliptoo.Core
 
         public async Task<int> ClearOversizedClipsAsync(uint sizeMb)
         {
-            int count = await _dbManager.ClearOversizedClipsAsync(sizeMb);
+            int count = await _dbManager.ClearOversizedClipsAsync(sizeMb).ConfigureAwait(false);
             if (count > 0)
             {
                 HistoryCleared?.Invoke();
@@ -365,7 +365,7 @@ namespace Cliptoo.Core
 
         public async Task<int> ReclassifyAllClipsAsync()
         {
-            var fileClips = await _dbManager.GetAllFileBasedClipsAsync();
+            var fileClips = await _dbManager.GetAllFileBasedClipsAsync().ConfigureAwait(false);
             var updates = new Dictionary<int, string>();
 
             foreach (var clip in fileClips)
@@ -379,7 +379,7 @@ namespace Cliptoo.Core
 
             if (updates.Any())
             {
-                await _dbManager.UpdateClipTypesAsync(updates);
+                await _dbManager.UpdateClipTypesAsync(updates).ConfigureAwait(false);
                 HistoryCleared?.Invoke();
             }
 
@@ -397,7 +397,7 @@ namespace Cliptoo.Core
             ExecuteSafely(async () =>
             {
                 LogManager.Log("File type definitions changed, starting re-classification of existing clips.");
-                int count = await ReclassifyAllClipsAsync();
+                int count = await ReclassifyAllClipsAsync().ConfigureAwait(false);
                 LogManager.Log($"Re-classification complete. {count} clips updated.");
             }, nameof(OnFileTypesChanged));
         }
@@ -406,25 +406,25 @@ namespace Cliptoo.Core
         {
             LogManager.Log("Starting heavy maintenance routine...");
             var settings = GetSettings();
-            var initialStats = await _dbManager.GetStatsAsync();
+            var initialStats = await _dbManager.GetStatsAsync().ConfigureAwait(false);
 
             int tempFilesCleaned = CleanupTempFiles();
 
-            int cleaned = await _dbManager.PerformCleanupAsync(settings.CleanupAgeDays, settings.MaxClipsTotal, true);
+            int cleaned = await _dbManager.PerformCleanupAsync(settings.CleanupAgeDays, settings.MaxClipsTotal, true).ConfigureAwait(false);
             if (cleaned > 0)
             {
                 LogManager.Log($"Database cleanup complete. Removed {cleaned} items.");
             }
 
             var validImagePathsStream = _dbManager.GetAllImageClipPathsAsync();
-            int prunedImageCount = await _thumbnailService.PruneCacheAsync(validImagePathsStream, settings.HoverImagePreviewSize);
+            int prunedImageCount = await _thumbnailService.PruneCacheAsync(validImagePathsStream, settings.HoverImagePreviewSize).ConfigureAwait(false);
             if (prunedImageCount > 0)
             {
                 LogManager.Log($"Image cache cleanup complete. Removed {prunedImageCount} orphaned files.");
             }
 
             var validLinkUrlsStream = _dbManager.GetAllLinkClipUrlsAsync();
-            int prunedFaviconCount = await _webMetadataService.PruneCacheAsync(validLinkUrlsStream);
+            int prunedFaviconCount = await _webMetadataService.PruneCacheAsync(validLinkUrlsStream).ConfigureAwait(false);
             if (prunedFaviconCount > 0)
             {
                 LogManager.Log($"Favicon cache cleanup complete. Removed {prunedFaviconCount} orphaned files.");
@@ -432,15 +432,15 @@ namespace Cliptoo.Core
 
             int iconCacheCleaned = _iconProvider.CleanupIconCache();
 
-            int reclassifiedCount = await ReclassifyAllClipsAsync();
+            int reclassifiedCount = await ReclassifyAllClipsAsync().ConfigureAwait(false);
             if (reclassifiedCount > 0)
             {
                 LogManager.Log($"File re-classification complete. Updated {reclassifiedCount} clips.");
             }
 
-            await _dbManager.UpdateLastCleanupTimestampAsync();
+            await _dbManager.UpdateLastCleanupTimestampAsync().ConfigureAwait(false);
 
-            var finalStats = await _dbManager.GetStatsAsync();
+            var finalStats = await _dbManager.GetStatsAsync().ConfigureAwait(false);
             double sizeChange = Math.Round(initialStats.DatabaseSizeMb - finalStats.DatabaseSizeMb, 2);
 
             LogManager.Log("Heavy maintenance routine finished.");
@@ -467,13 +467,13 @@ namespace Cliptoo.Core
                     return;
                 }
 
-                var stats = await _dbManager.GetStatsAsync();
+                var stats = await _dbManager.GetStatsAsync().ConfigureAwait(false);
                 var lastCleanup = stats.LastCleanupTimestamp ?? DateTime.MinValue;
 
                 if ((DateTime.UtcNow - lastCleanup) > TimeSpan.FromDays(1))
                 {
                     LogManager.Log("Idle timer check: Last heavy maintenance was over 24 hours ago. Triggering routine.");
-                    await RunHeavyMaintenanceAsync();
+                    await RunHeavyMaintenanceAsync().ConfigureAwait(false);
                 }
                 else
                 {

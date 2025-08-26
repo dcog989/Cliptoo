@@ -76,11 +76,11 @@ namespace Cliptoo.Core.Services
                 byte[]? outputBytes;
                 if (sourceExtension == ".svg")
                 {
-                    outputBytes = await ServiceUtils.GenerateSvgPreviewAsync(imagePath, size, theme);
+                    outputBytes = await ServiceUtils.GenerateSvgPreviewAsync(imagePath, size, theme).ConfigureAwait(false);
                 }
                 else
                 {
-                    using var image = await ImageDecoder.DecodeAsync(imagePath);
+                    using var image = await ImageDecoder.DecodeAsync(imagePath).ConfigureAwait(false);
                     if (image == null) return null;
 
                     image.Mutate(x => x.Resize(new ResizeOptions
@@ -92,18 +92,18 @@ namespace Cliptoo.Core.Services
                     await using var ms = new MemoryStream();
                     if (targetExtension == ".jpeg")
                     {
-                        await image.SaveAsync(ms, _jpegEncoder);
+                        await image.SaveAsync(ms, _jpegEncoder).ConfigureAwait(false);
                     }
                     else
                     {
-                        await image.SaveAsync(ms, _pngEncoder);
+                        await image.SaveAsync(ms, _pngEncoder).ConfigureAwait(false);
                     }
                     outputBytes = ms.ToArray();
                 }
 
                 if (outputBytes != null)
                 {
-                    await File.WriteAllBytesAsync(cachePath, outputBytes);
+                    await File.WriteAllBytesAsync(cachePath, outputBytes).ConfigureAwait(false);
                     return cachePath;
                 }
             }
@@ -164,8 +164,8 @@ namespace Cliptoo.Core.Services
             }
 
             int filesDeleted = 0;
-            filesDeleted += await ServiceUtils.PruneDirectoryAsync(_cacheDir, validCacheFiles);
-            filesDeleted += await ServiceUtils.PruneDirectoryAsync(_previewCacheDir, validCacheFiles);
+            filesDeleted += await ServiceUtils.PruneDirectoryAsync(_cacheDir, validCacheFiles).ConfigureAwait(false);
+            filesDeleted += await ServiceUtils.PruneDirectoryAsync(_previewCacheDir, validCacheFiles).ConfigureAwait(false);
 
             return filesDeleted;
         }

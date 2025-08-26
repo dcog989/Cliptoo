@@ -15,24 +15,24 @@ namespace Cliptoo.Core.Database
 
         public async Task UpdatePasteCountAsync()
         {
-            await using var connection = await GetOpenConnectionAsync();
+            await using var connection = await GetOpenConnectionAsync().ConfigureAwait(false);
             await using var command = connection.CreateCommand();
             command.CommandText = "UPDATE stats SET Value = COALESCE(Value, 0) + 1 WHERE Key = 'PasteCount'";
-            await command.ExecuteNonQueryAsync();
+            await command.ExecuteNonQueryAsync().ConfigureAwait(false);
         }
 
         public async Task UpdateLastCleanupTimestampAsync()
         {
-            await using var connection = await GetOpenConnectionAsync();
+            await using var connection = await GetOpenConnectionAsync().ConfigureAwait(false);
             await using var command = connection.CreateCommand();
             command.CommandText = "INSERT OR REPLACE INTO stats (Key, TextValue) VALUES ('LastCleanupTimestamp', @Timestamp);";
             command.Parameters.AddWithValue("@Timestamp", DateTime.UtcNow.ToString("o"));
-            await command.ExecuteNonQueryAsync();
+            await command.ExecuteNonQueryAsync().ConfigureAwait(false);
         }
 
         public async Task<DbStats> GetStatsAsync()
         {
-            await using var connection = await GetOpenConnectionAsync();
+            await using var connection = await GetOpenConnectionAsync().ConfigureAwait(false);
             long totalClips = 0;
             long pinnedClips = 0;
             long totalContentLength = 0;
@@ -44,8 +44,8 @@ namespace Cliptoo.Core.Database
             await using (var command = connection.CreateCommand())
             {
                 command.CommandText = "SELECT COUNT(*), COALESCE(SUM(LENGTH(Content)), 0) FROM clips";
-                await using var reader = await command.ExecuteReaderAsync();
-                if (await reader.ReadAsync())
+                await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
+                if (await reader.ReadAsync().ConfigureAwait(false))
                 {
                     totalClips = reader.GetInt64(0);
                     totalContentLength = reader.GetInt64(1);
@@ -55,8 +55,8 @@ namespace Cliptoo.Core.Database
             await using (var command = connection.CreateCommand())
             {
                 command.CommandText = "SELECT COUNT(*) FROM clips WHERE IsPinned = 1";
-                await using var reader = await command.ExecuteReaderAsync();
-                if (await reader.ReadAsync())
+                await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
+                if (await reader.ReadAsync().ConfigureAwait(false))
                 {
                     pinnedClips = reader.GetInt64(0);
                 }
@@ -65,8 +65,8 @@ namespace Cliptoo.Core.Database
             await using (var command = connection.CreateCommand())
             {
                 command.CommandText = "SELECT Key, Value, TextValue FROM stats WHERE Key IN ('PasteCount', 'TotalClipsEver', 'CreationTimestamp', 'LastCleanupTimestamp')";
-                await using var reader = await command.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
+                await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
+                while (await reader.ReadAsync().ConfigureAwait(false))
                 {
                     var key = reader.GetString(0);
                     switch (key)

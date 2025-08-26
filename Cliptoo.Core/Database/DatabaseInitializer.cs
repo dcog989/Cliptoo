@@ -11,15 +11,15 @@ namespace Cliptoo.Core.Database
 
         public async Task InitializeAsync()
         {
-            await using var connection = await GetOpenConnectionAsync();
+            await using var connection = await GetOpenConnectionAsync().ConfigureAwait(false);
 
             await using (var command = connection.CreateCommand())
             {
                 command.CommandText = "PRAGMA journal_mode=WAL;";
-                await command.ExecuteNonQueryAsync();
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                 command.CommandText = "PRAGMA user_version;";
-                var currentVersion = (long)(await command.ExecuteScalarAsync() ?? 0L);
+                var currentVersion = (long)(await command.ExecuteScalarAsync().ConfigureAwait(false) ?? 0L);
 
                 if (currentVersion == 0)
                 {
@@ -63,31 +63,31 @@ namespace Cliptoo.Core.Database
                         INSERT INTO clips_fts(rowid, Content) VALUES (new.Id, new.Content);
                     END;
                     ";
-                    await command.ExecuteNonQueryAsync();
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                 }
                 else if (currentVersion < CurrentDbVersion)
                 {
-                    await UpgradeDatabaseAsync(currentVersion);
+                    await UpgradeDatabaseAsync(currentVersion).ConfigureAwait(false);
                 }
 
                 command.CommandText = "INSERT OR IGNORE INTO stats (Key, Value) VALUES ('PasteCount', 0);";
-                await command.ExecuteNonQueryAsync();
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                 command.CommandText = "INSERT OR IGNORE INTO stats (Key, Value) VALUES ('TotalClipsEver', (SELECT COUNT(*) FROM clips));";
-                await command.ExecuteNonQueryAsync();
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                 command.CommandText = "INSERT OR IGNORE INTO stats (Key, Value, TextValue) VALUES ('CreationTimestamp', 0, @Timestamp);";
                 command.Parameters.Clear();
                 command.Parameters.AddWithValue("@Timestamp", DateTime.UtcNow.ToString("o"));
-                await command.ExecuteNonQueryAsync();
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                 command.CommandText = "INSERT OR IGNORE INTO stats (Key, TextValue) VALUES ('LastCleanupTimestamp', @Timestamp);";
                 command.Parameters.Clear();
                 command.Parameters.AddWithValue("@Timestamp", DateTime.UtcNow.ToString("o"));
-                await command.ExecuteNonQueryAsync();
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                 command.CommandText = $"PRAGMA user_version = {CurrentDbVersion};";
-                await command.ExecuteNonQueryAsync();
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
         }
 
@@ -95,15 +95,15 @@ namespace Cliptoo.Core.Database
         {
             if (fromVersion >= CurrentDbVersion) return;
 
-            await using var connection = await GetOpenConnectionAsync();
-            await using var transaction = (Microsoft.Data.Sqlite.SqliteTransaction)await connection.BeginTransactionAsync();
+            await using var connection = await GetOpenConnectionAsync().ConfigureAwait(false);
+            await using var transaction = (Microsoft.Data.Sqlite.SqliteTransaction)await connection.BeginTransactionAsync().ConfigureAwait(false);
 
             if (fromVersion < 8)
             {
                 await using var alterCmd = connection.CreateCommand();
                 alterCmd.Transaction = transaction;
                 alterCmd.CommandText = "ALTER TABLE stats ADD COLUMN TextValue TEXT;";
-                await alterCmd.ExecuteNonQueryAsync();
+                await alterCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
 
             if (fromVersion < 9)
@@ -135,10 +135,10 @@ namespace Cliptoo.Core.Database
                         INSERT INTO clips_fts(rowid, Content) VALUES (new.Id, new.Content);
                     END;
                 ";
-                await ftsCmd.ExecuteNonQueryAsync();
+                await ftsCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
 
-            await transaction.CommitAsync();
+            await transaction.CommitAsync().ConfigureAwait(false);
         }
     }
 }

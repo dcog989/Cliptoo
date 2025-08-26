@@ -44,7 +44,7 @@ namespace Cliptoo.Core.Native
                 }
                 catch (COMException ex) when ((uint)ex.ErrorCode == 0x800401D0) // CLIPBRD_E_CANT_OPEN
                 {
-                    await Task.Delay(DelayMs);
+                    await Task.Delay(DelayMs).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {

@@ -56,78 +56,82 @@ namespace Cliptoo.UI.Services
         {
             Cliptoo.Core.Configuration.LogManager.Log("DIAG: ApplicationHostService.StartAsync START");
             await _controller.InitializeAsync();
-            _controller.SettingsChanged += OnSettingsChanged;
 
-            var settings = _controller.GetSettings();
-            _currentHotkey = settings.Hotkey;
-
-            _mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
-            _mainWindow.MaxHeight = SystemParameters.WorkArea.Height * 0.9;
-
-            _mainViewModel = _serviceProvider.GetRequiredService<MainWindow>().DataContext as MainViewModel;
-            if (_mainViewModel != null)
+            await Application.Current.Dispatcher.InvokeAsync(async () =>
             {
-                Cliptoo.Core.Configuration.LogManager.Log("DIAG_LOAD: AHS - Initializing MainViewModel...");
-                await _mainViewModel.InitializeAsync();
-                _mainViewModel.IsAlwaysOnTop = settings.IsAlwaysOnTop;
-                Cliptoo.Core.Configuration.LogManager.Log("DIAG_LOAD: AHS - Calling InitializeFirstFilter...");
-                _mainViewModel.InitializeFirstFilter();
-                LogManager.Log("DIAG: ApplicationHostService - MainViewModel initialized.");
-            }
+                _controller.SettingsChanged += OnSettingsChanged;
 
-            ApplyTheme(settings.Theme);
-            ApplyAccentFromSettings(settings);
+                var settings = _controller.GetSettings();
+                _currentHotkey = settings.Hotkey;
 
-            // This Show/Hide sequence is necessary to create the window handle (HWND)
-            // so that the tray icon, clipboard monitor, and hotkeys can be registered.
-            _mainWindow.Opacity = 0;
-            _mainWindow.WindowStartupLocation = WindowStartupLocation.Manual;
-            _mainWindow.Left = -9999;
-            Cliptoo.Core.Configuration.LogManager.Log("DIAG: ApplicationHostService - Calling _mainWindow.Show()");
-            _mainWindow.Show();
-            _snackbarService.SetSnackbarPresenter(_mainWindow.SnackbarPresenter);
-            Cliptoo.Core.Configuration.LogManager.Log("DIAG: ApplicationHostService - Calling _mainWindow.Hide()");
-            _mainWindow.Hide();
-            _mainWindow.Opacity = 1;
+                _mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
+                _mainWindow.MaxHeight = SystemParameters.WorkArea.Height * 0.9;
 
-            var windowInteropHelper = new WindowInteropHelper(_mainWindow);
-            IntPtr handle = windowInteropHelper.EnsureHandle();
+                _mainViewModel = _serviceProvider.GetRequiredService<MainWindow>().DataContext as MainViewModel;
+                if (_mainViewModel != null)
+                {
+                    Cliptoo.Core.Configuration.LogManager.Log("DIAG_LOAD: AHS - Initializing MainViewModel...");
+                    await _mainViewModel.InitializeAsync();
+                    _mainViewModel.IsAlwaysOnTop = settings.IsAlwaysOnTop;
+                    Cliptoo.Core.Configuration.LogManager.Log("DIAG_LOAD: AHS - Calling InitializeFirstFilter...");
+                    _mainViewModel.InitializeFirstFilter();
+                    LogManager.Log("DIAG: ApplicationHostService - MainViewModel initialized.");
+                }
 
-            _hwndSource = HwndSource.FromHwnd(handle);
-            _hwndSource?.AddHook(HwndHook);
+                ApplyTheme(settings.Theme);
+                ApplyAccentFromSettings(settings);
 
-            _globalHotkey = new GlobalHotkey(handle);
-            if (!_globalHotkey.Register(_currentHotkey))
-            {
-                var message = $"Failed to register the global hotkey '{_currentHotkey}'. It may be in use by another application. You can set a new one in Settings via the tray icon.";
-                LogManager.Log(message);
-                System.Windows.MessageBox.Show(message, "Cliptoo Warning", System.Windows.MessageBoxButton.OK, MessageBoxImage.Warning);
-            }
-            else
-            {
-                _globalHotkey.HotkeyPressed += OnHotkeyPressed;
-            }
+                // This Show/Hide sequence is necessary to create the window handle (HWND)
+                // so that the tray icon, clipboard monitor, and hotkeys can be registered.
+                _mainWindow.Opacity = 0;
+                _mainWindow.WindowStartupLocation = WindowStartupLocation.Manual;
+                _mainWindow.Left = -9999;
+                Cliptoo.Core.Configuration.LogManager.Log("DIAG: ApplicationHostService - Calling _mainWindow.Show()");
+                _mainWindow.Show();
+                _snackbarService.SetSnackbarPresenter(_mainWindow.SnackbarPresenter);
+                Cliptoo.Core.Configuration.LogManager.Log("DIAG: ApplicationHostService - Calling _mainWindow.Hide()");
+                _mainWindow.Hide();
+                _mainWindow.Opacity = 1;
 
-            _controller.ClipboardMonitor.Start(handle);
+                var windowInteropHelper = new WindowInteropHelper(_mainWindow);
+                IntPtr handle = windowInteropHelper.EnsureHandle();
 
-            _mainWindow.Width = settings.WindowWidth;
-            _mainWindow.Height = settings.WindowHeight;
+                _hwndSource = HwndSource.FromHwnd(handle);
+                _hwndSource?.AddHook(HwndHook);
 
-            if (_mainViewModel != null)
-            {
-                _mainViewModel.AlwaysOnTopChanged += OnViewModelAlwaysOnTopChanged;
-                Cliptoo.Core.Configuration.LogManager.Log("DIAG_LOAD: AHS - MainViewModel.IsReadyForEvents = true");
-                _mainViewModel.IsReadyForEvents = true;
-            }
+                _globalHotkey = new GlobalHotkey(handle);
+                if (!_globalHotkey.Register(_currentHotkey))
+                {
+                    var message = $"Failed to register the global hotkey '{_currentHotkey}'. It may be in use by another application. You can set a new one in Settings via the tray icon.";
+                    LogManager.Log(message);
+                    System.Windows.MessageBox.Show(message, "Cliptoo Warning", System.Windows.MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+                else
+                {
+                    _globalHotkey.HotkeyPressed += OnHotkeyPressed;
+                }
 
-            InitializeTrayIcon();
+                _controller.ClipboardMonitor.Start(handle);
 
-            if (_mainViewModel != null)
-            {
-                _mainViewModel.IsInitializing = false;
-                _ = _mainViewModel.LoadClipsAsync();
-                Cliptoo.Core.Configuration.LogManager.Log("DIAG_LOAD: AHS - Initializing COMPLETE.");
-            }
+                _mainWindow.Width = settings.WindowWidth;
+                _mainWindow.Height = settings.WindowHeight;
+
+                if (_mainViewModel != null)
+                {
+                    _mainViewModel.AlwaysOnTopChanged += OnViewModelAlwaysOnTopChanged;
+                    Cliptoo.Core.Configuration.LogManager.Log("DIAG_LOAD: AHS - MainViewModel.IsReadyForEvents = true");
+                    _mainViewModel.IsReadyForEvents = true;
+                }
+
+                InitializeTrayIcon();
+
+                if (_mainViewModel != null)
+                {
+                    _mainViewModel.IsInitializing = false;
+                    _ = _mainViewModel.LoadClipsAsync();
+                    Cliptoo.Core.Configuration.LogManager.Log("DIAG_LOAD: AHS - Initializing COMPLETE.");
+                }
+            });
         }
 
         public Task StopAsync(CancellationToken cancellationToken)

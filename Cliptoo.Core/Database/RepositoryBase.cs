@@ -15,7 +15,7 @@ namespace Cliptoo.Core.Database
         protected async Task<SqliteConnection> GetOpenConnectionAsync()
         {
             var connection = new SqliteConnection(_connectionString);
-            await connection.OpenAsync();
+            await connection.OpenAsync().ConfigureAwait(false);
             return connection;
         }
     }

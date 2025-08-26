@@ -16,21 +16,21 @@ namespace Cliptoo.Core.Database
 
         public async Task<int> ClearHistoryAsync()
         {
-            await using var connection = await GetOpenConnectionAsync();
+            await using var connection = await GetOpenConnectionAsync().ConfigureAwait(false);
             await using var command = connection.CreateCommand();
             command.CommandText = "DELETE FROM clips WHERE IsPinned = 0";
-            var affected = await command.ExecuteNonQueryAsync();
-            if (affected > 0) await CompactDbAsync();
+            var affected = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+            if (affected > 0) await CompactDbAsync().ConfigureAwait(false);
             return affected;
         }
 
         public async Task<int> ClearAllHistoryAsync()
         {
-            await using var connection = await GetOpenConnectionAsync();
+            await using var connection = await GetOpenConnectionAsync().ConfigureAwait(false);
             await using var command = connection.CreateCommand();
             command.CommandText = "DELETE FROM clips";
-            var affected = await command.ExecuteNonQueryAsync();
-            if (affected > 0) await CompactDbAsync();
+            var affected = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+            if (affected > 0) await CompactDbAsync().ConfigureAwait(false);
             return affected;
         }
 
@@ -44,20 +44,20 @@ namespace Cliptoo.Core.Database
             Configuration.LogManager.LogDebug("DB_LOCK_DIAG: Clearing SQLite connection pool...");
             SqliteConnection.ClearPool(connectionForPoolClear);
             Configuration.LogManager.LogDebug("DB_LOCK_DIAG: SQLite connection pool cleared.");
-            await Task.Delay(100); // Give a moment for file locks to be released.
+            await Task.Delay(100).ConfigureAwait(false); // Give a moment for file locks to be released.
 
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-            await using var connection = await GetOpenConnectionAsync();
+            await using var connection = await GetOpenConnectionAsync().ConfigureAwait(false);
             await using var command = connection.CreateCommand();
 
             command.CommandText = "SELECT name FROM sqlite_master WHERE type='table' AND name='clips_fts';";
-            var ftsTableExists = await command.ExecuteScalarAsync() != null;
+            var ftsTableExists = await command.ExecuteScalarAsync().ConfigureAwait(false) != null;
             if (ftsTableExists)
             {
                 Configuration.LogManager.LogDebug("DB_LOCK_DIAG: Optimizing FTS index...");
                 var ftsStopwatch = System.Diagnostics.Stopwatch.StartNew();
                 command.CommandText = "INSERT INTO clips_fts(clips_fts) VALUES('optimize');";
-                await command.ExecuteNonQueryAsync();
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                 ftsStopwatch.Stop();
                 Configuration.LogManager.LogDebug($"DB_LOCK_DIAG: FTS optimization finished in {ftsStopwatch.ElapsedMilliseconds}ms.");
             }
@@ -65,7 +65,7 @@ namespace Cliptoo.Core.Database
             Configuration.LogManager.LogDebug("DB_LOCK_DIAG: Starting VACUUM...");
             var vacuumStopwatch = System.Diagnostics.Stopwatch.StartNew();
             command.CommandText = "VACUUM;";
-            await command.ExecuteNonQueryAsync();
+            await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             vacuumStopwatch.Stop();
             Configuration.LogManager.LogDebug($"DB_LOCK_DIAG: VACUUM finished in {vacuumStopwatch.ElapsedMilliseconds}ms.");
             stopwatch.Stop();
@@ -76,7 +76,7 @@ namespace Cliptoo.Core.Database
         {
             Configuration.LogManager.LogDebug("DB_LOCK_DIAG: Starting cleanup process...");
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-            await using var connection = await GetOpenConnectionAsync();
+            await using var connection = await GetOpenConnectionAsync().ConfigureAwait(false);
             int totalAffected = 0;
 
             if (days > 0)
@@ -84,27 +84,27 @@ namespace Cliptoo.Core.Database
                 await using var ageCmd = connection.CreateCommand();
                 ageCmd.CommandText = "DELETE FROM clips WHERE IsPinned = 0 AND Timestamp < @CutoffDate";
                 ageCmd.Parameters.AddWithValue("@CutoffDate", DateTime.UtcNow.AddDays(-days).ToString("o"));
-                totalAffected += await ageCmd.ExecuteNonQueryAsync();
+                totalAffected += await ageCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
 
             if (maxClips > 0)
             {
                 await using var countCmd = connection.CreateCommand();
                 countCmd.CommandText = "SELECT COUNT(*) FROM clips WHERE IsPinned = 0";
-                var count = (long)(await countCmd.ExecuteScalarAsync() ?? 0L);
+                var count = (long)(await countCmd.ExecuteScalarAsync().ConfigureAwait(false) ?? 0L);
 
                 if (count > maxClips)
                 {
                     await using var deleteCmd = connection.CreateCommand();
                     deleteCmd.CommandText = @"DELETE FROM clips WHERE Id IN (SELECT Id FROM clips WHERE IsPinned = 0 ORDER BY Timestamp ASC LIMIT @Limit)";
                     deleteCmd.Parameters.AddWithValue("@Limit", count - maxClips);
-                    totalAffected += await deleteCmd.ExecuteNonQueryAsync();
+                    totalAffected += await deleteCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
                 }
             }
 
             if (totalAffected > 0 || forceCompact)
             {
-                await CompactDbAsync();
+                await CompactDbAsync().ConfigureAwait(false);
             }
             stopwatch.Stop();
             Configuration.LogManager.LogDebug($"DB_LOCK_DIAG: Cleanup process finished in {stopwatch.ElapsedMilliseconds}ms. Removed {totalAffected} clips.");
@@ -114,7 +114,7 @@ namespace Cliptoo.Core.Database
 
         public async Task<int> RemoveDeadheadClipsAsync()
         {
-            await using var connection = await GetOpenConnectionAsync();
+            await using var connection = await GetOpenConnectionAsync().ConfigureAwait(false);
             var idsToDelete = new List<int>();
             const int batchSize = 500;
             var hasMoreRows = true;
@@ -130,8 +130,8 @@ namespace Cliptoo.Core.Database
                     command.Parameters.AddWithValue("@BatchSize", batchSize);
                     command.Parameters.AddWithValue("@Offset", offset);
 
-                    await using var reader = await command.ExecuteReaderAsync();
-                    while (await reader.ReadAsync())
+                    await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
+                    while (await reader.ReadAsync().ConfigureAwait(false))
                     {
                         clipsToCheck.Add((reader.GetInt32(0), reader.GetString(1), reader.GetString(2)));
                     }
@@ -172,23 +172,23 @@ namespace Cliptoo.Core.Database
 
                 if (idsToDelete.Count > 0)
                 {
-                    await using var transaction = (SqliteTransaction)await connection.BeginTransactionAsync();
+                    await using var transaction = (SqliteTransaction)await connection.BeginTransactionAsync().ConfigureAwait(false);
                     foreach (var id in idsToDelete)
                     {
                         await using var deleteCmd = connection.CreateCommand();
                         deleteCmd.Transaction = transaction;
                         deleteCmd.CommandText = "DELETE FROM clips WHERE Id = @Id";
                         deleteCmd.Parameters.AddWithValue("@Id", id);
-                        totalAffected += await deleteCmd.ExecuteNonQueryAsync();
+                        totalAffected += await deleteCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
                     }
-                    await transaction.CommitAsync();
+                    await transaction.CommitAsync().ConfigureAwait(false);
                     idsToDelete.Clear();
                 }
             }
 
             if (totalAffected > 0)
             {
-                await CompactDbAsync();
+                await CompactDbAsync().ConfigureAwait(false);
             }
 
             return totalAffected;
@@ -197,17 +197,17 @@ namespace Cliptoo.Core.Database
         public async Task<int> ClearOversizedClipsAsync(uint sizeMb)
         {
             var sizeBytes = (long)sizeMb * 1024 * 1024;
-            await using var connection = await GetOpenConnectionAsync();
+            await using var connection = await GetOpenConnectionAsync().ConfigureAwait(false);
             await using var command = connection.CreateCommand();
 
             command.CommandText = "DELETE FROM clips WHERE IsPinned = 0 AND SizeInBytes > @SizeBytes";
             command.Parameters.AddWithValue("@SizeBytes", sizeBytes);
 
-            int totalAffected = await command.ExecuteNonQueryAsync();
+            int totalAffected = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
             if (totalAffected > 0)
             {
-                await CompactDbAsync();
+                await CompactDbAsync().ConfigureAwait(false);
             }
 
             return totalAffected;

@@ -58,7 +58,7 @@ namespace Cliptoo.Core.Services
             {
                 try
                 {
-                    var timestampText = await File.ReadAllTextAsync(failureCachePath);
+                    var timestampText = await File.ReadAllTextAsync(failureCachePath).ConfigureAwait(false);
                     if (DateTime.TryParse(timestampText, null, System.Globalization.DateTimeStyles.RoundtripKind, out var timestamp))
                     {
                         if ((DateTime.UtcNow - timestamp) < FailureCacheDuration)
@@ -79,12 +79,12 @@ namespace Cliptoo.Core.Services
             try
             {
                 LogManager.LogDebug($"Favicon Discovery for {url}: Starting Stage 1 (Root Icon Check).");
-                finalIconPath = await TryFetchRootIconsAsync(uri, successCachePath);
+                finalIconPath = await TryFetchRootIconsAsync(uri, successCachePath).ConfigureAwait(false);
 
                 if (finalIconPath == null)
                 {
                     LogManager.LogDebug($"Favicon Discovery for {url}: Stage 1 failed. Starting Stage 2 (HTML Head Parse).");
-                    finalIconPath = await TryFetchIconsFromHtmlAsync(uri, successCachePath);
+                    finalIconPath = await TryFetchIconsFromHtmlAsync(uri, successCachePath).ConfigureAwait(false);
                 }
 
                 if (finalIconPath != null)
@@ -107,7 +107,7 @@ namespace Cliptoo.Core.Services
                     _failedFaviconUrls.TryAdd(url, true);
                     try
                     {
-                        await File.WriteAllTextAsync(failureCachePath, DateTime.UtcNow.ToString("o"));
+                        await File.WriteAllTextAsync(failureCachePath, DateTime.UtcNow.ToString("o")).ConfigureAwait(false);
                     }
                     catch (Exception ex)
                     {
@@ -130,7 +130,7 @@ namespace Cliptoo.Core.Services
             foreach (var iconName in rootIconNames)
             {
                 var faviconUrl = new Uri(baseUri, iconName);
-                if (await FetchAndProcessFavicon(faviconUrl.ToString(), cachePath))
+                if (await FetchAndProcessFavicon(faviconUrl.ToString(), cachePath).ConfigureAwait(false))
                 {
                     return cachePath;
                 }
@@ -221,7 +221,7 @@ namespace Cliptoo.Core.Services
 
             while (true)
             {
-                int charsRead = await reader.ReadAsync(buffer, 0, buffer.Length);
+                int charsRead = await reader.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false);
                 if (charsRead == 0) break;
 
                 content.Append(buffer, 0, charsRead);
@@ -467,7 +467,7 @@ namespace Cliptoo.Core.Services
                 validCacheFiles.Add(ServiceUtils.GetCachePath(url, _faviconCacheDir, ".failed"));
             }
 
-            return await ServiceUtils.PruneDirectoryAsync(_faviconCacheDir, validCacheFiles);
+            return await ServiceUtils.PruneDirectoryAsync(_faviconCacheDir, validCacheFiles).ConfigureAwait(false);
         }
     }
 }

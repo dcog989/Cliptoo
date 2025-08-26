@@ -48,7 +48,7 @@ namespace Cliptoo.Core.Services
             {
                 try
                 {
-                    string svgContent = isContentString ? svgSource : await File.ReadAllTextAsync(svgSource);
+                    string svgContent = isContentString ? svgSource : await File.ReadAllTextAsync(svgSource).ConfigureAwait(false);
                     if (!string.IsNullOrEmpty(theme))
                     {
                         var foregroundColor = theme == "dark" ? "#FFFFFF" : "#000000";
@@ -114,7 +114,7 @@ namespace Cliptoo.Core.Services
             {
                 try
                 {
-                    await Task.Run(() => File.Delete(file));
+                    await Task.Run(() => File.Delete(file)).ConfigureAwait(false);
                     count++;
                 }
                 catch (Exception ex)
