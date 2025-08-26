@@ -34,7 +34,7 @@ namespace Cliptoo.Core.Configuration
                 var json = File.ReadAllText(_settingsPath);
                 return JsonSerializer.Deserialize<Settings>(json) ?? new Settings();
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException or JsonException or NotSupportedException)
             {
                 LogManager.Log(ex, "Failed to load settings, using defaults.");
                 return new Settings();
@@ -48,7 +48,7 @@ namespace Cliptoo.Core.Configuration
                 var json = JsonSerializer.Serialize(settings, _options);
                 File.WriteAllText(_settingsPath, json);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException or NotSupportedException)
             {
                 LogManager.Log(ex, "Failed to save settings.");
             }

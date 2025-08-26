@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using Cliptoo.Core.Configuration;
+using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Jpeg;
 using SixLabors.ImageSharp.Formats.Png;
 using SixLabors.ImageSharp.Processing;
@@ -28,32 +29,32 @@ namespace Cliptoo.Core.Services
             _jpegEncoder = new JpegEncoder { Quality = 50 };
         }
 
-        private string GetTargetExtension(string imagePath)
+        private static string GetTargetExtension(string imagePath)
         {
             var sourceExtension = Path.GetExtension(imagePath).ToUpperInvariant();
             switch (sourceExtension)
             {
                 // Photographic or complex images that benefit from JPEG
-                case ".jpg":
-                case ".jpeg":
-                case ".bmp":
-                case ".tiff":
-                case ".tif":
-                case ".heic":
-                case ".heif":
-                case ".jxl":
-                case ".webp": // Can be lossy or lossless, but JPEG is a safe bet for previews.
-                case ".raw":
-                case ".dng":
-                case ".cr2":
-                case ".nef":
+                case ".JPG":
+                case ".JPEG":
+                case ".BMP":
+                case ".TIFF":
+                case ".TIF":
+                case ".HEIC":
+                case ".HEIF":
+                case ".JXL":
+                case ".WEBP": // Can be lossy or lossless, but JPEG is a safe bet for previews.
+                case ".RAW":
+                case ".DNG":
+                case ".CR2":
+                case ".NEF":
                     return ".jpeg";
 
                 // Images with transparency or simple graphics that benefit from PNG
-                case ".png":
-                case ".gif":
-                case ".svg":
-                case ".ico":
+                case ".PNG":
+                case ".GIF":
+                case ".SVG":
+                case ".ICO":
                 default:
                     return ".png";
             }
@@ -64,8 +65,8 @@ namespace Cliptoo.Core.Services
             var sourceExtension = Path.GetExtension(imagePath).ToUpperInvariant();
             var targetExtension = GetTargetExtension(imagePath);
 
-            var cacheKey = (sourceExtension == ".svg" && !string.IsNullOrEmpty(theme)) ? $"{imagePath}_{theme}_{size}" : $"{imagePath}_{size}";
-            var cachePath = ServiceUtils.GetCachePath(cacheKey, cacheDirectory, targetExtension);
+            var cacheKey = (sourceExtension == ".SVG" && !string.IsNullOrEmpty(theme)) ? $"{imagePath}_{theme}_{size}" : $"{imagePath}_{size}";
+            var cachePath = GenerateCachePath(imagePath, theme, size, cacheDirectory, targetExtension);
 
             if (File.Exists(cachePath)) return cachePath;
             if (!File.Exists(imagePath)) return null;
@@ -74,7 +75,7 @@ namespace Cliptoo.Core.Services
             try
             {
                 byte[]? outputBytes;
-                if (sourceExtension == ".svg")
+                if (sourceExtension == ".SVG")
                 {
                     outputBytes = await ServiceUtils.GenerateSvgPreviewAsync(imagePath, size, theme).ConfigureAwait(false);
                 }
@@ -89,7 +90,7 @@ namespace Cliptoo.Core.Services
                         Mode = ResizeMode.Max
                     }));
 
-                    await using var ms = new MemoryStream();
+                    using var ms = new MemoryStream();
                     if (targetExtension == ".jpeg")
                     {
                         await image.SaveAsync(ms, _jpegEncoder).ConfigureAwait(false);
@@ -107,11 +108,11 @@ namespace Cliptoo.Core.Services
                     return cachePath;
                 }
             }
-            catch (SixLabors.ImageSharp.UnknownImageFormatException)
+            catch (UnknownImageFormatException)
             {
                 LogManager.LogDebug($"Unsupported image format for thumbnail generation: {imagePath}");
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or ImageFormatException)
             {
                 LogManager.Log(ex, $"Image processing failed for {imagePath}");
             }
@@ -136,7 +137,7 @@ namespace Cliptoo.Core.Services
                 ServiceUtils.DeleteDirectoryContents(_previewCacheDir);
                 LogManager.Log("Thumbnail and preview caches cleared successfully.");
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 LogManager.Log(ex, "Failed to clear caches.");
             }
@@ -144,9 +145,11 @@ namespace Cliptoo.Core.Services
 
         public async Task<int> PruneCacheAsync(IAsyncEnumerable<string> validImagePaths, uint previewSize)
         {
+            ArgumentNullException.ThrowIfNull(validImagePaths);
+
             var validCacheFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            await foreach (var imagePath in validImagePaths)
+            await foreach (var imagePath in validImagePaths.ConfigureAwait(false))
             {
                 var sourceExtension = Path.GetExtension(imagePath).ToUpperInvariant();
                 var targetExtension = GetTargetExtension(imagePath);
@@ -154,7 +157,7 @@ namespace Cliptoo.Core.Services
                 validCacheFiles.Add(GenerateCachePath(imagePath, null, ThumbnailSize, _cacheDir, targetExtension));
                 validCacheFiles.Add(GenerateCachePath(imagePath, null, (int)previewSize, _previewCacheDir, targetExtension));
 
-                if (sourceExtension == ".svg")
+                if (sourceExtension == ".SVG")
                 {
                     validCacheFiles.Add(GenerateCachePath(imagePath, "light", ThumbnailSize, _cacheDir, targetExtension));
                     validCacheFiles.Add(GenerateCachePath(imagePath, "dark", ThumbnailSize, _cacheDir, targetExtension));
@@ -170,10 +173,10 @@ namespace Cliptoo.Core.Services
             return filesDeleted;
         }
 
-        private string GenerateCachePath(string imagePath, string? theme, int size, string cacheDirectory, string targetExtension)
+        private static string GenerateCachePath(string imagePath, string? theme, int size, string cacheDirectory, string targetExtension)
         {
             var sourceExtension = Path.GetExtension(imagePath).ToUpperInvariant();
-            var cacheKey = (sourceExtension == ".svg" && !string.IsNullOrEmpty(theme))
+            var cacheKey = (sourceExtension == ".SVG" && !string.IsNullOrEmpty(theme))
                 ? $"{imagePath}_{theme}_{size}"
                 : $"{imagePath}_{size}";
             return ServiceUtils.GetCachePath(cacheKey, cacheDirectory, targetExtension);
