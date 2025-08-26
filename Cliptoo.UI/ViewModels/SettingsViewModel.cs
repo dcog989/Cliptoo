@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Windows;
 using System.Windows.Input;
@@ -12,6 +13,7 @@ using Cliptoo.Core.Services;
 using Cliptoo.UI.Services;
 using Cliptoo.UI.ViewModels.Base;
 using Cliptoo.UI.Views;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Win32;
 using Wpf.Ui;
@@ -20,11 +22,12 @@ using Wpf.Ui.Controls;
 
 namespace Cliptoo.UI.ViewModels
 {
-    public class SettingsViewModel : ViewModelBase
+    internal sealed class SettingsViewModel : ViewModelBase, IDisposable
     {
         private const double OKLCH_LIGHTNESS = 0.63;
         private const double OKLCH_CHROMA_BRIGHT = 0.22;
         private const double OKLCH_CHROMA_MUTED = 0.10;
+        private static readonly char[] _plusSeparator = ['+'];
 
         private readonly CliptooController _controller;
         private readonly IContentDialogService _contentDialogService;
@@ -91,7 +94,7 @@ namespace Cliptoo.UI.ViewModels
 
         public string SettingsFolderPath { get; }
         public string TempDataPath { get; }
-        public string GitHubUrl => "https://github.com/dcgog989/Cliptoo";
+        public static Uri GitHubUrl { get; } = new("https://github.com/dcgog989/Cliptoo");
 
         public ObservableCollection<string> SystemFonts { get; }
 
@@ -415,7 +418,7 @@ namespace Cliptoo.UI.ViewModels
                 IsBusy = true;
                 try
                 {
-                    await Task.Run(() => _controller.ClearCaches());
+                    await Task.Run(() => _controller.ClearCaches()).ConfigureAwait(true);
                     await ShowInformationDialogAsync("Caches Cleared", new System.Windows.Controls.TextBlock { Text = "All cached thumbnails and temporary files have been deleted." });
                 }
                 finally
@@ -430,7 +433,7 @@ namespace Cliptoo.UI.ViewModels
                     IsBusy = true;
                     try
                     {
-                        var result = await Task.Run(() => _controller.RunHeavyMaintenanceNowAsync());
+                        var result = await Task.Run(async () => await _controller.RunHeavyMaintenanceNowAsync().ConfigureAwait(false)).ConfigureAwait(true);
                         await InitializeAsync();
 
                         var results = new List<string>();
@@ -486,7 +489,7 @@ namespace Cliptoo.UI.ViewModels
             SettingsFolderPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Cliptoo");
             TempDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Cliptoo");
 
-            OpenGitHubUrlCommand = new RelayCommand(_ => Process.Start(new ProcessStartInfo(GitHubUrl) { UseShellExecute = true }));
+            OpenGitHubUrlCommand = new RelayCommand(_ => Process.Start(new ProcessStartInfo(GitHubUrl.AbsoluteUri) { UseShellExecute = true }));
             OpenSettingsFolderCommand = new RelayCommand(_ => Process.Start(new ProcessStartInfo(SettingsFolderPath) { UseShellExecute = true }));
             OpenTempDataFolderCommand = new RelayCommand(_ => Process.Start(new ProcessStartInfo(TempDataPath) { UseShellExecute = true }));
             OpenAcknowledgementsWindowCommand = new RelayCommand(_ => ShowAcknowledgementsWindow());
@@ -527,7 +530,7 @@ namespace Cliptoo.UI.ViewModels
 
         private async Task LoadIconsAsync()
         {
-            LogoIcon = await _iconProvider.GetIconAsync(AppConstants.IconKeys.Logo, 138);
+            LogoIcon = await _iconProvider.GetIconAsync(AppConstants.IconKeys.Logo, 138).ConfigureAwait(true);
         }
 
         private void ExecuteBrowseCompareTool()
@@ -559,10 +562,10 @@ namespace Cliptoo.UI.ViewModels
         {
             try
             {
-                Stats = await _controller.GetStatsAsync();
+                Stats = await _controller.GetStatsAsync().ConfigureAwait(true);
                 OnPropertyChanged(nameof(StatsSummary));
             }
-            catch (Exception ex)
+            catch (SqliteException ex)
             {
                 Core.Configuration.LogManager.Log(ex, "Failed to load database stats.");
                 Stats = new DbStats();
@@ -571,7 +574,11 @@ namespace Cliptoo.UI.ViewModels
 
         private void OnDebounceTimerElapsed(object? sender, System.Timers.ElapsedEventArgs e)
         {
-            Settings.SendToTargets = new List<SendToTarget>(SendToTargets);
+            Settings.SendToTargets.Clear();
+            foreach (var target in SendToTargets)
+            {
+                Settings.SendToTargets.Add(target);
+            }
             _controller.SaveSettings(Settings);
         }
 
@@ -583,13 +590,18 @@ namespace Cliptoo.UI.ViewModels
 
         public void Cleanup()
         {
-            _saveDebounceTimer.Elapsed -= OnDebounceTimerElapsed;
-            _saveDebounceTimer.Dispose();
+            Dispose();
         }
 
         private async Task PopulateFontsAsync()
         {
-            IsFontsLoading = true; var fonts = await Task.Run(() => { var fontList = new List<string> { "Source Code Pro" }; fontList.AddRange(Fonts.SystemFontFamilies.Select(f => f.Source).Distinct().OrderBy(s => s)); return fontList; });
+            IsFontsLoading = true;
+            var fonts = await Task.Run(() =>
+            {
+                var fontList = new List<string> { "Source Code Pro" };
+                fontList.AddRange(Fonts.SystemFontFamilies.Select(f => f.Source).Distinct().OrderBy(s => s));
+                return fontList;
+            }).ConfigureAwait(true);
 
             foreach (var fontName in fonts)
             {
@@ -693,11 +705,11 @@ namespace Cliptoo.UI.ViewModels
             {
                 if (viewModel.Result == ClearHistoryResult.ClearAll)
                 {
-                    await Task.Run(() => _controller.ClearAllHistoryAsync());
+                    await Task.Run(async () => await _controller.ClearAllHistoryAsync().ConfigureAwait(false)).ConfigureAwait(true);
                 }
                 else if (viewModel.Result == ClearHistoryResult.ClearUnpinned)
                 {
-                    await Task.Run(() => _controller.ClearHistoryAsync());
+                    await Task.Run(async () => await _controller.ClearHistoryAsync().ConfigureAwait(false)).ConfigureAwait(true);
                 }
                 await InitializeAsync();
             }
@@ -729,9 +741,9 @@ namespace Cliptoo.UI.ViewModels
             IsBusy = true;
             try
             {
-                int count = await Task.Run(() => _controller.ClearOversizedClipsAsync(viewModel.SizeMb));
+                int count = await Task.Run(async () => await _controller.ClearOversizedClipsAsync(viewModel.SizeMb).ConfigureAwait(false)).ConfigureAwait(true);
                 await InitializeAsync();
-                await ShowInformationDialogAsync("Oversized Clips Removed", new System.Windows.Controls.TextBlock { Text = $"{count} clip(s) larger than {viewModel.SizeMb} MB have been removed." });
+                await ShowInformationDialogAsync("Oversized Clips Removed", new System.Windows.Controls.TextBlock { Text = string.Format(CultureInfo.CurrentCulture, "{0} clip(s) larger than {1} MB have been removed.", count, viewModel.SizeMb) });
             }
             finally
             {
@@ -745,9 +757,9 @@ namespace Cliptoo.UI.ViewModels
             IsBusy = true;
             try
             {
-                int count = await Task.Run(() => _controller.RemoveDeadheadClipsAsync());
+                int count = await Task.Run(async () => await _controller.RemoveDeadheadClipsAsync().ConfigureAwait(false)).ConfigureAwait(true);
                 await InitializeAsync();
-                await ShowInformationDialogAsync("Deadhead Clips Removed", new System.Windows.Controls.TextBlock { Text = $"{count} clip(s) pointing to non-existent files or folders have been removed." });
+                await ShowInformationDialogAsync("Deadhead Clips Removed", new System.Windows.Controls.TextBlock { Text = string.Format(CultureInfo.CurrentCulture, "{0} clip(s) pointing to non-existent files or folders have been removed.", count) });
             }
             finally
             {
@@ -775,6 +787,7 @@ namespace Cliptoo.UI.ViewModels
 
         public void UpdateHotkey(KeyEventArgs e, string target)
         {
+            ArgumentNullException.ThrowIfNull(e);
             if (!IsCapturingHotkey || CapturingHotkeyTarget != target) return;
             e.Handled = true;
 
@@ -828,7 +841,7 @@ namespace Cliptoo.UI.ViewModels
         {
             if (target == "QuickPaste")
             {
-                var parts = this.QuickPasteHotkey.Split(new[] { '+' }, StringSplitOptions.RemoveEmptyEntries);
+                var parts = this.QuickPasteHotkey.Split(_plusSeparator, StringSplitOptions.RemoveEmptyEntries);
                 bool allModifiers = parts.All(p => p is "Ctrl" or "Alt" or "Shift" or "Win");
 
                 if (!allModifiers || parts.Length < 2)
@@ -861,7 +874,7 @@ namespace Cliptoo.UI.ViewModels
                     Name = Path.GetFileNameWithoutExtension(openFileDialog.FileName),
                     Arguments = "\"{0}\""
                 };
-                (newTarget as INotifyPropertyChanged).PropertyChanged += (s, e) => DebounceSave();
+                ((INotifyPropertyChanged)newTarget).PropertyChanged += (s, e) => DebounceSave();
                 SendToTargets.Add(newTarget);
             }
         }
@@ -873,11 +886,18 @@ namespace Cliptoo.UI.ViewModels
                 SendToTargets.Remove(target);
             }
         }
+
+        public void Dispose()
+        {
+            _saveDebounceTimer.Elapsed -= OnDebounceTimerElapsed;
+            _saveDebounceTimer.Dispose();
+            GC.SuppressFinalize(this);
+        }
     }
 
-    public enum ClearHistoryResult { Cancel, ClearUnpinned, ClearAll }
+    internal enum ClearHistoryResult { Cancel, ClearUnpinned, ClearAll }
 
-    public class ClearHistoryDialogViewModel : ViewModelBase
+    internal class ClearHistoryDialogViewModel : ViewModelBase
     {
         private bool _deletePinned;
         public bool DeletePinned { get => _deletePinned; set => SetProperty(ref _deletePinned, value); }

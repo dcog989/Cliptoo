@@ -145,7 +145,11 @@ namespace Cliptoo.UI.Helpers
 
             if (e.IsRepeat)
             {
-                return;
+                bool isRepeatableKey = e.Key is Key.Up or Key.Down or Key.PageUp or Key.PageDown;
+                if (!isRepeatableKey)
+                {
+                    return;
+                }
             }
 
             if (e.Key == Key.Escape)

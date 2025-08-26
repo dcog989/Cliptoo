@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.IO;
 using System.Text;
 
@@ -28,7 +29,7 @@ namespace Cliptoo.Core.Configuration
                 IsInitialized = true;
                 Log("LogManager initialized successfully.");
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
             {
                 Console.WriteLine($"FATAL: Could not initialize primary LogManager: {ex.Message}");
                 try
@@ -43,7 +44,7 @@ namespace Cliptoo.Core.Configuration
                     IsInitialized = true;
                     Log($"WARNING: Using fallback log location due to error: {ex.Message}");
                 }
-                catch (Exception fallbackEx)
+                catch (Exception fallbackEx) when (fallbackEx is IOException or UnauthorizedAccessException or System.Security.SecurityException)
                 {
                     IsInitialized = false;
                     Console.WriteLine($"FATAL: Could not initialize fallback LogManager: {fallbackEx.Message}");
@@ -63,7 +64,7 @@ namespace Cliptoo.Core.Configuration
                 var fileInfo = new FileInfo(_logFilePath);
                 if (fileInfo.LastWriteTime.Date < DateTime.Now.Date)
                 {
-                    var newName = Path.GetFileNameWithoutExtension(_logFilePath).Replace("-latest", "") + $"-{fileInfo.LastWriteTime:yyMMdd-HHmmss}.log";
+                    var newName = Path.GetFileNameWithoutExtension(_logFilePath).Replace("-latest", "", StringComparison.Ordinal) + $"-{fileInfo.LastWriteTime:yyMMdd-HHmmss}.log";
 
                     var directoryName = fileInfo.DirectoryName;
                     if (directoryName is null) return;
@@ -72,7 +73,7 @@ namespace Cliptoo.Core.Configuration
                     File.Move(_logFilePath, newPath);
                 }
             }
-            catch (Exception ex)
+            catch (IOException ex)
             {
                 Console.WriteLine($"Failed to rotate log file: {ex.Message}");
             }
@@ -95,7 +96,7 @@ namespace Cliptoo.Core.Configuration
                     File.AppendAllText(_logFilePath, $"[{DateTime.Now:HH:mm:ss.fff}] {level}: {message}{Environment.NewLine}");
                 }
             }
-            catch (Exception ex)
+            catch (IOException ex)
             {
                 Console.WriteLine($"Failed to write to log: {ex.Message}");
             }
@@ -115,26 +116,28 @@ namespace Cliptoo.Core.Configuration
 
         public static void Log(Exception exception, string? context = null)
         {
+            ArgumentNullException.ThrowIfNull(exception);
+
             if (!IsInitialized || string.IsNullOrEmpty(_logFilePath)) return;
 
             try
             {
                 var sb = new StringBuilder();
-                sb.AppendLine($"[{DateTime.Now:HH:mm:ss.fff}] ERROR: An exception occurred.");
+                sb.AppendLine(CultureInfo.InvariantCulture, $"[{DateTime.Now:HH:mm:ss.fff}] ERROR: An exception occurred.");
                 if (!string.IsNullOrEmpty(context))
                 {
-                    sb.AppendLine($"Context: {context}");
+                    sb.AppendLine(CultureInfo.InvariantCulture, $"Context: {context}");
                 }
-                sb.AppendLine($"Type: {exception.GetType().FullName}");
-                sb.AppendLine($"Message: {exception.Message}");
+                sb.AppendLine(CultureInfo.InvariantCulture, $"Type: {exception.GetType().FullName}");
+                sb.AppendLine(CultureInfo.InvariantCulture, $"Message: {exception.Message}");
                 sb.AppendLine("StackTrace:");
                 sb.AppendLine(exception.StackTrace);
 
                 if (exception.InnerException != null)
                 {
                     sb.AppendLine("--- Inner Exception ---");
-                    sb.AppendLine($"Type: {exception.InnerException.GetType().FullName}");
-                    sb.AppendLine($"Message: {exception.InnerException.Message}");
+                    sb.AppendLine(CultureInfo.InvariantCulture, $"Type: {exception.InnerException.GetType().FullName}");
+                    sb.AppendLine(CultureInfo.InvariantCulture, $"Message: {exception.InnerException.Message}");
                     sb.AppendLine("StackTrace:");
                     sb.AppendLine(exception.InnerException.StackTrace);
                 }
@@ -145,7 +148,7 @@ namespace Cliptoo.Core.Configuration
                     File.AppendAllText(_logFilePath, sb.ToString());
                 }
             }
-            catch (Exception ex)
+            catch (IOException ex)
             {
                 Console.WriteLine($"Failed to write exception to log: {ex.Message}");
             }

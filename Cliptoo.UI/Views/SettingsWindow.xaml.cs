@@ -6,7 +6,7 @@ using Wpf.Ui.Controls;
 
 namespace Cliptoo.UI.Views
 {
-    public partial class SettingsWindow : FluentWindow
+    internal partial class SettingsWindow : FluentWindow
     {
         private readonly SettingsViewModel _viewModel;
 
