@@ -25,11 +25,10 @@ namespace Cliptoo.Core.Services
         private record FaviconCandidate(string Url, int Priority);
 
         private static readonly Regex LinkTagRegex = new("<link[^>]+>", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-        private static readonly Regex RelAttributeRegex = new("rel\\s*=\\s*(?:['\"](?:shortcut\\s+)?icon['\"]|(?:shortcut\\s+)?icon\\b)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private static readonly Regex RelAttributeRegex = new("rel\\s*=\\s*['\"][^'\"]*\\bicon\\b[^'\"]*['\"]", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         private static readonly Regex HrefAttributeRegex = new("href\\s*=\\s*(?:['\"]([^'\"]+)['\"]|([^>\\s]+))", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         private static readonly Regex SizesAttributeRegex = new("sizes\\s*=\\s*['\"](\\d+x\\d+)['\"]", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-
-        private static readonly Regex TitleRegex = new("<title>\\s*(.+?)\\s*</title>", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private static readonly Regex TitleRegex = new("<title[^>]*>\\s*(.+?)\\s*</title>", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         private readonly LruCache<string, string> _titleCache;
         private readonly ConcurrentDictionary<string, bool> _failedFaviconUrls = new();
 
@@ -39,7 +38,7 @@ namespace Cliptoo.Core.Services
             Directory.CreateDirectory(_faviconCacheDir);
 
             _httpClient = new HttpClient();
-            _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Cliptoo/1.0");
+            _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36");
             _httpClient.Timeout = TimeSpan.FromSeconds(5);
 
             _pngEncoder = new PngEncoder { CompressionLevel = PngCompressionLevel.Level6 };
@@ -144,11 +143,18 @@ namespace Cliptoo.Core.Services
             string? headContent;
             try
             {
-                var response = await _httpClient.GetAsync(pageUri, HttpCompletionOption.ResponseHeadersRead);
+                var response = await _httpClient.GetAsync(pageUri, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
                 if (!response.IsSuccessStatusCode) return null;
 
-                using var stream = await response.Content.ReadAsStreamAsync();
-                headContent = await ReadHeadContentAsync(stream);
+                Stream stream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
+                try
+                {
+                    headContent = await ReadHeadContentAsync(stream).ConfigureAwait(false);
+                }
+                finally
+                {
+                    await stream.DisposeAsync().ConfigureAwait(false);
+                }
             }
             catch (Exception ex)
             {
@@ -169,7 +175,10 @@ namespace Cliptoo.Core.Services
                 if (!hrefMatch.Success) continue;
 
                 var href = hrefMatch.Groups[1].Success ? hrefMatch.Groups[1].Value : hrefMatch.Groups[2].Value;
-                if (!href.EndsWith(".png") && !href.EndsWith(".ico") && !href.EndsWith(".webp") && !href.EndsWith(".svg"))
+                var pathOnly = href.Split('?').First();
+                var extension = Path.GetExtension(pathOnly).ToUpperInvariant();
+
+                if (extension != ".PNG" && extension != ".ICO" && extension != ".WEBP" && extension != ".SVG")
                 {
                     continue;
                 }
@@ -193,7 +202,7 @@ namespace Cliptoo.Core.Services
 
             foreach (var candidate in candidates.OrderBy(c => c.Priority))
             {
-                if (await FetchAndProcessFavicon(candidate.Url, cachePath))
+                if (await FetchAndProcessFavicon(candidate.Url, cachePath).ConfigureAwait(false))
                 {
                     return cachePath;
                 }
@@ -281,14 +290,64 @@ namespace Cliptoo.Core.Services
 
             try
             {
-                var html = await _httpClient.GetStringAsync(url);
-                var match = TitleRegex.Match(html);
-                if (match.Success)
+                using var response = await _httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
+                if (!response.IsSuccessStatusCode)
                 {
-                    var title = System.Net.WebUtility.HtmlDecode(match.Groups[1].Value.Trim());
-                    _titleCache.Add(url, title);
+                    _titleCache.Add(url, string.Empty);
+                    return null;
+                }
+
+                var encoding = Encoding.UTF8;
+                var charset = response.Content.Headers.ContentType?.CharSet;
+                if (!string.IsNullOrEmpty(charset))
+                {
+                    try
+                    {
+                        encoding = Encoding.GetEncoding(charset);
+                    }
+                    catch (ArgumentException) { /* Fallback to UTF-8 */ }
+                }
+
+                var stream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
+                try
+                {
+                    using var reader = new StreamReader(stream, encoding, true, 1024, true); // leaveOpen = true
+
+                    var buffer = new char[4096];
+                    var content = new StringBuilder();
+                    string? title = null;
+
+                    while (true)
+                    {
+                        int charsRead = await reader.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false);
+                        if (charsRead == 0) break;
+
+                        content.Append(buffer, 0, charsRead);
+                        var currentContent = content.ToString();
+
+                        var match = TitleRegex.Match(currentContent);
+                        if (match.Success)
+                        {
+                            title = System.Net.WebUtility.HtmlDecode(match.Groups[1].Value.Trim());
+                            break;
+                        }
+
+                        if (currentContent.Contains("</head>", StringComparison.OrdinalIgnoreCase) || content.Length > 150 * 1024)
+                        {
+                            break;
+                        }
+                    }
+                    _titleCache.Add(url, title ?? string.Empty);
                     return title;
                 }
+                finally
+                {
+                    await stream.DisposeAsync().ConfigureAwait(false);
+                }
+            }
+            catch (HttpRequestException ex)
+            {
+                LogManager.LogDebug($"HTTP request for title failed for {url}: {ex.Message}");
             }
             catch (Exception ex)
             {
@@ -304,7 +363,7 @@ namespace Cliptoo.Core.Services
             try
             {
                 LogManager.LogDebug($"Attempting to fetch favicon: {faviconUrl}");
-                var response = await _httpClient.GetAsync(faviconUrl);
+                var response = await _httpClient.GetAsync(faviconUrl).ConfigureAwait(false);
 
                 if (!response.IsSuccessStatusCode)
                 {
@@ -317,39 +376,34 @@ namespace Cliptoo.Core.Services
 
                 byte[]? outputBytes = null;
                 var uri = new Uri(faviconUrl);
-                var extension = Path.GetExtension(uri.AbsolutePath).ToLowerInvariant();
+                var extension = Path.GetExtension(uri.AbsolutePath).ToUpperInvariant();
 
-                if (extension == ".svg")
+                if (extension == ".SVG")
                 {
                     if (contentType?.Contains("svg") != true)
                     {
                         LogManager.LogDebug($"Expected SVG content-type for {faviconUrl}, but received {contentType}. Skipping parse.");
                         return false;
                     }
-                    var svgContent = await response.Content.ReadAsStringAsync();
-                    outputBytes = await ServiceUtils.GenerateSvgPreviewAsync(svgContent, ThumbnailSize, "light", true);
+                    var svgContent = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                    outputBytes = await ServiceUtils.GenerateSvgPreviewAsync(svgContent, ThumbnailSize, "light", true).ConfigureAwait(false);
                 }
                 else
                 {
-                    if (contentType?.StartsWith("image/") != true)
-                    {
-                        LogManager.LogDebug($"Expected an image content-type for {faviconUrl}, but received {contentType}. Skipping parse.");
-                        return false;
-                    }
-                    await using var contentStream = await response.Content.ReadAsStreamAsync();
-                    using var image = await ImageDecoder.DecodeAsync(contentStream, extension);
+                    await using var contentStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
+                    using var image = await ImageDecoder.DecodeAsync(contentStream, extension).ConfigureAwait(false);
                     if (image != null)
                     {
                         image.Mutate(x => x.Resize(ThumbnailSize, ThumbnailSize));
                         await using var ms = new MemoryStream();
-                        await image.SaveAsPngAsync(ms, _pngEncoder);
+                        await image.SaveAsPngAsync(ms, _pngEncoder).ConfigureAwait(false);
                         outputBytes = ms.ToArray();
                     }
                 }
 
                 if (outputBytes != null)
                 {
-                    await File.WriteAllBytesAsync(cachePath, outputBytes);
+                    await File.WriteAllBytesAsync(cachePath, outputBytes).ConfigureAwait(false);
                     LogManager.LogDebug($"Successfully processed and cached favicon for {faviconUrl}.");
                     return true;
                 }
