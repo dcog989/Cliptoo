@@ -2,6 +2,7 @@
 TODO.md
 .repomixignore
 repomix.config.json
+*.pdb
 .archive/
 .gemini/
 .testdata/
