@@ -4,6 +4,7 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml;
 using Cliptoo.Core.Configuration;
 using SkiaSharp;
 using Svg.Skia;
@@ -79,17 +80,19 @@ namespace Cliptoo.Core.Services
                     using var data = image.Encode(SKEncodedImageFormat.Png, 60);
                     return data.ToArray();
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or XmlException)
                 {
                     var previewContent = isContentString ? (svgSource.Length > 500 ? svgSource.Substring(0, 500) : svgSource) : $"File: {svgSource}";
                     LogManager.Log(ex, $"SVG preview generation failed for {previewContent}");
                     return null;
                 }
-            });
+            }).ConfigureAwait(false);
         }
 
         public static async Task<int> PruneDirectoryAsync(string directoryPath, HashSet<string> validFiles)
         {
+            ArgumentNullException.ThrowIfNull(validFiles);
+
             int count = 0;
             if (!Directory.Exists(directoryPath)) return 0;
             var filesToDelete = new List<string>();
@@ -103,8 +106,7 @@ namespace Cliptoo.Core.Services
                     }
                 }
             }
-
-            catch (Exception ex)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or DirectoryNotFoundException)
             {
                 LogManager.Log(ex, $"Failed to enumerate files for pruning in {directoryPath}");
                 return 0;
@@ -117,7 +119,7 @@ namespace Cliptoo.Core.Services
                     await Task.Run(() => File.Delete(file)).ConfigureAwait(false);
                     count++;
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
                     LogManager.Log(ex, $"Could not delete orphaned cache file: {file}");
                 }
