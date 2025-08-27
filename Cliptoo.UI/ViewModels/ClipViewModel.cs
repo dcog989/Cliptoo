@@ -1,8 +1,4 @@
-using System.Diagnostics;
 using System.IO;
-using System.Text;
-using System.Windows;
-using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Cliptoo.Core;
@@ -12,15 +8,12 @@ using Cliptoo.Core.Services;
 using Cliptoo.UI.Helpers;
 using Cliptoo.UI.Services;
 using Cliptoo.UI.ViewModels.Base;
-using Wpf.Ui.Controls;
 
 namespace Cliptoo.UI.ViewModels
 {
 
-    public class ClipViewModel : ViewModelBase
+    public partial class ClipViewModel : ViewModelBase
     {
-        private const int MaxTooltipLines = 40;
-
         private Clip _clip;
         public CliptooController Controller { get; }
         private readonly IPastingService _pastingService;
@@ -48,7 +41,6 @@ namespace Cliptoo.UI.ViewModels
         private string? _pageTitle;
         private bool _isPageTitleLoading;
         private CancellationTokenSource? _pageTitleCts;
-        private bool _isTooltipContentLoaded;
         private FontFamily _previewFont = new("Segoe UI");
         private double _previewFontSize = 14;
         private string _compareLeftHeader = "Compare Left";
@@ -89,21 +81,7 @@ namespace Cliptoo.UI.ViewModels
             ClipType == AppConstants.ClipTypes.Link && !string.IsNullOrEmpty(SourceApp) && SourceApp.EndsWith(".url", StringComparison.OrdinalIgnoreCase)
                 ? SourceApp
                 : Content;
-
-        public bool IsImage => ClipType == AppConstants.ClipTypes.Image;
-        public bool IsRtf => ClipType == AppConstants.ClipTypes.Rtf;
         public string? RtfContent => IsRtf ? Content : null;
-        public bool IsLinkToolTip => ClipType == AppConstants.ClipTypes.Link;
-
-        public bool IsPreviewableAsTextFile =>
-            ClipType is AppConstants.ClipTypes.FileText or AppConstants.ClipTypes.Dev ||
-            (ClipType == AppConstants.ClipTypes.Document &&
-            (Content.EndsWith(".md", StringComparison.OrdinalIgnoreCase) ||
-                Content.EndsWith(".markdown", StringComparison.OrdinalIgnoreCase) ||
-                Content.EndsWith(".csv", StringComparison.OrdinalIgnoreCase)));
-
-        public bool ShowFileInfoTooltip => IsFileBased && !IsImage && !IsPreviewableAsTextFile;
-        public bool ShowTextualTooltip => IsPreviewableAsTextFile || (!IsFileBased && !IsLinkToolTip && ClipType != AppConstants.ClipTypes.Color);
 
         public bool CanPasteAsPlainText => IsRtf;
         public bool CanPasteAsRtf => Controller.GetSettings().PasteAsPlainText && IsRtf;
@@ -140,19 +118,6 @@ namespace Cliptoo.UI.ViewModels
         public FontFamily CurrentFontFamily { get => _currentFontFamily; set => SetProperty(ref _currentFontFamily, value); }
         public double CurrentFontSize { get => _currentFontSize; set => SetProperty(ref _currentFontSize, value); }
 
-        public ICommand TogglePinCommand { get; }
-        public ICommand DeleteCommand { get; }
-        public ICommand EditClipCommand { get; }
-        public ICommand MoveToTopCommand { get; }
-        public ICommand OpenCommand { get; }
-        public ICommand SelectForCompareLeftCommand { get; }
-        public ICommand CompareWithSelectedRightCommand { get; }
-
-        public ICommand PasteAsPlainTextCommand { get; }
-        public ICommand PasteAsRtfCommand { get; }
-        public ICommand TransformAndPasteCommand { get; }
-        public ICommand SendToCommand { get; }
-
         public ClipViewModel(Clip clip, CliptooController controller, IPastingService pastingService, INotificationService notificationService, IClipDetailsLoader clipDetailsLoader, string paddingSize, MainViewModel mainViewModel, IIconProvider iconProvider, IThumbnailService thumbnailService, IWebMetadataService webMetadataService)
         {
             _clip = clip;
@@ -187,111 +152,6 @@ namespace Cliptoo.UI.ViewModels
             // It's used as a temporary object for operations like paste, open, or tooltip generation.
             var fullClip = await Controller.GetClipByIdAsync(Id);
             return fullClip;
-        }
-
-        private async Task ExecuteTransformAndPaste(string? transformType)
-        {
-            if (transformType == null) return;
-
-            await Controller.MoveClipToTopAsync(Id);
-            MainViewModel.RefreshClipList();
-
-            var transformedContent = await Controller.GetTransformedContentAsync(Id, transformType);
-            if (!string.IsNullOrEmpty(transformedContent))
-            {
-                await _pastingService.PasteTextAsync(transformedContent);
-                await Controller.UpdatePasteCountAsync();
-            }
-
-            var mainWindow = Application.Current.MainWindow;
-            if (mainWindow != null)
-            {
-                mainWindow.Hide();
-            }
-        }
-
-        private async Task ExecutePasteAs(bool plainText)
-        {
-            Application.Current.MainWindow?.Hide();
-
-            var clip = await GetFullClipAsync();
-            if (clip == null) return;
-
-            await _pastingService.PasteClipAsync(clip, forcePlainText: plainText);
-            await Controller.UpdatePasteCountAsync();
-        }
-
-        private async Task ExecuteOpen()
-        {
-            var fullClip = await GetFullClipAsync();
-            if (fullClip?.Content == null) return;
-            try
-            {
-                var path = fullClip.Content.Trim();
-                if (string.IsNullOrEmpty(path)) return;
-
-                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true });
-            }
-            catch (Exception ex)
-            {
-                Core.Configuration.LogManager.Log(ex, $"Failed to open path: {fullClip.Content}");
-                _notificationService.Show("Error", $"Could not open path: {ex.Message}", ControlAppearance.Danger, SymbolRegular.ErrorCircle24);
-            }
-        }
-
-        private async Task ExecuteSendTo(SendToTarget? target)
-        {
-            if (target == null)
-            {
-                Core.Configuration.LogManager.LogDebug("SENDTO_DIAG: ExecuteSendTo called with null target.");
-                return;
-            }
-            Core.Configuration.LogManager.LogDebug($"SENDTO_DIAG: ExecuteSendTo called for target: {target.Name} ({target.Path})");
-
-            var clip = await GetFullClipAsync();
-            if (clip?.Content == null)
-            {
-                Core.Configuration.LogManager.LogDebug("SENDTO_DIAG: Clip content is null, aborting.");
-                return;
-            }
-
-            string contentPath;
-
-            if (IsFileBased)
-            {
-                contentPath = clip.Content.Trim();
-            }
-            else
-            {
-                var extension = ClipType switch
-                {
-                    AppConstants.ClipTypes.CodeSnippet => ".txt",
-                    AppConstants.ClipTypes.Rtf => ".rtf",
-                    _ => ".txt"
-                };
-                var tempFilePath = Path.Combine(Path.GetTempPath(), $"cliptoo_sendto_{Guid.NewGuid()}{extension}");
-                await File.WriteAllTextAsync(tempFilePath, clip.Content);
-                contentPath = tempFilePath;
-            }
-
-            try
-            {
-                string args;
-                if (string.IsNullOrWhiteSpace(target.Arguments))
-                {
-                    args = $"\"{contentPath}\"";
-                }
-                else
-                {
-                    args = string.Format(target.Arguments, contentPath);
-                }
-                Process.Start(new ProcessStartInfo(target.Path, args) { UseShellExecute = true });
-            }
-            catch (Exception ex)
-            {
-                Core.Configuration.LogManager.Log(ex, $"Failed to send to path: {target.Path} with content {contentPath}");
-                _notificationService.Show("Error", $"Could not send to '{target.Name}'.", ControlAppearance.Danger, SymbolRegular.ErrorCircle24);
-            }
         }
 
         public void UpdateClip(Clip clip, string theme)
@@ -393,150 +253,6 @@ namespace Cliptoo.UI.ViewModels
             OnPropertyChanged(nameof(Preview));
         }
 
-        public async Task LoadTooltipContentAsync()
-        {
-            if (_isTooltipContentLoaded) return;
-            DebugUtils.LogMemoryUsage($"LoadTooltipContentAsync START (ID: {Id})");
-
-            var clipForTooltip = await GetFullClipAsync();
-
-            string? textFileContent = null;
-            if (IsPreviewableAsTextFile)
-            {
-                try
-                {
-                    if (File.Exists(Content))
-                    {
-                        using var reader = new StreamReader(Content, true);
-                        var buffer = new char[4096];
-                        int charsRead = await reader.ReadAsync(buffer, 0, buffer.Length);
-                        textFileContent = new string(buffer, 0, charsRead);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Core.Configuration.LogManager.Log(ex, "Failed to read text file for tooltip preview.");
-                    textFileContent = $"Error reading file: {ex.Message}";
-                }
-            }
-
-            var loadTasks = new List<Task>();
-            if (IsFileBased)
-            {
-                loadTasks.Add(LoadFilePropertiesAsync());
-            }
-            if (IsLinkToolTip)
-            {
-                loadTasks.Add(LoadPageTitleAsync());
-            }
-
-            await Task.WhenAll(loadTasks);
-
-            GenerateTooltipProperties(clipForTooltip, textFileContent);
-            _isTooltipContentLoaded = true;
-            DebugUtils.LogMemoryUsage($"LoadTooltipContentAsync END (ID: {Id})");
-        }
-
-        public void ClearTooltipContent()
-        {
-            TooltipTextContent = null;
-            LineCountInfo = null;
-            _isTooltipContentLoaded = false;
-            OnPropertyChanged(nameof(TooltipTextContent));
-            OnPropertyChanged(nameof(LineCountInfo));
-        }
-
-        private void GenerateTooltipProperties(Clip clipToDisplay, string? textFileContent = null)
-        {
-            if (clipToDisplay.ClipType == AppConstants.ClipTypes.Image)
-            {
-                TooltipTextContent = null;
-                LineCountInfo = null;
-                return;
-            }
-
-            string contentForTooltip = textFileContent ?? (clipToDisplay.ClipType == AppConstants.ClipTypes.Rtf
-                ? RtfUtils.ToPlainText(clipToDisplay.Content ?? "")
-                : clipToDisplay.Content ?? "");
-
-            if (ShowTextualTooltip && !string.IsNullOrEmpty(contentForTooltip))
-            {
-                var sb = new StringBuilder();
-                int totalLines = 0;
-                int linesProcessed = 0;
-
-                using (var reader = new StringReader(contentForTooltip))
-                {
-                    string? line;
-                    while ((line = reader.ReadLine()) != null)
-                    {
-                        totalLines++;
-                        if (linesProcessed < MaxTooltipLines)
-                        {
-                            linesProcessed++;
-                            // Line number padding will be calculated later
-                            sb.AppendLine(line);
-                        }
-                    }
-                }
-
-                if (totalLines == 0 && contentForTooltip.Length > 0 && !contentForTooltip.Contains('\n'))
-                {
-                    totalLines = 1;
-                }
-
-                // Now format the output with correct padding
-                var finalSb = new StringBuilder();
-                var lines = sb.ToString().Split(new[] { Environment.NewLine }, StringSplitOptions.None);
-                int numberPadding = totalLines.ToString().Length;
-
-                for (int i = 0; i < linesProcessed; i++)
-                {
-                    finalSb.AppendLine($"{(i + 1).ToString().PadLeft(numberPadding)} | {lines[i]}");
-                }
-
-                if (!IsFileBased)
-                {
-                    var formattedSize = FormatUtils.FormatBytes(SizeInBytes);
-                    var lineInfo = totalLines > 1 ? $", {totalLines} lines" : "";
-                    LineCountInfo = $"Size: {formattedSize}{lineInfo}";
-                }
-                else
-                {
-                    LineCountInfo = null;
-                }
-
-                if (totalLines > MaxTooltipLines)
-                {
-                    finalSb.AppendLine($"\n... (truncated - {totalLines - MaxTooltipLines} more lines)");
-                }
-
-                TooltipTextContent = finalSb.ToString();
-            }
-            else
-            {
-                TooltipTextContent = null;
-                LineCountInfo = null;
-            }
-
-            OnPropertyChanged(nameof(TooltipTextContent));
-            OnPropertyChanged(nameof(LineCountInfo));
-        }
-
-
-        private async Task TogglePinAsync()
-        {
-            IsPinned = !IsPinned;
-            await Controller.TogglePinAsync(Id, IsPinned);
-            MainViewModel.HandleClipPinToggle(this);
-        }
-
-        private async Task DeleteAsync()
-        {
-            await Controller.DeleteClipAsync(_clip);
-            MainViewModel.HandleClipDeletion(this);
-        }
-
         public async Task LoadThumbnailAsync(string theme)
         {
             var loadId = _currentThumbnailLoadId;
@@ -574,74 +290,10 @@ namespace Cliptoo.UI.ViewModels
             }
         }
 
-        public async Task LoadImagePreviewAsync(uint largestDimension)
-        {
-            var isMissing = !File.Exists(Content);
-            if (isMissing != IsSourceMissing)
-            {
-                IsSourceMissing = isMissing;
-            }
-
-            if (isMissing)
-            {
-                ImagePreviewPath = null;
-                return;
-            }
-
-            ImagePreviewPath = await _clipDetailsLoader.GetImagePreviewAsync(this, _thumbnailService, largestDimension, _theme);
-        }
-
-        public async Task LoadPageTitleAsync()
-        {
-            _pageTitleCts?.Cancel();
-            _pageTitleCts = new CancellationTokenSource();
-            var token = _pageTitleCts.Token;
-
-            if (IsPageTitleLoading || !string.IsNullOrEmpty(PageTitle)) return;
-            IsPageTitleLoading = true;
-
-            PageTitle = await _clipDetailsLoader.GetPageTitleAsync(this, _webMetadataService, token);
-
-            if (!token.IsCancellationRequested)
-            {
-                IsPageTitleLoading = false;
-            }
-        }
-
-        public async Task LoadFilePropertiesAsync()
-        {
-            _filePropertiesCts?.Cancel();
-            _filePropertiesCts = new CancellationTokenSource();
-            var token = _filePropertiesCts.Token;
-
-            if (IsFilePropertiesLoading || !string.IsNullOrEmpty(FileProperties)) return;
-
-            IsFilePropertiesLoading = true;
-            FileProperties = null;
-            FileTypeInfo = null;
-            FileTypeInfoIcon = null;
-
-            var (properties, typeInfo, isMissing) = await _clipDetailsLoader.GetFilePropertiesAsync(this, token);
-
-            if (!token.IsCancellationRequested)
-            {
-                FileProperties = properties;
-                FileTypeInfo = typeInfo;
-                IsSourceMissing = isMissing;
-                IsFilePropertiesLoading = false;
-
-                if (!isMissing && !string.IsNullOrEmpty(ClipType))
-                {
-                    FileTypeInfoIcon = await _iconProvider.GetIconAsync(this.ClipType, 16);
-                }
-            }
-        }
-
         public void RaisePasteAsPropertiesChanged()
         {
             OnPropertyChanged(nameof(CanPasteAsPlainText));
             OnPropertyChanged(nameof(CanPasteAsRtf));
         }
     }
-
 }
