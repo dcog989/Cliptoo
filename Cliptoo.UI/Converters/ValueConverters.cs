@@ -7,7 +7,7 @@ using Cliptoo.UI.Helpers;
 
 namespace Cliptoo.UI.Converters
 {
-    public class ColorToBrushConverter : IValueConverter
+    internal class ColorToBrushConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
@@ -30,7 +30,7 @@ namespace Cliptoo.UI.Converters
         }
     }
 
-    public class ColorToTransparencyVisibilityConverter : IValueConverter
+    internal class ColorToTransparencyVisibilityConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
@@ -51,10 +51,12 @@ namespace Cliptoo.UI.Converters
         }
     }
 
-    public class IsTargetedForHotkeyCaptureConverter : IMultiValueConverter
+    internal class IsTargetedForHotkeyCaptureConverter : IMultiValueConverter
     {
         public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
         {
+            ArgumentNullException.ThrowIfNull(values);
+
             if (values.Length < 3 || values.Any(v => v == DependencyProperty.UnsetValue || v == null))
             {
                 return false;
@@ -76,7 +78,7 @@ namespace Cliptoo.UI.Converters
 
 
     [ValueConversion(typeof(bool), typeof(Visibility))]
-    public class BooleanToVisibilityConverter : IValueConverter
+    internal class BooleanToVisibilityConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
@@ -94,11 +96,11 @@ namespace Cliptoo.UI.Converters
         }
     }
 
-    public class EqualityToVisibilityConverter : IValueConverter
+    internal class EqualityToVisibilityConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            bool isEqual = value?.ToString()?.Equals(parameter?.ToString(), StringComparison.InvariantCultureIgnoreCase) ?? false;
+            bool isEqual = value?.ToString()?.Equals(parameter?.ToString(), StringComparison.OrdinalIgnoreCase) ?? false;
             return isEqual ? Visibility.Visible : Visibility.Collapsed;
         }
 
@@ -108,7 +110,7 @@ namespace Cliptoo.UI.Converters
         }
     }
 
-    public class StringIsNotNullOrEmptyConverter : IValueConverter
+    internal class StringIsNotNullOrEmptyConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
@@ -121,7 +123,7 @@ namespace Cliptoo.UI.Converters
         }
     }
 
-    public class EqualityToBooleanConverter : IValueConverter
+    internal class EqualityToBooleanConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
@@ -134,10 +136,12 @@ namespace Cliptoo.UI.Converters
         }
     }
 
-    public class EqualityMultiConverter : IMultiValueConverter
+    internal class EqualityMultiConverter : IMultiValueConverter
     {
         public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
         {
+            ArgumentNullException.ThrowIfNull(values);
+
             if (values.Length < 2 || values.Any(v => v == DependencyProperty.UnsetValue))
                 return false;
             return object.Equals(values[0], values[1]);
@@ -149,7 +153,7 @@ namespace Cliptoo.UI.Converters
         }
     }
 
-    public class PaddingSizeToThicknessConverter : IValueConverter
+    internal class PaddingSizeToThicknessConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
@@ -167,7 +171,7 @@ namespace Cliptoo.UI.Converters
         }
     }
 
-    public class ClipTypeToFriendlyNameConverter : IValueConverter
+    internal class ClipTypeToFriendlyNameConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
@@ -182,7 +186,7 @@ namespace Cliptoo.UI.Converters
         }
     }
 
-    public class NullToVisibilityConverter : IValueConverter
+    internal class NullToVisibilityConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
@@ -195,7 +199,7 @@ namespace Cliptoo.UI.Converters
         }
     }
 
-    public class IndexToVisibilityConverter : IValueConverter
+    internal class IndexToVisibilityConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
@@ -212,7 +216,7 @@ namespace Cliptoo.UI.Converters
         }
     }
 
-    public class MultiplyConverter : IValueConverter
+    internal class MultiplyConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
@@ -229,4 +233,42 @@ namespace Cliptoo.UI.Converters
         }
     }
 
+    internal class AnyTrueToVisibilityConverter : IMultiValueConverter
+    {
+        public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
+        {
+            ArgumentNullException.ThrowIfNull(values);
+
+            foreach (var value in values)
+            {
+                if (value is bool b && b)
+                {
+                    return Visibility.Visible;
+                }
+                if (value is int count && count > 0)
+                {
+                    return Visibility.Visible;
+                }
+            }
+            return Visibility.Collapsed;
+        }
+
+        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
+        {
+            throw new NotSupportedException();
+        }
+    }
+
+    internal class AllTrueToVisibilityConverter : IMultiValueConverter
+    {
+        public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
+        {
+            return values.All(v => v is bool b && b) ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
+        {
+            throw new NotSupportedException();
+        }
+    }
 }

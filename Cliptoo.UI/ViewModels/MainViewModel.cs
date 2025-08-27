@@ -245,7 +245,7 @@ namespace Cliptoo.UI.ViewModels
                 OnPropertyChanged(nameof(DisplayLogo));
                 foreach (var clipVM in Clips)
                 {
-                    clipVM.RaisePasteAsPropertiesChanged();
+                    clipVM.NotifyPasteAsPropertiesChanged();
                 }
             });
         }

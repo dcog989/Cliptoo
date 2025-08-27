@@ -4,8 +4,6 @@ using System.Windows;
 using System.Windows.Input;
 using Cliptoo.Core;
 using Cliptoo.Core.Configuration;
-using Cliptoo.UI.Services;
-using Cliptoo.UI.ViewModels.Base;
 using Wpf.Ui.Controls;
 
 namespace Cliptoo.UI.ViewModels
@@ -28,14 +26,14 @@ namespace Cliptoo.UI.ViewModels
         {
             if (transformType == null) return;
 
-            await Controller.MoveClipToTopAsync(Id);
+            await Controller.MoveClipToTopAsync(Id).ConfigureAwait(false);
             MainViewModel.RefreshClipList();
 
-            var transformedContent = await Controller.GetTransformedContentAsync(Id, transformType);
+            var transformedContent = await Controller.GetTransformedContentAsync(Id, transformType).ConfigureAwait(false);
             if (!string.IsNullOrEmpty(transformedContent))
             {
-                await _pastingService.PasteTextAsync(transformedContent);
-                await Controller.UpdatePasteCountAsync();
+                await _pastingService.PasteTextAsync(transformedContent).ConfigureAwait(false);
+                await Controller.UpdatePasteCountAsync().ConfigureAwait(false);
             }
 
             var mainWindow = Application.Current.MainWindow;
@@ -49,16 +47,16 @@ namespace Cliptoo.UI.ViewModels
         {
             Application.Current.MainWindow?.Hide();
 
-            var clip = await GetFullClipAsync();
+            var clip = await GetFullClipAsync().ConfigureAwait(false);
             if (clip == null) return;
 
-            await _pastingService.PasteClipAsync(clip, forcePlainText: plainText);
-            await Controller.UpdatePasteCountAsync();
+            await _pastingService.PasteClipAsync(clip, forcePlainText: plainText).ConfigureAwait(false);
+            await Controller.UpdatePasteCountAsync().ConfigureAwait(false);
         }
 
         private async Task ExecuteOpen()
         {
-            var fullClip = await GetFullClipAsync();
+            var fullClip = await GetFullClipAsync().ConfigureAwait(false);
             if (fullClip?.Content == null) return;
             try
             {
@@ -67,7 +65,7 @@ namespace Cliptoo.UI.ViewModels
 
                 System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true });
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or ObjectDisposedException or FileNotFoundException)
             {
                 Core.Configuration.LogManager.Log(ex, $"Failed to open path: {fullClip.Content}");
                 _notificationService.Show("Error", $"Could not open path: {ex.Message}", ControlAppearance.Danger, SymbolRegular.ErrorCircle24);
@@ -83,7 +81,7 @@ namespace Cliptoo.UI.ViewModels
             }
             Core.Configuration.LogManager.LogDebug($"SENDTO_DIAG: ExecuteSendTo called for target: {target.Name} ({target.Path})");
 
-            var clip = await GetFullClipAsync();
+            var clip = await GetFullClipAsync().ConfigureAwait(false);
             if (clip?.Content == null)
             {
                 Core.Configuration.LogManager.LogDebug("SENDTO_DIAG: Clip content is null, aborting.");
@@ -105,7 +103,7 @@ namespace Cliptoo.UI.ViewModels
                     _ => ".txt"
                 };
                 var tempFilePath = Path.Combine(Path.GetTempPath(), $"cliptoo_sendto_{Guid.NewGuid()}{extension}");
-                await File.WriteAllTextAsync(tempFilePath, clip.Content);
+                await File.WriteAllTextAsync(tempFilePath, clip.Content).ConfigureAwait(false);
                 contentPath = tempFilePath;
             }
 
@@ -118,11 +116,11 @@ namespace Cliptoo.UI.ViewModels
                 }
                 else
                 {
-                    args = string.Format(target.Arguments, contentPath);
+                    args = string.Format(System.Globalization.CultureInfo.InvariantCulture, target.Arguments, contentPath);
                 }
                 Process.Start(new ProcessStartInfo(target.Path, args) { UseShellExecute = true });
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is IOException or System.ComponentModel.Win32Exception or UnauthorizedAccessException or PlatformNotSupportedException)
             {
                 Core.Configuration.LogManager.Log(ex, $"Failed to send to path: {target.Path} with content {contentPath}");
                 _notificationService.Show("Error", $"Could not send to '{target.Name}'.", ControlAppearance.Danger, SymbolRegular.ErrorCircle24);
@@ -132,13 +130,13 @@ namespace Cliptoo.UI.ViewModels
         private async Task TogglePinAsync()
         {
             IsPinned = !IsPinned;
-            await Controller.TogglePinAsync(Id, IsPinned);
+            await Controller.TogglePinAsync(Id, IsPinned).ConfigureAwait(false);
             MainViewModel.HandleClipPinToggle(this);
         }
 
         private async Task DeleteAsync()
         {
-            await Controller.DeleteClipAsync(_clip);
+            await Controller.DeleteClipAsync(_clip).ConfigureAwait(false);
             MainViewModel.HandleClipDeletion(this);
         }
     }

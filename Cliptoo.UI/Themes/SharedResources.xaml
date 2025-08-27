@@ -16,5 +16,7 @@
     <converters:IndexToVisibilityConverter x:Key="IndexToVisibilityConverter" />
     <converters:MultiplyConverter x:Key="MultiplyConverter" />
     <converters:IsTargetedForHotkeyCaptureConverter x:Key="IsTargetedForHotkeyCaptureConverter" />
+    <converters:AnyTrueToVisibilityConverter x:Key="AnyTrueToVisibilityConverter" />
+    <converters:AllTrueToVisibilityConverter x:Key="AllTrueToVisibilityConverter" />
 
 </ResourceDictionary>

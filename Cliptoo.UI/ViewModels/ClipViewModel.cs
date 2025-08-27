@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IO;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -61,7 +62,7 @@ namespace Cliptoo.UI.ViewModels
         public DateTime Timestamp => _clip.Timestamp;
         public string ClipType => _clip.ClipType;
         public string? SourceApp => _clip.SourceApp;
-        public bool IsMultiLine => Content.Contains('\n');
+        public bool IsMultiLine => Content.Contains('\n', StringComparison.Ordinal);
         public bool WasTrimmed => _clip.WasTrimmed;
         public int Index
         {
@@ -87,7 +88,7 @@ namespace Cliptoo.UI.ViewModels
         public bool CanPasteAsRtf => Controller.GetSettings().PasteAsPlainText && IsRtf;
         public bool IsEditable => !IsImage && !ClipType.StartsWith("file_", StringComparison.Ordinal) && ClipType != AppConstants.ClipTypes.Folder;
         public bool IsOpenable => IsImage || ClipType.StartsWith("file_", StringComparison.Ordinal) || ClipType == AppConstants.ClipTypes.Folder || ClipType == AppConstants.ClipTypes.Link;
-        public string OpenCommandHeader => "Open";
+        public static string OpenCommandHeader => "Open";
 
         public bool IsFileBased => IsImage || ClipType.StartsWith("file_", StringComparison.Ordinal) || ClipType == AppConstants.ClipTypes.Folder;
         public string? FileProperties { get => _fileProperties; private set => SetProperty(ref _fileProperties, value); }
@@ -110,6 +111,8 @@ namespace Cliptoo.UI.ViewModels
         public string? TooltipTextContent { get; set; }
         public string? LineCountInfo { get; set; }
 
+        public bool IsPasteGroupVisible => IsEditable || IsRtf;
+
         public bool IsPinned { get => _isPinned; set => SetProperty(ref _isPinned, value); }
         public ImageSource? ThumbnailSource { get => _thumbnailSource; private set => SetProperty(ref _thumbnailSource, value); }
         public string PaddingSize { get => _paddingSize; set => SetProperty(ref _paddingSize, value); }
@@ -120,6 +123,8 @@ namespace Cliptoo.UI.ViewModels
 
         public ClipViewModel(Clip clip, CliptooController controller, IPastingService pastingService, INotificationService notificationService, IClipDetailsLoader clipDetailsLoader, string paddingSize, MainViewModel mainViewModel, IIconProvider iconProvider, IThumbnailService thumbnailService, IWebMetadataService webMetadataService)
         {
+            ArgumentNullException.ThrowIfNull(clip);
+
             _clip = clip;
             Controller = controller;
             _pastingService = pastingService;
@@ -132,30 +137,32 @@ namespace Cliptoo.UI.ViewModels
             _thumbnailService = thumbnailService;
             _webMetadataService = webMetadataService;
 
-            TogglePinCommand = new RelayCommand(async _ => await TogglePinAsync());
-            DeleteCommand = new RelayCommand(async _ => await DeleteAsync());
+            TogglePinCommand = new RelayCommand(async _ => await TogglePinAsync().ConfigureAwait(false));
+            DeleteCommand = new RelayCommand(async _ => await DeleteAsync().ConfigureAwait(false));
             EditClipCommand = new RelayCommand(_ => MainViewModel.HandleClipEdit(this));
-            MoveToTopCommand = new RelayCommand(async _ => await MainViewModel.HandleClipMoveToTop(this));
-            OpenCommand = new RelayCommand(async _ => await ExecuteOpen());
+            MoveToTopCommand = new RelayCommand(async _ => await MainViewModel.HandleClipMoveToTop(this).ConfigureAwait(false));
+            OpenCommand = new RelayCommand(async _ => await ExecuteOpen().ConfigureAwait(false));
             SelectForCompareLeftCommand = new RelayCommand(_ => MainViewModel.HandleClipSelectForCompare(this));
             CompareWithSelectedRightCommand = new RelayCommand(_ => MainViewModel.HandleClipCompare(this));
 
-            PasteAsPlainTextCommand = new RelayCommand(async _ => await ExecutePasteAs(plainText: true));
-            PasteAsRtfCommand = new RelayCommand(async _ => await ExecutePasteAs(plainText: false));
-            TransformAndPasteCommand = new RelayCommand(async param => await ExecuteTransformAndPaste(param as string));
-            SendToCommand = new RelayCommand(async param => await ExecuteSendTo(param as SendToTarget));
+            PasteAsPlainTextCommand = new RelayCommand(async _ => await ExecutePasteAs(plainText: true).ConfigureAwait(false));
+            PasteAsRtfCommand = new RelayCommand(async _ => await ExecutePasteAs(plainText: false).ConfigureAwait(false));
+            TransformAndPasteCommand = new RelayCommand(async param => await ExecuteTransformAndPaste(param as string).ConfigureAwait(false));
+            SendToCommand = new RelayCommand(async param => await ExecuteSendTo(param as SendToTarget).ConfigureAwait(false));
         }
 
         private async Task<Clip> GetFullClipAsync()
         {
             // This now fetches the full clip but does NOT store it in the viewmodel's state.
             // It's used as a temporary object for operations like paste, open, or tooltip generation.
-            var fullClip = await Controller.GetClipByIdAsync(Id);
+            var fullClip = await Controller.GetClipByIdAsync(Id).ConfigureAwait(false);
             return fullClip;
         }
 
         public void UpdateClip(Clip clip, string theme)
         {
+            ArgumentNullException.ThrowIfNull(clip);
+
             Interlocked.Increment(ref _currentThumbnailLoadId);
 
             _clip = clip;
@@ -205,7 +212,7 @@ namespace Cliptoo.UI.ViewModels
 
         private async Task LoadIconsAsync()
         {
-            ClipTypeIcon = await _iconProvider.GetIconAsync(ClipType, 20);
+            ClipTypeIcon = await _iconProvider.GetIconAsync(ClipType, 20).ConfigureAwait(true);
         }
 
         private async Task LoadQuickPasteIconAsync()
@@ -213,7 +220,7 @@ namespace Cliptoo.UI.ViewModels
             if (Index > 0 && Index <= 9)
             {
                 // Generate a high-resolution icon source, the UI will scale it down.
-                QuickPasteIcon = await _iconProvider.GetIconAsync(Index.ToString(), 64);
+                QuickPasteIcon = await _iconProvider.GetIconAsync(Index.ToString(CultureInfo.InvariantCulture), 64).ConfigureAwait(true);
             }
             else
             {
@@ -256,7 +263,7 @@ namespace Cliptoo.UI.ViewModels
         public async Task LoadThumbnailAsync(string theme)
         {
             var loadId = _currentThumbnailLoadId;
-            string? newThumbnailPath = await _clipDetailsLoader.GetThumbnailAsync(this, _thumbnailService, _webMetadataService, theme);
+            string? newThumbnailPath = await _clipDetailsLoader.GetThumbnailAsync(this, _thumbnailService, _webMetadataService, theme).ConfigureAwait(false);
 
             if (loadId != _currentThumbnailLoadId)
             {
@@ -276,7 +283,7 @@ namespace Cliptoo.UI.ViewModels
                     ThumbnailSource = bitmapImage;
                     HasThumbnail = true;
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
                 {
                     Core.Configuration.LogManager.Log(ex, $"Failed to load thumbnail image source from path: {newThumbnailPath}");
                     ThumbnailSource = null;
@@ -290,7 +297,7 @@ namespace Cliptoo.UI.ViewModels
             }
         }
 
-        public void RaisePasteAsPropertiesChanged()
+        public void NotifyPasteAsPropertiesChanged()
         {
             OnPropertyChanged(nameof(CanPasteAsPlainText));
             OnPropertyChanged(nameof(CanPasteAsRtf));

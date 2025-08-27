@@ -67,12 +67,15 @@
                     <Separator>
                         <Separator.Style>
                             <Style BasedOn="{StaticResource ContextMenuSeparatorStyle}" TargetType="Separator">
-                                <Setter Property="Visibility" Value="Visible" />
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding MainViewModel.SendToTargets.Count}" Value="0">
-                                        <Setter Property="Visibility" Value="Collapsed" />
-                                    </DataTrigger>
-                                </Style.Triggers>
+                                <Setter Property="Visibility">
+                                    <Setter.Value>
+                                        <MultiBinding Converter="{StaticResource AnyTrueToVisibilityConverter}">
+                                            <Binding Path="IsEditable" />
+                                            <Binding Path="IsOpenable" />
+                                            <Binding Path="MainViewModel.SendToTargets.Count" />
+                                        </MultiBinding>
+                                    </Setter.Value>
+                                </Setter>
                             </Style>
                         </Separator.Style>
                     </Separator>
@@ -89,7 +92,14 @@
                         </MenuItem.Icon>
                     </MenuItem>
                     <MenuItem Command="{Binding MoveToTopCommand}" Header="Move to Top" />
-                    <Separator Style="{StaticResource ContextMenuSeparatorStyle}" />
+                    <Separator Style="{StaticResource ContextMenuSeparatorStyle}">
+                        <Separator.Visibility>
+                            <MultiBinding Converter="{StaticResource AnyTrueToVisibilityConverter}">
+                                <Binding Path="IsPasteGroupVisible" />
+                                <Binding Path="ShowCompareMenu" />
+                            </MultiBinding>
+                        </Separator.Visibility>
+                    </Separator>
                     <MenuItem
                         Command="{Binding PasteAsPlainTextCommand}"
                         Header="Plain Text"
@@ -158,7 +168,14 @@
                             CommandParameter="{x:Static core:AppConstants+TransformTypes.Deslug}"
                             Header="Deslug" />
                     </MenuItem>
-                    <Separator Style="{StaticResource ContextMenuSeparatorStyle}" />
+                    <Separator Style="{StaticResource ContextMenuSeparatorStyle}">
+                        <Separator.Visibility>
+                            <MultiBinding Converter="{StaticResource AllTrueToVisibilityConverter}">
+                                <Binding Path="IsPasteGroupVisible" />
+                                <Binding Path="ShowCompareMenu" />
+                            </MultiBinding>
+                        </Separator.Visibility>
+                    </Separator>
                     <MenuItem
                         Command="{Binding SelectForCompareLeftCommand}"
                         Header="{Binding CompareLeftHeader}"
@@ -179,7 +196,7 @@
                             </Style>
                         </MenuItem.Style>
                     </MenuItem>
-                    <Separator Style="{StaticResource ContextMenuSeparatorStyle}" />
+                    <Separator Style="{StaticResource ContextMenuSeparatorStyle}" Visibility="{Binding ShowCompareMenu, Converter={StaticResource BooleanToVisibilityConverter}}" />
                     <MenuItem
                         Command="{Binding DeleteCommand}"
                         Foreground="{DynamicResource ErrorTextBrush}"
