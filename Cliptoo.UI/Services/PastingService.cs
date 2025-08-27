@@ -25,10 +25,51 @@ namespace Cliptoo.UI.Services
 
             await _controller.MoveClipToTopAsync(clip.Id).ConfigureAwait(false);
 
-            var dataObject = new DataObject();
             var settings = _controller.GetSettings();
             bool pasteAsPlainText = forcePlainText ?? settings.PasteAsPlainText;
+            bool isFileOperation = !pasteAsPlainText && (clip.ClipType.StartsWith("file_", StringComparison.Ordinal) || clip.ClipType == AppConstants.ClipTypes.Folder);
 
+            _controller.ClipboardMonitor.Pause();
+            try
+            {
+                if (isFileOperation)
+                {
+                    await HandleFilePasteAsync(clip).ConfigureAwait(false);
+                }
+                else
+                {
+                    await HandleDataObjectPasteAsync(clip, pasteAsPlainText).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                _controller.ClipboardMonitor.Resume();
+            }
+        }
+
+        private Task HandleFilePasteAsync(Clip clip)
+        {
+            if (clip.Content == null) return Task.CompletedTask;
+
+            var paths = clip.Content.Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries);
+            if (paths.Length > 0)
+            {
+                var fileDropList = new System.Collections.Specialized.StringCollection();
+                fileDropList.AddRange(paths);
+
+                if (NativeClipboardHelper.SetFileDropList(fileDropList))
+                {
+                    var allFilesText = string.Join(Environment.NewLine, paths);
+                    _controller.SuppressNextClip(HashingUtils.ComputeHash(Encoding.UTF8.GetBytes(allFilesText)));
+                    InputSimulator.SendPaste();
+                }
+            }
+            return Task.CompletedTask;
+        }
+
+        private async Task HandleDataObjectPasteAsync(Clip clip, bool pasteAsPlainText)
+        {
+            var dataObject = new DataObject();
             if (pasteAsPlainText)
             {
                 string plainText = (clip.ClipType == AppConstants.ClipTypes.Rtf && clip.Content != null)
@@ -52,79 +93,36 @@ namespace Cliptoo.UI.Services
                             dataObject.SetImage(bitmap);
                         }
                         break;
-
                     case AppConstants.ClipTypes.Rtf:
                         dataObject.SetData(DataFormats.Rtf, clip.Content);
                         dataObject.SetText(RtfUtils.ToPlainText(clip.Content ?? string.Empty), TextDataFormat.UnicodeText);
                         break;
-
-                    case string s when s.StartsWith("file_", StringComparison.Ordinal) || s == AppConstants.ClipTypes.Folder:
-                        if (clip.Content != null)
-                        {
-                            var paths = clip.Content.Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries);
-                            if (paths.Length > 0)
-                            {
-                                var fileDropList = new System.Collections.Specialized.StringCollection();
-                                fileDropList.AddRange(paths);
-                                dataObject.SetFileDropList(fileDropList);
-                                // Add a text fallback for compatibility
-                                dataObject.SetText(string.Join(Environment.NewLine, paths));
-                            }
-                            else
-                            {
-                                dataObject.SetText(clip.Content, TextDataFormat.UnicodeText);
-                            }
-                        }
-                        else
-                        {
-                            dataObject.SetText(string.Empty, TextDataFormat.UnicodeText);
-                        }
-                        break;
-
                     default:
                         dataObject.SetText(clip.Content, TextDataFormat.UnicodeText);
                         break;
                 }
             }
 
-            _controller.ClipboardMonitor.Pause();
-            try
+            if (await ClipboardUtils.SafeSet(() => Clipboard.SetDataObject(dataObject, true)).ConfigureAwait(false))
             {
-                if (await ClipboardUtils.SafeSet(() => Clipboard.SetDataObject(dataObject, true)).ConfigureAwait(false))
+                if (dataObject.GetDataPresent(DataFormats.UnicodeText))
                 {
-                    if (dataObject.GetDataPresent(DataFormats.FileDrop))
-                    {
-                        var files = dataObject.GetFileDropList();
-                        if (files != null && files.Count > 0)
-                        {
-                            var allFilesText = string.Join(Environment.NewLine, files.Cast<string>());
-                            _controller.SuppressNextClip(HashingUtils.ComputeHash(Encoding.UTF8.GetBytes(allFilesText)));
-                        }
-                    }
-                    else if (dataObject.GetDataPresent(DataFormats.UnicodeText))
-                    {
-                        var text = dataObject.GetData(DataFormats.UnicodeText) as string ?? "";
-                        _controller.SuppressNextClip(HashingUtils.ComputeHash(Encoding.UTF8.GetBytes(text)));
-                    }
-                    else if (dataObject.GetDataPresent(DataFormats.Bitmap))
-                    {
-                        var bitmapSource = dataObject.GetData(DataFormats.Bitmap) as BitmapSource;
-                        if (bitmapSource != null)
-                        {
-                            using var stream = new MemoryStream();
-                            var encoder = new PngBitmapEncoder();
-                            encoder.Frames.Add(BitmapFrame.Create(bitmapSource));
-                            encoder.Save(stream);
-                            _controller.SuppressNextClip(HashingUtils.ComputeHash(stream.ToArray()));
-                        }
-                    }
-
-                    InputSimulator.SendPaste();
+                    var text = dataObject.GetData(DataFormats.UnicodeText) as string ?? "";
+                    _controller.SuppressNextClip(HashingUtils.ComputeHash(Encoding.UTF8.GetBytes(text)));
                 }
-            }
-            finally
-            {
-                _controller.ClipboardMonitor.Resume();
+                else if (dataObject.GetDataPresent(DataFormats.Bitmap))
+                {
+                    var bitmapSource = dataObject.GetData(DataFormats.Bitmap) as BitmapSource;
+                    if (bitmapSource != null)
+                    {
+                        using var stream = new MemoryStream();
+                        var encoder = new PngBitmapEncoder();
+                        encoder.Frames.Add(BitmapFrame.Create(bitmapSource));
+                        encoder.Save(stream);
+                        _controller.SuppressNextClip(HashingUtils.ComputeHash(stream.ToArray()));
+                    }
+                }
+                InputSimulator.SendPaste();
             }
         }
 
