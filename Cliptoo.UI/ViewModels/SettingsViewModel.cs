@@ -58,7 +58,7 @@ namespace Cliptoo.UI.ViewModels
             ExePathDir = Path.GetDirectoryName(exePath) ?? "Not available";
             ExePathFile = Path.GetFileName(exePath);
 
-            SaveSettingsCommand = new RelayCommand(_ => _controller.SaveSettings(Settings));
+            SaveSettingsCommand = new RelayCommand(_ => SyncAndSaveSettings());
             ClearHistoryCommand = new RelayCommand(async _ => await HandleClearHistory(), _ => !IsBusy);
             ClearCachesCommand = new RelayCommand(async _ =>
             {
@@ -67,7 +67,7 @@ namespace Cliptoo.UI.ViewModels
                 try
                 {
                     await Task.Run(() => _controller.ClearCaches()).ConfigureAwait(true);
-                    await ShowInformationDialogAsync("Caches Cleared", new System.Windows.Controls.TextBlock { Text = "All cached thumbnails and temporary files have been deleted." });
+                    await ShowInformationDialogAsync("Caches Cleared", new System.Windows.Controls.TextBlock { Text = "All cached thumbnails and temporary files have been deleted." }).ConfigureAwait(true);
                 }
                 finally
                 {
@@ -82,7 +82,7 @@ namespace Cliptoo.UI.ViewModels
                     try
                     {
                         var result = await Task.Run(async () => await _controller.RunHeavyMaintenanceNowAsync().ConfigureAwait(false)).ConfigureAwait(true);
-                        await InitializeAsync();
+                        await InitializeAsync().ConfigureAwait(true);
 
                         var results = new List<string>();
                         if (result.DbClipsCleaned > 0) results.Add($"- Removed {result.DbClipsCleaned} old clips.");
@@ -121,7 +121,7 @@ namespace Cliptoo.UI.ViewModels
                             dialogContent = new System.Windows.Controls.TextBlock { Text = "No items required cleaning." };
                         }
 
-                        await ShowInformationDialogAsync("Maintenance Complete", dialogContent);
+                        await ShowInformationDialogAsync("Maintenance Complete", dialogContent).ConfigureAwait(true);
                     }
                     finally
                     {
@@ -150,11 +150,6 @@ namespace Cliptoo.UI.ViewModels
             _ = PopulateFontsAsync();
 
             SendToTargets = new ObservableCollection<SendToTarget>(Settings.SendToTargets);
-            foreach (var target in SendToTargets)
-            {
-                target.PropertyChanged += (s, e) => DebounceSave();
-            }
-            SendToTargets.CollectionChanged += (s, e) => DebounceSave();
 
             _saveDebounceTimer = new System.Timers.Timer(500);
             _saveDebounceTimer.Elapsed += OnDebounceTimerElapsed;
@@ -174,11 +169,6 @@ namespace Cliptoo.UI.ViewModels
             }
 
             _ = LoadIconsAsync();
-        }
-
-        private async Task LoadIconsAsync()
-        {
-            LogoIcon = await _iconProvider.GetIconAsync(AppConstants.IconKeys.Logo, 138).ConfigureAwait(true);
         }
 
         public string StatsSummary
@@ -206,13 +196,19 @@ namespace Cliptoo.UI.ViewModels
             }
         }
 
+        private async Task LoadIconsAsync()
+        {
+            LogoIcon = await _iconProvider.GetIconAsync(AppConstants.IconKeys.Logo, 138).ConfigureAwait(true);
+        }
+
         private void OnDebounceTimerElapsed(object? sender, System.Timers.ElapsedEventArgs e)
         {
-            Settings.SendToTargets.Clear();
-            foreach (var target in SendToTargets)
-            {
-                Settings.SendToTargets.Add(target);
-            }
+            _controller.SaveSettings(Settings);
+        }
+
+        private void SyncAndSaveSettings()
+        {
+            Settings.SendToTargets = new List<SendToTarget>(SendToTargets);
             _controller.SaveSettings(Settings);
         }
 

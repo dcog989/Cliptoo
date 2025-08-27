@@ -168,7 +168,6 @@ namespace Cliptoo.UI.ViewModels
                     Name = Path.GetFileNameWithoutExtension(openFileDialog.FileName),
                     Arguments = "\"{0}\""
                 };
-                ((System.ComponentModel.INotifyPropertyChanged)newTarget).PropertyChanged += (s, e) => DebounceSave();
                 SendToTargets.Add(newTarget);
             }
         }
