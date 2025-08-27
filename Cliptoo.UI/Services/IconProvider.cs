@@ -28,6 +28,13 @@ namespace Cliptoo.UI.Services
             var dpiScale = GetDpiScale();
 
             var cacheKey = $"{key}_{size}_{dpiScale}";
+
+            if (int.TryParse(key, out _))
+            {
+                var settings = _settingsManager.Load();
+                cacheKey = $"{key}_{size}_{dpiScale}_{settings.AccentColor}";
+            }
+
             if (_cache.TryGetValue(cacheKey, out var cachedImage))
             {
                 return cachedImage;
@@ -109,15 +116,12 @@ namespace Cliptoo.UI.Services
                 {
                     var settings = _settingsManager.Load();
                     var accentColor = (Color)ColorConverter.ConvertFromString(settings.AccentColor);
+                    var accentColorHex = $"#{accentColor.R:X2}{accentColor.G:X2}{accentColor.B:X2}";
 
-                    ColorParser.RgbToOklch(accentColor.R, accentColor.G, accentColor.B, out var l, out var c, out var h);
-                    var (darkR, darkG, darkB) = ColorParser.OklchToRgb(l * 0.7, c, h);
-                    var darkAccentColorHex = $"#{darkR:X2}{darkG:X2}{darkB:X2}";
-
-                    var brightness = (darkR * 299 + darkG * 587 + darkB * 114) / 1000;
+                    var brightness = (accentColor.R * 299 + accentColor.G * 587 + accentColor.B * 114) / 1000;
                     var textColorHex = brightness > 128 ? "#000000" : "#FFFFFF";
 
-                    svgContent = svgContent.Replace(@"fill=""black""", $"fill=\"{darkAccentColorHex}\"", StringComparison.OrdinalIgnoreCase);
+                    svgContent = svgContent.Replace(@"fill=""black""", $"fill=\"{accentColorHex}\"", StringComparison.OrdinalIgnoreCase);
                     svgContent = svgContent.Replace(@"fill=""white""", $"fill=\"{textColorHex}\"", StringComparison.OrdinalIgnoreCase);
                 }
                 else if (svgContent.Contains("currentColor", StringComparison.OrdinalIgnoreCase))
