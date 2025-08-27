@@ -6,6 +6,7 @@ using System.Windows.Media.Imaging;
 using Cliptoo.Core;
 using Cliptoo.Core.Configuration;
 using Cliptoo.Core.Native;
+using Cliptoo.Core.Services.Models;
 using Cliptoo.UI.ViewModels;
 using Cliptoo.UI.Views;
 using Microsoft.Extensions.DependencyInjection;
@@ -112,6 +113,7 @@ namespace Cliptoo.UI.Services
                 }
 
                 _controller.ClipboardMonitor.Start(handle);
+                _controller.ProcessingFailed += OnProcessingFailed;
 
                 _mainWindow.Width = settings.WindowWidth;
                 _mainWindow.Height = settings.WindowHeight;
@@ -148,13 +150,13 @@ namespace Cliptoo.UI.Services
 
             _controller.SettingsChanged -= OnSettingsChanged;
             _controller.ProcessingFailed -= OnProcessingFailed;
-            _controller.Shutdown();
+            _controller.Dispose();
             Dispose();
 
             return Task.CompletedTask;
         }
 
-        private void OnSettingsChanged()
+        private void OnSettingsChanged(object? sender, EventArgs e)
         {
             var settings = _controller.GetSettings();
             if (_globalHotkey != null && _currentHotkey != settings.Hotkey)
@@ -407,9 +409,9 @@ namespace Cliptoo.UI.Services
             }
         }
 
-        private void OnProcessingFailed(string title, string message)
+        private void OnProcessingFailed(object? sender, ProcessingFailedEventArgs e)
         {
-            _notificationService.Show(title, message, ControlAppearance.Danger, SymbolRegular.ErrorCircle24, 5);
+            _notificationService.Show(e.Title, e.Message, ControlAppearance.Danger, SymbolRegular.ErrorCircle24, 5);
         }
 
     }

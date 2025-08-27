@@ -188,10 +188,10 @@ namespace Cliptoo.UI.ViewModels
             HideWindowCommand = new RelayCommand(_ => HideWindow());
             LoadMoreClipsCommand = new RelayCommand(async _ => await LoadMoreClipsAsync());
 
-            _controller.NewClipAdded += OnNewClipAdded;
-            _controller.HistoryCleared += RefreshClipList;
-            _controller.SettingsChanged += OnSettingsChanged;
-            _controller.CachesCleared += RefreshClipList;
+            _controller.NewClipAdded += Controller_NewClipAdded;
+            _controller.HistoryCleared += Controller_HistoryCleared;
+            _controller.SettingsChanged += Controller_SettingsChanged;
+            _controller.CachesCleared += Controller_CachesCleared;
 
             _debounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
             _debounceTimer.Tick += OnDebounceTimerElapsed;
@@ -442,12 +442,17 @@ namespace Cliptoo.UI.ViewModels
 
         public void Cleanup()
         {
-            _controller.NewClipAdded -= OnNewClipAdded;
-            _controller.HistoryCleared -= RefreshClipList;
-            _controller.SettingsChanged -= OnSettingsChanged;
-            _controller.CachesCleared -= RefreshClipList;
+            _controller.NewClipAdded -= Controller_NewClipAdded;
+            _controller.HistoryCleared -= Controller_HistoryCleared;
+            _controller.SettingsChanged -= Controller_SettingsChanged;
+            _controller.CachesCleared -= Controller_CachesCleared;
             _debounceTimer.Tick -= OnDebounceTimerElapsed;
         }
+
+        private void Controller_NewClipAdded(object? sender, EventArgs e) => OnNewClipAdded();
+        private void Controller_HistoryCleared(object? sender, EventArgs e) => RefreshClipList();
+        private void Controller_SettingsChanged(object? sender, EventArgs e) => OnSettingsChanged();
+        private void Controller_CachesCleared(object? sender, EventArgs e) => RefreshClipList();
 
         private static T? FindVisualChild<T>(DependencyObject? obj) where T : DependencyObject
         {

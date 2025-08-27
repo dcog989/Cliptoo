@@ -112,7 +112,7 @@
                         <MenuItem
                             Command="{Binding TransformAndPasteCommand}"
                             CommandParameter="{x:Static core:AppConstants+TransformTypes.Trim}"
-                            Header="Trim White Space" />
+                            Header="Trim Whitespace" />
                         <MenuItem
                             Command="{Binding TransformAndPasteCommand}"
                             CommandParameter="{x:Static core:AppConstants+TransformTypes.Lf1}"

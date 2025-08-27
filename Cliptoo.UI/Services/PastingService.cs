@@ -128,6 +128,7 @@ namespace Cliptoo.UI.Services
 
         public async Task PasteTextAsync(string text)
         {
+            Core.Configuration.LogManager.LogDebug($"PASTE_DIAG (PasteTextAsync): Pasting text: '{text}' (Length: {text.Length})");
             var dataObject = new DataObject();
             dataObject.SetText(text, TextDataFormat.UnicodeText);
 

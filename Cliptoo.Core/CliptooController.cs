@@ -12,6 +12,8 @@ using Cliptoo.Core.Native;
 using Cliptoo.Core.Native.Models;
 using Cliptoo.Core.Services;
 using Cliptoo.Core.Services.Models;
+using Microsoft.Data.Sqlite;
+using SixLabors.ImageSharp;
 
 namespace Cliptoo.Core
 {
@@ -22,16 +24,17 @@ namespace Cliptoo.Core
         int ReclassifiedClips,
         int TempFilesCleaned,
         int IconCachePruned,
+        int ClipboardImagesPruned,
         double DatabaseSizeChangeMb
     );
 
-    public class CliptooController
+    public class CliptooController : IDisposable
     {
-        public event Action? NewClipAdded;
-        public event Action? HistoryCleared;
-        public event Action? SettingsChanged;
-        public event Action? CachesCleared;
-        public event Action<string, string>? ProcessingFailed;
+        public event EventHandler? NewClipAdded;
+        public event EventHandler? HistoryCleared;
+        public event EventHandler? SettingsChanged;
+        public event EventHandler? CachesCleared;
+        public event EventHandler<ProcessingFailedEventArgs>? ProcessingFailed;
 
 
         private readonly System.Timers.Timer _cleanupTimer;
@@ -44,7 +47,7 @@ namespace Cliptoo.Core
         private readonly ITextTransformer _textTransformer;
         private readonly ICompareToolService _compareToolService;
         private readonly string _tempPath;
-        private readonly string _imageCachePath;
+        private readonly string _clipboardImageCachePath;
         private DateTime _lastActivityTimestamp = DateTime.UtcNow;
         private bool _isInitialized;
         private readonly LruCache<int, Clip> _clipCache;
@@ -85,8 +88,8 @@ namespace Cliptoo.Core
             Directory.CreateDirectory(_tempPath);
 
             var appDataLocalPath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            _imageCachePath = Path.Combine(appDataLocalPath, "Cliptoo", "ImageCache");
-            Directory.CreateDirectory(_imageCachePath);
+            _clipboardImageCachePath = Path.Combine(appDataLocalPath, "Cliptoo", "ClipboardImageCache");
+            Directory.CreateDirectory(_clipboardImageCachePath);
 
             _cleanupTimer = new System.Timers.Timer();
             _cleanupTimer.Elapsed += OnCleanupTimerElapsed;
@@ -116,12 +119,12 @@ namespace Cliptoo.Core
                 {
                     await action().ConfigureAwait(false);
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or UnknownImageFormatException or ImageFormatException or SqliteException)
                 {
                     LogManager.Log(ex, $"Error in {context}. The operation will be skipped, but the application will continue.");
                     if (context == nameof(OnClipboardChangedAsync))
                     {
-                        ProcessingFailed?.Invoke("Failed to Save Clip", "Could not process and save the latest clipboard item. See logs for details.");
+                        ProcessingFailed?.Invoke(this, new ProcessingFailedEventArgs("Failed to Save Clip", "Could not process and save the latest clipboard item. See logs for details."));
                     }
                 }
             });
@@ -176,15 +179,15 @@ namespace Cliptoo.Core
                     }
 
                     var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(imageBytes)).ToUpperInvariant();
-                    var permanentImagePath = Path.Combine(_imageCachePath, $"{hash}.png");
+                    var imagePath = Path.Combine(_clipboardImageCachePath, $"{hash}.png");
 
-                    if (!File.Exists(permanentImagePath))
+                    if (!File.Exists(imagePath))
                     {
-                        await File.WriteAllBytesAsync(permanentImagePath, imageBytes).ConfigureAwait(false);
+                        await File.WriteAllBytesAsync(imagePath, imageBytes).ConfigureAwait(false);
                     }
 
-                    await _thumbnailService.GetThumbnailAsync(permanentImagePath, null).ConfigureAwait(false);
-                    result = new ProcessingResult(AppConstants.ClipTypes.Image, permanentImagePath);
+                    await _thumbnailService.GetThumbnailAsync(imagePath, null).ConfigureAwait(false);
+                    result = new ProcessingResult(AppConstants.ClipTypes.Image, imagePath);
                 }
 
                 if (result != null)
@@ -192,7 +195,7 @@ namespace Cliptoo.Core
                     bool finalWasTrimmed = result.WasTrimmed || wasTruncated;
                     string? sourceApp = result.SourceAppOverride ?? e.SourceApp;
                     int newClipId = await _dbManager.AddClipAsync(result.Content, result.ClipType, sourceApp, finalWasTrimmed).ConfigureAwait(false);
-                    NewClipAdded?.Invoke();
+                    NewClipAdded?.Invoke(this, EventArgs.Empty);
                     NotifyUiActivity();
                 }
                 stopwatch.Stop();
@@ -225,6 +228,7 @@ namespace Cliptoo.Core
 
         public async Task DeleteClipAsync(Clip clip)
         {
+            ArgumentNullException.ThrowIfNull(clip);
             await _dbManager.DeleteClipAsync(clip.Id).ConfigureAwait(false);
             _clipCache.Remove(clip.Id);
 
@@ -256,17 +260,9 @@ namespace Cliptoo.Core
             _clipCache.Remove(id);
         }
 
-        public async Task<string> GetTransformedContentAsync(int id, string transformType)
+        public string TransformText(string content, string transformType)
         {
-            var clip = await GetClipByIdAsync(id).ConfigureAwait(false);
-            if (clip?.Content == null) return string.Empty;
-
-            if (clip.ClipType != AppConstants.ClipTypes.Text && !clip.ClipType.StartsWith("code", StringComparison.Ordinal))
-            {
-                return clip.Content;
-            }
-
-            return _textTransformer.Transform(clip.Content, transformType);
+            return _textTransformer.Transform(content, transformType);
         }
 
         public async Task<(bool success, string message)> CompareClipsAsync(int leftClipId, int rightClipId)
@@ -299,15 +295,17 @@ namespace Cliptoo.Core
                 await File.WriteAllTextAsync(leftFilePath, leftClip.Content ?? "").ConfigureAwait(false);
                 await File.WriteAllTextAsync(rightFilePath, rightClip.Content ?? "").ConfigureAwait(false);
 
-                var process = new System.Diagnostics.Process();
-                process.StartInfo.FileName = toolPath;
-                process.StartInfo.Arguments = $"{toolArgs} \"{leftFilePath}\" \"{rightFilePath}\"";
-                process.StartInfo.UseShellExecute = true;
-                process.Start();
+                using (var process = new System.Diagnostics.Process())
+                {
+                    process.StartInfo.FileName = toolPath;
+                    process.StartInfo.Arguments = $"{toolArgs} \"{leftFilePath}\" \"{rightFilePath}\"";
+                    process.StartInfo.UseShellExecute = true;
+                    process.Start();
+                }
 
                 return (true, "Comparison tool launched.");
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception or ObjectDisposedException or FileNotFoundException)
             {
                 LogManager.Log(ex, "Failed to execute clip comparison.");
                 return (false, "An error occurred while launching the comparison tool.");
@@ -318,9 +316,10 @@ namespace Cliptoo.Core
 
         public void SaveSettings(Settings settings)
         {
+            ArgumentNullException.ThrowIfNull(settings);
             _settingsManager.Save(settings);
             LogManager.LoggingLevel = settings.LoggingLevel;
-            SettingsChanged?.Invoke();
+            SettingsChanged?.Invoke(this, EventArgs.Empty);
         }
 
         public Task<DbStats> GetStatsAsync() => _dbManager.GetStatsAsync();
@@ -328,13 +327,13 @@ namespace Cliptoo.Core
         public async Task ClearHistoryAsync()
         {
             await _dbManager.ClearHistoryAsync().ConfigureAwait(false);
-            HistoryCleared?.Invoke();
+            HistoryCleared?.Invoke(this, EventArgs.Empty);
         }
 
         public async Task ClearAllHistoryAsync()
         {
             await _dbManager.ClearAllHistoryAsync().ConfigureAwait(false);
-            HistoryCleared?.Invoke();
+            HistoryCleared?.Invoke(this, EventArgs.Empty);
         }
 
         public async Task<MaintenanceResult> RunHeavyMaintenanceNowAsync()
@@ -348,7 +347,7 @@ namespace Cliptoo.Core
             int count = await _dbManager.RemoveDeadheadClipsAsync().ConfigureAwait(false);
             if (count > 0)
             {
-                HistoryCleared?.Invoke();
+                HistoryCleared?.Invoke(this, EventArgs.Empty);
             }
             return count;
         }
@@ -358,7 +357,7 @@ namespace Cliptoo.Core
             int count = await _dbManager.ClearOversizedClipsAsync(sizeMb).ConfigureAwait(false);
             if (count > 0)
             {
-                HistoryCleared?.Invoke();
+                HistoryCleared?.Invoke(this, EventArgs.Empty);
             }
             return count;
         }
@@ -380,7 +379,7 @@ namespace Cliptoo.Core
             if (updates.Count > 0)
             {
                 await _dbManager.UpdateClipTypesAsync(updates).ConfigureAwait(false);
-                HistoryCleared?.Invoke();
+                HistoryCleared?.Invoke(this, EventArgs.Empty);
             }
 
             return updates.Count;
@@ -432,6 +431,17 @@ namespace Cliptoo.Core
 
             int iconCacheCleaned = _iconProvider.CleanupIconCache();
 
+            var validClipboardImages = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            await foreach (var path in _dbManager.GetAllImageClipPathsAsync().ConfigureAwait(false))
+            {
+                validClipboardImages.Add(path);
+            }
+            int prunedClipboardImageCount = await ServiceUtils.PruneDirectoryAsync(_clipboardImageCachePath, validClipboardImages).ConfigureAwait(false);
+            if (prunedClipboardImageCount > 0)
+            {
+                LogManager.Log($"Clipboard Image Cache cleanup complete. Removed {prunedClipboardImageCount} orphaned files.");
+            }
+
             int reclassifiedCount = await ReclassifyAllClipsAsync().ConfigureAwait(false);
             if (reclassifiedCount > 0)
             {
@@ -452,6 +462,7 @@ namespace Cliptoo.Core
                 reclassifiedCount,
                 tempFilesCleaned,
                 iconCacheCleaned,
+                prunedClipboardImageCount,
                 sizeChange
             );
         }
@@ -489,7 +500,7 @@ namespace Cliptoo.Core
             _thumbnailService.ClearCache();
             _webMetadataService.ClearCache();
             CleanupTempFiles();
-            CachesCleared?.Invoke();
+            CachesCleared?.Invoke(this, EventArgs.Empty);
         }
 
         private int CleanupTempFiles()
@@ -512,7 +523,7 @@ namespace Cliptoo.Core
                         File.Delete(file);
                         filesDeleted++;
                     }
-                    catch (Exception ex)
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                     {
                         LogManager.Log(ex, $"Could not delete old temp file: {file}");
                     }
@@ -523,21 +534,30 @@ namespace Cliptoo.Core
                 }
                 return filesDeleted;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 LogManager.Log(ex, "Failed to perform temp file cleanup.");
                 return 0;
             }
         }
 
-        public void Shutdown()
+        public void Dispose()
         {
-            LogManager.Log("Cliptoo shutting down.");
-            _cleanupTimer.Stop();
-            _cleanupTimer.Dispose();
-            _fileTypeClassifier.FileTypesChanged -= OnFileTypesChanged;
-            ClipboardMonitor.Dispose();
-            _dbManager.Dispose();
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                LogManager.Log("Cliptoo shutting down.");
+                _cleanupTimer.Stop();
+                _cleanupTimer.Dispose();
+                _fileTypeClassifier.FileTypesChanged -= OnFileTypesChanged;
+                ClipboardMonitor.Dispose();
+                _dbManager.Dispose();
+            }
         }
 
         public bool IsCompareToolAvailable()

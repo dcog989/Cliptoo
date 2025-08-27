@@ -4,6 +4,8 @@ using System.Windows;
 using System.Windows.Input;
 using Cliptoo.Core;
 using Cliptoo.Core.Configuration;
+using Cliptoo.Core.Native;
+using Cliptoo.UI.Helpers;
 using Wpf.Ui.Controls;
 
 namespace Cliptoo.UI.ViewModels
@@ -26,21 +28,53 @@ namespace Cliptoo.UI.ViewModels
         {
             if (transformType == null) return;
 
-            await Controller.MoveClipToTopAsync(Id).ConfigureAwait(false);
-            MainViewModel.RefreshClipList();
+            Core.Configuration.LogManager.LogDebug($"TRANSFORM_DIAG: Starting transform '{transformType}' for Clip ID {Id}.");
 
-            var transformedContent = await Controller.GetTransformedContentAsync(Id, transformType).ConfigureAwait(false);
-            if (!string.IsNullOrEmpty(transformedContent))
+            await Controller.MoveClipToTopAsync(Id).ConfigureAwait(false);
+
+            var fullClip = await GetFullClipAsync().ConfigureAwait(false);
+            if (fullClip == null)
             {
-                await _pastingService.PasteTextAsync(transformedContent).ConfigureAwait(false);
-                await Controller.UpdatePasteCountAsync().ConfigureAwait(false);
+                Core.Configuration.LogManager.LogDebug("TRANSFORM_DIAG: Aborted, full clip content is null.");
+                return;
             }
+
+            Core.Configuration.LogManager.LogDebug($"TRANSFORM_DIAG: Full clip content (first 100 chars): {fullClip.Content?.Substring(0, Math.Min(100, fullClip.Content.Length))}");
+
+            string contentToTransform = (fullClip.ClipType == AppConstants.ClipTypes.Rtf
+                ? RtfUtils.ToPlainText(fullClip.Content ?? string.Empty)
+                : fullClip.Content) ?? string.Empty;
+
+            Core.Configuration.LogManager.LogDebug($"TRANSFORM_DIAG: Content to transform (is RTF: {fullClip.ClipType == AppConstants.ClipTypes.Rtf}): {contentToTransform.Substring(0, Math.Min(100, contentToTransform.Length))}");
+
+            var transformedContent = Controller.TransformText(contentToTransform, transformType);
+            Core.Configuration.LogManager.LogDebug($"TRANSFORM_DIAG: Transformed content: '{transformedContent}' (Length: {transformedContent.Length})");
+
 
             var mainWindow = Application.Current.MainWindow;
             if (mainWindow != null)
             {
                 mainWindow.Hide();
             }
+
+            // Poll for focus change to ensure the paste command is not sent to Cliptoo itself.
+            var stopwatch = Stopwatch.StartNew();
+            while (stopwatch.ElapsedMilliseconds < 500) // 500ms timeout
+            {
+                if (ProcessUtils.GetForegroundWindowProcessName() != "Cliptoo.UI.exe")
+                {
+                    break;
+                }
+                await Task.Delay(20).ConfigureAwait(false);
+            }
+            stopwatch.Stop();
+            Core.Configuration.LogManager.LogDebug($"TRANSFORM_DIAG: Waited {stopwatch.ElapsedMilliseconds}ms for focus change.");
+
+
+            await _pastingService.PasteTextAsync(transformedContent).ConfigureAwait(false);
+            await Controller.UpdatePasteCountAsync().ConfigureAwait(false);
+
+            MainViewModel.RefreshClipList();
         }
 
         private async Task ExecutePasteAs(bool plainText)
