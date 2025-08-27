@@ -53,8 +53,9 @@ namespace Cliptoo.UI.ViewModels
         public ImageSource? PinIcon16 { get => _pinIcon16; private set => SetProperty(ref _pinIcon16, value); }
         private ImageSource? _errorIcon;
         public ImageSource? ErrorIcon { get => _errorIcon; private set => SetProperty(ref _errorIcon, value); }
-        public event Action<bool>? AlwaysOnTopChanged;
-        public event Action? ListScrolledToTopRequest;
+        public event EventHandler<bool>? AlwaysOnTopChanged;
+        public event EventHandler? ListScrolledToTopRequest;
+        public ObservableCollection<ClipViewModel> Clips { get; }
         public ObservableCollection<FilterOption> FilterOptions { get; }
         public bool IsCompareToolAvailable { get; }
         public bool IsHidingExplicitly { get; set; }
@@ -64,7 +65,7 @@ namespace Cliptoo.UI.ViewModels
         public FontFamily PreviewFont { get => _previewFont; private set => SetProperty(ref _previewFont, value); }
         public ObservableCollection<SendToTarget> SendToTargets { get; }
         public double TooltipMaxHeight { get; }
-        public string CurrentThemeString => Application.Current.Dispatcher.Invoke(() =>
+        public static string CurrentThemeString => Application.Current.Dispatcher.Invoke(() =>
         {
             var theme = ApplicationThemeManager.GetAppTheme();
             if (theme == ApplicationTheme.Unknown)
@@ -120,7 +121,7 @@ namespace Cliptoo.UI.ViewModels
                     {
                         Application.Current.MainWindow.Topmost = value;
                     }
-                    AlwaysOnTopChanged?.Invoke(value);
+                    AlwaysOnTopChanged?.Invoke(this, value);
                     CurrentSettings.IsAlwaysOnTop = value;
                     _controller.SaveSettings(CurrentSettings);
                 }

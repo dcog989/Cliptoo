@@ -297,7 +297,7 @@ namespace Cliptoo.UI.Services
             }
         }
 
-        private void OnViewModelAlwaysOnTopChanged(bool isChecked)
+        private void OnViewModelAlwaysOnTopChanged(object? sender, bool isChecked)
         {
             if (_alwaysOnTopMenuItem != null)
             {

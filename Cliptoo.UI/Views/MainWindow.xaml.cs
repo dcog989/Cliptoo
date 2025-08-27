@@ -62,7 +62,7 @@ namespace Cliptoo.UI.Views
             }
         }
 
-        private void OnListScrolledToTopRequest()
+        private void OnListScrolledToTopRequest(object? sender, EventArgs e)
         {
             Dispatcher.BeginInvoke(DispatcherPriority.ContextIdle, new Action(() =>
             {
@@ -233,7 +233,7 @@ namespace Cliptoo.UI.Views
             if (e.NewValue is true)
             {
                 _viewModel.HandleWindowShown();
-                OnListScrolledToTopRequest();
+                OnListScrolledToTopRequest(this, EventArgs.Empty);
             }
             else if (e.NewValue is false)
             {

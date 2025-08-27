@@ -1,11 +1,7 @@
-using System.Collections.ObjectModel;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Windows;
 using Cliptoo.Core;
 using Cliptoo.Core.Configuration;
 using Cliptoo.Core.Database.Models;
-using Cliptoo.UI.Helpers;
 
 namespace Cliptoo.UI.ViewModels
 {
@@ -17,8 +13,6 @@ namespace Cliptoo.UI.ViewModels
         private CancellationTokenSource _loadClipsCts = new();
         private bool _canLoadMore = true;
 
-        public ObservableCollection<ClipViewModel> Clips { get; }
-
         public async Task LoadClipsAsync(bool scrollToTop = false)
         {
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
@@ -27,7 +21,7 @@ namespace Cliptoo.UI.ViewModels
             {
                 return;
             }
-            _loadClipsCts.Cancel();
+            await _loadClipsCts.CancelAsync();
             _loadClipsCts = new CancellationTokenSource();
             var token = _loadClipsCts.Token;
 
@@ -69,7 +63,7 @@ namespace Cliptoo.UI.ViewModels
 
                     if (scrollToTop)
                     {
-                        ListScrolledToTopRequest?.Invoke();
+                        ListScrolledToTopRequest?.Invoke(this, EventArgs.Empty);
                     }
                 });
 
