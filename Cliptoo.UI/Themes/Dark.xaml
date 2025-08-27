@@ -3,6 +3,30 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
 
+    <DrawingBrush
+        x:Key="CheckerboardBrush"
+        TileMode="Tile"
+        Viewport="0,0,10,10"
+        ViewportUnits="Absolute">
+        <DrawingBrush.Drawing>
+            <DrawingGroup>
+                <GeometryDrawing Brush="#FFF">
+                    <GeometryDrawing.Geometry>
+                        <RectangleGeometry Rect="0,0,10,10" />
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#DDD">
+                    <GeometryDrawing.Geometry>
+                        <GeometryGroup>
+                            <RectangleGeometry Rect="0,0,5,5" />
+                            <RectangleGeometry Rect="5,5,5,5" />
+                        </GeometryGroup>
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+            </DrawingGroup>
+        </DrawingBrush.Drawing>
+    </DrawingBrush>
+
     <SolidColorBrush x:Key="PrimaryBackground" Color="#242424" />
     <SolidColorBrush x:Key="SecondaryBackground" Color="#2f2f2f" />
     <SolidColorBrush x:Key="TertiaryBackground" Color="#3a3a3a" />

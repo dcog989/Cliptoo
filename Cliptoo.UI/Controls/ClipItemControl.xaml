@@ -18,32 +18,6 @@
     TextOptions.TextRenderingMode="ClearType"
     mc:Ignorable="d">
 
-    <UserControl.Resources>
-        <DrawingBrush
-            x:Key="CheckerboardBrush"
-            TileMode="Tile"
-            Viewport="0,0,10,10"
-            ViewportUnits="Absolute">
-            <DrawingBrush.Drawing>
-                <DrawingGroup>
-                    <GeometryDrawing Brush="#FFF">
-                        <GeometryDrawing.Geometry>
-                            <RectangleGeometry Rect="0,0,10,10" />
-                        </GeometryDrawing.Geometry>
-                    </GeometryDrawing>
-                    <GeometryDrawing Brush="#DDD">
-                        <GeometryDrawing.Geometry>
-                            <GeometryGroup>
-                                <RectangleGeometry Rect="0,0,5,5" />
-                                <RectangleGeometry Rect="5,5,5,5" />
-                            </GeometryGroup>
-                        </GeometryDrawing.Geometry>
-                    </GeometryDrawing>
-                </DrawingGroup>
-            </DrawingBrush.Drawing>
-        </DrawingBrush>
-    </UserControl.Resources>
-
     <Grid>
         <Grid Background="Transparent">
 

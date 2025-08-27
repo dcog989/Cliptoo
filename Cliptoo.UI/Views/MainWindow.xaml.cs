@@ -13,6 +13,7 @@ namespace Cliptoo.UI.Views
     {
         private readonly MainViewModel _viewModel;
         private readonly CliptooController _controller;
+        private readonly List<ClipViewModel> _lastQuickPastedVms = new();
 
         public MainWindow(MainViewModel viewModel, CliptooController controller)
         {
@@ -36,24 +37,27 @@ namespace Cliptoo.UI.Views
 
         private void UpdateQuickPasteIndices()
         {
+            foreach (var clip in _lastQuickPastedVms)
+            {
+                clip.Index = 0;
+            }
+            _lastQuickPastedVms.Clear();
+
+            if (!_viewModel.IsQuickPasteModeActive) return;
+
             var scrollViewer = FindVisualChild<ScrollViewer>(ClipListView);
             if (scrollViewer == null) return;
 
             var firstVisibleIndex = (int)scrollViewer.VerticalOffset;
-
-            foreach (var clip in _viewModel.Clips)
-            {
-                clip.Index = 0;
-            }
-
-            if (!_viewModel.IsQuickPasteModeActive) return;
 
             for (var i = 0; i < 9; i++)
             {
                 var targetIndex = firstVisibleIndex + i;
                 if (targetIndex < _viewModel.Clips.Count)
                 {
-                    _viewModel.Clips[targetIndex].Index = i + 1;
+                    var vm = _viewModel.Clips[targetIndex];
+                    vm.Index = i + 1;
+                    _lastQuickPastedVms.Add(vm);
                 }
             }
         }

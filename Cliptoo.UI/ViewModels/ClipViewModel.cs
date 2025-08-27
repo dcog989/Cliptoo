@@ -459,39 +459,40 @@ namespace Cliptoo.UI.ViewModels
                 ? RtfUtils.ToPlainText(clipToDisplay.Content ?? "")
                 : clipToDisplay.Content ?? "");
 
-
             if (ShowTextualTooltip && !string.IsNullOrEmpty(contentForTooltip))
             {
-                // First pass: Count total lines accurately
-                int totalLines = 0;
-                using (var reader = new StringReader(contentForTooltip))
-                {
-                    while (reader.ReadLine() != null)
-                    {
-                        totalLines++;
-                    }
-                }
-                if (totalLines == 0 && contentForTooltip.Length > 0 && !contentForTooltip.Contains('\n'))
-                {
-                    totalLines = 1;
-                }
-
-                // Second pass: Build the formatted string with line numbers
                 var sb = new StringBuilder();
-                int numberPadding = totalLines.ToString().Length;
-                int currentLineNumber = 0;
+                int totalLines = 0;
+                int linesProcessed = 0;
+
                 using (var reader = new StringReader(contentForTooltip))
                 {
                     string? line;
                     while ((line = reader.ReadLine()) != null)
                     {
-                        currentLineNumber++;
-                        if (currentLineNumber > MaxTooltipLines)
+                        totalLines++;
+                        if (linesProcessed < MaxTooltipLines)
                         {
-                            break;
+                            linesProcessed++;
+                            // Line number padding will be calculated later
+                            sb.AppendLine(line);
                         }
-                        sb.AppendLine($"{(currentLineNumber).ToString().PadLeft(numberPadding)} | {line}");
                     }
+                }
+
+                if (totalLines == 0 && contentForTooltip.Length > 0 && !contentForTooltip.Contains('\n'))
+                {
+                    totalLines = 1;
+                }
+
+                // Now format the output with correct padding
+                var finalSb = new StringBuilder();
+                var lines = sb.ToString().Split(new[] { Environment.NewLine }, StringSplitOptions.None);
+                int numberPadding = totalLines.ToString().Length;
+
+                for (int i = 0; i < linesProcessed; i++)
+                {
+                    finalSb.AppendLine($"{(i + 1).ToString().PadLeft(numberPadding)} | {lines[i]}");
                 }
 
                 if (!IsFileBased)
@@ -507,10 +508,10 @@ namespace Cliptoo.UI.ViewModels
 
                 if (totalLines > MaxTooltipLines)
                 {
-                    sb.AppendLine($"\n... (truncated - {totalLines - MaxTooltipLines} more lines)");
+                    finalSb.AppendLine($"\n... (truncated - {totalLines - MaxTooltipLines} more lines)");
                 }
 
-                TooltipTextContent = sb.ToString();
+                TooltipTextContent = finalSb.ToString();
             }
             else
             {

@@ -80,19 +80,13 @@ namespace Cliptoo.UI.Helpers
 
             Core.Configuration.LogManager.LogDebug($"DIAG_INPUT: PreviewTextInput: Text='{e.Text}', Focused={focusedElement?.GetType().Name}, SearchFocused={searchTextBox?.IsKeyboardFocusWithin}");
 
-            if (searchTextBox == null || searchTextBox.IsKeyboardFocusWithin)
+            if (searchTextBox == null || searchTextBox.IsKeyboardFocusWithin || focusedElement is TextBox)
             {
                 return;
             }
 
-            Core.Configuration.LogManager.LogDebug($"DIAG_INPUT: PreviewTextInput: Redirecting text '{e.Text}' to SearchBox.");
-            e.Handled = true;
+            Core.Configuration.LogManager.LogDebug($"DIAG_INPUT: PreviewTextInput: Redirecting focus for text '{e.Text}' to SearchBox.");
             searchTextBox.Focus();
-
-            var caretIndex = searchTextBox.CaretIndex;
-            var selectionLength = searchTextBox.SelectionLength;
-            searchTextBox.Text = searchTextBox.Text.Remove(caretIndex, selectionLength).Insert(caretIndex, e.Text);
-            searchTextBox.CaretIndex = caretIndex + e.Text.Length;
         }
 
         private static (Key key, ModifierKeys modifiers) ParseHotkey(string hotkeyString)
@@ -261,15 +255,6 @@ namespace Cliptoo.UI.Helpers
                     return;
                 }
 
-                if (e.Key == Key.Space)
-                {
-                    Core.Configuration.LogManager.LogDebug($"DIAG_INPUT: Space detected while SearchBox has focus. Manually inserting space.");
-                    e.Handled = true;
-                    var caretIndex = searchTextBox.CaretIndex;
-                    var selectionLength = searchTextBox.SelectionLength;
-                    searchTextBox.Text = searchTextBox.Text.Remove(caretIndex, selectionLength).Insert(caretIndex, " ");
-                    searchTextBox.CaretIndex = caretIndex + 1;
-                }
                 return;
             }
 
