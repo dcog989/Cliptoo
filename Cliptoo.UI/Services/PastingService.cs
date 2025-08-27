@@ -10,20 +10,20 @@ using Cliptoo.UI.Helpers;
 
 namespace Cliptoo.UI.Services
 {
-    public class PastingService : IPastingService
+    internal class PastingService : IPastingService
     {
         private readonly CliptooController _controller;
-        private readonly InputSimulator _inputSimulator;
 
-        public PastingService(CliptooController controller, InputSimulator inputSimulator)
+        public PastingService(CliptooController controller)
         {
             _controller = controller;
-            _inputSimulator = inputSimulator;
         }
 
         public async Task PasteClipAsync(Clip clip, bool? forcePlainText = null)
         {
-            await _controller.MoveClipToTopAsync(clip.Id);
+            ArgumentNullException.ThrowIfNull(clip);
+
+            await _controller.MoveClipToTopAsync(clip.Id).ConfigureAwait(false);
 
             var dataObject = new DataObject();
             var settings = _controller.GetSettings();
@@ -58,6 +58,29 @@ namespace Cliptoo.UI.Services
                         dataObject.SetText(RtfUtils.ToPlainText(clip.Content ?? string.Empty), TextDataFormat.UnicodeText);
                         break;
 
+                    case string s when s.StartsWith("file_", StringComparison.Ordinal) || s == AppConstants.ClipTypes.Folder:
+                        if (clip.Content != null)
+                        {
+                            var paths = clip.Content.Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries);
+                            if (paths.Length > 0)
+                            {
+                                var fileDropList = new System.Collections.Specialized.StringCollection();
+                                fileDropList.AddRange(paths);
+                                dataObject.SetFileDropList(fileDropList);
+                                // Add a text fallback for compatibility
+                                dataObject.SetText(string.Join(Environment.NewLine, paths));
+                            }
+                            else
+                            {
+                                dataObject.SetText(clip.Content, TextDataFormat.UnicodeText);
+                            }
+                        }
+                        else
+                        {
+                            dataObject.SetText(string.Empty, TextDataFormat.UnicodeText);
+                        }
+                        break;
+
                     default:
                         dataObject.SetText(clip.Content, TextDataFormat.UnicodeText);
                         break;
@@ -67,9 +90,18 @@ namespace Cliptoo.UI.Services
             _controller.ClipboardMonitor.Pause();
             try
             {
-                if (await ClipboardUtils.SafeSet(() => Clipboard.SetDataObject(dataObject, true)))
+                if (await ClipboardUtils.SafeSet(() => Clipboard.SetDataObject(dataObject, true)).ConfigureAwait(false))
                 {
-                    if (dataObject.GetDataPresent(DataFormats.UnicodeText))
+                    if (dataObject.GetDataPresent(DataFormats.FileDrop))
+                    {
+                        var files = dataObject.GetFileDropList();
+                        if (files != null && files.Count > 0)
+                        {
+                            var allFilesText = string.Join(Environment.NewLine, files.Cast<string>());
+                            _controller.SuppressNextClip(HashingUtils.ComputeHash(Encoding.UTF8.GetBytes(allFilesText)));
+                        }
+                    }
+                    else if (dataObject.GetDataPresent(DataFormats.UnicodeText))
                     {
                         var text = dataObject.GetData(DataFormats.UnicodeText) as string ?? "";
                         _controller.SuppressNextClip(HashingUtils.ComputeHash(Encoding.UTF8.GetBytes(text)));
@@ -87,7 +119,7 @@ namespace Cliptoo.UI.Services
                         }
                     }
 
-                    _inputSimulator.SendPaste();
+                    InputSimulator.SendPaste();
                 }
             }
             finally
@@ -104,11 +136,11 @@ namespace Cliptoo.UI.Services
             _controller.ClipboardMonitor.Pause();
             try
             {
-                if (await ClipboardUtils.SafeSet(() => Clipboard.SetDataObject(dataObject, true)))
+                if (await ClipboardUtils.SafeSet(() => Clipboard.SetDataObject(dataObject, true)).ConfigureAwait(false))
                 {
                     var hash = HashingUtils.ComputeHash(Encoding.UTF8.GetBytes(text));
                     _controller.SuppressNextClip(hash);
-                    _inputSimulator.SendPaste();
+                    InputSimulator.SendPaste();
                 }
             }
             finally

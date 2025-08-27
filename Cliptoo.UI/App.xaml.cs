@@ -74,7 +74,6 @@ namespace Cliptoo.UI
                     services.AddSingleton<IClipboardMonitor, ClipboardMonitor>();
                     services.AddSingleton<ITextTransformer, TextTransformer>();
                     services.AddSingleton<ICompareToolService, CompareToolService>();
-                    services.AddSingleton<InputSimulator>();
                     services.AddSingleton<Core.Services.IIconProvider>(sp => new IconProvider(sp.GetRequiredService<ISettingsManager>(), appDataLocalPath));
 
                     services.AddSingleton<ISnackbarService, SnackbarService>();

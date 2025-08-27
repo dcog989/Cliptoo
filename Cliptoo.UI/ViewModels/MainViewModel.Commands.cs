@@ -3,11 +3,8 @@ using System.Windows;
 using System.Windows.Input;
 using Cliptoo.Core.Database.Models;
 using Cliptoo.UI.Services;
-using Cliptoo.UI.ViewModels.Base;
 using Cliptoo.UI.Views;
 using Microsoft.Extensions.DependencyInjection;
-using Wpf.Ui.Appearance;
-using Wpf.Ui.Controls;
 
 namespace Cliptoo.UI.ViewModels
 {

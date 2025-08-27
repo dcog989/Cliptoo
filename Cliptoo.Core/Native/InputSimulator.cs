@@ -66,7 +66,7 @@ namespace Cliptoo.Core.Native
         [DllImport("user32.dll", SetLastError = true)]
         private static extern uint SendInput(uint nInputs, [In] INPUT[] pInputs, int cbSize);
 
-        public void SendPaste()
+        public static void SendPaste()
         {
             LogManager.LogDebug("InputSimulator: Waiting 100ms for focus change...");
             Thread.Sleep(100);
@@ -99,7 +99,7 @@ namespace Cliptoo.Core.Native
             };
 
             LogManager.LogDebug("InputSimulator: Sending Ctrl+V input.");
-            uint result = SendInput((uint)inputs.Length, inputs, Marshal.SizeOf(typeof(INPUT)));
+            uint result = SendInput((uint)inputs.Length, inputs, Marshal.SizeOf<INPUT>());
             if (result == 0)
             {
                 int errorCode = Marshal.GetLastWin32Error();

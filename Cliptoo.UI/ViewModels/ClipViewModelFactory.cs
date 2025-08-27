@@ -41,6 +41,8 @@ namespace Cliptoo.UI.ViewModels
 
         public ClipViewModel Create(Clip clip, Settings settings, string theme, MainViewModel mainViewModel)
         {
+            ArgumentNullException.ThrowIfNull(settings);
+
             var vm = new ClipViewModel(clip, _controller, _pastingService, _notificationService, _clipDetailsLoader, settings.ClipItemPadding, mainViewModel, _iconProvider, _thumbnailService, _webMetadataService);
             vm.UpdateClip(clip, theme);
             return vm;
