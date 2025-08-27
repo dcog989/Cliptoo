@@ -24,15 +24,15 @@ namespace Cliptoo.Core.Database
                 conditions.Add("clips_fts MATCH @SearchTerm");
 
                 var ftsQuery = string.Join(" ", searchTerm.Split(_spaceSeparator, StringSplitOptions.RemoveEmptyEntries)
-                    .Select(term => $"\"{term.Replace("\"", "\"\"", StringComparison.Ordinal)}\"*"));
+                                                            .Select(term => $"\"{term.Replace("\"", "\"\"", StringComparison.Ordinal)}\"*"));
                 command.Parameters.AddWithValue("@SearchTerm", ftsQuery);
 
-                orderBy = "ORDER BY c.IsPinned DESC, rank, c.Timestamp DESC";
+                orderBy = "ORDER BY rank, c.Timestamp DESC";
             }
             else
             {
                 queryBuilder.Append($"SELECT {columns} FROM clips c ");
-                orderBy = "ORDER BY c.IsPinned DESC, c.Timestamp DESC";
+                orderBy = "ORDER BY c.Timestamp DESC";
             }
 
             if (filterType == AppConstants.FilterKeys.Pinned)

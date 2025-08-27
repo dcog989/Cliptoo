@@ -112,6 +112,16 @@
                     ScrollViewer.ScrollChanged="ClipListView_ScrollChanged"
                     VirtualizingPanel.IsVirtualizing="True"
                     VirtualizingPanel.VirtualizationMode="Recycling">
+                    <ListView.Style>
+                        <Style TargetType="ListView">
+                            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Hidden" />
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto" />
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ListView.Style>
                     <ListView.ItemTemplate>
                         <DataTemplate>
                             <controls:ClipItemControl DataContext="{Binding}" />
