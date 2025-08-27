@@ -330,7 +330,7 @@ namespace Cliptoo.UI.Services
 
         private void OnTrayLeftClicked() => ToggleWindowVisibility(true);
 
-        private void OnHotkeyPressed() => ToggleWindowVisibility(false);
+        private void OnHotkeyPressed(object? sender, EventArgs e) => ToggleWindowVisibility(false);
 
         private void ToggleWindowVisibility(bool isTrayRequest)
         {

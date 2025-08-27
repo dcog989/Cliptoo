@@ -7,7 +7,7 @@ namespace Cliptoo.Core.Native
         /// <summary>
         /// Fired when the registered hotkey is pressed by the user.
         /// </summary>
-        event Action HotkeyPressed;
+        event EventHandler? HotkeyPressed;
 
         /// <summary>
         /// Registers a system-wide hotkey.

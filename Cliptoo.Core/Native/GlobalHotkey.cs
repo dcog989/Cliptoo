@@ -5,12 +5,13 @@ using System.Windows.Input;
 
 namespace Cliptoo.Core.Native
 {
-    public class GlobalHotkey : IGlobalHotkey
+    public sealed class GlobalHotkey : IGlobalHotkey
     {
-        public event Action? HotkeyPressed;
+        public event EventHandler? HotkeyPressed;
 
         private IntPtr _windowHandle;
         private const int HotkeyId = 9000;
+        private bool _disposedValue;
 
         // Win32 API
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
@@ -37,15 +38,17 @@ namespace Cliptoo.Core.Native
 
         public bool Register(string hotkey)
         {
+            ArgumentNullException.ThrowIfNull(hotkey);
+
             Unregister(); // Ensure any previous hotkey is unregistered
 
             try
             {
-                var parts = hotkey.Split('+').Select(p => p.Trim().ToUpper()).ToList();
+                var parts = hotkey.Split('+').Select(p => p.Trim().ToUpperInvariant()).ToList();
                 if (parts.Count < 2) return false;
 
                 var keyStr = parts.Last();
-                var modifiers = parts.Take(parts.Count - 1);
+                var modifiers = parts.Take(parts.Count - 1).ToList();
 
                 uint modifierFlags = 0;
                 if (modifiers.Contains("CTRL")) modifierFlags |= (uint)ModifierKeys.Control;
@@ -58,7 +61,7 @@ namespace Cliptoo.Core.Native
 
                 return RegisterHotKey(_windowHandle, HotkeyId, modifierFlags, virtualKey);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is ArgumentException or ExternalException)
             {
                 Console.WriteLine($"Failed to register hotkey '{hotkey}': {ex.Message}");
                 return false;
@@ -72,12 +75,27 @@ namespace Cliptoo.Core.Native
 
         public void OnHotkeyPressed()
         {
-            HotkeyPressed?.Invoke();
+            HotkeyPressed?.Invoke(this, EventArgs.Empty);
+        }
+
+        private void Dispose(bool disposing)
+        {
+            if (!_disposedValue)
+            {
+                if (disposing)
+                {
+                    // Dispose managed state (managed objects).
+                }
+
+                Unregister();
+                _disposedValue = true;
+            }
         }
 
         public void Dispose()
         {
-            Unregister();
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
         }
     }
 }

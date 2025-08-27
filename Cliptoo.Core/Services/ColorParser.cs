@@ -15,40 +15,40 @@ namespace Cliptoo.Core.Services
 
     public static class ColorParser
     {
-        private static readonly double[,] SrgbToXyzMatrix = {
-            { 0.4123907993, 0.3575843394, 0.1804807884 },
-            { 0.2126390059, 0.7151686788, 0.0721923154 },
-            { 0.0193308187, 0.1191947798, 0.9505321522 }
+        private static readonly double[][] SrgbToXyzMatrix = {
+            new[] { 0.4123907993, 0.3575843394, 0.1804807884 },
+            new[] { 0.2126390059, 0.7151686788, 0.0721923154 },
+            new[] { 0.0193308187, 0.1191947798, 0.9505321522 }
         };
 
-        private static readonly double[,] XyzToSrgbMatrix = {
-            {  3.240969942, -1.5373831776, -0.4986107603 },
-            { -0.9692436363,  1.8759675015,  0.0415550574 },
-            {  0.0556300797, -0.2039769589,  1.0569715142 }
+        private static readonly double[][] XyzToSrgbMatrix = {
+            new[] {  3.240969942, -1.5373831776, -0.4986107603 },
+            new[] { -0.9692436363,  1.8759675015,  0.0415550574 },
+            new[] {  0.0556300797, -0.2039769589,  1.0569715142 }
         };
 
-        private static readonly double[,] OklabXyzToLmsMatrix = {
-            {  0.8189330101,  0.3618667424, -0.1288597137 },
-            {  0.0329845436,  0.9293118715,  0.0361456387 },
-            {  0.0482003018,  0.2643662691,  0.633851707  }
+        private static readonly double[][] OklabXyzToLmsMatrix = {
+            new[] {  0.8189330101,  0.3618667424, -0.1288597137 },
+            new[] {  0.0329845436,  0.9293118715,  0.0361456387 },
+            new[] {  0.0482003018,  0.2643662691,  0.633851707  }
         };
 
-        private static readonly double[,] OklabLmsToLabMatrix = {
-            { 0.2104542553,  0.793617785,  -0.0040720468 },
-            { 1.9779984951, -2.428592205,   0.4505937099 },
-            { 0.0259040371,  0.7827717662, -0.808675766  }
+        private static readonly double[][] OklabLmsToLabMatrix = {
+            new[] { 0.2104542553,  0.793617785,  -0.0040720468 },
+            new[] { 1.9779984951, -2.428592205,   0.4505937099 },
+            new[] { 0.0259040371,  0.7827717662, -0.808675766  }
         };
 
-        private static readonly double[,] OklabLabToLmsMatrix = {
-            {  0.99999999845051981432,  0.39633777736240243769,   0.21580375730249306069 },
-            {  1.00000000838056630002, -0.10556134579289659905,  -0.06385417279300911922 },
-            {  1.00000005467234261899, -0.08948417752909546082,  -1.2914855480408174125  }
+        private static readonly double[][] OklabLabToLmsMatrix = {
+            new[] {  0.99999999845051981432,  0.39633777736240243769,   0.21580375730249306069 },
+            new[] {  1.00000000838056630002, -0.10556134579289659905,  -0.06385417279300911922 },
+            new[] {  1.00000005467234261899, -0.08948417752909546082,  -1.2914855480408174125  }
         };
 
-        private static readonly double[,] OklabLmsToXyzMatrix = {
-            {  1.226879878071479,   -0.5578149965684922,  0.2813910501598616 },
-            { -0.04057575003935402,  1.112286829376436,  -0.07171107933708207 },
-            { -0.07637293665230801, -0.4214933235444953,  1.586161639400282  }
+        private static readonly double[][] OklabLmsToXyzMatrix = {
+            new[] {  1.226879878071479,   -0.5578149965684922,  0.2813910501598616 },
+            new[] { -0.04057575003935402,  1.112286829376436,  -0.07171107933708207 },
+            new[] { -0.07637293665230801, -0.4214933235444953,  1.586161639400282  }
         };
 
         private static readonly Regex RgbRegex = new(@"^rgba?\(\s*([+\-\d.%]+)\s+([+\-\d.%]+)\s+([+\-\d.%]+)\s*(?:[\/\s]\s*([+\-\d.%]+)\s*)?\)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
@@ -111,7 +111,7 @@ namespace Cliptoo.Core.Services
             {
                 // A short hex code (e.g., "F00") is only valid if it starts with '#'.
                 // A long hex code (e.g., "FF0000") is valid with or without '#'.
-                if (match.Groups[1].Success && !str.StartsWith("#", StringComparison.Ordinal))
+                if (match.Groups[1].Success && !str.StartsWith('#'))
                 {
                     return false;
                 }
@@ -291,13 +291,13 @@ namespace Cliptoo.Core.Services
             return ((byte)Math.Round(HueToRgb(h_norm + 1.0 / 3) * 255), (byte)Math.Round(HueToRgb(h_norm) * 255), (byte)Math.Round(HueToRgb(h_norm - 1.0 / 3) * 255));
         }
 
-        private static (double, double, double) MultiplyMatrix(double[,] matrix, (double, double, double) vector)
+        private static (double, double, double) MultiplyMatrix(double[][] matrix, (double, double, double) vector)
         {
             var (x, y, z) = vector;
             return (
-                matrix[0, 0] * x + matrix[0, 1] * y + matrix[0, 2] * z,
-                matrix[1, 0] * x + matrix[1, 1] * y + matrix[1, 2] * z,
-                matrix[2, 0] * x + matrix[2, 1] * y + matrix[2, 2] * z
+                matrix[0][0] * x + matrix[0][1] * y + matrix[0][2] * z,
+                matrix[1][0] * x + matrix[1][1] * y + matrix[1][2] * z,
+                matrix[2][0] * x + matrix[2][1] * y + matrix[2][2] * z
             );
         }
     }

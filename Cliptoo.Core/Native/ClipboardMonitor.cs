@@ -19,8 +19,10 @@ namespace Cliptoo.Core.Native
         private ulong _lastFileDropHash;
         private bool _isPaused;
         private ulong _hashToSuppress;
+        private bool _disposedValue;
+
         public void Pause() => _isPaused = true;
-        public void Resume() => _isPaused = false;
+        public void ResumeMonitoring() => _isPaused = false;
 
         public void SuppressNextClip(ulong hash)
         {
@@ -38,7 +40,7 @@ namespace Cliptoo.Core.Native
             _isStarted = true;
         }
 
-        public void Stop()
+        public void StopMonitoring()
         {
             if (!_isStarted) return;
             RemoveClipboardFormatListener(_windowHandle);
@@ -156,9 +158,24 @@ namespace Cliptoo.Core.Native
             return false;
         }
 
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!_disposedValue)
+            {
+                if (disposing)
+                {
+                    // Dispose managed state (managed objects).
+                }
+
+                StopMonitoring();
+                _disposedValue = true;
+            }
+        }
+
         public void Dispose()
         {
-            Stop();
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
         }
 
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]

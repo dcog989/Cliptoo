@@ -1,7 +1,7 @@
 using System;
+using System.ComponentModel;
 using System.IO;
 using System.Runtime.InteropServices;
-using System.Text;
 using Cliptoo.Core.Configuration;
 
 namespace Cliptoo.Core.Native
@@ -16,14 +16,18 @@ namespace Cliptoo.Core.Native
         [DllImport("user32.dll", SetLastError = true)]
         private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
 
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [DllImport("kernel32.dll", SetLastError = true)]
         private static extern IntPtr OpenProcess(ProcessAccessFlags processAccess, bool bInheritHandle, uint processId);
 
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [DllImport("kernel32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool CloseHandle(IntPtr hObject);
 
-        [DllImport("psapi.dll", SetLastError = true, CharSet = CharSet.Auto)]
-        private static extern uint GetModuleFileNameEx(IntPtr hProcess, IntPtr hModule, [Out] StringBuilder lpBaseName, int nSize);
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+        [DllImport("psapi.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        private static extern uint GetModuleFileNameEx(IntPtr hProcess, IntPtr hModule, [Out] char[] lpBaseName, uint nSize);
 
         [Flags]
         private enum ProcessAccessFlags : uint
@@ -38,7 +42,7 @@ namespace Cliptoo.Core.Native
                 IntPtr hwnd = GetForegroundWindow();
                 if (hwnd == IntPtr.Zero) return null;
 
-                GetWindowThreadProcessId(hwnd, out uint pid);
+                _ = GetWindowThreadProcessId(hwnd, out uint pid);
                 if (pid == 0) return null;
 
                 IntPtr hProcess = OpenProcess(ProcessAccessFlags.QueryLimitedInformation, false, pid);
@@ -46,10 +50,11 @@ namespace Cliptoo.Core.Native
 
                 try
                 {
-                    var buffer = new StringBuilder(1024);
-                    if (GetModuleFileNameEx(hProcess, IntPtr.Zero, buffer, buffer.Capacity) > 0)
+                    var buffer = new char[1024];
+                    uint length = GetModuleFileNameEx(hProcess, IntPtr.Zero, buffer, (uint)buffer.Length);
+                    if (length > 0)
                     {
-                        return Path.GetFileName(buffer.ToString());
+                        return Path.GetFileName(new string(buffer, 0, (int)length));
                     }
                 }
                 finally
@@ -57,7 +62,7 @@ namespace Cliptoo.Core.Native
                     CloseHandle(hProcess);
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is Win32Exception or NotSupportedException)
             {
                 LogManager.Log(ex, "Could not get foreground window process name. This might be due to permissions.");
             }

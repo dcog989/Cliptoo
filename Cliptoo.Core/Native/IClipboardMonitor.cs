@@ -19,7 +19,7 @@ namespace Cliptoo.Core.Native
         /// <summary>
         /// Stops listening for clipboard updates.
         /// </summary>
-        void Stop();
+        void StopMonitoring();
 
         /// <summary>
         /// Notifies the monitor that a system-level clipboard update has occurred.
@@ -27,7 +27,7 @@ namespace Cliptoo.Core.Native
         /// </summary>
         void ProcessSystemUpdate();
         void Pause();
-        void Resume();
+        void ResumeMonitoring();
         void SuppressNextClip(ulong hash);
     }
 }

@@ -13,6 +13,8 @@ namespace Cliptoo.Core.Native
 
         public static T? SafeGet<T>(Func<T> getDataFunc)
         {
+            ArgumentNullException.ThrowIfNull(getDataFunc);
+
             for (int i = 0; i < MaxRetries; i++)
             {
                 try
@@ -23,7 +25,7 @@ namespace Cliptoo.Core.Native
                 {
                     Thread.Sleep(DelayMs);
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is NullReferenceException or InvalidOperationException)
                 {
                     LogManager.Log(ex, "An unexpected error occurred while getting clipboard data.");
                     return default;
@@ -35,6 +37,8 @@ namespace Cliptoo.Core.Native
 
         public static async Task<bool> SafeSet(Action setDataAction)
         {
+            ArgumentNullException.ThrowIfNull(setDataAction);
+
             for (int i = 0; i < MaxRetries; i++)
             {
                 try
@@ -46,7 +50,7 @@ namespace Cliptoo.Core.Native
                 {
                     await Task.Delay(DelayMs).ConfigureAwait(false);
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is NullReferenceException or InvalidOperationException)
                 {
                     LogManager.Log(ex, "An unexpected error occurred while setting clipboard data.");
                     return false;
@@ -55,5 +59,6 @@ namespace Cliptoo.Core.Native
             LogManager.Log($"Failed to set clipboard data after {MaxRetries} retries.");
             return false;
         }
+
     }
 }

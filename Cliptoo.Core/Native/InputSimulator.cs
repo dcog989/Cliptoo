@@ -5,13 +5,10 @@ using Cliptoo.Core.Configuration;
 
 namespace Cliptoo.Core.Native
 {
-    public class InputSimulator
+    public static class InputSimulator
     {
         private const uint INPUT_KEYBOARD = 1;
-        private const uint INPUT_MOUSE = 0;
-        private const uint INPUT_HARDWARE = 2;
         private const ushort KEYEVENTF_KEYUP = 0x0002;
-
         private const ushort VK_CONTROL = 0x11;
         private const ushort VK_V = 0x56;
 
