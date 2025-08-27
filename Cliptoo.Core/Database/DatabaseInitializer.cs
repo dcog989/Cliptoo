@@ -1,5 +1,7 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
+using Microsoft.Data.Sqlite;
 
 namespace Cliptoo.Core.Database
 {
@@ -9,12 +11,15 @@ namespace Cliptoo.Core.Database
 
         public DatabaseInitializer(string dbPath) : base(dbPath) { }
 
+        [SuppressMessage("Microsoft.Security", "CA2100:Review SQL queries for security vulnerabilities", Justification = "PRAGMA user_version is a hardcoded value, not user input.")]
         public async Task InitializeAsync()
         {
-            await using var connection = await GetOpenConnectionAsync().ConfigureAwait(false);
-
-            await using (var command = connection.CreateCommand())
+            SqliteConnection? connection = null;
+            SqliteCommand? command = null;
+            try
             {
+                connection = await GetOpenConnectionAsync().ConfigureAwait(false);
+                command = connection.CreateCommand();
                 command.CommandText = "PRAGMA journal_mode=WAL;";
                 await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
@@ -89,56 +94,87 @@ namespace Cliptoo.Core.Database
                 command.CommandText = $"PRAGMA user_version = {CurrentDbVersion};";
                 await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
+            finally
+            {
+                if (command != null) { await command.DisposeAsync().ConfigureAwait(false); }
+                if (connection != null) { await connection.DisposeAsync().ConfigureAwait(false); }
+            }
         }
 
         private async Task UpgradeDatabaseAsync(long fromVersion)
         {
             if (fromVersion >= CurrentDbVersion) return;
 
-            await using var connection = await GetOpenConnectionAsync().ConfigureAwait(false);
-            await using var transaction = (Microsoft.Data.Sqlite.SqliteTransaction)await connection.BeginTransactionAsync().ConfigureAwait(false);
-
-            if (fromVersion < 8)
+            SqliteConnection? connection = null;
+            SqliteTransaction? transaction = null;
+            try
             {
-                await using var alterCmd = connection.CreateCommand();
-                alterCmd.Transaction = transaction;
-                alterCmd.CommandText = "ALTER TABLE stats ADD COLUMN TextValue TEXT;";
-                await alterCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
+                connection = await GetOpenConnectionAsync().ConfigureAwait(false);
+                transaction = (SqliteTransaction)await connection.BeginTransactionAsync().ConfigureAwait(false);
 
-            if (fromVersion < 9)
+                if (fromVersion < 8)
+                {
+                    SqliteCommand? alterCmd = null;
+                    try
+                    {
+                        alterCmd = connection.CreateCommand();
+                        alterCmd.Transaction = transaction;
+                        alterCmd.CommandText = "ALTER TABLE stats ADD COLUMN TextValue TEXT;";
+                        await alterCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        if (alterCmd != null) { await alterCmd.DisposeAsync().ConfigureAwait(false); }
+                    }
+                }
+
+                if (fromVersion < 9)
+                {
+                    SqliteCommand? ftsCmd = null;
+                    try
+                    {
+                        ftsCmd = connection.CreateCommand();
+                        ftsCmd.Transaction = transaction;
+                        ftsCmd.CommandText = @"
+                        CREATE VIRTUAL TABLE IF NOT EXISTS clips_fts USING fts5(
+                            Content,
+                            content='clips',
+                            content_rowid='Id',
+                            tokenize='porter'
+                        );
+
+                        -- Re-populate the FTS table to ensure it's in sync
+                        DELETE FROM clips_fts;
+                        INSERT INTO clips_fts(rowid, Content) SELECT Id, Content FROM clips;
+
+                        CREATE TRIGGER IF NOT EXISTS clips_ai AFTER INSERT ON clips BEGIN
+                            INSERT INTO clips_fts(rowid, Content) VALUES (new.Id, new.Content);
+                        END;
+
+                        CREATE TRIGGER IF NOT EXISTS clips_ad AFTER DELETE ON clips BEGIN
+                            INSERT INTO clips_fts(clips_fts, rowid, Content) VALUES ('delete', old.Id, old.Content);
+                        END;
+
+                        CREATE TRIGGER IF NOT EXISTS clips_au AFTER UPDATE ON clips BEGIN
+                            INSERT INTO clips_fts(clips_fts, rowid, Content) VALUES ('delete', old.Id, old.Content);
+                            INSERT INTO clips_fts(rowid, Content) VALUES (new.Id, new.Content);
+                        END;
+                    ";
+                        await ftsCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        if (ftsCmd != null) { await ftsCmd.DisposeAsync().ConfigureAwait(false); }
+                    }
+                }
+
+                await transaction.CommitAsync().ConfigureAwait(false);
+            }
+            finally
             {
-                await using var ftsCmd = connection.CreateCommand();
-                ftsCmd.Transaction = transaction;
-                ftsCmd.CommandText = @"
-                    CREATE VIRTUAL TABLE IF NOT EXISTS clips_fts USING fts5(
-                        Content,
-                        content='clips',
-                        content_rowid='Id',
-                        tokenize='porter'
-                    );
-
-                    -- Re-populate the FTS table to ensure it's in sync
-                    DELETE FROM clips_fts;
-                    INSERT INTO clips_fts(rowid, Content) SELECT Id, Content FROM clips;
-
-                    CREATE TRIGGER IF NOT EXISTS clips_ai AFTER INSERT ON clips BEGIN
-                        INSERT INTO clips_fts(rowid, Content) VALUES (new.Id, new.Content);
-                    END;
-
-                    CREATE TRIGGER IF NOT EXISTS clips_ad AFTER DELETE ON clips BEGIN
-                        INSERT INTO clips_fts(clips_fts, rowid, Content) VALUES ('delete', old.Id, old.Content);
-                    END;
-
-                    CREATE TRIGGER IF NOT EXISTS clips_au AFTER UPDATE ON clips BEGIN
-                        INSERT INTO clips_fts(clips_fts, rowid, Content) VALUES ('delete', old.Id, old.Content);
-                        INSERT INTO clips_fts(rowid, Content) VALUES (new.Id, new.Content);
-                    END;
-                ";
-                await ftsCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+                if (transaction != null) { await transaction.DisposeAsync().ConfigureAwait(false); }
+                if (connection != null) { await connection.DisposeAsync().ConfigureAwait(false); }
             }
-
-            await transaction.CommitAsync().ConfigureAwait(false);
         }
     }
 }
