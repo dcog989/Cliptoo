@@ -7,11 +7,8 @@ namespace Cliptoo.Core.Services
     {
         public static ulong ComputeHash(byte[] data)
         {
-            using (var sha256 = SHA256.Create())
-            {
-                var hashBytes = sha256.ComputeHash(data);
-                return BitConverter.ToUInt64(hashBytes, 0);
-            }
+            var hashBytes = SHA256.HashData(data);
+            return BitConverter.ToUInt64(hashBytes, 0);
         }
     }
 }

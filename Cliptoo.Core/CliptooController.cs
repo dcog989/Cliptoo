@@ -234,9 +234,9 @@ namespace Cliptoo.Core
             await _dbManager.DeleteClipAsync(clip.Id).ConfigureAwait(false);
             _clipCache.Remove(clip.Id);
 
-            if (clip.ClipType == AppConstants.ClipTypes.Link && clip.Content is not null)
+            if (clip.ClipType == AppConstants.ClipTypes.Link && clip.Content is not null && Uri.TryCreate(clip.Content, UriKind.Absolute, out var uri))
             {
-                _webMetadataService.ClearCacheForUrl(clip.Content);
+                _webMetadataService.ClearCacheForUrl(uri);
             }
         }
 
@@ -386,7 +386,7 @@ namespace Cliptoo.Core
             return updates.Count;
         }
 
-        private void OnFileTypesChanged()
+        private void OnFileTypesChanged(object? sender, EventArgs e)
         {
             if (!_isInitialized)
             {

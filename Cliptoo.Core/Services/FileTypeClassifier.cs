@@ -9,7 +9,7 @@ using Cliptoo.Core.Configuration;
 namespace Cliptoo.Core.Services
 {
 
-    public class FileTypeClassifier : IFileTypeClassifier, IDisposable
+    public sealed class FileTypeClassifier : IFileTypeClassifier, IDisposable
     {
         private class FileTypeConfig
         {
@@ -88,7 +88,8 @@ namespace Cliptoo.Core.Services
         private readonly string _configPath;
         private readonly FileSystemWatcher _watcher;
         private readonly System.Timers.Timer _debounceTimer;
-        public event Action? FileTypesChanged;
+        private bool _disposedValue;
+        public event EventHandler? FileTypesChanged;
 
         public FileTypeClassifier(string appDataPath)
         {
@@ -120,7 +121,7 @@ namespace Cliptoo.Core.Services
         private void OnDebounceTimerElapsed(object? sender, ElapsedEventArgs e)
         {
             LoadConfiguration();
-            FileTypesChanged?.Invoke();
+            FileTypesChanged?.Invoke(this, EventArgs.Empty);
             LogManager.Log("filetypes.json changed, configuration reloaded and change event fired.");
         }
 
@@ -139,7 +140,7 @@ namespace Cliptoo.Core.Services
                         config = loadedConfig;
                     }
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException or JsonException or NotSupportedException)
                 {
                     LogManager.Log(ex, $"Failed to read or parse '{_configPath}'. Will use/create default.");
                 }
@@ -153,7 +154,7 @@ namespace Cliptoo.Core.Services
                     File.WriteAllText(_configPath, DefaultFiletypeConfig);
                     LogManager.Log("Wrote new/default version of filetypes.json to disk.");
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException or NotSupportedException)
                 {
                     LogManager.Log(ex, $"Failed to write default filetypes.json to '{_configPath}'. Will use in-memory default.");
                 }
@@ -218,10 +219,23 @@ namespace Cliptoo.Core.Services
             return AppConstants.ClipTypes.Text;
         }
 
+        private void Dispose(bool disposing)
+        {
+            if (!_disposedValue)
+            {
+                if (disposing)
+                {
+                    _watcher.Dispose();
+                    _debounceTimer.Dispose();
+                }
+                _disposedValue = true;
+            }
+        }
+
         public void Dispose()
         {
-            _watcher.Dispose();
-            _debounceTimer.Dispose();
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
         }
     }
 

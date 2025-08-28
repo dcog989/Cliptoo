@@ -112,7 +112,7 @@ namespace Cliptoo.Core.Services
             return new ProcessingResult(AppConstants.ClipTypes.Text, content, hadLeadingWhitespace);
         }
 
-        private string? ParseUrlFile(string filePath)
+        private static string? ParseUrlFile(string filePath)
         {
             try
             {
@@ -121,18 +121,18 @@ namespace Cliptoo.Core.Services
                 {
                     if (line.Trim().StartsWith("URL=", StringComparison.OrdinalIgnoreCase))
                     {
-                        return line.Substring(line.IndexOf('=') + 1).Trim();
+                        return line.Substring(line.IndexOf('=', StringComparison.Ordinal) + 1).Trim();
                     }
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
             {
                 Configuration.LogManager.Log(ex, $"Failed to parse .url file: {filePath}");
             }
             return null;
         }
 
-        private bool IsColor(string input)
+        private static bool IsColor(string input)
         {
             if (input.Length > 100 || input.AsSpan().ContainsAny(_invalidColorChars))
             {
@@ -142,7 +142,7 @@ namespace Cliptoo.Core.Services
             return ColorParser.TryParseColor(input, out _);
         }
 
-        private bool IsCodeSnippet(string content)
+        private static bool IsCodeSnippet(string content)
         {
             if (string.IsNullOrWhiteSpace(content) || content.Length < 10) return false;
 
@@ -170,12 +170,12 @@ namespace Cliptoo.Core.Services
 
                 totalChars += trimmedLine.Length;
 
-                if (line.Length > trimmedLine.Length && (line.StartsWith("    ", StringComparison.Ordinal) || line.StartsWith("\t", StringComparison.Ordinal)))
+                if (line.Length > trimmedLine.Length && (line.StartsWith("    ", StringComparison.Ordinal) || line.StartsWith('\t')))
                 {
                     indentedLines++;
                 }
 
-                if (trimmedLine.EndsWith('{') || trimmedLine.EndsWith('}') || trimmedLine.EndsWith(';') || trimmedLine.EndsWith(':') || trimmedLine.EndsWith("=>"))
+                if (trimmedLine.EndsWith('{') || trimmedLine.EndsWith('}') || trimmedLine.EndsWith(';') || trimmedLine.EndsWith(':') || trimmedLine.EndsWith("=>", StringComparison.Ordinal))
                 {
                     linesWithCodeTerminators++;
                 }

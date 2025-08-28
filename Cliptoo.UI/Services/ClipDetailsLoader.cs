@@ -16,11 +16,11 @@ namespace Cliptoo.UI.Services
 
             if (vm.ClipType == AppConstants.ClipTypes.Image)
             {
-                return await thumbnailService.GetThumbnailAsync(vm.Content, extension == ".svg" ? theme : null);
+                return await thumbnailService.GetThumbnailAsync(vm.Content, extension == ".svg" ? theme : null).ConfigureAwait(false);
             }
-            if (vm.ClipType == AppConstants.ClipTypes.Link)
+            if (vm.ClipType == AppConstants.ClipTypes.Link && Uri.TryCreate(vm.Content, UriKind.Absolute, out var uri))
             {
-                return await webMetadataService.GetFaviconAsync(vm.Content);
+                return await webMetadataService.GetFaviconAsync(uri).ConfigureAwait(false);
             }
             return null;
         }
@@ -35,11 +35,11 @@ namespace Cliptoo.UI.Services
 
         public async Task<string?> GetPageTitleAsync(ClipViewModel vm, IWebMetadataService webMetadataService, CancellationToken token)
         {
-            if (!vm.IsLinkToolTip || string.IsNullOrEmpty(vm.Content)) return null;
+            if (!vm.IsLinkToolTip || string.IsNullOrEmpty(vm.Content) || !Uri.TryCreate(vm.Content, UriKind.Absolute, out var uri)) return null;
 
             try
             {
-                var title = await webMetadataService.GetPageTitleAsync(vm.Content);
+                var title = await webMetadataService.GetPageTitleAsync(uri).ConfigureAwait(false);
                 if (!token.IsCancellationRequested)
                 {
                     return string.IsNullOrWhiteSpace(title) ? vm.DisplayContent : title;

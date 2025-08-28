@@ -71,7 +71,7 @@ namespace Cliptoo.Core.Services
             return "";
         }
 
-        private string? FindToolPath(ToolDefinition tool)
+        private static string? FindToolPath(ToolDefinition tool)
         {
             // Strategy 1: Check App Paths registry key (most reliable)
             string? path = GetPathFromAppPaths(tool.ExeName);
@@ -127,7 +127,7 @@ namespace Cliptoo.Core.Services
             return null;
         }
 
-        private string? GetPathFromAppPaths(string exeName)
+        private static string? GetPathFromAppPaths(string exeName)
         {
             try
             {
@@ -141,11 +141,12 @@ namespace Cliptoo.Core.Services
                     }
                 }
             }
-            catch (Exception) { /* Ignore security or other errors */ }
+            catch (System.Security.SecurityException) { /* Ignore security or other errors */ }
+            catch (IOException) { /* Ignore security or other errors */ }
             return null;
         }
 
-        private string? GetPathFromEnvironment(string exeName)
+        private static string? GetPathFromEnvironment(string exeName)
         {
             string? pathVar = Environment.GetEnvironmentVariable("PATH");
             if (pathVar != null)

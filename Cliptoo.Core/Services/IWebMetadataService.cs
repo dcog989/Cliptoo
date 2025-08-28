@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -5,10 +6,10 @@ namespace Cliptoo.Core.Services
 {
     public interface IWebMetadataService
     {
-        Task<string?> GetFaviconAsync(string url);
-        Task<string?> GetPageTitleAsync(string url);
+        Task<string?> GetFaviconAsync(Uri url);
+        Task<string?> GetPageTitleAsync(Uri url);
         void ClearCache();
-        void ClearCacheForUrl(string url);
+        void ClearCacheForUrl(Uri url);
         Task<int> PruneCacheAsync(IAsyncEnumerable<string> validUrls);
     }
 }

@@ -4,8 +4,10 @@ namespace Cliptoo.Core.Services
 {
     public interface IFileTypeClassifier
     {
-        event Action? FileTypesChanged;
+        event EventHandler? FileTypesChanged;
         /// <summary>
+        /// Classifies a given file path into a content type string.
+        /// </summary>
         /// Classifies a given file path into a content type string.
         /// </summary>
         /// <param name="filePath">The absolute path to the file or directory.</param>

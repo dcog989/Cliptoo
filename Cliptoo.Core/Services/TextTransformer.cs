@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -8,6 +9,7 @@ namespace Cliptoo.Core.Services
     public class TextTransformer : ITextTransformer
     {
         private readonly Dictionary<string, Func<string, string>> _transformations;
+        private static readonly char[] _camelCaseDelimiters = { ' ', '-', '_' };
 
         public TextTransformer()
         {
@@ -16,7 +18,7 @@ namespace Cliptoo.Core.Services
             { AppConstants.TransformTypes.Upper, content => content.ToUpperInvariant() },
             { AppConstants.TransformTypes.Lower, content => content.ToLowerInvariant() },
             { AppConstants.TransformTypes.Trim, content => content.Trim() },
-            { AppConstants.TransformTypes.Capitalize, content => System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(content.ToLowerInvariant()) },
+            { AppConstants.TransformTypes.Capitalize, content => CultureInfo.CurrentCulture.TextInfo.ToTitleCase(content.ToLowerInvariant()) },
             { AppConstants.TransformTypes.Sentence, content => {
                 var sentenceRegex = new Regex(@"(^\s*\w|[.!?]\s*\w)");
                 return sentenceRegex.Replace(content.ToLowerInvariant(), m => m.Value.ToUpperInvariant());
@@ -41,7 +43,7 @@ namespace Cliptoo.Core.Services
                 return Regex.Replace(snakeTemp, @"[\s-]+", "_").ToLowerInvariant();
             }},
             { AppConstants.TransformTypes.Camel, content => {
-                var words = content.Split(new[] { ' ', '-', '_' }, StringSplitOptions.RemoveEmptyEntries);
+                var words = content.Split(_camelCaseDelimiters, StringSplitOptions.RemoveEmptyEntries);
                 if (words.Length == 0) return "";
                 var camelResult = new StringBuilder(words[0].ToLowerInvariant());
                 for (int i = 1; i < words.Length; i++)
@@ -53,8 +55,8 @@ namespace Cliptoo.Core.Services
             { AppConstants.TransformTypes.Deslug, content => content.Replace('-', ' ').Replace('_', ' ') },
             { AppConstants.TransformTypes.Lf1, content => content + Environment.NewLine },
             { AppConstants.TransformTypes.Lf2, content => content + Environment.NewLine + Environment.NewLine },
-            { AppConstants.TransformTypes.RemoveLf, content => content.Replace("\r\n", " ").Replace("\n", " ").Replace("\r", " ") },
-            { AppConstants.TransformTypes.Timestamp, content => DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + Environment.NewLine + content }
+            { AppConstants.TransformTypes.RemoveLf, content => content.Replace("\r\n", " ", StringComparison.Ordinal).Replace("\n", " ", StringComparison.Ordinal).Replace("\r", " ", StringComparison.Ordinal) },
+            { AppConstants.TransformTypes.Timestamp, content => DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture) + Environment.NewLine + content }
         };
         }
 

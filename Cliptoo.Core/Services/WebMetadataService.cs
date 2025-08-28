@@ -14,7 +14,7 @@ using SixLabors.ImageSharp.Processing;
 
 namespace Cliptoo.Core.Services
 {
-    public class WebMetadataService : IWebMetadataService
+    public class WebMetadataService : IWebMetadataService, IDisposable
     {
         private const int ThumbnailSize = 32;
         private static readonly TimeSpan FailureCacheDuration = TimeSpan.FromDays(7);
@@ -31,6 +31,7 @@ namespace Cliptoo.Core.Services
         private static readonly Regex TitleRegex = new("<title[^>]*>\\s*(.+?)\\s*</title>", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         private readonly LruCache<string, string> _titleCache;
         private readonly ConcurrentDictionary<string, bool> _failedFaviconUrls = new();
+        private bool _disposedValue;
 
         public WebMetadataService(string appCachePath)
         {
@@ -45,15 +46,16 @@ namespace Cliptoo.Core.Services
             _titleCache = new LruCache<string, string>(100);
         }
 
-        public async Task<string?> GetFaviconAsync(string url)
+        public async Task<string?> GetFaviconAsync(Uri url)
         {
-            if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)) return null;
-            if (_failedFaviconUrls.ContainsKey(url)) return null;
+            if (url is null) return null;
+            var urlString = url.ToString();
+            if (_failedFaviconUrls.ContainsKey(urlString)) return null;
 
-            var successCachePath = ServiceUtils.GetCachePath(url, _faviconCacheDir, ".png");
+            var successCachePath = ServiceUtils.GetCachePath(urlString, _faviconCacheDir, ".png");
             if (File.Exists(successCachePath)) return successCachePath;
 
-            var failureCachePath = ServiceUtils.GetCachePath(url, _faviconCacheDir, ".failed");
+            var failureCachePath = ServiceUtils.GetCachePath(urlString, _faviconCacheDir, ".failed");
             if (File.Exists(failureCachePath))
             {
                 try
@@ -63,14 +65,14 @@ namespace Cliptoo.Core.Services
                     {
                         if ((DateTime.UtcNow - timestamp) < FailureCacheDuration)
                         {
-                            _failedFaviconUrls.TryAdd(url, true);
+                            _failedFaviconUrls.TryAdd(urlString, true);
                             return null;
                         }
                     }
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
-                    LogManager.Log(ex, $"Failed to read failure cache file for {url}");
+                    LogManager.Log(ex, $"Failed to read failure cache file for {urlString}");
                 }
             }
 
@@ -78,13 +80,13 @@ namespace Cliptoo.Core.Services
             string? finalIconPath = null;
             try
             {
-                LogManager.LogDebug($"Favicon Discovery for {url}: Starting Stage 1 (Root Icon Check).");
-                finalIconPath = await TryFetchRootIconsAsync(uri, successCachePath).ConfigureAwait(false);
+                LogManager.LogDebug($"Favicon Discovery for {urlString}: Starting Stage 1 (Root Icon Check).");
+                finalIconPath = await TryFetchRootIconsAsync(url, successCachePath).ConfigureAwait(false);
 
                 if (finalIconPath == null)
                 {
-                    LogManager.LogDebug($"Favicon Discovery for {url}: Stage 1 failed. Starting Stage 2 (HTML Head Parse).");
-                    finalIconPath = await TryFetchIconsFromHtmlAsync(uri, successCachePath).ConfigureAwait(false);
+                    LogManager.LogDebug($"Favicon Discovery for {urlString}: Stage 1 failed. Starting Stage 2 (HTML Head Parse).");
+                    finalIconPath = await TryFetchIconsFromHtmlAsync(url, successCachePath).ConfigureAwait(false);
                 }
 
                 if (finalIconPath != null)
@@ -95,7 +97,7 @@ namespace Cliptoo.Core.Services
                         {
                             File.Delete(failureCachePath);
                         }
-                        catch (Exception ex)
+                        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                         {
                             LogManager.Log(ex, $"Could not delete stale failure cache file: {failureCachePath}");
                         }
@@ -103,22 +105,22 @@ namespace Cliptoo.Core.Services
                 }
                 else
                 {
-                    LogManager.LogDebug($"Favicon Discovery for {url}: All stages failed. Caching failure.");
-                    _failedFaviconUrls.TryAdd(url, true);
+                    LogManager.LogDebug($"Favicon Discovery for {urlString}: All stages failed. Caching failure.");
+                    _failedFaviconUrls.TryAdd(urlString, true);
                     try
                     {
                         await File.WriteAllTextAsync(failureCachePath, DateTime.UtcNow.ToString("o")).ConfigureAwait(false);
                     }
-                    catch (Exception ex)
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                     {
-                        LogManager.Log(ex, $"Failed to create/update failure cache file for {url}");
+                        LogManager.Log(ex, $"Failed to create/update failure cache file for {urlString}");
                     }
                 }
             }
             finally
             {
                 stopwatch.Stop();
-                LogManager.LogDebug($"PERF_DIAG: Favicon discovery for '{url}' took {stopwatch.ElapsedMilliseconds}ms.");
+                LogManager.LogDebug($"PERF_DIAG: Favicon discovery for '{urlString}' took {stopwatch.ElapsedMilliseconds}ms.");
             }
 
             return finalIconPath;
@@ -156,7 +158,7 @@ namespace Cliptoo.Core.Services
                     await stream.DisposeAsync().ConfigureAwait(false);
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
             {
                 LogManager.Log(ex, $"Failed to fetch HTML head for {pageUri}");
                 return null;
@@ -281,9 +283,11 @@ namespace Cliptoo.Core.Services
             };
         }
 
-        public async Task<string?> GetPageTitleAsync(string url)
+        public async Task<string?> GetPageTitleAsync(Uri url)
         {
-            if (_titleCache.TryGetValue(url, out var cachedTitle))
+            ArgumentNullException.ThrowIfNull(url);
+            var urlString = url.ToString();
+            if (_titleCache.TryGetValue(urlString, out var cachedTitle))
             {
                 return string.IsNullOrEmpty(cachedTitle) ? null : cachedTitle;
             }
@@ -293,7 +297,7 @@ namespace Cliptoo.Core.Services
                 using var response = await _httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
                 if (!response.IsSuccessStatusCode)
                 {
-                    _titleCache.Add(url, string.Empty);
+                    _titleCache.Add(urlString, string.Empty);
                     return null;
                 }
 
@@ -337,7 +341,7 @@ namespace Cliptoo.Core.Services
                             break;
                         }
                     }
-                    _titleCache.Add(url, title ?? string.Empty);
+                    _titleCache.Add(urlString, title ?? string.Empty);
                     return title;
                 }
                 finally
@@ -349,12 +353,12 @@ namespace Cliptoo.Core.Services
             {
                 LogManager.LogDebug($"HTTP request for title failed for {url}: {ex.Message}");
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is TaskCanceledException or IOException)
             {
                 LogManager.Log(ex, $"Failed to fetch page title for {url}");
             }
 
-            _titleCache.Add(url, string.Empty);
+            _titleCache.Add(urlString, string.Empty);
             return null;
         }
 
@@ -363,7 +367,8 @@ namespace Cliptoo.Core.Services
             try
             {
                 LogManager.LogDebug($"Attempting to fetch favicon: {faviconUrl}");
-                var response = await _httpClient.GetAsync(faviconUrl).ConfigureAwait(false);
+                if (!Uri.TryCreate(faviconUrl, UriKind.Absolute, out var faviconUri)) return false;
+                var response = await _httpClient.GetAsync(faviconUri).ConfigureAwait(false);
 
                 if (!response.IsSuccessStatusCode)
                 {
@@ -390,14 +395,17 @@ namespace Cliptoo.Core.Services
                 }
                 else
                 {
-                    await using var contentStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
-                    using var image = await ImageDecoder.DecodeAsync(contentStream, extension).ConfigureAwait(false);
-                    if (image != null)
+                    var contentStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
+                    await using (contentStream.ConfigureAwait(false))
                     {
-                        image.Mutate(x => x.Resize(ThumbnailSize, ThumbnailSize));
-                        await using var ms = new MemoryStream();
-                        await image.SaveAsPngAsync(ms, _pngEncoder).ConfigureAwait(false);
-                        outputBytes = ms.ToArray();
+                        using var image = await ImageDecoder.DecodeAsync(contentStream, extension).ConfigureAwait(false);
+                        if (image != null)
+                        {
+                            image.Mutate(x => x.Resize(ThumbnailSize, ThumbnailSize));
+                            using var ms = new MemoryStream();
+                            await image.SaveAsPngAsync(ms, _pngEncoder).ConfigureAwait(false);
+                            outputBytes = ms.ToArray();
+                        }
                     }
                 }
 
@@ -408,7 +416,7 @@ namespace Cliptoo.Core.Services
                     return true;
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or ImageFormatException or NotSupportedException)
             {
                 LogManager.Log(ex, $"Favicon fetch/process failed for {faviconUrl}.");
             }
@@ -424,50 +432,70 @@ namespace Cliptoo.Core.Services
                 _failedFaviconUrls.Clear();
                 LogManager.Log("Web metadata caches cleared successfully.");
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 LogManager.Log(ex, "Failed to clear web caches.");
             }
         }
 
-        public void ClearCacheForUrl(string url)
+        public void ClearCacheForUrl(Uri url)
         {
-            if (string.IsNullOrEmpty(url)) return;
+            if (url is null) return;
+            var urlString = url.ToString();
 
             try
             {
-                var successCachePath = ServiceUtils.GetCachePath(url, _faviconCacheDir, ".png");
+                var successCachePath = ServiceUtils.GetCachePath(urlString, _faviconCacheDir, ".png");
                 if (File.Exists(successCachePath))
                 {
                     File.Delete(successCachePath);
                 }
 
-                var failureCachePath = ServiceUtils.GetCachePath(url, _faviconCacheDir, ".failed");
+                var failureCachePath = ServiceUtils.GetCachePath(urlString, _faviconCacheDir, ".failed");
                 if (File.Exists(failureCachePath))
                 {
                     File.Delete(failureCachePath);
                 }
 
-                _failedFaviconUrls.TryRemove(url, out _);
+                _failedFaviconUrls.TryRemove(urlString, out _);
 
-                LogManager.LogDebug($"Cleared favicon cache for URL: {url}");
+                LogManager.LogDebug($"Cleared favicon cache for URL: {urlString}");
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                LogManager.Log(ex, $"Failed to clear cache for URL: {url}");
+                LogManager.Log(ex, $"Failed to clear cache for URL: {urlString}");
             }
         }
 
         public async Task<int> PruneCacheAsync(IAsyncEnumerable<string> validUrls)
         {
+            ArgumentNullException.ThrowIfNull(validUrls);
             var validCacheFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            await foreach (var url in validUrls)
+            await foreach (var url in validUrls.ConfigureAwait(false))
             {
                 validCacheFiles.Add(ServiceUtils.GetCachePath(url, _faviconCacheDir, ".png"));
                 validCacheFiles.Add(ServiceUtils.GetCachePath(url, _faviconCacheDir, ".failed"));
             }
 
             return await ServiceUtils.PruneDirectoryAsync(_faviconCacheDir, validCacheFiles).ConfigureAwait(false);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!_disposedValue)
+            {
+                if (disposing)
+                {
+                    _httpClient.Dispose();
+                }
+                _disposedValue = true;
+            }
+        }
+
+        public void Dispose()
+        {
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
         }
     }
 }
