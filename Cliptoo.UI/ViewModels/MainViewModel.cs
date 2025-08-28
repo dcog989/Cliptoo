@@ -73,7 +73,7 @@ namespace Cliptoo.UI.ViewModels
                 var systemTheme = ApplicationThemeManager.GetSystemTheme();
                 theme = systemTheme == SystemTheme.Dark ? ApplicationTheme.Dark : ApplicationTheme.Light;
             }
-            return theme == ApplicationTheme.Dark ? "dark" : "light";
+            return theme == ApplicationTheme.Dark ? AppConstants.ThemeNames.Dark : AppConstants.ThemeNames.Light;
         });
 
         public bool IsPasting { get => _isPasting; private set => SetProperty(ref _isPasting, value); }

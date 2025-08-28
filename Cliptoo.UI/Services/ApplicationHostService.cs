@@ -190,8 +190,8 @@ namespace Cliptoo.UI.Services
 
             var theme = themeName?.ToLowerInvariant() switch
             {
-                "light" => ApplicationTheme.Light,
-                "dark" => ApplicationTheme.Dark,
+                AppConstants.ThemeNames.Light => ApplicationTheme.Light,
+                AppConstants.ThemeNames.Dark => ApplicationTheme.Dark,
                 _ => ApplicationTheme.Unknown,
             };
 

@@ -1,28 +1,29 @@
 using System.Windows;
 using System.Windows.Input;
 using Cliptoo.UI.ViewModels;
-using Wpf.Ui.Controls;
 
 namespace Cliptoo.UI.Helpers
 {
-    public static class HotkeyInputBehavior
+    internal static class HotkeyInputBehavior
     {
         public static readonly DependencyProperty IsEnabledProperty =
             DependencyProperty.RegisterAttached("IsEnabled", typeof(bool), typeof(HotkeyInputBehavior), new PropertyMetadata(false, OnIsEnabledChanged));
 
         public static bool GetIsEnabled(DependencyObject obj)
         {
+            ArgumentNullException.ThrowIfNull(obj);
             return (bool)obj.GetValue(IsEnabledProperty);
         }
 
         public static void SetIsEnabled(DependencyObject obj, bool value)
         {
+            ArgumentNullException.ThrowIfNull(obj);
             obj.SetValue(IsEnabledProperty, value);
         }
 
         private static void OnIsEnabledChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
-            if (d is not TextBox textBox) return;
+            if (d is not Wpf.Ui.Controls.TextBox textBox) return;
 
             if ((bool)e.NewValue)
             {
@@ -45,17 +46,19 @@ namespace Cliptoo.UI.Helpers
 
         public static string GetHotkeyTarget(DependencyObject obj)
         {
+            ArgumentNullException.ThrowIfNull(obj);
             return (string)obj.GetValue(HotkeyTargetProperty);
         }
 
         public static void SetHotkeyTarget(DependencyObject obj, string value)
         {
+            ArgumentNullException.ThrowIfNull(obj);
             obj.SetValue(HotkeyTargetProperty, value);
         }
 
         private static void TextBox_GotFocus(object sender, RoutedEventArgs e)
         {
-            if (sender is not TextBox textBox || textBox.DataContext is not SettingsViewModel vm) return;
+            if (sender is not Wpf.Ui.Controls.TextBox textBox || textBox.DataContext is not SettingsViewModel vm) return;
 
             vm.IsCapturingHotkey = true;
             vm.CapturingHotkeyTarget = GetHotkeyTarget(textBox);
@@ -63,7 +66,7 @@ namespace Cliptoo.UI.Helpers
 
         private static void TextBox_LostFocus(object sender, RoutedEventArgs e)
         {
-            if (sender is not TextBox textBox || textBox.DataContext is not SettingsViewModel vm) return;
+            if (sender is not Wpf.Ui.Controls.TextBox textBox || textBox.DataContext is not SettingsViewModel vm) return;
 
             vm.ValidateHotkey(GetHotkeyTarget(textBox));
 
@@ -73,7 +76,7 @@ namespace Cliptoo.UI.Helpers
 
         private static void TextBox_PreviewKeyDown(object sender, KeyEventArgs e)
         {
-            if (sender is not TextBox textBox || textBox.DataContext is not SettingsViewModel vm) return;
+            if (sender is not Wpf.Ui.Controls.TextBox textBox || textBox.DataContext is not SettingsViewModel vm) return;
 
             vm.UpdateHotkey(e, GetHotkeyTarget(textBox));
         }

@@ -1,5 +1,5 @@
 using System.Windows.Input;
-using Wpf.Ui;
+using Cliptoo.Core;
 using Wpf.Ui.Controls;
 
 namespace Cliptoo.UI.ViewModels
@@ -24,16 +24,16 @@ namespace Cliptoo.UI.ViewModels
             {
                 switch (target)
                 {
-                    case "Main": this.Hotkey = string.Empty; break;
-                    case "Preview": this.PreviewHotkey = string.Empty; break;
-                    case "QuickPaste": this.QuickPasteHotkey = string.Empty; break;
+                    case AppConstants.HotkeyTargets.Main: this.Hotkey = string.Empty; break;
+                    case AppConstants.HotkeyTargets.Preview: this.PreviewHotkey = string.Empty; break;
+                    case AppConstants.HotkeyTargets.QuickPaste: this.QuickPasteHotkey = string.Empty; break;
                 }
                 return;
             }
 
             bool isModifierKey = key is Key.LeftCtrl or Key.RightCtrl or Key.LeftAlt or Key.RightAlt or Key.LeftShift or Key.RightShift or Key.LWin or Key.RWin or Key.None;
 
-            if (target != "QuickPaste" && isModifierKey)
+            if (target != AppConstants.HotkeyTargets.QuickPaste && isModifierKey)
             {
                 return;
             }
@@ -52,13 +52,13 @@ namespace Cliptoo.UI.ViewModels
 
             switch (target)
             {
-                case "Main":
+                case AppConstants.HotkeyTargets.Main:
                     this.Hotkey = newHotkey;
                     break;
-                case "Preview":
+                case AppConstants.HotkeyTargets.Preview:
                     this.PreviewHotkey = newHotkey;
                     break;
-                case "QuickPaste":
+                case AppConstants.HotkeyTargets.QuickPaste:
                     this.QuickPasteHotkey = newHotkey;
                     break;
             }
@@ -66,7 +66,7 @@ namespace Cliptoo.UI.ViewModels
 
         public async void ValidateHotkey(string target)
         {
-            if (target == "QuickPaste")
+            if (target == AppConstants.HotkeyTargets.QuickPaste)
             {
                 var parts = this.QuickPasteHotkey.Split(_plusSeparator, StringSplitOptions.RemoveEmptyEntries);
                 bool allModifiers = parts.All(p => p is "Ctrl" or "Alt" or "Shift" or "Win");
@@ -80,7 +80,7 @@ namespace Cliptoo.UI.ViewModels
                         Content = "The Quick Paste hotkey must consist of at least two modifier keys (e.g., Ctrl, Alt, Shift). It has been reset to the default 'Ctrl+Alt'.",
                         CloseButtonText = "OK"
                     };
-                    await _contentDialogService.ShowAsync(dialog, CancellationToken.None);
+                    await _contentDialogService.ShowAsync(dialog, CancellationToken.None).ConfigureAwait(false);
                 }
             }
         }

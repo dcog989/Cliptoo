@@ -203,12 +203,16 @@ namespace Cliptoo.UI.ViewModels
 
         private void OnDebounceTimerElapsed(object? sender, System.Timers.ElapsedEventArgs e)
         {
-            _controller.SaveSettings(Settings);
+            SyncAndSaveSettings();
         }
 
         private void SyncAndSaveSettings()
         {
-            Settings.SendToTargets = new List<SendToTarget>(SendToTargets);
+            Settings.SendToTargets.Clear();
+            foreach (var item in SendToTargets)
+            {
+                Settings.SendToTargets.Add(item);
+            }
             _controller.SaveSettings(Settings);
         }
 

@@ -69,5 +69,19 @@ namespace Cliptoo.Core
             public const string ShowHide = "show_hide";
             public const string Quit = "quit";
         }
+
+        internal static class HotkeyTargets
+        {
+            public const string Main = "Main";
+            public const string Preview = "Preview";
+            public const string QuickPaste = "QuickPaste";
+        }
+
+        internal static class ThemeNames
+        {
+            public const string System = "System";
+            public const string Light = "Light";
+            public const string Dark = "Dark";
+        }
     }
 }

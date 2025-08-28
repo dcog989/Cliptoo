@@ -1,6 +1,6 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
-using System.Collections.Generic;
+using System.Collections.ObjectModel;
 
 namespace Cliptoo.Core.Configuration
 {
@@ -52,8 +52,8 @@ namespace Cliptoo.Core.Configuration
 
     public class Settings
     {
-        [DefaultValue("System")]
-        public string Theme { get; set; } = "System";
+        [DefaultValue(AppConstants.ThemeNames.System)]
+        public string Theme { get; set; } = AppConstants.ThemeNames.System;
 
         [DefaultValue("")]
         public string CompareToolPath { get; set; } = "";
@@ -168,7 +168,7 @@ namespace Cliptoo.Core.Configuration
 
         [DefaultValue(-1.0)]
         public double SettingsWindowY { get; set; } = -1.0;
-        public List<SendToTarget> SendToTargets { get; set; } = new();
+        public Collection<SendToTarget> SendToTargets { get; } = new();
 
     }
 
