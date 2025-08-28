@@ -57,47 +57,67 @@ namespace Cliptoo.Core.Database
         public async Task CompactDbAsync()
         {
             Configuration.LogManager.LogDebug("DB_LOCK_DIAG: Starting database compaction.");
-
-            using (var connectionForPoolClear = new SqliteConnection($"Data Source={_dbPath}"))
-            {
-                SqliteConnection.ClearPool(connectionForPoolClear);
-            }
-            Configuration.LogManager.LogDebug("DB_LOCK_DIAG: SQLite connection pool cleared.");
-            await Task.Delay(100).ConfigureAwait(false);
-
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-            SqliteConnection? connection = null;
-            SqliteCommand? command = null;
-            try
-            {
-                connection = await GetOpenConnectionAsync().ConfigureAwait(false);
-                command = connection.CreateCommand();
+            const int maxRetries = 4;
+            const int initialDelayMs = 250;
 
-                command.CommandText = "SELECT name FROM sqlite_master WHERE type='table' AND name='clips_fts';";
-                var ftsTableExists = await command.ExecuteScalarAsync().ConfigureAwait(false) != null;
-                if (ftsTableExists)
+            for (int i = 0; i < maxRetries; i++)
+            {
+                try
                 {
-                    Configuration.LogManager.LogDebug("DB_LOCK_DIAG: Optimizing FTS index...");
-                    var ftsStopwatch = System.Diagnostics.Stopwatch.StartNew();
-                    command.CommandText = "INSERT INTO clips_fts(clips_fts) VALUES('optimize');";
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-                    ftsStopwatch.Stop();
-                    Configuration.LogManager.LogDebug($"DB_LOCK_DIAG: FTS optimization finished in {ftsStopwatch.ElapsedMilliseconds}ms.");
-                }
+                    using (var connectionForPoolClear = new SqliteConnection($"Data Source={_dbPath}"))
+                    {
+                        SqliteConnection.ClearPool(connectionForPoolClear);
+                    }
+                    Configuration.LogManager.LogDebug($"DB_LOCK_DIAG: SQLite connection pool cleared (Attempt {i + 1}).");
 
-                Configuration.LogManager.LogDebug("DB_LOCK_DIAG: Starting VACUUM...");
-                var vacuumStopwatch = System.Diagnostics.Stopwatch.StartNew();
-                command.CommandText = "VACUUM;";
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-                vacuumStopwatch.Stop();
-                Configuration.LogManager.LogDebug($"DB_LOCK_DIAG: VACUUM finished in {vacuumStopwatch.ElapsedMilliseconds}ms.");
-                stopwatch.Stop();
-                Configuration.LogManager.LogDebug($"DB_LOCK_DIAG: Database compaction finished in {stopwatch.ElapsedMilliseconds}ms.");
-            }
-            finally
-            {
-                if (command != null) { await command.DisposeAsync().ConfigureAwait(false); }
-                if (connection != null) { await connection.DisposeAsync().ConfigureAwait(false); }
+                    SqliteConnection? connection = null;
+                    SqliteCommand? command = null;
+                    try
+                    {
+                        connection = await GetOpenConnectionAsync().ConfigureAwait(false);
+                        command = connection.CreateCommand();
+
+                        command.CommandText = "SELECT name FROM sqlite_master WHERE type='table' AND name='clips_fts';";
+                        var ftsTableExists = await command.ExecuteScalarAsync().ConfigureAwait(false) != null;
+                        if (ftsTableExists)
+                        {
+                            Configuration.LogManager.LogDebug("DB_LOCK_DIAG: Optimizing FTS index...");
+                            var ftsStopwatch = System.Diagnostics.Stopwatch.StartNew();
+                            command.CommandText = "INSERT INTO clips_fts(clips_fts) VALUES('optimize');";
+                            await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                            ftsStopwatch.Stop();
+                            Configuration.LogManager.LogDebug($"DB_LOCK_DIAG: FTS optimization finished in {ftsStopwatch.ElapsedMilliseconds}ms.");
+                        }
+
+                        Configuration.LogManager.LogDebug("DB_LOCK_DIAG: Starting VACUUM...");
+                        var vacuumStopwatch = System.Diagnostics.Stopwatch.StartNew();
+                        command.CommandText = "VACUUM;";
+                        await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                        vacuumStopwatch.Stop();
+                        Configuration.LogManager.LogDebug($"DB_LOCK_DIAG: VACUUM finished in {vacuumStopwatch.ElapsedMilliseconds}ms.");
+                        stopwatch.Stop();
+                        Configuration.LogManager.LogDebug($"DB_LOCK_DIAG: Database compaction successful in {stopwatch.ElapsedMilliseconds}ms on attempt {i + 1}.");
+                        return; // Success
+                    }
+                    finally
+                    {
+                        if (command != null) { await command.DisposeAsync().ConfigureAwait(false); }
+                        if (connection != null) { await connection.DisposeAsync().ConfigureAwait(false); }
+                    }
+                }
+                catch (SqliteException ex) when (ex.SqliteErrorCode == 5) // SQLITE_BUSY
+                {
+                    if (i == maxRetries - 1)
+                    {
+                        Configuration.LogManager.Log(ex, $"DB_LOCK_DIAG: Database compaction failed after {maxRetries} attempts. The database remained locked.");
+                        break;
+                    }
+
+                    var delay = initialDelayMs * (int)Math.Pow(2, i);
+                    Configuration.LogManager.LogDebug($"DB_LOCK_DIAG: Database is busy. Retrying compaction in {delay}ms... (Attempt {i + 1})");
+                    await Task.Delay(delay).ConfigureAwait(false);
+                }
             }
         }
 
