@@ -65,7 +65,6 @@ namespace Cliptoo.Core.Services
             var sourceExtension = Path.GetExtension(imagePath).ToUpperInvariant();
             var targetExtension = GetTargetExtension(imagePath);
 
-            var cacheKey = (sourceExtension == ".SVG" && !string.IsNullOrEmpty(theme)) ? $"{imagePath}_{theme}_{size}" : $"{imagePath}_{size}";
             var cachePath = GenerateCachePath(imagePath, theme, size, cacheDirectory, targetExtension);
 
             if (File.Exists(cachePath)) return cachePath;
