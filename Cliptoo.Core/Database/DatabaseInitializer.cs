@@ -7,7 +7,7 @@ namespace Cliptoo.Core.Database
 {
     public class DatabaseInitializer : RepositoryBase, IDatabaseInitializer
     {
-        private const int CurrentDbVersion = 9;
+        private const int CurrentDbVersion = 10;
 
         public DatabaseInitializer(string dbPath) : base(dbPath) { }
 
@@ -32,7 +32,7 @@ namespace Cliptoo.Core.Database
                     CREATE TABLE clips (
                         Id INTEGER PRIMARY KEY AUTOINCREMENT,
                         Content TEXT NOT NULL,
-                        ContentHash TEXT,
+                        ContentHash TEXT UNIQUE,
                         PreviewContent TEXT,
                         Timestamp TEXT NOT NULL,
                         ClipType TEXT NOT NULL,
@@ -42,7 +42,6 @@ namespace Cliptoo.Core.Database
                         SizeInBytes INTEGER NOT NULL DEFAULT 0
                     );
                     CREATE INDEX idx_clips_timestamp ON clips(Timestamp);
-                    CREATE INDEX idx_clips_content_hash ON clips(ContentHash);
                     CREATE TABLE stats (
                         Key TEXT PRIMARY KEY,
                         Value INTEGER,
@@ -165,6 +164,79 @@ namespace Cliptoo.Core.Database
                     finally
                     {
                         if (ftsCmd != null) { await ftsCmd.DisposeAsync().ConfigureAwait(false); }
+                    }
+                }
+
+                if (fromVersion < 10)
+                {
+                    SqliteCommand? migrateCmd = null;
+                    try
+                    {
+                        migrateCmd = connection.CreateCommand();
+                        migrateCmd.Transaction = transaction;
+                        migrateCmd.CommandText = @"
+                            -- Rename the old table
+                            ALTER TABLE clips RENAME TO clips_old;
+
+                            -- Create the new table with the UNIQUE constraint on ContentHash
+                            CREATE TABLE clips (
+                                Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                Content TEXT NOT NULL,
+                                ContentHash TEXT UNIQUE,
+                                PreviewContent TEXT,
+                                Timestamp TEXT NOT NULL,
+                                ClipType TEXT NOT NULL,
+                                SourceApp TEXT,
+                                IsPinned INTEGER NOT NULL DEFAULT 0,
+                                WasTrimmed INTEGER NOT NULL DEFAULT 0,
+                                SizeInBytes INTEGER NOT NULL DEFAULT 0
+                            );
+
+                            -- Copy the most recent entry for each unique ContentHash into the new table
+                            INSERT INTO clips (Id, Content, ContentHash, PreviewContent, Timestamp, ClipType, SourceApp, IsPinned, WasTrimmed, SizeInBytes)
+                            SELECT Id, Content, ContentHash, PreviewContent, Timestamp, ClipType, SourceApp, IsPinned, WasTrimmed, SizeInBytes
+                            FROM clips_old
+                            WHERE rowid IN (SELECT MAX(rowid) FROM clips_old GROUP BY ContentHash);
+
+                            -- Drop the old table
+                            DROP TABLE clips_old;
+
+                            -- Recreate the timestamp index
+                            CREATE INDEX idx_clips_timestamp ON clips(Timestamp);
+
+                            -- Drop and recreate FTS table and triggers to link to the new clips table
+                            DROP TRIGGER IF EXISTS clips_ai;
+                            DROP TRIGGER IF EXISTS clips_ad;
+                            DROP TRIGGER IF EXISTS clips_au;
+                            DROP TABLE IF EXISTS clips_fts;
+
+                            CREATE VIRTUAL TABLE clips_fts USING fts5(
+                                Content,
+                                content='clips',
+                                content_rowid='Id',
+                                tokenize='porter'
+                            );
+
+                            INSERT INTO clips_fts(rowid, Content) SELECT Id, Content FROM clips;
+
+                            CREATE TRIGGER clips_ai AFTER INSERT ON clips BEGIN
+                                INSERT INTO clips_fts(rowid, Content) VALUES (new.Id, new.Content);
+                            END;
+
+                            CREATE TRIGGER clips_ad AFTER DELETE ON clips BEGIN
+                                INSERT INTO clips_fts(clips_fts, rowid, Content) VALUES ('delete', old.Id, old.Content);
+                            END;
+
+                            CREATE TRIGGER clips_au AFTER UPDATE ON clips BEGIN
+                                INSERT INTO clips_fts(clips_fts, rowid, Content) VALUES ('delete', old.Id, old.Content);
+                                INSERT INTO clips_fts(rowid, Content) VALUES (new.Id, new.Content);
+                            END;
+                        ";
+                        await migrateCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        if (migrateCmd != null) { await migrateCmd.DisposeAsync().ConfigureAwait(false); }
                     }
                 }
 
