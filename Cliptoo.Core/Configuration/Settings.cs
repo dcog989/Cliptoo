@@ -1,6 +1,6 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
-using System.Collections.ObjectModel;
+using System.Collections.Generic;
 
 namespace Cliptoo.Core.Configuration
 {
@@ -168,7 +168,7 @@ namespace Cliptoo.Core.Configuration
 
         [DefaultValue(-1.0)]
         public double SettingsWindowY { get; set; } = -1.0;
-        public Collection<SendToTarget> SendToTargets { get; } = new();
+        public List<SendToTarget> SendToTargets { get; set; } = new();
 
     }
 
