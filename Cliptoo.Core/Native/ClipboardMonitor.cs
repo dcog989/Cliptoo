@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
 using System.Windows;
 using Cliptoo.Core.Native.Models;
 using Cliptoo.Core.Services;
@@ -20,23 +21,21 @@ namespace Cliptoo.Core.Native
         private ulong _lastFileDropHash;
         private readonly HashSet<ulong> _hashesToSuppress = new();
         private bool _disposedValue;
-        private readonly System.Timers.Timer _suppressionResetTimer;
+        private readonly ManualResetEventSlim _suppressionActive = new(false);
 
         public ClipboardMonitor()
         {
-            _suppressionResetTimer = new System.Timers.Timer(200) { AutoReset = false };
-            _suppressionResetTimer.Elapsed += (s, e) => _hashesToSuppress.Clear();
         }
 
         public void SuppressNextClip(IEnumerable<ulong> hashes)
         {
             ArgumentNullException.ThrowIfNull(hashes);
-            _suppressionResetTimer.Stop();
             _hashesToSuppress.Clear();
             foreach (var hash in hashes)
             {
                 _hashesToSuppress.Add(hash);
             }
+            _suppressionActive.Set();
         }
 
         public void Start(IntPtr windowHandle)
@@ -65,9 +64,9 @@ namespace Cliptoo.Core.Native
                 if (!string.IsNullOrEmpty(rtfText))
                 {
                     var rtfBytes = Encoding.UTF8.GetBytes(rtfText);
-                    if (CheckAndResetSuppression(HashingUtils.ComputeHash(rtfBytes))) return;
-
                     var currentHash = HashingUtils.ComputeHash(rtfBytes);
+                    if (ShouldSuppress(currentHash)) return;
+
                     if (currentHash != _lastTextHash)
                     {
                         _lastTextHash = currentHash;
@@ -89,9 +88,9 @@ namespace Cliptoo.Core.Native
                     if (!string.IsNullOrEmpty(allFiles))
                     {
                         var allFilesBytes = Encoding.UTF8.GetBytes(allFiles);
-                        if (CheckAndResetSuppression(HashingUtils.ComputeHash(allFilesBytes))) return;
-
                         var currentHash = HashingUtils.ComputeHash(allFilesBytes);
+                        if (ShouldSuppress(currentHash)) return;
+
                         if (currentHash != _lastFileDropHash)
                         {
                             _lastFileDropHash = currentHash;
@@ -118,7 +117,7 @@ namespace Cliptoo.Core.Native
                         var bytes = stream.ToArray();
                         var currentHash = HashingUtils.ComputeHash(bytes);
 
-                        if (CheckAndResetSuppression(currentHash)) return;
+                        if (ShouldSuppress(currentHash)) return;
 
                         if (currentHash != _lastImageHash)
                         {
@@ -139,9 +138,9 @@ namespace Cliptoo.Core.Native
                 if (!string.IsNullOrWhiteSpace(text))
                 {
                     var textBytes = Encoding.UTF8.GetBytes(text);
-                    if (CheckAndResetSuppression(HashingUtils.ComputeHash(textBytes))) return;
-
                     var currentHash = HashingUtils.ComputeHash(textBytes);
+                    if (ShouldSuppress(currentHash)) return;
+
                     if (currentHash != _lastTextHash)
                     {
                         _lastTextHash = currentHash;
@@ -154,14 +153,24 @@ namespace Cliptoo.Core.Native
             }
         }
 
-        private bool CheckAndResetSuppression(ulong newHash)
+        private bool ShouldSuppress(ulong hash)
         {
-            if (_hashesToSuppress.Count > 0 && _hashesToSuppress.Contains(newHash))
+            if (!_suppressionActive.IsSet)
             {
-                _suppressionResetTimer.Start();
+                return false;
+            }
+
+            if (_hashesToSuppress.Contains(hash))
+            {
                 Configuration.LogManager.LogDebug("Suppressed self-generated clip from being re-added.");
+                _hashesToSuppress.Clear();
+                _suppressionActive.Reset();
                 return true;
             }
+
+            Configuration.LogManager.LogDebug("A different clip was detected during the suppression window. Processing it.");
+            _hashesToSuppress.Clear();
+            _suppressionActive.Reset();
             return false;
         }
 
@@ -171,7 +180,7 @@ namespace Cliptoo.Core.Native
             {
                 if (disposing)
                 {
-                    _suppressionResetTimer.Dispose();
+                    _suppressionActive.Dispose();
                 }
 
                 StopMonitoring();
