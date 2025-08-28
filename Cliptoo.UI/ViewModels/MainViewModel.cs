@@ -73,7 +73,7 @@ namespace Cliptoo.UI.ViewModels
                 var systemTheme = ApplicationThemeManager.GetSystemTheme();
                 theme = systemTheme == SystemTheme.Dark ? ApplicationTheme.Dark : ApplicationTheme.Light;
             }
-            return theme == ApplicationTheme.Dark ? AppConstants.ThemeNames.Dark : AppConstants.ThemeNames.Light;
+            return theme == ApplicationTheme.Dark ? "dark" : "light";
         });
 
         public bool IsPasting { get => _isPasting; private set => SetProperty(ref _isPasting, value); }
@@ -123,7 +123,7 @@ namespace Cliptoo.UI.ViewModels
                     }
                     AlwaysOnTopChanged?.Invoke(this, value);
                     CurrentSettings.IsAlwaysOnTop = value;
-                    _controller.SaveSettings(CurrentSettings);
+                    _controller.SaveSettings();
                 }
             }
         }
@@ -173,7 +173,7 @@ namespace Cliptoo.UI.ViewModels
             _fontProvider = fontProvider;
             _notificationService = notificationService;
             _iconProvider = iconProvider;
-            _currentSettings = _controller.GetSettings();
+            _currentSettings = _controller.Settings;
             _mainFont = _fontProvider.GetFont(CurrentSettings.FontFamily);
             _previewFont = _fontProvider.GetFont(CurrentSettings.PreviewFontFamily);
             TooltipMaxHeight = SystemParameters.WorkArea.Height * 0.9;
@@ -232,7 +232,7 @@ namespace Cliptoo.UI.ViewModels
         {
             Application.Current.Dispatcher.Invoke(() =>
             {
-                CurrentSettings = _controller.GetSettings();
+                CurrentSettings = _controller.Settings;
                 MainFont = _fontProvider.GetFont(CurrentSettings.FontFamily);
                 PreviewFont = _fontProvider.GetFont(CurrentSettings.PreviewFontFamily);
 
@@ -372,7 +372,7 @@ namespace Cliptoo.UI.ViewModels
             _currentOffset = 0;
             _needsRefreshOnShow = true;
 
-            var settings = _controller.GetSettings();
+            var settings = _controller.Settings;
             if (!settings.RememberSearchInput)
             {
                 _searchTerm = string.Empty;

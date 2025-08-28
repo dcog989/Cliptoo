@@ -62,7 +62,7 @@ namespace Cliptoo.UI.Services
             {
                 _controller.SettingsChanged += OnSettingsChanged;
 
-                var settings = _controller.GetSettings();
+                var settings = _controller.Settings;
                 _currentHotkey = settings.Hotkey;
 
                 _mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
@@ -158,7 +158,7 @@ namespace Cliptoo.UI.Services
 
         private void OnSettingsChanged(object? sender, EventArgs e)
         {
-            var settings = _controller.GetSettings();
+            var settings = _controller.Settings;
             if (_globalHotkey != null && _currentHotkey != settings.Hotkey)
             {
                 _currentHotkey = settings.Hotkey;
@@ -190,8 +190,8 @@ namespace Cliptoo.UI.Services
 
             var theme = themeName?.ToLowerInvariant() switch
             {
-                AppConstants.ThemeNames.Light => ApplicationTheme.Light,
-                AppConstants.ThemeNames.Dark => ApplicationTheme.Dark,
+                "light" => ApplicationTheme.Light,
+                "dark" => ApplicationTheme.Dark,
                 _ => ApplicationTheme.Unknown,
             };
 
@@ -264,8 +264,8 @@ namespace Cliptoo.UI.Services
 
             _notifyIconService.Register();
 
-            if (_mainViewModel != null) _mainViewModel.IsAlwaysOnTop = _controller.GetSettings().IsAlwaysOnTop;
-            if (_alwaysOnTopMenuItem != null) _alwaysOnTopMenuItem.IsChecked = _controller.GetSettings().IsAlwaysOnTop;
+            if (_mainViewModel != null) _mainViewModel.IsAlwaysOnTop = _controller.Settings.IsAlwaysOnTop;
+            if (_alwaysOnTopMenuItem != null) _alwaysOnTopMenuItem.IsChecked = _controller.Settings.IsAlwaysOnTop;
         }
 
         private IntPtr HwndHook(IntPtr hwnd, int msg, IntPtr wparam, IntPtr lparam, ref bool handled)
@@ -355,7 +355,7 @@ namespace Cliptoo.UI.Services
             {
                 _controller.IsUiInteractive = true;
                 _controller.NotifyUiActivity();
-                _windowPositioner.PositionWindow(_mainWindow, _controller.GetSettings(), isTrayRequest);
+                _windowPositioner.PositionWindow(_mainWindow, _controller.Settings, isTrayRequest);
                 _mainWindow.Show();
                 _mainWindow.WindowState = WindowState.Normal;
                 _mainWindow.Activate();

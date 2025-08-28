@@ -25,7 +25,7 @@ namespace Cliptoo.UI.Services
 
             await _controller.MoveClipToTopAsync(clip.Id).ConfigureAwait(false);
 
-            var settings = _controller.GetSettings();
+            var settings = _controller.Settings;
             bool pasteAsPlainText = forcePlainText ?? settings.PasteAsPlainText;
             bool isFileOperation = !pasteAsPlainText && (clip.ClipType.StartsWith("file_", StringComparison.Ordinal) || clip.ClipType == AppConstants.ClipTypes.Folder);
 

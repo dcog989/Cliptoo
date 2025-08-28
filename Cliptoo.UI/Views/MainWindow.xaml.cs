@@ -139,10 +139,10 @@ namespace Cliptoo.UI.Views
         {
             if (_controller != null)
             {
-                var settings = _controller.GetSettings();
+                var settings = _controller.Settings;
                 settings.WindowWidth = Math.Round(this.Width);
                 settings.WindowHeight = Math.Round(this.Height);
-                _controller.SaveSettings(settings);
+                _controller.SaveSettings();
             }
 
             base.OnClosed(e);

@@ -43,7 +43,7 @@ namespace Cliptoo.UI.ViewModels
                 {
                     Settings.Hotkey = value;
                     OnPropertyChanged();
-                    _controller.SaveSettings(Settings);
+                    _controller.SaveSettings();
                 }
             }
         }
@@ -85,7 +85,7 @@ namespace Cliptoo.UI.ViewModels
                 {
                     Settings.PreviewHotkey = value;
                     OnPropertyChanged();
-                    _controller.SaveSettings(Settings);
+                    _controller.SaveSettings();
                 }
             }
         }
@@ -99,7 +99,7 @@ namespace Cliptoo.UI.ViewModels
                 {
                     Settings.QuickPasteHotkey = value;
                     OnPropertyChanged();
-                    _controller.SaveSettings(Settings);
+                    _controller.SaveSettings();
                 }
             }
         }

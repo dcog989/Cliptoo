@@ -85,7 +85,7 @@ namespace Cliptoo.UI.ViewModels
         public string? RtfContent => IsRtf ? Content : null;
 
         public bool CanPasteAsPlainText => IsRtf;
-        public bool CanPasteAsRtf => Controller.GetSettings().PasteAsPlainText && IsRtf;
+        public bool CanPasteAsRtf => Controller.Settings.PasteAsPlainText && IsRtf;
         public bool IsEditable => !IsImage && !ClipType.StartsWith("file_", StringComparison.Ordinal) && ClipType != AppConstants.ClipTypes.Folder;
         public bool IsOpenable => IsImage || ClipType.StartsWith("file_", StringComparison.Ordinal) || ClipType == AppConstants.ClipTypes.Folder || ClipType == AppConstants.ClipTypes.Link;
         public static string OpenCommandHeader => "Open";

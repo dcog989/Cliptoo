@@ -47,7 +47,7 @@ namespace Cliptoo.UI.ViewModels
             SaveChangesCommand = new RelayCommand(async _ => await ExecuteSaveChanges());
             CancelCommand = new RelayCommand(_ => OnRequestClose?.Invoke());
 
-            var settings = _controller.GetSettings();
+            var settings = _controller.Settings;
             _editorFontSize = settings.PreviewFontSize;
             _editorFontFamily = fontProvider.GetFont(settings.PreviewFontFamily);
 

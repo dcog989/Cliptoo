@@ -1,4 +1,6 @@
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Windows;
@@ -48,7 +50,7 @@ namespace Cliptoo.UI.ViewModels
             _serviceProvider = serviceProvider;
             _fontProvider = fontProvider;
             _iconProvider = iconProvider;
-            Settings = _controller.GetSettings();
+            Settings = _controller.Settings;
             _selectedFontFamily = Settings.FontFamily;
             _selectedPreviewFontFamily = Settings.PreviewFontFamily;
             _oklchHueBrush = new SolidColorBrush(Colors.Transparent);
@@ -150,6 +152,11 @@ namespace Cliptoo.UI.ViewModels
             _ = PopulateFontsAsync();
 
             SendToTargets = new ObservableCollection<SendToTarget>(Settings.SendToTargets);
+            SendToTargets.CollectionChanged += OnSendToTargetsCollectionChanged;
+            foreach (var target in SendToTargets)
+            {
+                target.PropertyChanged += OnSendToTargetPropertyChanged;
+            }
 
             _saveDebounceTimer = new System.Timers.Timer(500);
             _saveDebounceTimer.Elapsed += OnDebounceTimerElapsed;
@@ -196,6 +203,32 @@ namespace Cliptoo.UI.ViewModels
             }
         }
 
+        private void OnSendToTargetsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        {
+            if (e.NewItems != null)
+            {
+                foreach (SendToTarget item in e.NewItems)
+                {
+                    item.PropertyChanged += OnSendToTargetPropertyChanged;
+                }
+            }
+
+            if (e.OldItems != null)
+            {
+                foreach (SendToTarget item in e.OldItems)
+                {
+                    item.PropertyChanged -= OnSendToTargetPropertyChanged;
+                }
+            }
+
+            DebounceSave();
+        }
+
+        private void OnSendToTargetPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            DebounceSave();
+        }
+
         private async Task LoadIconsAsync()
         {
             LogoIcon = await _iconProvider.GetIconAsync(AppConstants.IconKeys.Logo, 138).ConfigureAwait(true);
@@ -213,7 +246,7 @@ namespace Cliptoo.UI.ViewModels
             {
                 Settings.SendToTargets.Add(item);
             }
-            _controller.SaveSettings(Settings);
+            _controller.SaveSettings();
         }
 
         private void DebounceSave()
@@ -251,6 +284,14 @@ namespace Cliptoo.UI.ViewModels
         {
             _saveDebounceTimer.Elapsed -= OnDebounceTimerElapsed;
             _saveDebounceTimer.Dispose();
+            if (SendToTargets is not null)
+            {
+                SendToTargets.CollectionChanged -= OnSendToTargetsCollectionChanged;
+                foreach (var target in SendToTargets)
+                {
+                    target.PropertyChanged -= OnSendToTargetPropertyChanged;
+                }
+            }
             GC.SuppressFinalize(this);
         }
     }

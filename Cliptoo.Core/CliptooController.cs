@@ -52,6 +52,7 @@ namespace Cliptoo.Core
         private bool _isInitialized;
         private readonly LruCache<int, Clip> _clipCache;
         private const int ClipCacheSize = 20;
+        private readonly Settings _settings;
 
         public bool IsUiInteractive { get; set; }
 
@@ -83,6 +84,7 @@ namespace Cliptoo.Core
             _compareToolService = compareToolService;
             _iconProvider = iconProvider;
             _clipCache = new LruCache<int, Clip>(ClipCacheSize);
+            _settings = _settingsManager.Load();
 
             _tempPath = Path.Combine(Path.GetTempPath(), "Cliptoo");
             Directory.CreateDirectory(_tempPath);
@@ -99,7 +101,7 @@ namespace Cliptoo.Core
         public async Task InitializeAsync()
         {
             LogManager.Log("CliptooController initializing...");
-            LogManager.LoggingLevel = GetSettings().LoggingLevel;
+            LogManager.LoggingLevel = Settings.LoggingLevel;
             CleanupTempFiles();
             await _dbManager.InitializeAsync().ConfigureAwait(false);
             LogManager.Log("Database initialized successfully.");
@@ -151,7 +153,7 @@ namespace Cliptoo.Core
             {
                 var stopwatch = System.Diagnostics.Stopwatch.StartNew();
                 ProcessingResult? result = null;
-                var settings = GetSettings();
+                var settings = Settings;
                 bool wasTruncated = false;
                 long maxBytes = (long)settings.MaxClipSizeMb * 1024 * 1024;
 
@@ -267,7 +269,7 @@ namespace Cliptoo.Core
 
         public async Task<(bool success, string message)> CompareClipsAsync(int leftClipId, int rightClipId)
         {
-            string? toolPath = GetSettings().CompareToolPath;
+            string? toolPath = Settings.CompareToolPath;
             string? toolArgs;
 
             if (string.IsNullOrWhiteSpace(toolPath) || !File.Exists(toolPath))
@@ -312,13 +314,12 @@ namespace Cliptoo.Core
             }
         }
 
-        public Settings GetSettings() => _settingsManager.Load();
+        public Settings Settings => _settings;
 
-        public void SaveSettings(Settings settings)
+        public void SaveSettings()
         {
-            ArgumentNullException.ThrowIfNull(settings);
-            _settingsManager.Save(settings);
-            LogManager.LoggingLevel = settings.LoggingLevel;
+            _settingsManager.Save(_settings);
+            LogManager.LoggingLevel = _settings.LoggingLevel;
             SettingsChanged?.Invoke(this, EventArgs.Empty);
         }
 
@@ -404,7 +405,7 @@ namespace Cliptoo.Core
         private async Task<MaintenanceResult> RunHeavyMaintenanceAsync()
         {
             LogManager.Log("Starting heavy maintenance routine...");
-            var settings = GetSettings();
+            var settings = Settings;
             var initialStats = await _dbManager.GetStatsAsync().ConfigureAwait(false);
 
             int tempFilesCleaned = CleanupTempFiles();
@@ -562,7 +563,7 @@ namespace Cliptoo.Core
 
         public bool IsCompareToolAvailable()
         {
-            string? toolPath = GetSettings().CompareToolPath;
+            string? toolPath = Settings.CompareToolPath;
             if (!string.IsNullOrWhiteSpace(toolPath) && File.Exists(toolPath))
             {
                 return true;
