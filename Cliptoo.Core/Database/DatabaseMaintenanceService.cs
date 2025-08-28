@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -169,12 +170,15 @@ namespace Cliptoo.Core.Database
             }
         }
 
+        [SuppressMessage("Microsoft.Security", "CA2100:Review SQL queries for security vulnerabilities", Justification = "The dynamic part of the query is constructed from generated parameter names, not user input.")]
         public async Task<int> RemoveDeadheadClipsAsync()
         {
             var allIdsToDelete = new List<int>();
+            SqliteConnection? connection = null;
 
-            await using (var connection = await GetOpenConnectionAsync().ConfigureAwait(false))
+            try
             {
+                connection = await GetOpenConnectionAsync().ConfigureAwait(false);
                 const int batchSize = 500;
                 var hasMoreRows = true;
                 var offset = 0;
@@ -182,18 +186,24 @@ namespace Cliptoo.Core.Database
                 while (hasMoreRows)
                 {
                     var clipsToCheck = new List<(int Id, string Content, string ClipType)>();
-                    await using (var command = connection.CreateCommand())
+                    SqliteCommand? command = null;
+                    SqliteDataReader? reader = null;
+                    try
                     {
+                        command = connection.CreateCommand();
                         command.CommandText = "SELECT Id, Content, ClipType FROM clips WHERE ClipType LIKE 'file_%' OR ClipType = 'folder' LIMIT @BatchSize OFFSET @Offset";
                         command.Parameters.AddWithValue("@BatchSize", batchSize);
                         command.Parameters.AddWithValue("@Offset", offset);
-                        await using (var reader = await command.ExecuteReaderAsync().ConfigureAwait(false))
+                        reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
+                        while (await reader.ReadAsync().ConfigureAwait(false))
                         {
-                            while (await reader.ReadAsync().ConfigureAwait(false))
-                            {
-                                clipsToCheck.Add((reader.GetInt32(0), reader.GetString(1), reader.GetString(2)));
-                            }
+                            clipsToCheck.Add((reader.GetInt32(0), reader.GetString(1), reader.GetString(2)));
                         }
+                    }
+                    finally
+                    {
+                        if (reader != null) { await reader.DisposeAsync().ConfigureAwait(false); }
+                        if (command != null) { await command.DisposeAsync().ConfigureAwait(false); }
                     }
 
                     if (clipsToCheck.Count < batchSize)
@@ -228,6 +238,11 @@ namespace Cliptoo.Core.Database
                     }).ConfigureAwait(false);
                 }
             }
+            finally
+            {
+                if (connection != null) { await connection.DisposeAsync().ConfigureAwait(false); }
+            }
+
 
             if (allIdsToDelete.Count > 0)
             {
@@ -238,18 +253,25 @@ namespace Cliptoo.Core.Database
                     {
                         var batch = allIdsToDelete.Skip(i).Take(deleteBatchSize).ToList();
                         if (batch.Count == 0) continue;
-
-                        await using var command = connection.CreateCommand();
-                        command.Transaction = (SqliteTransaction)transaction;
-                        var paramNames = new List<string>();
-                        for (int j = 0; j < batch.Count; j++)
+                        SqliteCommand? command = null;
+                        try
                         {
-                            var paramName = $"@id{j}";
-                            paramNames.Add(paramName);
-                            command.Parameters.Add(new SqliteParameter(paramName, batch[j]));
+                            command = connection.CreateCommand();
+                            command.Transaction = (SqliteTransaction)transaction;
+                            var paramNames = new List<string>();
+                            for (int j = 0; j < batch.Count; j++)
+                            {
+                                var paramName = $"@id{j}";
+                                paramNames.Add(paramName);
+                                command.Parameters.Add(new SqliteParameter(paramName, batch[j]));
+                            }
+                            command.CommandText = $"DELETE FROM clips WHERE Id IN ({string.Join(",", paramNames)})";
+                            await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                         }
-                        command.CommandText = $"DELETE FROM clips WHERE Id IN ({string.Join(",", paramNames)})";
-                        await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                        finally
+                        {
+                            if (command != null) { await command.DisposeAsync().ConfigureAwait(false); }
+                        }
                     }
                 }).ConfigureAwait(false);
 
