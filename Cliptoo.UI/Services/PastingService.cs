@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Windows;
 using System.Windows.Media.Imaging;
@@ -98,17 +100,20 @@ namespace Cliptoo.UI.Services
                 }
             }
 
-            var hashes = new List<ulong>();
+            var hashesToSuppress = new HashSet<ulong>();
             if (!pasteAsPlainText && clip.ClipType == AppConstants.ClipTypes.Rtf && clip.Content is not null)
             {
-                hashes.Add(HashingUtils.ComputeHash(Encoding.UTF8.GetBytes(clip.Content)));
+                hashesToSuppress.Add(HashingUtils.ComputeHash(Encoding.UTF8.GetBytes(clip.Content)));
             }
 
             if (dataObject.GetDataPresent(DataFormats.UnicodeText))
             {
                 var text = dataObject.GetData(DataFormats.UnicodeText) as string ?? "";
-                hashes.Add(HashingUtils.ComputeHash(Encoding.UTF8.GetBytes(text)));
-                hashes.Add(HashingUtils.ComputeHash(Encoding.UTF8.GetBytes(text.Replace("\r\n", "\n", StringComparison.Ordinal))));
+                hashesToSuppress.Add(HashingUtils.ComputeHash(Encoding.UTF8.GetBytes(text)));
+                var textWithLf = text.Replace("\r\n", "\n");
+                hashesToSuppress.Add(HashingUtils.ComputeHash(Encoding.UTF8.GetBytes(textWithLf)));
+                var textWithCrLf = textWithLf.Replace("\n", "\r\n");
+                hashesToSuppress.Add(HashingUtils.ComputeHash(Encoding.UTF8.GetBytes(textWithCrLf)));
             }
             else if (dataObject.GetDataPresent(DataFormats.Bitmap))
             {
@@ -118,13 +123,13 @@ namespace Cliptoo.UI.Services
                     var encoder = new PngBitmapEncoder();
                     encoder.Frames.Add(BitmapFrame.Create(bitmapSource));
                     encoder.Save(stream);
-                    hashes.Add(HashingUtils.ComputeHash(stream.ToArray()));
+                    hashesToSuppress.Add(HashingUtils.ComputeHash(stream.ToArray()));
                 }
             }
 
-            if (hashes.Count > 0)
+            if (hashesToSuppress.Count > 0)
             {
-                _controller.SuppressNextClip(hashes.Distinct().ToArray());
+                _controller.SuppressNextClip(hashesToSuppress.ToArray());
             }
 
             if (await ClipboardUtils.SafeSet(() => Clipboard.SetDataObject(dataObject, true)).ConfigureAwait(false))
@@ -135,14 +140,16 @@ namespace Cliptoo.UI.Services
 
         public async Task PasteTextAsync(string text)
         {
-            var dataObject = new DataObject();
-            dataObject.SetText(text, TextDataFormat.UnicodeText);
+            var hashesToSuppress = new HashSet<ulong>();
+            hashesToSuppress.Add(HashingUtils.ComputeHash(Encoding.UTF8.GetBytes(text)));
+            var textWithLf = text.Replace("\r\n", "\n");
+            hashesToSuppress.Add(HashingUtils.ComputeHash(Encoding.UTF8.GetBytes(textWithLf)));
+            var textWithCrLf = textWithLf.Replace("\n", "\r\n");
+            hashesToSuppress.Add(HashingUtils.ComputeHash(Encoding.UTF8.GetBytes(textWithCrLf)));
 
-            var hash1 = HashingUtils.ComputeHash(Encoding.UTF8.GetBytes(text));
-            var hash2 = HashingUtils.ComputeHash(Encoding.UTF8.GetBytes(text.Replace("\r\n", "\n", StringComparison.Ordinal)));
-            _controller.SuppressNextClip(hash1, hash2);
+            _controller.SuppressNextClip(hashesToSuppress.ToArray());
 
-            if (await ClipboardUtils.SafeSet(() => Clipboard.SetDataObject(dataObject, true)).ConfigureAwait(false))
+            if (await ClipboardUtils.SafeSet(() => Clipboard.SetText(text, TextDataFormat.UnicodeText)).ConfigureAwait(false))
             {
                 InputSimulator.SendPaste();
             }

@@ -21,21 +21,38 @@ namespace Cliptoo.Core.Native
         private ulong _lastFileDropHash;
         private readonly HashSet<ulong> _hashesToSuppress = new();
         private bool _disposedValue;
+        private readonly System.Timers.Timer _suppressionResetTimer;
         private readonly ManualResetEventSlim _suppressionActive = new(false);
+
 
         public ClipboardMonitor()
         {
+            // This timer acts as a safety net. If a clipboard update is suppressed,
+            // it ensures the suppression state is eventually cleared even if subsequent
+            // clipboard events don't occur.
+            _suppressionResetTimer = new System.Timers.Timer(250) { AutoReset = false };
+            _suppressionResetTimer.Elapsed += (s, e) =>
+            {
+                if (_suppressionActive.IsSet)
+                {
+                    Configuration.LogManager.LogDebug("Suppression window closed by timer.");
+                    _hashesToSuppress.Clear();
+                    _suppressionActive.Reset();
+                }
+            };
         }
 
         public void SuppressNextClip(IEnumerable<ulong> hashes)
         {
             ArgumentNullException.ThrowIfNull(hashes);
+            _suppressionResetTimer.Stop();
             _hashesToSuppress.Clear();
             foreach (var hash in hashes)
             {
                 _hashesToSuppress.Add(hash);
             }
             _suppressionActive.Set();
+            _suppressionResetTimer.Start(); // Start the safety-net timer
         }
 
         public void Start(IntPtr windowHandle)
@@ -58,24 +75,119 @@ namespace Cliptoo.Core.Native
 
         public void ProcessSystemUpdate()
         {
+            if (_suppressionActive.IsSet)
+            {
+                // During the suppression window, we check all available formats. If any match, we ignore the event
+                // but keep the suppression active for the timer's duration to catch the entire flurry of events.
+                if (CheckForSuppressedHashes())
+                {
+                    return;
+                }
+
+                // If no hash matched, it means a legitimate clip was copied immediately after we pasted ours.
+                // We should process it and immediately end the suppression window.
+                Configuration.LogManager.LogDebug("A different clip was detected during the suppression window. Processing it.");
+                _suppressionResetTimer.Stop();
+                _hashesToSuppress.Clear();
+                _suppressionActive.Reset();
+            }
+
+            // If we're here, the clip was not suppressed. Now, choose the best format to process.
+            var availableData = GetAvailableClipboardData();
+            (string formatKey, object content, ulong hash) bestCandidate;
+
+            if (availableData.TryGetValue(DataFormats.Rtf, out var rtfData))
+            {
+                bestCandidate = (DataFormats.Rtf, rtfData.Content, rtfData.Hash);
+            }
+            else if (availableData.TryGetValue("FileDrop", out var fileDropData))
+            {
+                bestCandidate = ("FileDrop", fileDropData.Content, fileDropData.Hash);
+            }
+            else if (availableData.TryGetValue("Image", out var imageData))
+            {
+                bestCandidate = ("Image", imageData.Content, imageData.Hash);
+            }
+            else if (availableData.TryGetValue(DataFormats.UnicodeText, out var textData))
+            {
+                bestCandidate = (DataFormats.UnicodeText, textData.Content, textData.Hash);
+            }
+            else
+            {
+                return; // No usable data found on clipboard.
+            }
+
+            // Check if this content is a duplicate of the *very last* item we processed.
+            if (bestCandidate.formatKey == DataFormats.Rtf || bestCandidate.formatKey == DataFormats.UnicodeText)
+            {
+                if (bestCandidate.hash == _lastTextHash) return;
+                _lastTextHash = bestCandidate.hash;
+                _lastImageHash = 0;
+                _lastFileDropHash = 0;
+            }
+            else if (bestCandidate.formatKey == "FileDrop")
+            {
+                if (bestCandidate.hash == _lastFileDropHash) return;
+                _lastFileDropHash = bestCandidate.hash;
+                _lastTextHash = 0;
+                _lastImageHash = 0;
+            }
+            else if (bestCandidate.formatKey == "Image")
+            {
+                if (bestCandidate.hash == _lastImageHash) return;
+                _lastImageHash = bestCandidate.hash;
+                _lastTextHash = 0;
+                _lastFileDropHash = 0;
+            }
+
+            // Fire the event with the chosen content.
+            var sourceApp = ProcessUtils.GetForegroundWindowProcessName();
+            ClipboardChangedEventArgs eventArgs;
+
+            if (bestCandidate.formatKey == DataFormats.Rtf)
+            {
+                eventArgs = new ClipboardChangedEventArgs(bestCandidate.content, ClipboardContentType.Text, sourceApp, true);
+            }
+            else if (bestCandidate.formatKey == "FileDrop" || bestCandidate.formatKey == DataFormats.UnicodeText)
+            {
+                eventArgs = new ClipboardChangedEventArgs(bestCandidate.content, ClipboardContentType.Text, sourceApp, false);
+            }
+            else if (bestCandidate.formatKey == "Image")
+            {
+                eventArgs = new ClipboardChangedEventArgs(bestCandidate.content, ClipboardContentType.Image, sourceApp);
+            }
+            else
+            {
+                return;
+            }
+
+            ClipboardChanged?.Invoke(this, eventArgs);
+        }
+
+        private bool CheckForSuppressedHashes()
+        {
+            var availableData = GetAvailableClipboardData();
+            foreach (var format in availableData)
+            {
+                if (_hashesToSuppress.Contains(format.Value.Hash))
+                {
+                    Configuration.LogManager.LogDebug($"Suppressed self-generated clip based on format '{format.Key}'.");
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private Dictionary<string, (object Content, ulong Hash)> GetAvailableClipboardData()
+        {
+            var availableData = new Dictionary<string, (object Content, ulong Hash)>();
+
             if (ClipboardUtils.SafeGet(() => Clipboard.ContainsData(DataFormats.Rtf)) == true)
             {
                 var rtfText = ClipboardUtils.SafeGet(() => Clipboard.GetData(DataFormats.Rtf) as string);
                 if (!string.IsNullOrEmpty(rtfText))
                 {
-                    var rtfBytes = Encoding.UTF8.GetBytes(rtfText);
-                    var currentHash = HashingUtils.ComputeHash(rtfBytes);
-                    if (ShouldSuppress(currentHash)) return;
-
-                    if (currentHash != _lastTextHash)
-                    {
-                        _lastTextHash = currentHash;
-                        _lastImageHash = 0;
-                        _lastFileDropHash = 0;
-                        var sourceApp = ProcessUtils.GetForegroundWindowProcessName();
-                        ClipboardChanged?.Invoke(this, new ClipboardChangedEventArgs(rtfText, ClipboardContentType.Text, sourceApp, true));
-                    }
-                    return;
+                    availableData[DataFormats.Rtf] = (rtfText, HashingUtils.ComputeHash(Encoding.UTF8.GetBytes(rtfText)));
                 }
             }
 
@@ -87,20 +199,8 @@ namespace Cliptoo.Core.Native
                     var allFiles = string.Join(Environment.NewLine, filePaths);
                     if (!string.IsNullOrEmpty(allFiles))
                     {
-                        var allFilesBytes = Encoding.UTF8.GetBytes(allFiles);
-                        var currentHash = HashingUtils.ComputeHash(allFilesBytes);
-                        if (ShouldSuppress(currentHash)) return;
-
-                        if (currentHash != _lastFileDropHash)
-                        {
-                            _lastFileDropHash = currentHash;
-                            _lastTextHash = 0;
-                            _lastImageHash = 0;
-                            var sourceApp = ProcessUtils.GetForegroundWindowProcessName();
-                            ClipboardChanged?.Invoke(this, new ClipboardChangedEventArgs(allFiles, ClipboardContentType.Text, sourceApp));
-                        }
+                        availableData["FileDrop"] = (allFiles, HashingUtils.ComputeHash(Encoding.UTF8.GetBytes(allFiles)));
                     }
-                    return;
                 }
             }
 
@@ -115,20 +215,8 @@ namespace Cliptoo.Core.Native
                         encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(imageSource));
                         encoder.Save(stream);
                         var bytes = stream.ToArray();
-                        var currentHash = HashingUtils.ComputeHash(bytes);
-
-                        if (ShouldSuppress(currentHash)) return;
-
-                        if (currentHash != _lastImageHash)
-                        {
-                            _lastImageHash = currentHash;
-                            _lastTextHash = 0;
-                            _lastFileDropHash = 0;
-                            var sourceApp = ProcessUtils.GetForegroundWindowProcessName();
-                            ClipboardChanged?.Invoke(this, new ClipboardChangedEventArgs(bytes, ClipboardContentType.Image, sourceApp));
-                        }
+                        availableData["Image"] = (bytes, HashingUtils.ComputeHash(bytes));
                     }
-                    return;
                 }
             }
 
@@ -137,41 +225,10 @@ namespace Cliptoo.Core.Native
                 var text = ClipboardUtils.SafeGet(() => Clipboard.GetText());
                 if (!string.IsNullOrWhiteSpace(text))
                 {
-                    var textBytes = Encoding.UTF8.GetBytes(text);
-                    var currentHash = HashingUtils.ComputeHash(textBytes);
-                    if (ShouldSuppress(currentHash)) return;
-
-                    if (currentHash != _lastTextHash)
-                    {
-                        _lastTextHash = currentHash;
-                        _lastImageHash = 0;
-                        _lastFileDropHash = 0;
-                        var sourceApp = ProcessUtils.GetForegroundWindowProcessName();
-                        ClipboardChanged?.Invoke(this, new ClipboardChangedEventArgs(text, ClipboardContentType.Text, sourceApp));
-                    }
+                    availableData[DataFormats.UnicodeText] = (text, HashingUtils.ComputeHash(Encoding.UTF8.GetBytes(text)));
                 }
             }
-        }
-
-        private bool ShouldSuppress(ulong hash)
-        {
-            if (!_suppressionActive.IsSet)
-            {
-                return false;
-            }
-
-            if (_hashesToSuppress.Contains(hash))
-            {
-                Configuration.LogManager.LogDebug("Suppressed self-generated clip from being re-added.");
-                _hashesToSuppress.Clear();
-                _suppressionActive.Reset();
-                return true;
-            }
-
-            Configuration.LogManager.LogDebug("A different clip was detected during the suppression window. Processing it.");
-            _hashesToSuppress.Clear();
-            _suppressionActive.Reset();
-            return false;
+            return availableData;
         }
 
         protected virtual void Dispose(bool disposing)
@@ -180,6 +237,7 @@ namespace Cliptoo.Core.Native
             {
                 if (disposing)
                 {
+                    _suppressionResetTimer.Dispose();
                     _suppressionActive.Dispose();
                 }
 

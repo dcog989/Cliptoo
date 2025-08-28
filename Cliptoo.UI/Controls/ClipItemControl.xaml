@@ -128,7 +128,7 @@
                         <MenuItem
                             Command="{Binding TransformAndPasteCommand}"
                             CommandParameter="{x:Static core:AppConstants+TransformTypes.Timestamp}"
-                            Header="Timestamp" />
+                            Header="Timestamp Prefix" />
                     </MenuItem>
                     <MenuItem Header="Paste Case" Visibility="{Binding IsTextTransformable, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <MenuItem
