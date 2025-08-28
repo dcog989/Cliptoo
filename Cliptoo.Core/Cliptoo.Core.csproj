@@ -25,4 +25,9 @@
         <PackageReference Include="Svg.Skia" Version="3.0.6" />
     </ItemGroup>
 
+    <ItemGroup>
+        <None Remove="Services\DefaultFiletypes.json" />
+        <EmbeddedResource Include="Services\DefaultFiletypes.json" />
+    </ItemGroup>
+
 </Project>

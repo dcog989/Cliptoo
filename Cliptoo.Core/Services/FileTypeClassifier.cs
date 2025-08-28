@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Timers;
@@ -31,59 +32,6 @@ namespace Cliptoo.Core.Services
 
         private readonly Dictionary<string, string> _extToCategory;
         private const int ConfigVersion = 2;
-        private const string DefaultFiletypeConfig = @"{
-    ""version"": 2,
-    ""categories"": {
-        ""file_archive"": {
-            ""description"": ""Compressed and disk image archives."",
-            ""extensions"": ["".7z"", "".ace"", "".arj"", "".bz2"", "".cab"", "".cbr"", "".cbz"", "".gz"", "".gzip"", "".img"", "".iso"", "".lha"", "".lzh"", "".lzma"", "".rar"", "".rpm"", "".tar"", "".tbz2"", "".tgz"", "".txz"", "".xz"", "".z"", "".zip"", "".zipx""]
-        },
-        ""file_audio"": {
-            ""description"": ""Common audio formats."",
-            ""extensions"": ["".aac"", "".aif"", "".aiff"", "".au"", "".cda"", "".flac"", "".m4a"", "".m4b"", "".mid"", "".midi"", "".mp3"", "".mpa"", "".oga"", "".ogg"", "".opus"", "".ra"", "".ram"", "".wav"", "".wma"", "".wpl""]
-        },
-        ""file_danger"": {
-            ""description"": ""Executable scripts, installers, and system files that can potentially alter the system or run code. Should be treated with caution."",
-            ""extensions"": ["".action"", "".apk"", "".app"", "".applescript"", "".appref"", "".bat"", "".bashrc"", "".bin"", "".cmd"", "".com"", "".command"", "".cpl"", "".csh"", "".diagcab"", "".dmg"", "".elf"", "".exe"", "".gadget"", "".hta"", "".inf"", "".inetloc"", "".ins"", "".ipa"", "".jar"", "".job"", "".jse"", "".ksh"", "".msc"", "".msp"", "".msu"", "".mpkg"", "".pif"", "".pkg"", "".prg"", "".profile"", "".pyc"", "".reg"", "".rgs"", "".run"", "".scr"", "".scpt"", "".shb"", "".so"", "".u3p"", "".vbe"", "".vbs"", "".vbscript"", "".workflow"", "".ws"", "".wsf"", "".wsh""]
-        },
-        ""file_database"": {
-            ""description"": ""Database files."",
-            ""extensions"": ["".accdb"", "".accde"", "".db"", "".db-shm"", "".db-wal"", "".dbf"", "".frm"", "".mdb"", "".mde"", "".sql"", "".sqlite"", "".sqlite3""]
-        },
-        ""file_dev"": {
-            ""description"": ""Source code, configuration, scripts, and development assets."",
-            ""extensions"": ["".asp"", "".aspx"", "".c"", "".cc"", "".cfg"", "".clj"", "".cljs"", "".cljc"", "".class"", "".conf"", "".cpp"", "".cs"", "".csproj"", "".css"", "".dart"", "".db3"", "".dylib"", "".editorconfig"", "".el"", "".env"", "".erl"", "".ex"", "".exs"", "".fs"", "".gitignore"", "".go"", "".gradle"", "".groovy"", "".h"", "".hpp"", "".hs"", "".htaccess"", "".htm"", "".html"", "".ini"", "".java"", "".jl"", "".js"", "".json"", "".jsp"", "".jsx"", "".kt"", "".less"", "".lisp"", "".lock"", "".lua"", "".m"", "".map"", "".ml"", "".o"", "".php"", "".pl"", "".pm"", "".ps1"", "".psc1"", "".psm1"", "".psd1"", "".psgi"", "".py"", "".r"", "".rb"", "".resx"", "".rs"", "".sass"", "".scala"", "".scss"", "".sh"", "".sln"", "".svelte"", "".swift"", "".tcl"", "".toml"", "".tsx"", "".user"", "".vb"", "".vue"", "".xhtml"", "".xaml"", "".xml"", "".yaml"", "".yml"", "".zig""]
-        },
-        ""file_document"": {
-            ""description"": ""Formatted documents, spreadsheets, presentations, and structured data files."",
-            ""extensions"": ["".azw"", "".azw3"", "".csv"", "".dif"", "".djv"", "".djvu"", "".doc"", "".docm"", "".docx"", "".dot"", "".dotm"", "".dotx"", "".epub"", "".fb2"", "".ics"", "".key"", "".mht"", "".mhtml"", "".mobi"", "".odf"", "".odg"", "".odp"", "".ods"", "".odt"", "".pages"", "".pdf"", "".pdp"", "".potx"", "".pps"", "".ppsm"", "".ppsx"", "".ppt"", "".pptm"", "".pptx"", "".ps"", "".rtf"", "".sldx"", "".slk"", "".tex"", "".tsv"", "".wpd"", "".wps"", "".xlm"", "".xls"", "".xlsm"", "".xlsx"", "".xlt"", "".xltm"", "".xltx"", "".xps""]
-        },
-        ""file_font"": {
-            ""description"": ""Font file types."",
-            ""extensions"": ["".eot"", "".fnt"", "".fon"", "".otf"", "".ttc"", "".ttf"", "".woff"", "".woff2""]
-        },
-        ""file_image"": {
-            ""description"": ""Raster, vector, and camera raw image formats."",
-            ""extensions"": ["".ai"", "".avif"", "".bmp"", "".cr2"", "".cr3"", "".cur"", "".dds"", "".dng"", "".eps"", "".gif"", "".hdr"", "".heic"", "".heif"", "".ico"", "".jp2"", "".jpe"", "".jpeg"", "".jpg"", "".jpf"", "".jpm"", "".jpx"", "".jxl"", "".j2k"", "".mj2"", "".nef"", "".pcd"", "".png"", "".psb"", "".psd"", "".raw"", "".svg"", "".svgz"", "".tga"", "".tif"", "".tiff"", "".webp"", "".xcf""]
-        },
-        ""file_link"": {
-            ""description"": ""Links, URLs."",
-            ""extensions"": ["".lnk"", "".url""]
-        },
-        ""file_system"": {
-            ""description"": ""Core operating system files, drivers, and libraries."",
-            ""extensions"": ["".bak"", "".cache"", "".dat"", "".dll"", "".drv"", "".icns"", "".msi"", "".mui"", "".partial"", "".sys"", "".tmp""]
-        },
-        ""file_text"": {
-            ""description"": ""Plain text and markup-based text files."",
-            ""extensions"": ["".log"", "".md"", "".markdown"", "".nfo"", "".txt""]
-        },
-        ""file_video"": {
-            ""description"": ""Common video container formats."",
-            ""extensions"": ["".3g2"", "".3gp"", "".asf"", "".avi"", "".divx"", "".f4v"", "".flv"", "".h264"", "".m1v"", "".m2t"", "".m2ts"", "".m2v"", "".m4v"", "".mkv"", "".mov"", "".mp4"", "".mp4v"", "".mpe"", "".mpeg"", "".mpg"", "".mts"", "".nsv"", "".ogm"", "".ogv"", "".qt"", "".rm"", "".rmvb"", "".swf"", "".tod"", "".ts"", "".vdo"", "".vob"", "".webm"", "".wmv"", "".yuv""]
-        }
-    }
-}";
 
         private readonly string _configPath;
         private readonly FileSystemWatcher _watcher;
@@ -148,10 +96,11 @@ namespace Cliptoo.Core.Services
 
             if (config == null)
             {
-                config = JsonSerializer.Deserialize<FileTypeConfig>(DefaultFiletypeConfig);
+                var defaultConfigContent = GetDefaultConfigContent();
+                config = JsonSerializer.Deserialize<FileTypeConfig>(defaultConfigContent);
                 try
                 {
-                    File.WriteAllText(_configPath, DefaultFiletypeConfig);
+                    File.WriteAllText(_configPath, defaultConfigContent);
                     LogManager.Log("Wrote new/default version of filetypes.json to disk.");
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException or NotSupportedException)
@@ -177,6 +126,24 @@ namespace Cliptoo.Core.Services
                 foreach (var kvp in newExtToCategory)
                 {
                     _extToCategory.Add(kvp.Key, kvp.Value);
+                }
+            }
+        }
+
+        private static string GetDefaultConfigContent()
+        {
+            var assembly = Assembly.GetExecutingAssembly();
+            var resourceName = "Cliptoo.Core.Services.DefaultFiletypes.json";
+
+            using (Stream? stream = assembly.GetManifestResourceStream(resourceName))
+            {
+                if (stream == null)
+                {
+                    throw new InvalidOperationException($"Could not find embedded resource: {resourceName}");
+                }
+                using (var reader = new StreamReader(stream))
+                {
+                    return reader.ReadToEnd();
                 }
             }
         }
