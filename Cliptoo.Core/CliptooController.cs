@@ -211,7 +211,7 @@ namespace Cliptoo.Core
             return _dbManager.GetClipsAsync(limit, offset, searchTerm, filterType, cancellationToken);
         }
 
-        public async Task<Clip> GetClipByIdAsync(int id)
+        public async Task<Clip?> GetClipByIdAsync(int id)
         {
             if (_clipCache.TryGetValue(id, out var cachedClip) && cachedClip is not null)
             {
@@ -220,7 +220,7 @@ namespace Cliptoo.Core
 
             var clip = await _dbManager.GetClipByIdAsync(id).ConfigureAwait(false);
 
-            if (clip.SizeInBytes < 100 * 1024) // Only cache clips < 100 KB
+            if (clip is not null && clip.SizeInBytes < 100 * 1024) // Only cache clips < 100 KB
             {
                 _clipCache.Add(id, clip);
             }
@@ -290,6 +290,11 @@ namespace Cliptoo.Core
             {
                 var leftClip = await GetClipByIdAsync(leftClipId).ConfigureAwait(false);
                 var rightClip = await GetClipByIdAsync(rightClipId).ConfigureAwait(false);
+
+                if (leftClip is null || rightClip is null)
+                {
+                    return (false, "One or both of the clips to compare could not be found.");
+                }
 
                 var leftFilePath = Path.Combine(_tempPath, $"cliptoo_compare_left_{Guid.NewGuid()}.txt");
                 var rightFilePath = Path.Combine(_tempPath, $"cliptoo_compare_right_{Guid.NewGuid()}.txt");

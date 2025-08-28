@@ -151,7 +151,7 @@ namespace Cliptoo.UI.ViewModels
             SendToCommand = new RelayCommand(async param => await ExecuteSendTo(param as SendToTarget).ConfigureAwait(false));
         }
 
-        private async Task<Clip> GetFullClipAsync()
+        private async Task<Clip?> GetFullClipAsync()
         {
             // This now fetches the full clip but does NOT store it in the viewmodel's state.
             // It's used as a temporary object for operations like paste, open, or tooltip generation.

@@ -390,7 +390,7 @@ namespace Cliptoo.Core.Database
             }
         }
 
-        public async Task<Clip> GetClipByIdAsync(int id)
+        public async Task<Clip?> GetClipByIdAsync(int id)
         {
             SqliteConnection? connection = null;
             SqliteCommand? command = null;
@@ -446,7 +446,7 @@ namespace Cliptoo.Core.Database
                         SizeInBytes = reader.GetInt64(sizeInBytesOrdinal)
                     };
                 }
-                throw new InvalidOperationException($"Clip with ID {id} not found.");
+                return null;
             }
             finally
             {

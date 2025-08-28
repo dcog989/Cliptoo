@@ -31,6 +31,11 @@ namespace Cliptoo.UI.ViewModels
 
             var clipForTooltip = await GetFullClipAsync();
 
+            if (clipForTooltip is null)
+            {
+                return;
+            }
+
             string? textFileContent = null;
             if (IsPreviewableAsTextFile)
             {
