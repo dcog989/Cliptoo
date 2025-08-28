@@ -577,9 +577,9 @@ namespace Cliptoo.Core
             _lastActivityTimestamp = DateTime.UtcNow;
         }
 
-        public void SuppressNextClip(ulong hash)
+        public void SuppressNextClip(params ulong[] hashes)
         {
-            ClipboardMonitor.SuppressNextClip(hash);
+            ClipboardMonitor.SuppressNextClip(hashes);
         }
     }
 }

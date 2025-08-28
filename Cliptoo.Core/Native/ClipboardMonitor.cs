@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -17,16 +18,25 @@ namespace Cliptoo.Core.Native
         private ulong _lastTextHash;
         private ulong _lastImageHash;
         private ulong _lastFileDropHash;
-        private bool _isPaused;
-        private ulong _hashToSuppress;
+        private readonly HashSet<ulong> _hashesToSuppress = new();
         private bool _disposedValue;
+        private readonly System.Timers.Timer _suppressionResetTimer;
 
-        public void Pause() => _isPaused = true;
-        public void ResumeMonitoring() => _isPaused = false;
-
-        public void SuppressNextClip(ulong hash)
+        public ClipboardMonitor()
         {
-            _hashToSuppress = hash;
+            _suppressionResetTimer = new System.Timers.Timer(200) { AutoReset = false };
+            _suppressionResetTimer.Elapsed += (s, e) => _hashesToSuppress.Clear();
+        }
+
+        public void SuppressNextClip(IEnumerable<ulong> hashes)
+        {
+            ArgumentNullException.ThrowIfNull(hashes);
+            _suppressionResetTimer.Stop();
+            _hashesToSuppress.Clear();
+            foreach (var hash in hashes)
+            {
+                _hashesToSuppress.Add(hash);
+            }
         }
 
         public void Start(IntPtr windowHandle)
@@ -49,8 +59,6 @@ namespace Cliptoo.Core.Native
 
         public void ProcessSystemUpdate()
         {
-            if (_isPaused) return;
-
             if (ClipboardUtils.SafeGet(() => Clipboard.ContainsData(DataFormats.Rtf)) == true)
             {
                 var rtfText = ClipboardUtils.SafeGet(() => Clipboard.GetData(DataFormats.Rtf) as string);
@@ -148,13 +156,12 @@ namespace Cliptoo.Core.Native
 
         private bool CheckAndResetSuppression(ulong newHash)
         {
-            if (_hashToSuppress != 0 && _hashToSuppress == newHash)
+            if (_hashesToSuppress.Count > 0 && _hashesToSuppress.Contains(newHash))
             {
-                _hashToSuppress = 0;
+                _suppressionResetTimer.Start();
                 Configuration.LogManager.LogDebug("Suppressed self-generated clip from being re-added.");
                 return true;
             }
-            _hashToSuppress = 0; // Reset if it doesn't match, to prevent stale suppression
             return false;
         }
 
@@ -164,7 +171,7 @@ namespace Cliptoo.Core.Native
             {
                 if (disposing)
                 {
-                    // Dispose managed state (managed objects).
+                    _suppressionResetTimer.Dispose();
                 }
 
                 StopMonitoring();

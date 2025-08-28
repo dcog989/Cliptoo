@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Cliptoo.Core.Native.Models;
 
 namespace Cliptoo.Core.Native
@@ -26,8 +27,6 @@ namespace Cliptoo.Core.Native
         /// This should be called from the window message hook.
         /// </summary>
         void ProcessSystemUpdate();
-        void Pause();
-        void ResumeMonitoring();
-        void SuppressNextClip(ulong hash);
+        void SuppressNextClip(IEnumerable<ulong> hashes);
     }
 }
