@@ -172,64 +172,101 @@ namespace Cliptoo.Core.Database
             var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(content)));
             var previewContent = CreatePreview(content);
 
-            await using var connection = await GetOpenConnectionAsync().ConfigureAwait(false);
-            await using var transaction = (SqliteTransaction)await connection.BeginTransactionAsync().ConfigureAwait(false);
-
-            long lastId;
-            long? clipId;
-
-            await using (var upsertCmd = connection.CreateCommand())
+            SqliteConnection? connection = null;
+            SqliteTransaction? transaction = null;
+            try
             {
-                upsertCmd.Transaction = transaction;
-                upsertCmd.CommandText = @"
-                INSERT INTO clips (Content, ContentHash, PreviewContent, ClipType, SourceApp, Timestamp, IsPinned, WasTrimmed, SizeInBytes)
-                VALUES (@Content, @ContentHash, @PreviewContent, @ClipType, @SourceApp, @Timestamp, 0, @WasTrimmed, @SizeInBytes)
-                ON CONFLICT(ContentHash) DO UPDATE SET
-                    Timestamp = excluded.Timestamp,
-                    SourceApp = excluded.SourceApp;
-            ";
-                upsertCmd.Parameters.AddWithValue("@Content", content);
-                upsertCmd.Parameters.AddWithValue("@ContentHash", hash);
-                upsertCmd.Parameters.AddWithValue("@PreviewContent", previewContent);
-                upsertCmd.Parameters.AddWithValue("@ClipType", clipType);
-                upsertCmd.Parameters.AddWithValue("@SourceApp", sourceApp ?? (object)DBNull.Value);
-                upsertCmd.Parameters.AddWithValue("@Timestamp", DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture));
-                upsertCmd.Parameters.AddWithValue("@WasTrimmed", wasTrimmed ? 1 : 0);
-                upsertCmd.Parameters.AddWithValue("@SizeInBytes", contentSize);
-                await upsertCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
+                connection = await GetOpenConnectionAsync().ConfigureAwait(false);
+                transaction = (SqliteTransaction)await connection.BeginTransactionAsync().ConfigureAwait(false);
 
-            await using (var lastIdCmd = connection.CreateCommand())
+                long lastId;
+                long? clipId;
+
+                SqliteCommand? upsertCmd = null;
+                try
+                {
+                    upsertCmd = connection.CreateCommand();
+                    upsertCmd.Transaction = transaction;
+                    upsertCmd.CommandText = @"
+                        INSERT INTO clips (Content, ContentHash, PreviewContent, ClipType, SourceApp, Timestamp, IsPinned, WasTrimmed, SizeInBytes)
+                        VALUES (@Content, @ContentHash, @PreviewContent, @ClipType, @SourceApp, @Timestamp, 0, @WasTrimmed, @SizeInBytes)
+                        ON CONFLICT(ContentHash) DO UPDATE SET
+                            Timestamp = excluded.Timestamp,
+                            SourceApp = excluded.SourceApp;
+                    ";
+                    upsertCmd.Parameters.AddWithValue("@Content", content);
+                    upsertCmd.Parameters.AddWithValue("@ContentHash", hash);
+                    upsertCmd.Parameters.AddWithValue("@PreviewContent", previewContent);
+                    upsertCmd.Parameters.AddWithValue("@ClipType", clipType);
+                    upsertCmd.Parameters.AddWithValue("@SourceApp", sourceApp ?? (object)DBNull.Value);
+                    upsertCmd.Parameters.AddWithValue("@Timestamp", DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture));
+                    upsertCmd.Parameters.AddWithValue("@WasTrimmed", wasTrimmed ? 1 : 0);
+                    upsertCmd.Parameters.AddWithValue("@SizeInBytes", contentSize);
+                    await upsertCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+                }
+                finally
+                {
+                    if (upsertCmd != null) { await upsertCmd.DisposeAsync().ConfigureAwait(false); }
+                }
+
+                SqliteCommand? lastIdCmd = null;
+                try
+                {
+                    lastIdCmd = connection.CreateCommand();
+                    lastIdCmd.Transaction = transaction;
+                    lastIdCmd.CommandText = "SELECT last_insert_rowid();";
+                    lastId = (long)(await lastIdCmd.ExecuteScalarAsync().ConfigureAwait(false) ?? 0L);
+                }
+                finally
+                {
+                    if (lastIdCmd != null) { await lastIdCmd.DisposeAsync().ConfigureAwait(false); }
+                }
+
+
+                if (lastId > 0)
+                {
+                    SqliteCommand? statCmd = null;
+                    try
+                    {
+                        statCmd = connection.CreateCommand();
+                        statCmd.Transaction = transaction;
+                        statCmd.CommandText = "UPDATE stats SET Value = COALESCE(Value, 0) + 1 WHERE Key = 'TotalClipsEver'";
+                        await statCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        if (statCmd != null) { await statCmd.DisposeAsync().ConfigureAwait(false); }
+                    }
+                }
+
+                SqliteCommand? selectCmd = null;
+                try
+                {
+                    selectCmd = connection.CreateCommand();
+                    selectCmd.Transaction = transaction;
+                    selectCmd.CommandText = "SELECT Id FROM clips WHERE ContentHash = @ContentHash";
+                    selectCmd.Parameters.AddWithValue("@ContentHash", hash);
+                    clipId = (long?)(await selectCmd.ExecuteScalarAsync().ConfigureAwait(false));
+                }
+                finally
+                {
+                    if (selectCmd != null) { await selectCmd.DisposeAsync().ConfigureAwait(false); }
+                }
+
+                await transaction.CommitAsync().ConfigureAwait(false);
+
+                if (clipId is null)
+                {
+                    throw new InvalidOperationException("Failed to retrieve clip ID after upsert.");
+                }
+
+                return (int)clipId;
+            }
+            finally
             {
-                lastIdCmd.Transaction = transaction;
-                lastIdCmd.CommandText = "SELECT last_insert_rowid();";
-                lastId = (long)(await lastIdCmd.ExecuteScalarAsync().ConfigureAwait(false) ?? 0L);
+                if (transaction != null) { await transaction.DisposeAsync().ConfigureAwait(false); }
+                if (connection != null) { await connection.DisposeAsync().ConfigureAwait(false); }
             }
-
-            if (lastId > 0)
-            {
-                await using var statCmd = connection.CreateCommand();
-                statCmd.Transaction = transaction;
-                statCmd.CommandText = "UPDATE stats SET Value = COALESCE(Value, 0) + 1 WHERE Key = 'TotalClipsEver'";
-                await statCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-
-            await using (var selectCmd = connection.CreateCommand())
-            {
-                selectCmd.Transaction = transaction;
-                selectCmd.CommandText = "SELECT Id FROM clips WHERE ContentHash = @ContentHash";
-                selectCmd.Parameters.AddWithValue("@ContentHash", hash);
-                clipId = (long?)(await selectCmd.ExecuteScalarAsync().ConfigureAwait(false));
-            }
-
-            await transaction.CommitAsync().ConfigureAwait(false);
-
-            if (clipId is null)
-            {
-                throw new InvalidOperationException("Failed to retrieve clip ID after upsert.");
-            }
-
-            return (int)clipId;
         }
 
         public Task UpdateClipContentAsync(int id, string content)
