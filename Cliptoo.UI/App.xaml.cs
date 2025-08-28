@@ -128,7 +128,7 @@ namespace Cliptoo.UI
             {
                 await _host.StopAsync();
             }
-            LogManager.Log("Application shutdown complete.");
+            LogManager.Log($"Application shutdown complete. ({DateTime.Now:yyyyMMdd})");
             LogManager.Log("=====================================\r\n");
         }
 

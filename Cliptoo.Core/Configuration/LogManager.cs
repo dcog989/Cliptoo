@@ -27,7 +27,7 @@ namespace Cliptoo.Core.Configuration
                 _currentLogDate = DateTime.Now.Date;
 
                 IsInitialized = true;
-                Log("LogManager initialized successfully.");
+                Log($"LogManager initialized successfully. ({DateTime.Now:yyyyMMdd})");
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
             {
@@ -64,7 +64,10 @@ namespace Cliptoo.Core.Configuration
                 var fileInfo = new FileInfo(_logFilePath);
                 if (fileInfo.LastWriteTime.Date < DateTime.Now.Date)
                 {
-                    var newName = Path.GetFileNameWithoutExtension(_logFilePath).Replace("-latest", "", StringComparison.Ordinal) + $"-{fileInfo.LastWriteTime:yyMMdd-HHmmss}.log";
+                    // If called from Initialize, _currentLogDate is MinValue. Use LastWriteTime's date as a fallback.
+                    // If called from Write (during continuous operation), _currentLogDate has the correct date of the log being rotated.
+                    var logDate = (_currentLogDate == DateTime.MinValue) ? fileInfo.LastWriteTime.Date : _currentLogDate;
+                    var newName = Path.GetFileNameWithoutExtension(_logFilePath).Replace("-latest", "", StringComparison.Ordinal) + $"-{logDate:yyMMdd}-{fileInfo.LastWriteTime:HHmmss}.log";
 
                     var directoryName = fileInfo.DirectoryName;
                     if (directoryName is null) return;
@@ -91,6 +94,9 @@ namespace Cliptoo.Core.Configuration
                     {
                         RotateLogFileIfNeeded();
                         _currentLogDate = DateTime.Now.Date;
+
+                        IsInitialized = true;
+                        Log($"LogManager initialized successfully. ({DateTime.Now:yyyyMMdd})");
                     }
 
                     File.AppendAllText(_logFilePath, $"[{DateTime.Now:HH:mm:ss.fff}] {level}: {message}{Environment.NewLine}");
