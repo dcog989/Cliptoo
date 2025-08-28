@@ -16,42 +16,16 @@ namespace Cliptoo.Core.Database
 
         public async Task<int> ClearHistoryAsync()
         {
-            SqliteConnection? connection = null;
-            SqliteCommand? command = null;
-            try
-            {
-                connection = await GetOpenConnectionAsync().ConfigureAwait(false);
-                command = connection.CreateCommand();
-                command.CommandText = "DELETE FROM clips WHERE IsPinned = 0";
-                var affected = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-                if (affected > 0) await CompactDbAsync().ConfigureAwait(false);
-                return affected;
-            }
-            finally
-            {
-                if (command != null) { await command.DisposeAsync().ConfigureAwait(false); }
-                if (connection != null) { await connection.DisposeAsync().ConfigureAwait(false); }
-            }
+            var affected = await ExecuteNonQueryAsync("DELETE FROM clips WHERE IsPinned = 0").ConfigureAwait(false);
+            if (affected > 0) await CompactDbAsync().ConfigureAwait(false);
+            return affected;
         }
 
         public async Task<int> ClearAllHistoryAsync()
         {
-            SqliteConnection? connection = null;
-            SqliteCommand? command = null;
-            try
-            {
-                connection = await GetOpenConnectionAsync().ConfigureAwait(false);
-                command = connection.CreateCommand();
-                command.CommandText = "DELETE FROM clips";
-                var affected = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-                if (affected > 0) await CompactDbAsync().ConfigureAwait(false);
-                return affected;
-            }
-            finally
-            {
-                if (command != null) { await command.DisposeAsync().ConfigureAwait(false); }
-                if (connection != null) { await connection.DisposeAsync().ConfigureAwait(false); }
-            }
+            var affected = await ExecuteNonQueryAsync("DELETE FROM clips").ConfigureAwait(false);
+            if (affected > 0) await CompactDbAsync().ConfigureAwait(false);
+            return affected;
         }
 
         public async Task CompactDbAsync()
@@ -311,30 +285,16 @@ namespace Cliptoo.Core.Database
         public async Task<int> ClearOversizedClipsAsync(uint sizeMb)
         {
             var sizeBytes = (long)sizeMb * 1024 * 1024;
-            SqliteConnection? connection = null;
-            SqliteCommand? command = null;
-            try
+            var sql = "DELETE FROM clips WHERE IsPinned = 0 AND SizeInBytes > @SizeBytes";
+            var param = new SqliteParameter("@SizeBytes", sizeBytes);
+            int totalAffected = await ExecuteNonQueryAsync(sql, param).ConfigureAwait(false);
+
+            if (totalAffected > 0)
             {
-                connection = await GetOpenConnectionAsync().ConfigureAwait(false);
-                command = connection.CreateCommand();
-
-                command.CommandText = "DELETE FROM clips WHERE IsPinned = 0 AND SizeInBytes > @SizeBytes";
-                command.Parameters.AddWithValue("@SizeBytes", sizeBytes);
-
-                int totalAffected = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-                if (totalAffected > 0)
-                {
-                    await CompactDbAsync().ConfigureAwait(false);
-                }
-
-                return totalAffected;
+                await CompactDbAsync().ConfigureAwait(false);
             }
-            finally
-            {
-                if (command != null) { await command.DisposeAsync().ConfigureAwait(false); }
-                if (connection != null) { await connection.DisposeAsync().ConfigureAwait(false); }
-            }
+
+            return totalAffected;
         }
     }
 }

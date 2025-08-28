@@ -169,114 +169,76 @@ namespace Cliptoo.Core.Database
             ArgumentNullException.ThrowIfNull(content);
 
             SqliteConnection? connection = null;
+            SqliteCommand? command = null;
             try
             {
                 connection = await GetOpenConnectionAsync().ConfigureAwait(false);
                 var contentSize = (long)System.Text.Encoding.UTF8.GetByteCount(content);
                 var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(content)));
 
-                SqliteCommand? selectCmd = null;
-                try
+                command = connection.CreateCommand();
+                command.CommandText = "SELECT Id FROM clips WHERE ContentHash = @Hash";
+                command.Parameters.AddWithValue("@Hash", hash);
+                var existingIdObj = await command.ExecuteScalarAsync().ConfigureAwait(false);
+                if (existingIdObj != null)
                 {
-                    selectCmd = connection.CreateCommand();
-                    selectCmd.CommandText = "SELECT Id FROM clips WHERE ContentHash = @Hash";
-                    selectCmd.Parameters.AddWithValue("@Hash", hash);
-                    var existingIdObj = await selectCmd.ExecuteScalarAsync().ConfigureAwait(false);
-                    if (existingIdObj != null)
-                    {
-                        var existingId = Convert.ToInt32(existingIdObj, CultureInfo.InvariantCulture);
-                        SqliteCommand? updateCmd = null;
-                        try
-                        {
-                            updateCmd = connection.CreateCommand();
-                            updateCmd.CommandText = "UPDATE clips SET Timestamp = @Timestamp, SourceApp = @SourceApp WHERE Id = @Id";
-                            updateCmd.Parameters.AddWithValue("@Timestamp", DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture));
-                            updateCmd.Parameters.AddWithValue("@SourceApp", sourceApp ?? (object)DBNull.Value);
-                            updateCmd.Parameters.AddWithValue("@Id", existingId);
-                            await updateCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
-                            return existingId;
-                        }
-                        finally
-                        {
-                            if (updateCmd != null) { await updateCmd.DisposeAsync().ConfigureAwait(false); }
-                        }
-                    }
+                    var existingId = Convert.ToInt32(existingIdObj, CultureInfo.InvariantCulture);
+                    await command.DisposeAsync().ConfigureAwait(false);
+
+                    command = connection.CreateCommand();
+                    command.CommandText = "UPDATE clips SET Timestamp = @Timestamp, SourceApp = @SourceApp WHERE Id = @Id";
+                    command.Parameters.AddWithValue("@Timestamp", DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture));
+                    command.Parameters.AddWithValue("@SourceApp", sourceApp ?? (object)DBNull.Value);
+                    command.Parameters.AddWithValue("@Id", existingId);
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                    return existingId;
                 }
-                finally
-                {
-                    if (selectCmd != null) { await selectCmd.DisposeAsync().ConfigureAwait(false); }
-                }
+                await command.DisposeAsync().ConfigureAwait(false);
 
                 var previewContent = CreatePreview(content);
-                long newId;
-                SqliteCommand? insertCmd = null;
-                try
-                {
-                    insertCmd = connection.CreateCommand();
-                    insertCmd.CommandText = @"
+                command = connection.CreateCommand();
+                command.CommandText = @"
                         INSERT INTO clips (Content, ContentHash, PreviewContent, ClipType, SourceApp, Timestamp, IsPinned, WasTrimmed, SizeInBytes)
                         VALUES (@Content, @ContentHash, @PreviewContent, @ClipType, @SourceApp, @Timestamp, 0, @WasTrimmed, @SizeInBytes);
                         SELECT last_insert_rowid();";
-                    insertCmd.Parameters.AddWithValue("@Content", content);
-                    insertCmd.Parameters.AddWithValue("@ContentHash", hash);
-                    insertCmd.Parameters.AddWithValue("@PreviewContent", previewContent);
-                    insertCmd.Parameters.AddWithValue("@ClipType", clipType);
-                    insertCmd.Parameters.AddWithValue("@SourceApp", sourceApp ?? (object)DBNull.Value);
-                    insertCmd.Parameters.AddWithValue("@Timestamp", DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture));
-                    insertCmd.Parameters.AddWithValue("@WasTrimmed", wasTrimmed ? 1 : 0);
-                    insertCmd.Parameters.AddWithValue("@SizeInBytes", contentSize);
-                    newId = (long)(await insertCmd.ExecuteScalarAsync().ConfigureAwait(false) ?? -1L);
-                }
-                finally
-                {
-                    if (insertCmd != null) { await insertCmd.DisposeAsync().ConfigureAwait(false); }
-                }
-
-                SqliteCommand? updateTotalCmd = null;
-                try
-                {
-                    updateTotalCmd = connection.CreateCommand();
-                    updateTotalCmd.CommandText = "UPDATE stats SET Value = COALESCE(Value, 0) + 1 WHERE Key = 'TotalClipsEver'";
-                    await updateTotalCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
-                }
-                finally
-                {
-                    if (updateTotalCmd != null) { await updateTotalCmd.DisposeAsync().ConfigureAwait(false); }
-                }
-
-                return (int)newId;
-            }
-            finally
-            {
-                if (connection != null) { await connection.DisposeAsync().ConfigureAwait(false); }
-            }
-        }
-
-        public async Task UpdateClipContentAsync(int id, string content)
-        {
-            ArgumentNullException.ThrowIfNull(content);
-            SqliteConnection? connection = null;
-            SqliteCommand? command = null;
-            try
-            {
-                connection = await GetOpenConnectionAsync().ConfigureAwait(false);
-                command = connection.CreateCommand();
-                var previewContent = CreatePreview(content);
-                var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(content)));
-
-                command.CommandText = "UPDATE clips SET Content = @Content, ContentHash = @ContentHash, PreviewContent = @PreviewContent, SizeInBytes = @SizeInBytes WHERE Id = @Id";
                 command.Parameters.AddWithValue("@Content", content);
                 command.Parameters.AddWithValue("@ContentHash", hash);
                 command.Parameters.AddWithValue("@PreviewContent", previewContent);
-                command.Parameters.AddWithValue("@SizeInBytes", (long)System.Text.Encoding.UTF8.GetByteCount(content));
-                command.Parameters.AddWithValue("@Id", id);
+                command.Parameters.AddWithValue("@ClipType", clipType);
+                command.Parameters.AddWithValue("@SourceApp", sourceApp ?? (object)DBNull.Value);
+                command.Parameters.AddWithValue("@Timestamp", DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture));
+                command.Parameters.AddWithValue("@WasTrimmed", wasTrimmed ? 1 : 0);
+                command.Parameters.AddWithValue("@SizeInBytes", contentSize);
+                var newId = (long)(await command.ExecuteScalarAsync().ConfigureAwait(false) ?? -1L);
+                await command.DisposeAsync().ConfigureAwait(false);
+
+                command = connection.CreateCommand();
+                command.CommandText = "UPDATE stats SET Value = COALESCE(Value, 0) + 1 WHERE Key = 'TotalClipsEver'";
                 await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                return (int)newId;
             }
             finally
             {
                 if (command != null) { await command.DisposeAsync().ConfigureAwait(false); }
                 if (connection != null) { await connection.DisposeAsync().ConfigureAwait(false); }
             }
+        }
+
+        public Task UpdateClipContentAsync(int id, string content)
+        {
+            ArgumentNullException.ThrowIfNull(content);
+            var previewContent = CreatePreview(content);
+            var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(content)));
+            var sql = "UPDATE clips SET Content = @Content, ContentHash = @ContentHash, PreviewContent = @PreviewContent, SizeInBytes = @SizeInBytes WHERE Id = @Id";
+            var parameters = new[]
+            {
+                new SqliteParameter("@Content", content),
+                new SqliteParameter("@ContentHash", hash),
+                new SqliteParameter("@PreviewContent", previewContent),
+                new SqliteParameter("@SizeInBytes", (long)System.Text.Encoding.UTF8.GetByteCount(content)),
+                new SqliteParameter("@Id", id)
+            };
+            return ExecuteNonQueryAsync(sql, parameters);
         }
 
         public async IAsyncEnumerable<string> GetAllImageClipPathsAsync()
@@ -331,63 +293,33 @@ namespace Cliptoo.Core.Database
             }
         }
 
-        public async Task DeleteClipAsync(int id)
+        public Task DeleteClipAsync(int id)
         {
-            SqliteConnection? connection = null;
-            SqliteCommand? command = null;
-            try
-            {
-                connection = await GetOpenConnectionAsync().ConfigureAwait(false);
-                command = connection.CreateCommand();
-                command.CommandText = "DELETE FROM clips WHERE Id = @Id";
-                command.Parameters.AddWithValue("@Id", id);
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-            finally
-            {
-                if (command != null) { await command.DisposeAsync().ConfigureAwait(false); }
-                if (connection != null) { await connection.DisposeAsync().ConfigureAwait(false); }
-            }
+            var sql = "DELETE FROM clips WHERE Id = @Id";
+            var param = new SqliteParameter("@Id", id);
+            return ExecuteNonQueryAsync(sql, param);
         }
 
-        public async Task TogglePinAsync(int id, bool isPinned)
+        public Task TogglePinAsync(int id, bool isPinned)
         {
-            SqliteConnection? connection = null;
-            SqliteCommand? command = null;
-            try
+            var sql = "UPDATE clips SET IsPinned = @IsPinned WHERE Id = @Id";
+            var parameters = new[]
             {
-                connection = await GetOpenConnectionAsync().ConfigureAwait(false);
-                command = connection.CreateCommand();
-                command.CommandText = "UPDATE clips SET IsPinned = @IsPinned WHERE Id = @Id";
-                command.Parameters.AddWithValue("@IsPinned", isPinned ? 1 : 0);
-                command.Parameters.AddWithValue("@Id", id);
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-            finally
-            {
-                if (command != null) { await command.DisposeAsync().ConfigureAwait(false); }
-                if (connection != null) { await connection.DisposeAsync().ConfigureAwait(false); }
-            }
+                new SqliteParameter("@IsPinned", isPinned ? 1 : 0),
+                new SqliteParameter("@Id", id)
+            };
+            return ExecuteNonQueryAsync(sql, parameters);
         }
 
-        public async Task UpdateTimestampAsync(int id)
+        public Task UpdateTimestampAsync(int id)
         {
-            SqliteConnection? connection = null;
-            SqliteCommand? command = null;
-            try
+            var sql = "UPDATE clips SET Timestamp = @Timestamp WHERE Id = @Id";
+            var parameters = new[]
             {
-                connection = await GetOpenConnectionAsync().ConfigureAwait(false);
-                command = connection.CreateCommand();
-                command.CommandText = "UPDATE clips SET Timestamp = @Timestamp WHERE Id = @Id";
-                command.Parameters.AddWithValue("@Timestamp", DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture));
-                command.Parameters.AddWithValue("@Id", id);
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-            finally
-            {
-                if (command != null) { await command.DisposeAsync().ConfigureAwait(false); }
-                if (connection != null) { await connection.DisposeAsync().ConfigureAwait(false); }
-            }
+                new SqliteParameter("@Timestamp", DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture)),
+                new SqliteParameter("@Id", id)
+            };
+            return ExecuteNonQueryAsync(sql, parameters);
         }
 
         public async Task<Clip?> GetClipByIdAsync(int id)
@@ -498,24 +430,19 @@ namespace Cliptoo.Core.Database
             }
         }
 
-        public async Task UpdateClipTypesAsync(Dictionary<int, string> updates)
+        public Task UpdateClipTypesAsync(Dictionary<int, string> updates)
         {
             ArgumentNullException.ThrowIfNull(updates);
 
-            SqliteConnection? connection = null;
-            SqliteTransaction? transaction = null;
-            try
+            return ExecuteTransactionAsync(async (connection, transaction) =>
             {
-                connection = await GetOpenConnectionAsync().ConfigureAwait(false);
-                transaction = (SqliteTransaction)await connection.BeginTransactionAsync().ConfigureAwait(false);
-
                 foreach (var update in updates)
                 {
                     SqliteCommand? command = null;
                     try
                     {
                         command = connection.CreateCommand();
-                        command.Transaction = transaction;
+                        command.Transaction = (SqliteTransaction)transaction;
                         command.CommandText = "UPDATE clips SET ClipType = @ClipType WHERE Id = @Id";
                         command.Parameters.AddWithValue("@Id", update.Key);
                         command.Parameters.AddWithValue("@ClipType", update.Value);
@@ -523,23 +450,13 @@ namespace Cliptoo.Core.Database
                     }
                     finally
                     {
-                        if (command != null) { await command.DisposeAsync().ConfigureAwait(false); }
+                        if (command != null)
+                        {
+                            await command.DisposeAsync().ConfigureAwait(false);
+                        }
                     }
                 }
-
-                await transaction.CommitAsync().ConfigureAwait(false);
-            }
-            finally
-            {
-                if (transaction != null)
-                {
-                    await transaction.DisposeAsync().ConfigureAwait(false);
-                }
-                if (connection != null)
-                {
-                    await connection.DisposeAsync().ConfigureAwait(false);
-                }
-            }
+            });
         }
     }
 }

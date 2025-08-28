@@ -15,41 +15,16 @@ namespace Cliptoo.Core.Database
             _dbPath = dbPath;
         }
 
-        public async Task UpdatePasteCountAsync()
+        public Task UpdatePasteCountAsync()
         {
-            SqliteConnection? connection = null;
-            SqliteCommand? command = null;
-            try
-            {
-                connection = await GetOpenConnectionAsync().ConfigureAwait(false);
-                command = connection.CreateCommand();
-                command.CommandText = "UPDATE stats SET Value = COALESCE(Value, 0) + 1 WHERE Key = 'PasteCount'";
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-            finally
-            {
-                if (command != null) { await command.DisposeAsync().ConfigureAwait(false); }
-                if (connection != null) { await connection.DisposeAsync().ConfigureAwait(false); }
-            }
+            return ExecuteNonQueryAsync("UPDATE stats SET Value = COALESCE(Value, 0) + 1 WHERE Key = 'PasteCount'");
         }
 
-        public async Task UpdateLastCleanupTimestampAsync()
+        public Task UpdateLastCleanupTimestampAsync()
         {
-            SqliteConnection? connection = null;
-            SqliteCommand? command = null;
-            try
-            {
-                connection = await GetOpenConnectionAsync().ConfigureAwait(false);
-                command = connection.CreateCommand();
-                command.CommandText = "INSERT OR REPLACE INTO stats (Key, TextValue) VALUES ('LastCleanupTimestamp', @Timestamp);";
-                command.Parameters.AddWithValue("@Timestamp", DateTime.UtcNow.ToString("o"));
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-            finally
-            {
-                if (command != null) { await command.DisposeAsync().ConfigureAwait(false); }
-                if (connection != null) { await connection.DisposeAsync().ConfigureAwait(false); }
-            }
+            var sql = "INSERT OR REPLACE INTO stats (Key, TextValue) VALUES ('LastCleanupTimestamp', @Timestamp);";
+            var param = new SqliteParameter("@Timestamp", DateTime.UtcNow.ToString("o"));
+            return ExecuteNonQueryAsync(sql, param);
         }
 
         public async Task<DbStats> GetStatsAsync()
