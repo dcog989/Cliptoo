@@ -70,6 +70,8 @@ namespace Cliptoo.UI.Views
                 {
                     ClipListView.ScrollIntoView(ClipListView.Items[0]);
                     ClipListView.SelectedIndex = 0;
+                    var firstItem = ClipListView.ItemContainerGenerator.ContainerFromIndex(0) as System.Windows.Controls.ListViewItem;
+                    firstItem?.Focus();
                 }
             }));
         }
@@ -233,7 +235,6 @@ namespace Cliptoo.UI.Views
             if (e.NewValue is true)
             {
                 _viewModel.HandleWindowShown();
-                OnListScrolledToTopRequest(this, EventArgs.Empty);
             }
             else if (e.NewValue is false)
             {
