@@ -98,7 +98,7 @@ namespace Cliptoo.Core.Services
             if (string.IsNullOrWhiteSpace(input)) return false;
 
             var str = input.Trim();
-            var lowerStr = str.ToUpperInvariant();
+            var lowerStr = str.ToLowerInvariant();
             if (NamedColors.TryGetValue(lowerStr, out var hex))
             {
                 str = hex;
@@ -148,7 +148,11 @@ namespace Cliptoo.Core.Services
                 return true;
             }
 
-            match = RgbRegex.Match(str) ?? RgbLegacyRegex.Match(str);
+            match = RgbRegex.Match(str);
+            if (!match.Success)
+            {
+                match = RgbLegacyRegex.Match(str);
+            }
             if (match.Success)
             {
                 var r = ParseCssNumber(match.Groups[1].Value);
@@ -159,7 +163,11 @@ namespace Cliptoo.Core.Services
                 return true;
             }
 
-            match = HslRegex.Match(str) ?? HslLegacyRegex.Match(str);
+            match = HslRegex.Match(str);
+            if (!match.Success)
+            {
+                match = HslLegacyRegex.Match(str);
+            }
             if (match.Success)
             {
                 var h = ParseHue(match.Groups[1].Value);
@@ -230,13 +238,30 @@ namespace Cliptoo.Core.Services
 
         private static double ParseHue(string value)
         {
-            var str = value.ToUpperInvariant().Trim();
-            var num = double.Parse(Regex.Match(str, @"[+\-\d.]+").Value, CultureInfo.InvariantCulture);
-            var normalized = 0.0;
-            if (str.Contains("deg", StringComparison.Ordinal) || !Regex.IsMatch(str, "[a-z]")) normalized = num;
-            else if (str.Contains("rad", StringComparison.Ordinal)) normalized = num * 180 / Math.PI;
-            else if (str.Contains("grad", StringComparison.Ordinal)) normalized = num * 0.9;
-            else if (str.Contains("turn", StringComparison.Ordinal)) normalized = num * 360;
+            var str = value.ToLowerInvariant().Trim();
+            var numStr = Regex.Match(str, @"[+\-\d.]+").Value;
+            if (string.IsNullOrEmpty(numStr)) return 0;
+
+            var num = double.Parse(numStr, CultureInfo.InvariantCulture);
+
+            double normalized;
+            if (str.Contains("rad", StringComparison.Ordinal))
+            {
+                normalized = num * 180 / Math.PI;
+            }
+            else if (str.Contains("grad", StringComparison.Ordinal))
+            {
+                normalized = num * 0.9;
+            }
+            else if (str.Contains("turn", StringComparison.Ordinal))
+            {
+                normalized = num * 360;
+            }
+            else // deg is the default, covers "deg" unit and unitless numbers
+            {
+                normalized = num;
+            }
+
             var result = normalized % 360;
             return result < 0 ? result + 360 : result;
         }
