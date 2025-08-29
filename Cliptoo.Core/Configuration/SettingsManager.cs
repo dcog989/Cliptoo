@@ -36,7 +36,17 @@ namespace Cliptoo.Core.Configuration
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException or JsonException or NotSupportedException)
             {
-                LogManager.Log(ex, "Failed to load settings, using defaults.");
+                LogManager.Log(ex, "Failed to load settings due to corruption or read error. Backing up and using defaults.");
+                try
+                {
+                    var backupPath = Path.ChangeExtension(_settingsPath, $".json.bak.{DateTime.Now:yyyyMMddHHmmss}");
+                    File.Move(_settingsPath, backupPath);
+                    LogManager.Log($"Corrupt settings file backed up to: {backupPath}");
+                }
+                catch (Exception backupEx) when (backupEx is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+                {
+                    LogManager.Log(backupEx, "Failed to back up corrupt settings file.");
+                }
                 return new Settings();
             }
         }

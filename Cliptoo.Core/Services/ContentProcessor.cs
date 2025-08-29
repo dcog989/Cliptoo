@@ -12,6 +12,7 @@ namespace Cliptoo.Core.Services
         private readonly IFileTypeClassifier _fileTypeClassifier;
         private static readonly SearchValues<char> _invalidColorChars = SearchValues.Create("\n\r<>[]");
         private const int MaxLinesForFilePathCheck = 500;
+        private static readonly char[] _newlineChars = { '\r', '\n' };
 
         private static readonly HashSet<string> _codeKeywords = new(StringComparer.Ordinal)
         {
@@ -59,46 +60,30 @@ namespace Cliptoo.Core.Services
                 return new ProcessingResult(AppConstants.ClipTypes.Link, content, hadLeadingWhitespace);
             }
 
-            if (!content.Contains('\n', StringComparison.Ordinal) && Path.IsPathRooted(trimmedContent) && (Directory.Exists(trimmedContent) || File.Exists(trimmedContent)))
+            var lines = content.Split(_newlineChars, StringSplitOptions.RemoveEmptyEntries);
+            if (lines.Length > 0 && lines.Length <= MaxLinesForFilePathCheck)
             {
-                if (trimmedContent.EndsWith(".url", StringComparison.OrdinalIgnoreCase))
+                var trimmedLines = lines.Select(l => l.Trim()).ToList();
+
+                if (trimmedLines.All(l => !string.IsNullOrEmpty(l) && Path.IsPathRooted(l) && (Directory.Exists(l) || File.Exists(l))))
                 {
-                    var extractedUrl = ParseUrlFile(trimmedContent);
-                    if (!string.IsNullOrEmpty(extractedUrl))
+                    if (trimmedLines.Count == 1)
                     {
-                        return new ProcessingResult(AppConstants.ClipTypes.Link, extractedUrl, hadLeadingWhitespace, Path.GetFileName(trimmedContent));
-                    }
-                }
-                var fileType = _fileTypeClassifier.Classify(trimmedContent);
-                return new ProcessingResult(fileType, content, hadLeadingWhitespace);
-            }
-
-            if (content.Contains('\n', StringComparison.Ordinal))
-            {
-                using (var reader = new StringReader(content))
-                {
-                    var lines = new List<string>();
-                    string? line;
-                    int lineCount = 0;
-                    bool limitExceeded = false;
-
-                    while ((line = reader.ReadLine()) != null)
-                    {
-                        lineCount++;
-                        if (lineCount > MaxLinesForFilePathCheck)
+                        var singlePath = trimmedLines.First();
+                        if (singlePath.EndsWith(".url", StringComparison.OrdinalIgnoreCase))
                         {
-                            limitExceeded = true;
-                            break;
+                            var extractedUrl = ParseUrlFile(singlePath);
+                            if (!string.IsNullOrEmpty(extractedUrl))
+                            {
+                                return new ProcessingResult(AppConstants.ClipTypes.Link, extractedUrl, hadLeadingWhitespace, Path.GetFileName(singlePath));
+                            }
                         }
-                        var trimmedLine = line.Trim();
-                        if (!string.IsNullOrEmpty(trimmedLine))
-                        {
-                            lines.Add(trimmedLine);
-                        }
+                        var fileType = _fileTypeClassifier.Classify(singlePath);
+                        return new ProcessingResult(fileType, content, hadLeadingWhitespace);
                     }
-
-                    if (!limitExceeded && lines.Count > 0 && lines.All(l => Path.IsPathRooted(l) && (Directory.Exists(l) || File.Exists(l))))
+                    else
                     {
+                        // Multiple valid paths, treat as a list (plain text)
                         return new ProcessingResult(AppConstants.ClipTypes.Text, content, hadLeadingWhitespace);
                     }
                 }

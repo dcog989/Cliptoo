@@ -178,7 +178,7 @@ namespace Cliptoo.Core.Native
             return false;
         }
 
-        private Dictionary<string, (object Content, ulong Hash)> GetAvailableClipboardData()
+        private static Dictionary<string, (object Content, ulong Hash)> GetAvailableClipboardData()
         {
             var availableData = new Dictionary<string, (object Content, ulong Hash)>();
 

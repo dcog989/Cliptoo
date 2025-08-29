@@ -47,7 +47,10 @@ namespace Cliptoo.Core.Configuration
                 catch (Exception fallbackEx) when (fallbackEx is IOException or UnauthorizedAccessException or System.Security.SecurityException)
                 {
                     IsInitialized = false;
-                    Console.WriteLine($"FATAL: Could not initialize fallback LogManager: {fallbackEx.Message}");
+                    var message = $"FATAL: Could not initialize fallback LogManager: {fallbackEx.Message}";
+                    Console.WriteLine(message);
+                    // Throwing here will prevent the application from starting without logging, which is critical.
+                    throw new InvalidOperationException(message, fallbackEx);
                 }
             }
         }
