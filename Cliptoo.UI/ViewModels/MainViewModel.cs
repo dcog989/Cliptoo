@@ -23,10 +23,10 @@ namespace Cliptoo.UI.ViewModels
         private readonly IFontProvider _fontProvider;
         private readonly INotificationService _notificationService;
         private readonly IIconProvider _iconProvider;
-        private readonly DispatcherTimer _clearClipsTimer;
         private string _searchTerm = string.Empty;
         private FilterOption _selectedFilter;
         private readonly DispatcherTimer _debounceTimer;
+        private readonly DispatcherTimer _clearClipsTimer;
         private bool _isAlwaysOnTop;
         private Settings _currentSettings;
         private bool _isFilterPopupOpen;
@@ -175,6 +175,7 @@ namespace Cliptoo.UI.ViewModels
             _notificationService = notificationService;
             _iconProvider = iconProvider;
             _currentSettings = _controller.Settings;
+            _currentSettings.PropertyChanged += CurrentSettings_PropertyChanged;
             _mainFont = _fontProvider.GetFont(CurrentSettings.FontFamily);
             _previewFont = _fontProvider.GetFont(CurrentSettings.PreviewFontFamily);
             TooltipMaxHeight = SystemParameters.WorkArea.Height * 0.9;
@@ -191,7 +192,7 @@ namespace Cliptoo.UI.ViewModels
 
             _controller.NewClipAdded += Controller_NewClipAdded;
             _controller.HistoryCleared += Controller_HistoryCleared;
-            _controller.SettingsChanged += Controller_SettingsChanged;
+            _controller.SettingsChanged += OnSettingsChanged;
             _controller.CachesCleared += Controller_CachesCleared;
 
             _debounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
@@ -206,6 +207,39 @@ namespace Cliptoo.UI.ViewModels
             _hidePreviewTimer.Tick += OnHidePreviewTimerTick;
 
             IsCompareToolAvailable = _controller.IsCompareToolAvailable();
+        }
+
+        private void CurrentSettings_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            switch (e.PropertyName)
+            {
+                case nameof(Settings.FontFamily):
+                    MainFont = _fontProvider.GetFont(CurrentSettings.FontFamily);
+                    foreach (var clipVM in Clips) clipVM.CurrentFontFamily = MainFont;
+                    break;
+                case nameof(Settings.FontSize):
+                    foreach (var clipVM in Clips) clipVM.CurrentFontSize = CurrentSettings.FontSize;
+                    break;
+                case nameof(Settings.ClipItemPadding):
+                    foreach (var clipVM in Clips) clipVM.PaddingSize = CurrentSettings.ClipItemPadding;
+                    break;
+                case nameof(Settings.PreviewFontFamily):
+                    PreviewFont = _fontProvider.GetFont(CurrentSettings.PreviewFontFamily);
+                    foreach (var clipVM in Clips) clipVM.PreviewFont = PreviewFont;
+                    break;
+                case nameof(Settings.PreviewFontSize):
+                    foreach (var clipVM in Clips) clipVM.PreviewFontSize = CurrentSettings.PreviewFontSize;
+                    break;
+                case nameof(Settings.HoverImagePreviewSize):
+                    foreach (var clipVM in Clips) clipVM.HoverImagePreviewSize = CurrentSettings.HoverImagePreviewSize;
+                    break;
+                case nameof(Settings.DisplayLogo):
+                    OnPropertyChanged(nameof(DisplayLogo));
+                    break;
+                case nameof(Settings.PasteAsPlainText):
+                    foreach (var clipVM in Clips) clipVM.NotifyPasteAsPropertiesChanged();
+                    break;
+            }
         }
 
         public async Task InitializeAsync()
@@ -232,25 +266,14 @@ namespace Cliptoo.UI.ViewModels
             ErrorIcon = await _iconProvider.GetIconAsync(AppConstants.IconKeys.Error, 32);
         }
 
-        private void OnSettingsChanged()
+        private async void OnSettingsChanged(object? sender, EventArgs e)
         {
-            Application.Current.Dispatcher.Invoke(() =>
+            await Application.Current.Dispatcher.InvokeAsync(() =>
             {
-                CurrentSettings = _controller.Settings;
-                MainFont = _fontProvider.GetFont(CurrentSettings.FontFamily);
-                PreviewFont = _fontProvider.GetFont(CurrentSettings.PreviewFontFamily);
-
                 SendToTargets.Clear();
                 foreach (var target in CurrentSettings.SendToTargets)
                 {
                     SendToTargets.Add(target);
-                }
-
-                UpdateAllClipViewModelsAppearance();
-                OnPropertyChanged(nameof(DisplayLogo));
-                foreach (var clipVM in Clips)
-                {
-                    clipVM.NotifyPasteAsPropertiesChanged();
                 }
             });
         }
@@ -351,18 +374,21 @@ namespace Cliptoo.UI.ViewModels
             clipVM.HoverImagePreviewSize = CurrentSettings.HoverImagePreviewSize;
         }
 
-        private void UpdateAllClipViewModelsAppearance()
-        {
-            foreach (var clipVM in Clips)
-            {
-                ApplyAppearanceToViewModel(clipVM);
-            }
-        }
-
         private async void OnDebounceTimerElapsed(object? sender, EventArgs e)
         {
             _debounceTimer.Stop();
             await LoadClipsAsync(true);
+        }
+
+        private void OnClearClipsTimerElapsed(object? sender, EventArgs e)
+        {
+            _clearClipsTimer.Stop();
+            if (!IsWindowVisible && Clips.Count > 0)
+            {
+                Core.Configuration.LogManager.Log("DIAG: Delayed timer elapsed. Clearing clips collection to conserve memory.");
+                Clips.Clear();
+                _currentOffset = 0;
+            }
         }
 
         public void HideWindow()
@@ -460,9 +486,10 @@ namespace Cliptoo.UI.ViewModels
 
         public void Cleanup()
         {
+            _currentSettings.PropertyChanged -= CurrentSettings_PropertyChanged;
             _controller.NewClipAdded -= Controller_NewClipAdded;
             _controller.HistoryCleared -= Controller_HistoryCleared;
-            _controller.SettingsChanged -= Controller_SettingsChanged;
+            _controller.SettingsChanged -= OnSettingsChanged;
             _controller.CachesCleared -= Controller_CachesCleared;
             _debounceTimer.Tick -= OnDebounceTimerElapsed;
             _clearClipsTimer.Tick -= OnClearClipsTimerElapsed;
@@ -470,7 +497,6 @@ namespace Cliptoo.UI.ViewModels
 
         private void Controller_NewClipAdded(object? sender, EventArgs e) => OnNewClipAdded();
         private void Controller_HistoryCleared(object? sender, EventArgs e) => RefreshClipList();
-        private void Controller_SettingsChanged(object? sender, EventArgs e) => OnSettingsChanged();
         private void Controller_CachesCleared(object? sender, EventArgs e) => RefreshClipList();
 
         private static T? FindVisualChild<T>(DependencyObject? obj) where T : DependencyObject
@@ -487,17 +513,5 @@ namespace Cliptoo.UI.ViewModels
             }
             return null;
         }
-
-        private void OnClearClipsTimerElapsed(object? sender, EventArgs e)
-        {
-            _clearClipsTimer.Stop();
-            if (!IsWindowVisible && Clips.Count > 0)
-            {
-                Core.Configuration.LogManager.Log("DIAG: Delayed timer elapsed. Clearing clips collection to conserve memory.");
-                Clips.Clear();
-                _currentOffset = 0;
-            }
-        }
-
     }
 }
