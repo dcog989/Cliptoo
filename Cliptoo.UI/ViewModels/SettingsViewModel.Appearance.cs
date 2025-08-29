@@ -41,8 +41,6 @@ namespace Cliptoo.UI.ViewModels
 
             AccentBrush = accentBrush;
             Settings.AccentColor = $"#{accentColor.R:X2}{accentColor.G:X2}{accentColor.B:X2}";
-
-            DebounceSave();
         }
 
         private void UpdateOklchHueBrush()

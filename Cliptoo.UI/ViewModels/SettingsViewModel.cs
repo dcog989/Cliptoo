@@ -51,6 +51,7 @@ namespace Cliptoo.UI.ViewModels
             _fontProvider = fontProvider;
             _iconProvider = iconProvider;
             Settings = _controller.Settings;
+            Settings.PropertyChanged += OnSettingsPropertyChanged;
             _selectedFontFamily = Settings.FontFamily;
             _selectedPreviewFontFamily = Settings.PreviewFontFamily;
             _oklchHueBrush = new SolidColorBrush(Colors.Transparent);
@@ -178,6 +179,48 @@ namespace Cliptoo.UI.ViewModels
             _ = LoadIconsAsync();
         }
 
+        private void OnSettingsPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            // Re-raise the property changed event for the view model so bindings update.
+            OnPropertyChanged(e.PropertyName);
+
+            // Handle specific logic for certain properties.
+            switch (e.PropertyName)
+            {
+                case nameof(Settings.StartWithWindows):
+                    _startupManagerService.SetStartup(Settings.StartWithWindows);
+                    break;
+                case nameof(Settings.AccentChromaLevel):
+                case nameof(Settings.Theme):
+                    UpdateAccentColor();
+                    UpdateOklchHueBrush();
+                    return; // UpdateAccentColor sets AccentColor which will trigger DebounceSave
+                case nameof(Settings.FontFamily):
+                    if (_selectedFontFamily != Settings.FontFamily)
+                    {
+                        _selectedFontFamily = Settings.FontFamily;
+                        OnPropertyChanged(nameof(SelectedFontFamily));
+                    }
+                    break;
+                case nameof(Settings.PreviewFontFamily):
+                    if (_selectedPreviewFontFamily != Settings.PreviewFontFamily)
+                    {
+                        _selectedPreviewFontFamily = Settings.PreviewFontFamily;
+                        OnPropertyChanged(nameof(SelectedPreviewFontFamily));
+                    }
+                    break;
+            }
+
+            // For most properties, just debounce a save.
+            // Hotkeys are handled separately and save immediately.
+            if (e.PropertyName != nameof(Settings.Hotkey) &&
+                e.PropertyName != nameof(Settings.PreviewHotkey) &&
+                e.PropertyName != nameof(Settings.QuickPasteHotkey))
+            {
+                DebounceSave();
+            }
+        }
+
         public string StatsSummary
         {
             get
@@ -300,6 +343,7 @@ namespace Cliptoo.UI.ViewModels
 
         public void Dispose()
         {
+            _settings.PropertyChanged -= OnSettingsPropertyChanged;
             _saveDebounceTimer.Elapsed -= OnDebounceTimerElapsed;
             _saveDebounceTimer.Dispose();
             if (SendToTargets is not null)

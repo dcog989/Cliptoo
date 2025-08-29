@@ -216,7 +216,5 @@ namespace Cliptoo.Core.Configuration
         [DefaultValue(-1.0)]
         public double SettingsWindowY { get => _settingsWindowY; set => SetProperty(ref _settingsWindowY, value); }
         public List<SendToTarget> SendToTargets { get; set; } = new();
-
     }
-
 }

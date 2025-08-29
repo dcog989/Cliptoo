@@ -23,15 +23,7 @@ namespace Cliptoo.UI.ViewModels
         public string CompareToolPath
         {
             get => Settings.CompareToolPath;
-            set
-            {
-                if (Settings.CompareToolPath != value)
-                {
-                    Settings.CompareToolPath = value;
-                    OnPropertyChanged();
-                    DebounceSave();
-                }
-            }
+            set => Settings.CompareToolPath = value;
         }
 
         public string Hotkey
@@ -42,8 +34,7 @@ namespace Cliptoo.UI.ViewModels
                 if (Settings.Hotkey != value)
                 {
                     Settings.Hotkey = value;
-                    OnPropertyChanged();
-                    _controller.SaveSettings();
+                    _controller.SaveSettings(); // Immediate save for hotkeys
                 }
             }
         }
@@ -58,7 +49,6 @@ namespace Cliptoo.UI.ViewModels
                 if (SetProperty(ref _selectedFontFamily, value) && value != null)
                 {
                     Settings.FontFamily = value;
-                    DebounceSave();
                 }
             }
         }
@@ -71,7 +61,6 @@ namespace Cliptoo.UI.ViewModels
                 if (SetProperty(ref _selectedPreviewFontFamily, value) && value != null)
                 {
                     Settings.PreviewFontFamily = value;
-                    DebounceSave();
                 }
             }
         }
@@ -84,8 +73,7 @@ namespace Cliptoo.UI.ViewModels
                 if (Settings.PreviewHotkey != value)
                 {
                     Settings.PreviewHotkey = value;
-                    OnPropertyChanged();
-                    _controller.SaveSettings();
+                    _controller.SaveSettings(); // Immediate save for hotkeys
                 }
             }
         }
@@ -98,8 +86,7 @@ namespace Cliptoo.UI.ViewModels
                 if (Settings.QuickPasteHotkey != value)
                 {
                     Settings.QuickPasteHotkey = value;
-                    OnPropertyChanged();
-                    _controller.SaveSettings();
+                    _controller.SaveSettings(); // Immediate save for hotkeys
                 }
             }
         }
@@ -107,143 +94,61 @@ namespace Cliptoo.UI.ViewModels
         public string Theme
         {
             get => Settings.Theme;
-            set
-            {
-                if (Settings.Theme != value)
-                {
-                    Settings.Theme = value;
-                    OnPropertyChanged();
-                    DebounceSave();
-                }
-            }
+            set => Settings.Theme = value;
         }
 
         public string LaunchPosition
         {
             get => Settings.LaunchPosition;
-            set
-            {
-                if (Settings.LaunchPosition != value)
-                {
-                    Settings.LaunchPosition = value;
-                    OnPropertyChanged();
-                    DebounceSave();
-                }
-            }
+            set => Settings.LaunchPosition = value;
         }
 
         public bool StartWithWindows
         {
             get => Settings.StartWithWindows;
-            set
-            {
-                if (Settings.StartWithWindows != value)
-                {
-                    Settings.StartWithWindows = value;
-                    OnPropertyChanged();
-                    _startupManagerService.SetStartup(value);
-                    DebounceSave();
-                }
-            }
+            set => Settings.StartWithWindows = value;
         }
 
         public string ClipItemPadding
         {
             get => Settings.ClipItemPadding;
-            set
-            {
-                if (Settings.ClipItemPadding != value)
-                {
-                    Settings.ClipItemPadding = value;
-                    OnPropertyChanged();
-                    DebounceSave();
-                }
-            }
+            set => Settings.ClipItemPadding = value;
         }
 
         public bool DisplayLogo
         {
             get => Settings.DisplayLogo;
-            set
-            {
-                if (Settings.DisplayLogo != value)
-                {
-                    Settings.DisplayLogo = value;
-                    OnPropertyChanged();
-                    DebounceSave();
-                }
-            }
+            set => Settings.DisplayLogo = value;
         }
 
         public bool ShowHoverPreview
         {
             get => Settings.ShowHoverPreview;
-            set
-            {
-                if (Settings.ShowHoverPreview != value)
-                {
-                    Settings.ShowHoverPreview = value;
-                    OnPropertyChanged();
-                    DebounceSave();
-                }
-            }
+            set => Settings.ShowHoverPreview = value;
         }
 
         public uint HoverPreviewDelay
         {
             get => Settings.HoverPreviewDelay;
-            set
-            {
-                if (Settings.HoverPreviewDelay != value)
-                {
-                    Settings.HoverPreviewDelay = value;
-                    OnPropertyChanged();
-                    DebounceSave();
-                }
-            }
+            set => Settings.HoverPreviewDelay = value;
         }
 
         public string AccentChromaLevel
         {
             get => Settings.AccentChromaLevel;
-            set
-            {
-                if (Settings.AccentChromaLevel != value)
-                {
-                    Settings.AccentChromaLevel = value;
-                    OnPropertyChanged();
-                    UpdateAccentColor();
-                    UpdateOklchHueBrush();
-                }
-            }
+            set => Settings.AccentChromaLevel = value;
         }
 
         public double FontSize
         {
             get => Settings.FontSize;
-            set
-            {
-                if (Settings.FontSize != value)
-                {
-                    Settings.FontSize = (float)value;
-                    OnPropertyChanged();
-                    DebounceSave();
-                }
-            }
+            set => Settings.FontSize = (float)value;
         }
 
         public double PreviewFontSize
         {
             get => Settings.PreviewFontSize;
-            set
-            {
-                if (Settings.PreviewFontSize != value)
-                {
-                    Settings.PreviewFontSize = (float)value;
-                    OnPropertyChanged();
-                    DebounceSave();
-                }
-            }
+            set => Settings.PreviewFontSize = (float)value;
         }
 
         public double AccentHue
@@ -261,71 +166,31 @@ namespace Cliptoo.UI.ViewModels
         public uint MaxClipsTotal
         {
             get => Settings.MaxClipsTotal;
-            set
-            {
-                if (Settings.MaxClipsTotal != value)
-                {
-                    Settings.MaxClipsTotal = value;
-                    OnPropertyChanged();
-                    DebounceSave();
-                }
-            }
+            set => Settings.MaxClipsTotal = value;
         }
 
         public uint CleanupAgeDays
         {
             get => Settings.CleanupAgeDays;
-            set
-            {
-                if (Settings.CleanupAgeDays != value)
-                {
-                    Settings.CleanupAgeDays = value;
-                    OnPropertyChanged();
-                    DebounceSave();
-                }
-            }
+            set => Settings.CleanupAgeDays = value;
         }
 
         public uint MaxClipSizeMb
         {
             get => Settings.MaxClipSizeMb;
-            set
-            {
-                if (Settings.MaxClipSizeMb != value)
-                {
-                    Settings.MaxClipSizeMb = value;
-                    OnPropertyChanged();
-                    DebounceSave();
-                }
-            }
+            set => Settings.MaxClipSizeMb = value;
         }
 
         public bool PasteAsPlainText
         {
             get => Settings.PasteAsPlainText;
-            set
-            {
-                if (Settings.PasteAsPlainText != value)
-                {
-                    Settings.PasteAsPlainText = value;
-                    OnPropertyChanged();
-                    DebounceSave();
-                }
-            }
+            set => Settings.PasteAsPlainText = value;
         }
 
         public string LoggingLevel
         {
             get => Settings.LoggingLevel;
-            set
-            {
-                if (Settings.LoggingLevel != value)
-                {
-                    Settings.LoggingLevel = value;
-                    OnPropertyChanged();
-                    DebounceSave();
-                }
-            }
+            set => Settings.LoggingLevel = value;
         }
     }
 }
