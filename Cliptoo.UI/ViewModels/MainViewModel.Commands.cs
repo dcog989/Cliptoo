@@ -5,6 +5,7 @@ using Cliptoo.Core.Database.Models;
 using Cliptoo.UI.Services;
 using Cliptoo.UI.Views;
 using Microsoft.Extensions.DependencyInjection;
+using Wpf.Ui.Controls;
 
 namespace Cliptoo.UI.ViewModels
 {
@@ -37,6 +38,11 @@ namespace Cliptoo.UI.ViewModels
                 await _controller.UpdatePasteCountAsync();
 
                 await LoadClipsAsync(true);
+            }
+            catch (Exception ex)
+            {
+                Core.Configuration.LogManager.Log(ex, "Paste action failed.");
+                _notificationService.Show("Paste Failed", "Could not paste the selected item. The clipboard may be in use by another application.", ControlAppearance.Danger, SymbolRegular.ErrorCircle24);
             }
             finally
             {

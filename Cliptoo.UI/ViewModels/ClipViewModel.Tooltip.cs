@@ -52,7 +52,14 @@ namespace Cliptoo.UI.ViewModels
                 catch (Exception ex)
                 {
                     Core.Configuration.LogManager.Log(ex, "Failed to read text file for tooltip preview.");
-                    textFileContent = $"Error reading file: {ex.Message}";
+                    if (ex is IOException && (uint)ex.HResult == 0x80070020)
+                    {
+                        textFileContent = "Error: File is in use.";
+                    }
+                    else
+                    {
+                        textFileContent = $"Error reading file: {ex.Message}";
+                    }
                 }
             }
 

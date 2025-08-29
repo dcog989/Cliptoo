@@ -197,11 +197,11 @@ namespace Cliptoo.UI.Services
 
             if (theme == ApplicationTheme.Unknown)
             {
-                SystemThemeWatcher.Watch(_mainWindow, WindowBackdropType.Mica, true);
+                SystemThemeWatcher.Watch(_mainWindow, WindowBackdropType.Mica, false);
             }
             else
             {
-                ApplicationThemeManager.Apply(theme, WindowBackdropType.Mica, true);
+                ApplicationThemeManager.Apply(theme, WindowBackdropType.Mica, false);
             }
         }
 

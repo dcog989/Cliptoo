@@ -263,21 +263,39 @@ namespace Cliptoo.UI.ViewModels
         private async Task PopulateFontsAsync()
         {
             IsFontsLoading = true;
-            var fonts = await Task.Run(() =>
+            try
             {
-                var fontList = new List<string> { "Source Code Pro" };
-                fontList.AddRange(Fonts.SystemFontFamilies.Select(f => f.Source).Distinct().OrderBy(s => s));
-                return fontList;
-            }).ConfigureAwait(true);
+                var fonts = await Task.Run(() =>
+                {
+                    var fontList = new List<string> { "Source Code Pro" };
+                    fontList.AddRange(Fonts.SystemFontFamilies.Select(f => f.Source).Distinct().OrderBy(s => s));
+                    return fontList;
+                }).ConfigureAwait(true);
 
-            foreach (var fontName in fonts)
-            {
-                SystemFonts.Add(fontName);
+                foreach (var fontName in fonts)
+                {
+                    SystemFonts.Add(fontName);
+                }
+
+                SelectedFontFamily = SystemFonts.Contains(Settings.FontFamily) ? Settings.FontFamily : SystemFonts.First();
+                SelectedPreviewFontFamily = SystemFonts.Contains(Settings.PreviewFontFamily) ? Settings.PreviewFontFamily : SystemFonts.First();
             }
-
-            SelectedFontFamily = SystemFonts.Contains(Settings.FontFamily) ? Settings.FontFamily : SystemFonts.First();
-            SelectedPreviewFontFamily = SystemFonts.Contains(Settings.PreviewFontFamily) ? Settings.PreviewFontFamily : SystemFonts.First();
-            IsFontsLoading = false;
+            catch (Exception ex)
+            {
+                Core.Configuration.LogManager.Log(ex, "Failed to populate system fonts. Using fallbacks.");
+                if (SystemFonts.Count == 0)
+                {
+                    SystemFonts.Add("Source Code Pro");
+                    SystemFonts.Add("Segoe UI");
+                    SystemFonts.Add("Arial");
+                }
+                SelectedFontFamily = SystemFonts.Contains(Settings.FontFamily) ? Settings.FontFamily : SystemFonts.First();
+                SelectedPreviewFontFamily = SystemFonts.Contains(Settings.PreviewFontFamily) ? Settings.PreviewFontFamily : SystemFonts.First();
+            }
+            finally
+            {
+                IsFontsLoading = false;
+            }
         }
 
         public void Dispose()
