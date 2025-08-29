@@ -443,9 +443,8 @@ namespace Cliptoo.Core.Database
             return false;
         }
 
-        public async Task<List<Clip>> GetAllFileBasedClipsAsync()
+        public async IAsyncEnumerable<Clip> GetAllFileBasedClipsAsync()
         {
-            var clips = new List<Clip>();
             SqliteConnection? connection = null;
             SqliteCommand? command = null;
             SqliteDataReader? reader = null;
@@ -458,14 +457,13 @@ namespace Cliptoo.Core.Database
                 reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
                 while (await reader.ReadAsync().ConfigureAwait(false))
                 {
-                    clips.Add(new Clip
+                    yield return new Clip
                     {
                         Id = reader.GetInt32(0),
                         Content = reader.GetString(1),
                         ClipType = reader.GetString(2)
-                    });
+                    };
                 }
-                return clips;
             }
             finally
             {

@@ -147,23 +147,32 @@ namespace Cliptoo.Core.Services
             ArgumentNullException.ThrowIfNull(validImagePaths);
 
             var validCacheFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-            await foreach (var imagePath in validImagePaths.ConfigureAwait(false))
+            var enumerator = validImagePaths.GetAsyncEnumerator();
+            try
             {
-                var sourceExtension = Path.GetExtension(imagePath).ToUpperInvariant();
-                var targetExtension = GetTargetExtension(imagePath);
-
-                validCacheFiles.Add(GenerateCachePath(imagePath, null, ThumbnailSize, _cacheDir, targetExtension));
-                validCacheFiles.Add(GenerateCachePath(imagePath, null, (int)previewSize, _previewCacheDir, targetExtension));
-
-                if (sourceExtension == ".SVG")
+                while (await enumerator.MoveNextAsync().ConfigureAwait(false))
                 {
-                    validCacheFiles.Add(GenerateCachePath(imagePath, "light", ThumbnailSize, _cacheDir, targetExtension));
-                    validCacheFiles.Add(GenerateCachePath(imagePath, "dark", ThumbnailSize, _cacheDir, targetExtension));
-                    validCacheFiles.Add(GenerateCachePath(imagePath, "light", (int)previewSize, _previewCacheDir, targetExtension));
-                    validCacheFiles.Add(GenerateCachePath(imagePath, "dark", (int)previewSize, _previewCacheDir, targetExtension));
+                    var imagePath = enumerator.Current;
+                    var sourceExtension = Path.GetExtension(imagePath).ToUpperInvariant();
+                    var targetExtension = GetTargetExtension(imagePath);
+
+                    validCacheFiles.Add(GenerateCachePath(imagePath, null, ThumbnailSize, _cacheDir, targetExtension));
+                    validCacheFiles.Add(GenerateCachePath(imagePath, null, (int)previewSize, _previewCacheDir, targetExtension));
+
+                    if (sourceExtension == ".SVG")
+                    {
+                        validCacheFiles.Add(GenerateCachePath(imagePath, "light", ThumbnailSize, _cacheDir, targetExtension));
+                        validCacheFiles.Add(GenerateCachePath(imagePath, "dark", ThumbnailSize, _cacheDir, targetExtension));
+                        validCacheFiles.Add(GenerateCachePath(imagePath, "light", (int)previewSize, _previewCacheDir, targetExtension));
+                        validCacheFiles.Add(GenerateCachePath(imagePath, "dark", (int)previewSize, _previewCacheDir, targetExtension));
+                    }
                 }
             }
+            finally
+            {
+                await enumerator.DisposeAsync().ConfigureAwait(false);
+            }
+
 
             int filesDeleted = 0;
             filesDeleted += await ServiceUtils.PruneDirectoryAsync(_cacheDir, validCacheFiles).ConfigureAwait(false);

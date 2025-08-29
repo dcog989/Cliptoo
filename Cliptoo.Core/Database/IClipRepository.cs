@@ -14,7 +14,7 @@ namespace Cliptoo.Core.Database
         Task DeleteClipAsync(int id);
         Task TogglePinAsync(int id, bool isPinned);
         Task UpdateTimestampAsync(int id);
-        Task<List<Clip>> GetAllFileBasedClipsAsync();
+        IAsyncEnumerable<Clip> GetAllFileBasedClipsAsync();
         Task UpdateClipTypesAsync(Dictionary<int, string> updates);
         Task<Clip> GetClipPreviewContentByIdAsync(int id);
         IAsyncEnumerable<string> GetAllImageClipPathsAsync();

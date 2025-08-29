@@ -24,7 +24,7 @@ namespace Cliptoo.Core.Database
         Task<DbStats> GetStatsAsync();
         Task<int> RemoveDeadheadClipsAsync();
         Task<int> ClearOversizedClipsAsync(uint sizeMb);
-        Task<List<Clip>> GetAllFileBasedClipsAsync(); Task UpdateClipTypesAsync(Dictionary<int, string> updates);
+        IAsyncEnumerable<Clip> GetAllFileBasedClipsAsync(); Task UpdateClipTypesAsync(Dictionary<int, string> updates);
         Task<Clip> GetClipPreviewContentByIdAsync(int id);
         IAsyncEnumerable<string> GetAllImageClipPathsAsync();
         IAsyncEnumerable<string> GetAllLinkClipUrlsAsync();

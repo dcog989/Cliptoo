@@ -41,7 +41,7 @@ namespace Cliptoo.Core.Database
         public Task<DbStats> GetStatsAsync() => _statsService.GetStatsAsync();
         public Task<int> RemoveDeadheadClipsAsync() => _maintenanceService.RemoveDeadheadClipsAsync();
         public Task<int> ClearOversizedClipsAsync(uint sizeMb) => _maintenanceService.ClearOversizedClipsAsync(sizeMb);
-        public Task<List<Clip>> GetAllFileBasedClipsAsync() => _clipRepository.GetAllFileBasedClipsAsync();
+        public IAsyncEnumerable<Clip> GetAllFileBasedClipsAsync() => _clipRepository.GetAllFileBasedClipsAsync();
         public Task UpdateClipTypesAsync(Dictionary<int, string> updates) => _clipRepository.UpdateClipTypesAsync(updates);
         public Task<Clip> GetClipPreviewContentByIdAsync(int id) => _clipRepository.GetClipPreviewContentByIdAsync(id);
         public IAsyncEnumerable<string> GetAllImageClipPathsAsync() => _clipRepository.GetAllImageClipPathsAsync();

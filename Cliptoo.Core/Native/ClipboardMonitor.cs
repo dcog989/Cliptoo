@@ -75,25 +75,21 @@ namespace Cliptoo.Core.Native
 
         public void ProcessSystemUpdate()
         {
+            var availableData = GetAvailableClipboardData();
+
             if (_suppressionActive.IsSet)
             {
-                // During the suppression window, we check all available formats. If any match, we ignore the event
-                // but keep the suppression active for the timer's duration to catch the entire flurry of events.
-                if (CheckForSuppressedHashes())
+                if (CheckForSuppressedHashes(availableData))
                 {
                     return;
                 }
 
-                // If no hash matched, it means a legitimate clip was copied immediately after we pasted ours.
-                // We should process it and immediately end the suppression window.
                 Configuration.LogManager.LogDebug("A different clip was detected during the suppression window. Processing it.");
                 _suppressionResetTimer.Stop();
                 _hashesToSuppress.Clear();
                 _suppressionActive.Reset();
             }
 
-            // If we're here, the clip was not suppressed. Now, choose the best format to process.
-            var availableData = GetAvailableClipboardData();
             (string formatKey, object content, ulong hash) bestCandidate;
 
             if (availableData.TryGetValue(DataFormats.Rtf, out var rtfData))
@@ -164,14 +160,16 @@ namespace Cliptoo.Core.Native
             ClipboardChanged?.Invoke(this, eventArgs);
         }
 
-        private bool CheckForSuppressedHashes()
+        private bool CheckForSuppressedHashes(Dictionary<string, (object Content, ulong Hash)> availableData)
         {
-            var availableData = GetAvailableClipboardData();
             foreach (var format in availableData)
             {
                 if (_hashesToSuppress.Contains(format.Value.Hash))
                 {
                     Configuration.LogManager.LogDebug($"Suppressed self-generated clip based on format '{format.Key}'.");
+                    if (format.Key == DataFormats.Rtf || format.Key == DataFormats.UnicodeText) _lastTextHash = format.Value.Hash;
+                    else if (format.Key == "Image") _lastImageHash = format.Value.Hash;
+                    else if (format.Key == "FileDrop") _lastFileDropHash = format.Value.Hash;
                     return true;
                 }
             }

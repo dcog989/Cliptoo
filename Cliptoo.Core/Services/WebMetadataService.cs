@@ -471,10 +471,19 @@ namespace Cliptoo.Core.Services
         {
             ArgumentNullException.ThrowIfNull(validUrls);
             var validCacheFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            await foreach (var url in validUrls.ConfigureAwait(false))
+            var enumerator = validUrls.GetAsyncEnumerator();
+            try
             {
-                validCacheFiles.Add(ServiceUtils.GetCachePath(url, _faviconCacheDir, ".png"));
-                validCacheFiles.Add(ServiceUtils.GetCachePath(url, _faviconCacheDir, ".failed"));
+                while (await enumerator.MoveNextAsync().ConfigureAwait(false))
+                {
+                    var url = enumerator.Current;
+                    validCacheFiles.Add(ServiceUtils.GetCachePath(url, _faviconCacheDir, ".png"));
+                    validCacheFiles.Add(ServiceUtils.GetCachePath(url, _faviconCacheDir, ".failed"));
+                }
+            }
+            finally
+            {
+                await enumerator.DisposeAsync().ConfigureAwait(false);
             }
 
             return await ServiceUtils.PruneDirectoryAsync(_faviconCacheDir, validCacheFiles).ConfigureAwait(false);

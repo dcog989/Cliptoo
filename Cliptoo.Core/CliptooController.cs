@@ -370,17 +370,25 @@ namespace Cliptoo.Core
 
         public async Task<int> ReclassifyAllClipsAsync()
         {
-            var fileClips = await _dbManager.GetAllFileBasedClipsAsync().ConfigureAwait(false);
             var updates = new Dictionary<int, string>();
-
-            foreach (var clip in fileClips)
+            var enumerator = _dbManager.GetAllFileBasedClipsAsync().GetAsyncEnumerator();
+            try
             {
-                var newClipType = _fileTypeClassifier.Classify(clip.Content ?? "");
-                if (clip.ClipType != newClipType)
+                while (await enumerator.MoveNextAsync().ConfigureAwait(false))
                 {
-                    updates[clip.Id] = newClipType;
+                    var clip = enumerator.Current;
+                    var newClipType = _fileTypeClassifier.Classify(clip.Content ?? "");
+                    if (clip.ClipType != newClipType)
+                    {
+                        updates[clip.Id] = newClipType;
+                    }
                 }
             }
+            finally
+            {
+                await enumerator.DisposeAsync().ConfigureAwait(false);
+            }
+
 
             if (updates.Count > 0)
             {
