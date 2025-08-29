@@ -23,6 +23,7 @@ namespace Cliptoo.UI.ViewModels
         private readonly IFontProvider _fontProvider;
         private readonly INotificationService _notificationService;
         private readonly IIconProvider _iconProvider;
+        private readonly DispatcherTimer _clearClipsTimer;
         private string _searchTerm = string.Empty;
         private FilterOption _selectedFilter;
         private readonly DispatcherTimer _debounceTimer;
@@ -196,6 +197,9 @@ namespace Cliptoo.UI.ViewModels
             _debounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
             _debounceTimer.Tick += OnDebounceTimerElapsed;
 
+            _clearClipsTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
+            _clearClipsTimer.Tick += OnClearClipsTimerElapsed;
+
             _showPreviewTimer = new DispatcherTimer();
             _showPreviewTimer.Tick += OnShowPreviewTimerTick;
             _hidePreviewTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
@@ -368,8 +372,9 @@ namespace Cliptoo.UI.ViewModels
 
             IsFilterPopupOpen = false;
 
-            Clips.Clear();
-            _currentOffset = 0;
+            // Start a timer to clear the collection later, instead of immediately.
+            _clearClipsTimer.Start();
+
             _needsRefreshOnShow = true;
 
             var settings = _controller.Settings;
@@ -380,8 +385,11 @@ namespace Cliptoo.UI.ViewModels
             }
             if (!settings.RememberFilterSelection)
             {
-                _selectedFilter = FilterOptions.First();
-                OnPropertyChanged(nameof(SelectedFilter));
+                if (FilterOptions.Any())
+                {
+                    _selectedFilter = FilterOptions.First();
+                    OnPropertyChanged(nameof(SelectedFilter));
+                }
             }
 
             Application.Current.MainWindow?.Hide();
@@ -389,12 +397,22 @@ namespace Cliptoo.UI.ViewModels
 
         public void HandleWindowShown()
         {
+            // Stop the timer to prevent the collection from being cleared.
+            _clearClipsTimer.Stop();
+
             if (IsInitializing)
             {
                 Cliptoo.Core.Configuration.LogManager.Log($"DIAG_LOAD: HandleWindowShown called during initialization. Aborting load.");
                 return;
             }
-            Cliptoo.Core.Configuration.LogManager.Log($"DIAG_LOAD: HandleWindowShown called. NeedsRefresh: {_needsRefreshOnShow}, IsReady: {IsReadyForEvents}");
+            Cliptoo.Core.Configuration.LogManager.Log($"DIAG_LOAD: HandleWindowShown called. NeedsRefresh: {_needsRefreshOnShow}, IsReady: {IsReadyForEvents}, ClipCount: {Clips.Count}");
+
+            // If the clips were cleared by the timer, we must reload.
+            if (Clips.Count == 0)
+            {
+                _needsRefreshOnShow = true;
+            }
+
             if (_needsRefreshOnShow && IsReadyForEvents)
             {
                 Application.Current.Dispatcher.InvokeAsync(async () =>
@@ -447,6 +465,7 @@ namespace Cliptoo.UI.ViewModels
             _controller.SettingsChanged -= Controller_SettingsChanged;
             _controller.CachesCleared -= Controller_CachesCleared;
             _debounceTimer.Tick -= OnDebounceTimerElapsed;
+            _clearClipsTimer.Tick -= OnClearClipsTimerElapsed;
         }
 
         private void Controller_NewClipAdded(object? sender, EventArgs e) => OnNewClipAdded();
@@ -468,5 +487,17 @@ namespace Cliptoo.UI.ViewModels
             }
             return null;
         }
+
+        private void OnClearClipsTimerElapsed(object? sender, EventArgs e)
+        {
+            _clearClipsTimer.Stop();
+            if (!IsWindowVisible && Clips.Count > 0)
+            {
+                Core.Configuration.LogManager.Log("DIAG: Delayed timer elapsed. Clearing clips collection to conserve memory.");
+                Clips.Clear();
+                _currentOffset = 0;
+            }
+        }
+
     }
 }
