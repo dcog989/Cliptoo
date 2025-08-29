@@ -13,7 +13,6 @@ namespace Cliptoo.UI.Views
     {
         private readonly MainViewModel _viewModel;
         private readonly CliptooController _controller;
-        private readonly List<ClipViewModel> _lastQuickPastedVms = new();
 
         public MainWindow(MainViewModel viewModel, CliptooController controller)
         {
@@ -24,42 +23,6 @@ namespace Cliptoo.UI.Views
 
             _viewModel.IsWindowVisible = IsVisible;
             _viewModel.ListScrolledToTopRequest += OnListScrolledToTopRequest;
-            _viewModel.PropertyChanged += ViewModel_PropertyChanged;
-        }
-
-        private void ViewModel_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
-        {
-            if (e.PropertyName == nameof(MainViewModel.IsQuickPasteModeActive))
-            {
-                UpdateQuickPasteIndices();
-            }
-        }
-
-        private void UpdateQuickPasteIndices()
-        {
-            foreach (var clip in _lastQuickPastedVms)
-            {
-                clip.Index = 0;
-            }
-            _lastQuickPastedVms.Clear();
-
-            if (!_viewModel.IsQuickPasteModeActive) return;
-
-            var scrollViewer = FindVisualChild<ScrollViewer>(ClipListView);
-            if (scrollViewer == null) return;
-
-            var firstVisibleIndex = (int)scrollViewer.VerticalOffset;
-
-            for (var i = 0; i < 9; i++)
-            {
-                var targetIndex = firstVisibleIndex + i;
-                if (targetIndex < _viewModel.Clips.Count)
-                {
-                    var vm = _viewModel.Clips[targetIndex];
-                    vm.Index = i + 1;
-                    _lastQuickPastedVms.Add(vm);
-                }
-            }
         }
 
         private void OnListScrolledToTopRequest(object? sender, EventArgs e)
@@ -102,37 +65,7 @@ namespace Cliptoo.UI.Views
 
         private async void MainWindow_Deactivated(object? sender, EventArgs e)
         {
-            await Task.Delay(50);
-
-            if (_viewModel.IsFilterPopupOpen)
-            {
-                _viewModel.IsFilterPopupOpen = false;
-            }
-
-            if (_viewModel.IsPreviewOpen)
-            {
-                _viewModel.RequestHidePreview();
-            }
-
-            if (_viewModel.IsHidingExplicitly)
-            {
-                return;
-            }
-
-            if (Application.Current.Windows.OfType<Window>().Any(x => x != this && x.IsActive))
-            {
-                return;
-            }
-
-            if (!this.IsVisible)
-            {
-                return;
-            }
-
-            if (!_viewModel.IsAlwaysOnTop)
-            {
-                _viewModel.HideWindow();
-            }
+            await _viewModel.HandleWindowDeactivated();
         }
 
         protected override void OnClosed(EventArgs e)
@@ -284,10 +217,7 @@ namespace Cliptoo.UI.Views
 
         private void ClipListView_ScrollChanged(object sender, ScrollChangedEventArgs e)
         {
-            if (_viewModel.IsQuickPasteModeActive)
-            {
-                UpdateQuickPasteIndices();
-            }
+            _viewModel.VerticalScrollOffset = e.VerticalOffset;
 
             // Do not trigger load more on upward scroll or during initial layout churn where change can be 0.
             if (e.VerticalChange <= 0)

@@ -37,6 +37,8 @@ namespace Cliptoo.UI.ViewModels
         private FontFamily _mainFont;
         private FontFamily _previewFont;
         private int? _leftCompareClipId;
+        private int _selectedIndex;
+        private double _verticalScrollOffset;
         private bool _isPasting;
         private bool _isReadyForEvents; // Start false, ApplicationHostService will set it to true.
         public bool IsReadyForEvents { get => _isReadyForEvents; set => _isReadyForEvents = value; }
@@ -107,9 +109,14 @@ namespace Cliptoo.UI.ViewModels
         public bool IsQuickPasteModeActive
         {
             get => _isQuickPasteModeActive;
-            set => SetProperty(ref _isQuickPasteModeActive, value);
+            set
+            {
+                if (SetProperty(ref _isQuickPasteModeActive, value))
+                {
+                    UpdateQuickPasteIndices();
+                }
+            }
         }
-
 
         public bool IsAlwaysOnTop
         {
@@ -513,5 +520,81 @@ namespace Cliptoo.UI.ViewModels
             }
             return null;
         }
+
+        public int SelectedIndex
+        {
+            get => _selectedIndex;
+            set => SetProperty(ref _selectedIndex, value);
+        }
+
+        public double VerticalScrollOffset
+        {
+            get => _verticalScrollOffset;
+            set
+            {
+                if (SetProperty(ref _verticalScrollOffset, value) && IsQuickPasteModeActive)
+                {
+                    UpdateQuickPasteIndices();
+                }
+            }
+        }
+
+        public async Task HandleWindowDeactivated()
+        {
+            await Task.Delay(50);
+
+            if (IsFilterPopupOpen)
+            {
+                IsFilterPopupOpen = false;
+            }
+
+            if (IsPreviewOpen)
+            {
+                RequestHidePreview();
+            }
+
+            if (IsHidingExplicitly)
+            {
+                return;
+            }
+
+            if (Application.Current.Windows.OfType<Window>().Any(x => x != Application.Current.MainWindow && x.IsActive))
+            {
+                return;
+            }
+
+            if (Application.Current.MainWindow is not { IsVisible: true })
+            {
+                return;
+            }
+
+            if (!IsAlwaysOnTop)
+            {
+                HideWindow();
+            }
+        }
+
+        public void UpdateQuickPasteIndices()
+        {
+            // Clear previous indices
+            foreach (var clip in Clips.Where(c => c.Index > 0))
+            {
+                clip.Index = 0;
+            }
+
+            if (!IsQuickPasteModeActive) return;
+
+            var firstVisibleIndex = (int)VerticalScrollOffset;
+
+            for (var i = 0; i < 9; i++)
+            {
+                var targetIndex = firstVisibleIndex + i;
+                if (targetIndex < Clips.Count)
+                {
+                    Clips[targetIndex].Index = i + 1;
+                }
+            }
+        }
+
     }
 }
