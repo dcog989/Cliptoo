@@ -3,19 +3,19 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
 
-    <SolidColorBrush x:Key="PrimaryBackground" Color="#242424" />
-    <SolidColorBrush x:Key="SecondaryBackground" Color="#2f2f2f" />
-    <SolidColorBrush x:Key="TertiaryBackground" Color="#3a3a3a" />
-    <SolidColorBrush x:Key="PrimaryBorderBrush" Color="#444444" />
-    <SolidColorBrush x:Key="SecondaryBorderBrush" Color="#555" />
-    <SolidColorBrush x:Key="PrimaryForeground" Color="#f0f0f0" />
-    <SolidColorBrush x:Key="SecondaryForeground" Color="#999" />
+    <SolidColorBrush x:Key="PrimaryBackground" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="SecondaryBackground" Color="#F3F3F3" />
+    <SolidColorBrush x:Key="TertiaryBackground" Color="#EBEBEB" />
+    <SolidColorBrush x:Key="PrimaryBorderBrush" Color="#E0E0E0" />
+    <SolidColorBrush x:Key="SecondaryBorderBrush" Color="#D0D0D0" />
+    <SolidColorBrush x:Key="PrimaryForeground" Color="#1C1C1C" />
+    <SolidColorBrush x:Key="SecondaryForeground" Color="#6E6E6E" />
     <SolidColorBrush x:Key="AccentBrush" Color="{DynamicResource SystemAccentColor}" />
-    <SolidColorBrush x:Key="AccentBrushHover" Color="{DynamicResource SystemAccentColorLight2}" />
-    <SolidColorBrush x:Key="AlternateRowBackground" Color="#292929" />
-    <SolidColorBrush x:Key="ErrorTextBrush" Color="#FFAAAA" />
-    <SolidColorBrush x:Key="HyperlinkBlueBrush" Color="#70acff" />
-    <SolidColorBrush x:Key="HyperlinkBlueBrushHover" Color="#a3c9ff" />
+    <SolidColorBrush x:Key="AccentBrushHover" Color="{DynamicResource SystemAccentColorDark2}" />
+    <SolidColorBrush x:Key="AlternateRowBackground" Color="#F9F9F9" />
+    <SolidColorBrush x:Key="ErrorTextBrush" Color="#C62828" />
+    <SolidColorBrush x:Key="HyperlinkBlueBrush" Color="#0078D4" />
+    <SolidColorBrush x:Key="HyperlinkBlueBrushHover" Color="#005A9E" />
 
     <Style x:Key="AppBorderStyle" TargetType="Border">
         <Setter Property="Background" Value="{StaticResource PrimaryBackground}" />
@@ -25,7 +25,7 @@
     </Style>
 
     <Style TargetType="Separator">
-        <Setter Property="Background" Value="#666666" />
+        <Setter Property="Background" Value="#D0D0D0" />
         <Setter Property="Height" Value="1" />
         <Setter Property="Margin" Value="4,6,4,6" />
     </Style>
@@ -50,6 +50,7 @@
             <Trigger Property="IsMouseOver" Value="True">
                 <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
                 <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                <Setter Property="Foreground" Value="White" />
             </Trigger>
         </Style.Triggers>
     </Style>
@@ -78,10 +79,12 @@
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="border" Property="Background" Value="{DynamicResource AccentBrush}" />
                             <Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                            <Setter Property="Foreground" Value="White" />
                         </Trigger>
                         <Trigger Property="IsChecked" Value="True">
                             <Setter TargetName="border" Property="Background" Value="{DynamicResource AccentBrush}" />
                             <Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                            <Setter Property="Foreground" Value="White" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -172,6 +175,7 @@
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsHighlighted" Value="True">
                             <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentBrush}" />
+                            <Setter Property="Foreground" Value="White" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -259,7 +263,7 @@
                         </Trigger>
                         <Trigger Property="IsSelected" Value="true">
                             <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentBrush}" />
-                            <Setter Property="Foreground" Value="{StaticResource PrimaryForeground}" />
+                            <Setter Property="Foreground" Value="White" />
                         </Trigger>
                         <MultiTrigger>
                             <MultiTrigger.Conditions>
@@ -319,6 +323,7 @@
                             <Setter TargetName="checkBorder" Property="Background" Value="{DynamicResource AccentBrush}" />
                             <Setter TargetName="checkBorder" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
                             <Setter TargetName="checkMark" Property="Visibility" Value="Visible" />
+                            <Setter TargetName="checkMark" Property="Foreground" Value="White" />
                         </Trigger>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="checkBorder" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />

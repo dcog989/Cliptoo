@@ -59,81 +59,81 @@ namespace Cliptoo.UI.Services
             await _controller.InitializeAsync();
 
             await Application.Current.Dispatcher.InvokeAsync(async () =>
-            {
-                _controller.SettingsChanged += OnSettingsChanged;
+                    {
+                        _controller.SettingsChanged += OnSettingsChanged;
 
-                var settings = _controller.Settings;
-                _currentHotkey = settings.Hotkey;
+                        var settings = _controller.Settings;
+                        _currentHotkey = settings.Hotkey;
 
-                _mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
-                _mainWindow.MaxHeight = SystemParameters.WorkArea.Height * 0.9;
+                        _mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
+                        _mainWindow.MaxHeight = SystemParameters.WorkArea.Height * 0.9;
 
-                _mainViewModel = _serviceProvider.GetRequiredService<MainWindow>().DataContext as MainViewModel;
-                if (_mainViewModel != null)
-                {
-                    Cliptoo.Core.Configuration.LogManager.Log("DIAG_LOAD: AHS - Initializing MainViewModel...");
-                    await _mainViewModel.InitializeAsync();
-                    _mainViewModel.IsAlwaysOnTop = settings.IsAlwaysOnTop;
-                    Cliptoo.Core.Configuration.LogManager.Log("DIAG_LOAD: AHS - Calling InitializeFirstFilter...");
-                    _mainViewModel.InitializeFirstFilter();
-                    LogManager.Log("DIAG: ApplicationHostService - MainViewModel initialized.");
-                }
+                        _mainViewModel = _serviceProvider.GetRequiredService<MainWindow>().DataContext as MainViewModel;
+                        if (_mainViewModel != null)
+                        {
+                            Cliptoo.Core.Configuration.LogManager.Log("DIAG_LOAD: AHS - Initializing MainViewModel...");
+                            await _mainViewModel.InitializeAsync();
+                            _mainViewModel.IsAlwaysOnTop = settings.IsAlwaysOnTop;
+                            Cliptoo.Core.Configuration.LogManager.Log("DIAG_LOAD: AHS - Calling InitializeFirstFilter...");
+                            _mainViewModel.InitializeFirstFilter();
+                            LogManager.Log("DIAG: ApplicationHostService - MainViewModel initialized.");
+                        }
 
-                ApplyTheme(settings.Theme);
-                ApplyAccentFromSettings(settings);
+                        ApplyTheme(settings.Theme);
+                        ApplyAccentFromSettings(settings);
 
-                // This Show/Hide sequence is necessary to create the window handle (HWND)
-                // so that the tray icon, clipboard monitor, and hotkeys can be registered.
-                _mainWindow.Opacity = 0;
-                _mainWindow.WindowStartupLocation = WindowStartupLocation.Manual;
-                _mainWindow.Left = -9999;
-                Cliptoo.Core.Configuration.LogManager.Log("DIAG: ApplicationHostService - Calling _mainWindow.Show()");
-                _mainWindow.Show();
-                _snackbarService.SetSnackbarPresenter(_mainWindow.SnackbarPresenter);
-                Cliptoo.Core.Configuration.LogManager.Log("DIAG: ApplicationHostService - Calling _mainWindow.Hide()");
-                _mainWindow.Hide();
-                _mainWindow.Opacity = 1;
+                        // This Show/Hide sequence is necessary to create the window handle (HWND)
+                        // so that the tray icon, clipboard monitor, and hotkeys can be registered.
+                        _mainWindow.Opacity = 0;
+                        _mainWindow.WindowStartupLocation = WindowStartupLocation.Manual;
+                        _mainWindow.Left = -9999;
+                        Cliptoo.Core.Configuration.LogManager.Log("DIAG: ApplicationHostService - Calling _mainWindow.Show()");
+                        _mainWindow.Show();
+                        _snackbarService.SetSnackbarPresenter(_mainWindow.SnackbarPresenter);
+                        Cliptoo.Core.Configuration.LogManager.Log("DIAG: ApplicationHostService - Calling _mainWindow.Hide()");
+                        _mainWindow.Hide();
+                        _mainWindow.Opacity = 1;
 
-                var windowInteropHelper = new WindowInteropHelper(_mainWindow);
-                IntPtr handle = windowInteropHelper.EnsureHandle();
+                        var windowInteropHelper = new WindowInteropHelper(_mainWindow);
+                        IntPtr handle = windowInteropHelper.EnsureHandle();
 
-                _hwndSource = HwndSource.FromHwnd(handle);
-                _hwndSource?.AddHook(HwndHook);
+                        _hwndSource = HwndSource.FromHwnd(handle);
+                        _hwndSource?.AddHook(HwndHook);
 
-                _globalHotkey = new GlobalHotkey(handle);
-                if (!_globalHotkey.Register(_currentHotkey))
-                {
-                    var message = $"Failed to register the global hotkey '{_currentHotkey}'. It may be in use by another application. You can set a new one in Settings via the tray icon.";
-                    LogManager.Log(message);
-                    System.Windows.MessageBox.Show(message, "Cliptoo Warning", System.Windows.MessageBoxButton.OK, MessageBoxImage.Warning);
-                }
-                else
-                {
-                    _globalHotkey.HotkeyPressed += OnHotkeyPressed;
-                }
+                        _globalHotkey = new GlobalHotkey(handle);
+                        if (!_globalHotkey.Register(_currentHotkey))
+                        {
+                            var message = $"Failed to register the global hotkey '{_currentHotkey}'. It may be in use by another application. You can set a new one in Settings via the tray icon.";
+                            LogManager.Log(message);
+                            System.Windows.MessageBox.Show(message, "Cliptoo Warning", System.Windows.MessageBoxButton.OK, MessageBoxImage.Warning);
+                        }
+                        else
+                        {
+                            _globalHotkey.HotkeyPressed += OnHotkeyPressed;
+                        }
 
-                _controller.ClipboardMonitor.Start(handle);
-                _controller.ProcessingFailed += OnProcessingFailed;
+                        _controller.ClipboardMonitor.Start(handle);
+                        _controller.ProcessingFailed += OnProcessingFailed;
 
-                _mainWindow.Width = settings.WindowWidth;
-                _mainWindow.Height = settings.WindowHeight;
+                        _mainWindow.Width = settings.WindowWidth;
+                        _mainWindow.Height = settings.WindowHeight;
 
-                if (_mainViewModel != null)
-                {
-                    _mainViewModel.AlwaysOnTopChanged += OnViewModelAlwaysOnTopChanged;
-                    Cliptoo.Core.Configuration.LogManager.Log("DIAG_LOAD: AHS - MainViewModel.IsReadyForEvents = true");
-                    _mainViewModel.IsReadyForEvents = true;
-                }
+                        if (_mainViewModel != null)
+                        {
+                            _mainViewModel.AlwaysOnTopChanged += OnViewModelAlwaysOnTopChanged;
+                            Cliptoo.Core.Configuration.LogManager.Log("DIAG_LOAD: AHS - MainViewModel.IsReadyForEvents = true");
+                            _mainViewModel.IsReadyForEvents = true;
+                        }
 
-                InitializeTrayIcon();
+                        InitializeTrayIcon();
 
-                if (_mainViewModel != null)
-                {
-                    _mainViewModel.IsInitializing = false;
-                    _ = _mainViewModel.LoadClipsAsync();
-                    Cliptoo.Core.Configuration.LogManager.Log("DIAG_LOAD: AHS - Initializing COMPLETE.");
-                }
-            });
+                        if (_mainViewModel != null)
+                        {
+                            _mainViewModel.IsInitializing = false;
+                            _ = _mainViewModel.LoadClipsAsync();
+                            Cliptoo.Core.Configuration.LogManager.Log("DIAG_LOAD: AHS - Initializing COMPLETE.");
+                        }
+                    });
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
@@ -175,33 +175,45 @@ namespace Cliptoo.UI.Services
 
         private void ApplyTheme(string themeName)
         {
-            if (_mainWindow == null || !_mainWindow.IsLoaded)
-            {
-                return;
-            }
-
-            var windowHandle = new WindowInteropHelper(_mainWindow).Handle;
-            if (windowHandle == IntPtr.Zero)
-            {
-                return;
-            }
-
-            SystemThemeWatcher.UnWatch(_mainWindow);
-
-            var theme = themeName?.ToLowerInvariant() switch
+            var wpfuiTheme = themeName?.ToLowerInvariant() switch
             {
                 "light" => ApplicationTheme.Light,
                 "dark" => ApplicationTheme.Dark,
                 _ => ApplicationTheme.Unknown,
             };
 
-            if (theme == ApplicationTheme.Unknown)
+            var finalTheme = wpfuiTheme;
+            if (finalTheme == ApplicationTheme.Unknown)
+            {
+                finalTheme = ApplicationThemeManager.GetSystemTheme() == SystemTheme.Dark ? ApplicationTheme.Dark : ApplicationTheme.Light;
+            }
+
+            // Manage our custom theme dictionaries
+            var dictionaries = Application.Current.Resources.MergedDictionaries;
+            var currentCustomTheme = dictionaries.FirstOrDefault(d => d.Source != null && (d.Source.OriginalString.EndsWith("Light.xaml") || d.Source.OriginalString.EndsWith("Dark.xaml")));
+            if (currentCustomTheme != null)
+            {
+                dictionaries.Remove(currentCustomTheme);
+            }
+
+            string themeUri = finalTheme == ApplicationTheme.Light ? "/Themes/Light.xaml" : "/Themes/Dark.xaml";
+            dictionaries.Add(new ResourceDictionary { Source = new Uri(themeUri, UriKind.Relative) });
+
+            // Now, handle the WPF-UI theme and window backdrop
+            if (_mainWindow == null || !_mainWindow.IsLoaded)
+            {
+                return;
+            }
+
+            SystemThemeWatcher.UnWatch(_mainWindow);
+
+            if (wpfuiTheme == ApplicationTheme.Unknown)
             {
                 SystemThemeWatcher.Watch(_mainWindow, WindowBackdropType.Mica, false);
             }
             else
             {
-                ApplicationThemeManager.Apply(theme, WindowBackdropType.Mica, false);
+                ApplicationThemeManager.Apply(wpfuiTheme, WindowBackdropType.Mica, false);
             }
         }
 
