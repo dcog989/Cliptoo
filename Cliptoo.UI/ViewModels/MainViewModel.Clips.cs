@@ -84,33 +84,47 @@ namespace Cliptoo.UI.ViewModels
         private void SyncClipsCollection(List<Clip> newClips)
         {
             var theme = CurrentThemeString;
+            var vmMap = Clips.ToDictionary(vm => vm.Id);
             var newClipIds = newClips.Select(c => c.Id).ToHashSet();
 
-            var vmsToRemove = Clips.Where(vm => !newClipIds.Contains(vm.Id)).ToList();
-            foreach (var vm in vmsToRemove)
+            for (int i = Clips.Count - 1; i >= 0; i--)
             {
-                Clips.Remove(vm);
+                if (!newClipIds.Contains(Clips[i].Id))
+                {
+                    Clips.RemoveAt(i);
+                }
             }
-
-            var vmMap = Clips.ToDictionary(vm => vm.Id);
 
             for (int i = 0; i < newClips.Count; i++)
             {
                 var clip = newClips[i];
+                ClipViewModel vm;
+
                 if (vmMap.TryGetValue(clip.Id, out var existingVm))
                 {
-                    existingVm.UpdateClip(clip, theme);
-                    int currentVmIndex = Clips.IndexOf(existingVm);
-                    if (currentVmIndex != i)
-                    {
-                        Clips.Move(currentVmIndex, i);
-                    }
+                    vm = existingVm;
+                    vm.UpdateClip(clip, theme);
                 }
                 else
                 {
-                    var newVm = _clipViewModelFactory.Create(clip, CurrentSettings, theme, this);
-                    ApplyAppearanceToViewModel(newVm);
-                    Clips.Insert(i, newVm);
+                    vm = _clipViewModelFactory.Create(clip, CurrentSettings, theme, this);
+                    ApplyAppearanceToViewModel(vm);
+                }
+
+                if (i < Clips.Count && Clips[i].Id == vm.Id)
+                {
+                    continue;
+                }
+
+                int oldIndex = Clips.IndexOf(vm);
+
+                if (oldIndex >= 0)
+                {
+                    Clips.Move(oldIndex, i);
+                }
+                else
+                {
+                    Clips.Insert(i, vm);
                 }
             }
         }
