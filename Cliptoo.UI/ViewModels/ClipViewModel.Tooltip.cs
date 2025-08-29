@@ -29,7 +29,7 @@ namespace Cliptoo.UI.ViewModels
             if (_isTooltipContentLoaded) return;
             DebugUtils.LogMemoryUsage($"LoadTooltipContentAsync START (ID: {Id})");
 
-            var clipForTooltip = await GetFullClipAsync();
+            var clipForTooltip = await GetFullClipAsync().ConfigureAwait(false);
 
             if (clipForTooltip is null)
             {
