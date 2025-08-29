@@ -8,8 +8,8 @@ Cliptoo will turn your clipboard history in to a quick-access library of the thi
 
 [Download the latest release of Cliptoo](./Cliptoo/releases/latest/).
 
-![License](https://img.shields.io/github/license/dcog989/cliptoo?style=for-the-badge)
-![Latest Release](https://img.shields.io/github/v/release/dcog989/cliptoo?style=for-the-badge)
+[![License](https://img.shields.io/github/license/dcog989/cliptoo?style=for-the-badge)](LICENSE)
+[![Latest Release](https://img.shields.io/github/v/release/dcog989/cliptoo?style=for-the-badge)](./Cliptoo/releases/latest/)
 
 ---
 
@@ -112,7 +112,7 @@ Alternatively, run the `build-optimized-release.ps1` PowerShell script to create
 
 ## Contributing
 
-Contributions are welcome! If you have a feature request, bug report, or pull request, please feel free to [open an issue}(issues) or [submit a PR](https://github.com/dcog989/Cliptoo/pulls).
+Contributions are welcome! If you have a feature request, bug report, or pull request, please feel free to [open an issue}(https://github.com/dcog989/Cliptoo/issues) or [submit a PR](https://github.com/dcog989/Cliptoo/pulls).
 
 ## Acknowledgements
 
@@ -123,7 +123,7 @@ Cliptoo is built on the shoulders of giants. A special thank you to the creators
 - [ImageSharp](https://github.com/SixLabors/ImageSharp)
 - [Jxl.NET](https://github.com/wsvincent/jxl.net)
 - [SkiaSharp](https://github.com/mono/SkiaSharp) & [Svg.Skia](https://github.com/wieslawsoltes/Svg.Skia)
-- [SQLitePCL.raw](https://github.com/ericsink/SQLitePCL.raw)
+- [Microsoft.Data.Sqlite](https://www.nuget.org/packages/Microsoft.Data.Sqlite/)
 
 ## License
 
