@@ -1,6 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 
@@ -76,9 +79,7 @@ namespace Cliptoo.Core.Database
             {
                 connection = await GetOpenConnectionAsync().ConfigureAwait(false);
                 transaction = await connection.BeginTransactionAsync().ConfigureAwait(false);
-
                 await transactionWork(connection, transaction).ConfigureAwait(false);
-
                 await transaction.CommitAsync().ConfigureAwait(false);
             }
             finally
@@ -87,5 +88,70 @@ namespace Cliptoo.Core.Database
                 if (connection != null) { await connection.DisposeAsync().ConfigureAwait(false); }
             }
         }
+
+        [SuppressMessage("Microsoft.Security", "CA2100:Review SQL queries for security vulnerabilities", Justification = "This is a helper method. Callers are responsible for using parameterized queries.")]
+        protected async Task<T?> QuerySingleOrDefaultAsync<T>(
+            string commandText,
+            Func<SqliteDataReader, T> map,
+            CancellationToken cancellationToken = default,
+            params SqliteParameter[] parameters) where T : class
+        {
+            ArgumentNullException.ThrowIfNull(map);
+            SqliteConnection? connection = null;
+            SqliteCommand? command = null;
+            SqliteDataReader? reader = null;
+            try
+            {
+                connection = await GetOpenConnectionAsync().ConfigureAwait(false);
+                command = connection.CreateCommand();
+                command.CommandText = commandText;
+                command.Parameters.AddRange(parameters);
+                reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+                if (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                {
+                    return map(reader);
+                }
+                return null;
+            }
+            finally
+            {
+                if (reader != null) { await reader.DisposeAsync().ConfigureAwait(false); }
+                if (command != null) { await command.DisposeAsync().ConfigureAwait(false); }
+                if (connection != null) { await connection.DisposeAsync().ConfigureAwait(false); }
+            }
+        }
+
+        [SuppressMessage("Microsoft.Security", "CA2100:Review SQL queries for security vulnerabilities", Justification = "This is a helper method. Callers are responsible for using parameterized queries.")]
+        protected async IAsyncEnumerable<T> QueryAsync<T>(
+            string commandText,
+            Func<SqliteDataReader, T> map,
+            [EnumeratorCancellation] CancellationToken cancellationToken = default,
+            params SqliteParameter[] parameters)
+        {
+            ArgumentNullException.ThrowIfNull(map);
+            SqliteConnection? connection = null;
+            SqliteCommand? command = null;
+            SqliteDataReader? reader = null;
+            try
+            {
+                connection = await GetOpenConnectionAsync().ConfigureAwait(false);
+                command = connection.CreateCommand();
+                command.CommandText = commandText;
+                command.Parameters.AddRange(parameters);
+                reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+                while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                {
+                    yield return map(reader);
+                }
+            }
+            finally
+            {
+                if (reader != null) { await reader.DisposeAsync().ConfigureAwait(false); }
+                if (command != null) { await command.DisposeAsync().ConfigureAwait(false); }
+                if (connection != null) { await connection.DisposeAsync().ConfigureAwait(false); }
+            }
+        }
+
     }
+
 }

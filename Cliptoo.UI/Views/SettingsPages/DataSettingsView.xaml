@@ -100,8 +100,8 @@
                 HorizontalAlignment="Center"
                 Orientation="Horizontal">
                 <TextBlock>
-                    <Run FontWeight="SemiBold" Text="{Binding Stats.TotalClipsEver, Mode=OneWay, StringFormat={}{0:N0}}" />
-                    <Run Text="clips copied and" />
+                    <Run FontWeight="SemiBold" Text="{Binding Stats.UniqueClipsEver, Mode=OneWay, StringFormat={}{0:N0}}" />
+                    <Run Text="unique clips saved and" />
                     <Run FontWeight="SemiBold" Text="{Binding Stats.PasteCount, Mode=OneWay, StringFormat={}{0:N0}}" />
                     <Run Text="pastes" />
                 </TextBlock>

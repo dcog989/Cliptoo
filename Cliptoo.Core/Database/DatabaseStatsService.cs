@@ -29,81 +29,62 @@ namespace Cliptoo.Core.Database
 
         public async Task<DbStats> GetStatsAsync()
         {
+            long totalClips = 0;
+            long pinnedClips = 0;
+            long totalContentLength = 0;
+            long pasteCount = 0;
+            long uniqueClipsEver = 0;
+            DateTime? creationTimestamp = null;
+            DateTime? lastCleanupTimestamp = null;
+
             SqliteConnection? connection = null;
             try
             {
                 connection = await GetOpenConnectionAsync().ConfigureAwait(false);
-                long totalClips = 0;
-                long pinnedClips = 0;
-                long totalContentLength = 0;
-                long pasteCount = 0;
-                long totalClipsEver = 0;
-                DateTime? creationTimestamp = null;
-                DateTime? lastCleanupTimestamp = null;
-
-                SqliteCommand? command1 = null;
-                SqliteDataReader? reader1 = null;
+                SqliteCommand? command = null;
+                SqliteDataReader? reader = null;
                 try
                 {
-                    command1 = connection.CreateCommand();
-                    command1.CommandText = "SELECT COUNT(*), COALESCE(SUM(LENGTH(Content)), 0) FROM clips";
-                    reader1 = await command1.ExecuteReaderAsync().ConfigureAwait(false);
-                    if (await reader1.ReadAsync().ConfigureAwait(false))
+                    command = connection.CreateCommand();
+                    command.CommandText = "SELECT COUNT(*), COALESCE(SUM(LENGTH(Content)), 0), SUM(CASE WHEN IsPinned = 1 THEN 1 ELSE 0 END) FROM clips";
+                    reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
+                    if (await reader.ReadAsync().ConfigureAwait(false))
                     {
-                        totalClips = reader1.GetInt64(0);
-                        totalContentLength = reader1.GetInt64(1);
+                        totalClips = reader.GetInt64(0);
+                        totalContentLength = reader.GetInt64(1);
+                        pinnedClips = reader.GetInt64(2);
                     }
                 }
                 finally
                 {
-                    if (reader1 != null) { await reader1.DisposeAsync().ConfigureAwait(false); }
-                    if (command1 != null) { await command1.DisposeAsync().ConfigureAwait(false); }
+                    if (reader != null) { await reader.DisposeAsync().ConfigureAwait(false); }
+                    if (command != null) { await command.DisposeAsync().ConfigureAwait(false); }
                 }
 
-                SqliteCommand? command2 = null;
-                SqliteDataReader? reader2 = null;
                 try
                 {
-                    command2 = connection.CreateCommand();
-                    command2.CommandText = "SELECT COUNT(*) FROM clips WHERE IsPinned = 1";
-                    reader2 = await command2.ExecuteReaderAsync().ConfigureAwait(false);
-                    if (await reader2.ReadAsync().ConfigureAwait(false))
+                    command = connection.CreateCommand();
+                    command.CommandText = "SELECT Key, Value, TextValue FROM stats WHERE Key IN ('PasteCount', 'UniqueClipsEver', 'CreationTimestamp', 'LastCleanupTimestamp')";
+                    reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
+                    while (await reader.ReadAsync().ConfigureAwait(false))
                     {
-                        pinnedClips = reader2.GetInt64(0);
-                    }
-                }
-                finally
-                {
-                    if (reader2 != null) { await reader2.DisposeAsync().ConfigureAwait(false); }
-                    if (command2 != null) { await command2.DisposeAsync().ConfigureAwait(false); }
-                }
-
-                SqliteCommand? command3 = null;
-                SqliteDataReader? reader3 = null;
-                try
-                {
-                    command3 = connection.CreateCommand();
-                    command3.CommandText = "SELECT Key, Value, TextValue FROM stats WHERE Key IN ('PasteCount', 'TotalClipsEver', 'CreationTimestamp', 'LastCleanupTimestamp')";
-                    reader3 = await command3.ExecuteReaderAsync().ConfigureAwait(false);
-                    while (await reader3.ReadAsync().ConfigureAwait(false))
-                    {
-                        var key = reader3.GetString(0);
+                        var key = reader.GetString(0);
                         switch (key)
                         {
-                            case "PasteCount" when !await reader3.IsDBNullAsync(1, CancellationToken.None).ConfigureAwait(false):
-                                pasteCount = reader3.GetInt64(1);
+                            case "PasteCount" when !await reader.IsDBNullAsync(1, CancellationToken.None).ConfigureAwait(false):
+                                pasteCount = reader.GetInt64(1);
                                 break;
-                            case "TotalClipsEver" when !await reader3.IsDBNullAsync(1, CancellationToken.None).ConfigureAwait(false):
-                                totalClipsEver = reader3.GetInt64(1);
+                            case "UniqueClipsEver" when !await reader.IsDBNullAsync(1, CancellationToken.None).ConfigureAwait(false):
+                                uniqueClipsEver = reader.GetInt64(1);
                                 break;
-                            case "CreationTimestamp" when !await reader3.IsDBNullAsync(2, CancellationToken.None).ConfigureAwait(false):
-                                if (DateTime.TryParse(reader3.GetString(2), null, System.Globalization.DateTimeStyles.RoundtripKind, out var createDt))
+                            case "CreationTimestamp" when !await reader.IsDBNullAsync(2, CancellationToken.None).ConfigureAwait(false):
+                                if (DateTime.TryParse(reader.GetString(2), null, System.Globalization.DateTimeStyles.RoundtripKind, out var createDt))
                                 {
                                     creationTimestamp = createDt.ToLocalTime();
                                 }
                                 break;
-                            case "LastCleanupTimestamp" when !await reader3.IsDBNullAsync(2, CancellationToken.None).ConfigureAwait(false):
-                                if (DateTime.TryParse(reader3.GetString(2), null, System.Globalization.DateTimeStyles.RoundtripKind, out var cleanupDt))
+                            case "LastCleanupTimestamp" when !await reader.IsDBNullAsync(2, CancellationToken.None).ConfigureAwait(false):
+                                if (DateTime.TryParse(reader.GetString(2), null, System.Globalization.DateTimeStyles.RoundtripKind, out var cleanupDt))
                                 {
                                     lastCleanupTimestamp = cleanupDt.ToLocalTime();
                                 }
@@ -113,33 +94,33 @@ namespace Cliptoo.Core.Database
                 }
                 finally
                 {
-                    if (reader3 != null) { await reader3.DisposeAsync().ConfigureAwait(false); }
-                    if (command3 != null) { await command3.DisposeAsync().ConfigureAwait(false); }
+                    if (reader != null) { await reader.DisposeAsync().ConfigureAwait(false); }
+                    if (command != null) { await command.DisposeAsync().ConfigureAwait(false); }
                 }
-
-
-                double dbSizeMb = 0;
-                if (File.Exists(_dbPath))
-                {
-                    dbSizeMb = Math.Round(new FileInfo(_dbPath).Length / (1024.0 * 1024.0), 2);
-                }
-
-                return new DbStats
-                {
-                    TotalClips = totalClips,
-                    TotalContentLength = totalContentLength,
-                    PasteCount = pasteCount,
-                    DatabaseSizeMb = dbSizeMb,
-                    TotalClipsEver = totalClipsEver,
-                    CreationTimestamp = creationTimestamp,
-                    PinnedClips = pinnedClips,
-                    LastCleanupTimestamp = lastCleanupTimestamp
-                };
             }
             finally
             {
                 if (connection != null) { await connection.DisposeAsync().ConfigureAwait(false); }
             }
+
+
+            double dbSizeMb = 0;
+            if (File.Exists(_dbPath))
+            {
+                dbSizeMb = Math.Round(new FileInfo(_dbPath).Length / (1024.0 * 1024.0), 2);
+            }
+
+            return new DbStats
+            {
+                TotalClips = totalClips,
+                TotalContentLength = totalContentLength,
+                PasteCount = pasteCount,
+                DatabaseSizeMb = dbSizeMb,
+                UniqueClipsEver = uniqueClipsEver,
+                CreationTimestamp = creationTimestamp,
+                PinnedClips = pinnedClips,
+                LastCleanupTimestamp = lastCleanupTimestamp
+            };
         }
     }
 }

@@ -7,7 +7,7 @@ namespace Cliptoo.Core.Database
 {
     public class DatabaseInitializer : RepositoryBase, IDatabaseInitializer
     {
-        private const int CurrentDbVersion = 10;
+        private const int CurrentDbVersion = 11;
 
         public DatabaseInitializer(string dbPath) : base(dbPath) { }
 
@@ -77,7 +77,7 @@ namespace Cliptoo.Core.Database
                 command.CommandText = "INSERT OR IGNORE INTO stats (Key, Value) VALUES ('PasteCount', 0);";
                 await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
-                command.CommandText = "INSERT OR IGNORE INTO stats (Key, Value) VALUES ('TotalClipsEver', (SELECT COUNT(*) FROM clips));";
+                command.CommandText = "INSERT OR IGNORE INTO stats (Key, Value) VALUES ('UniqueClipsEver', (SELECT COUNT(*) FROM clips));";
                 await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                 command.CommandText = "INSERT OR IGNORE INTO stats (Key, Value, TextValue) VALUES ('CreationTimestamp', 0, @Timestamp);";
@@ -237,6 +237,21 @@ namespace Cliptoo.Core.Database
                     finally
                     {
                         if (migrateCmd != null) { await migrateCmd.DisposeAsync().ConfigureAwait(false); }
+                    }
+                }
+                if (fromVersion < 11)
+                {
+                    SqliteCommand? renameStatCmd = null;
+                    try
+                    {
+                        renameStatCmd = connection.CreateCommand();
+                        renameStatCmd.Transaction = transaction;
+                        renameStatCmd.CommandText = "UPDATE stats SET Key = 'UniqueClipsEver' WHERE Key = 'TotalClipsEver';";
+                        await renameStatCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        if (renameStatCmd != null) { await renameStatCmd.DisposeAsync().ConfigureAwait(false); }
                     }
                 }
 

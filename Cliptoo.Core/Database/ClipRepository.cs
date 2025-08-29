@@ -106,62 +106,31 @@ namespace Cliptoo.Core.Database
             }
         }
 
-        public async Task<Clip> GetClipPreviewContentByIdAsync(int id)
+        public async Task<Clip?> GetClipPreviewContentByIdAsync(int id)
         {
-            SqliteConnection? connection = null;
-            SqliteCommand? command = null;
-            SqliteDataReader? reader = null;
-            try
+            var sql = "SELECT Id, PreviewContent, Timestamp, ClipType, SourceApp, IsPinned, WasTrimmed, SizeInBytes FROM clips WHERE Id = @Id";
+            var param = new SqliteParameter("@Id", id);
+
+            var clip = await QuerySingleOrDefaultAsync(sql, reader =>
             {
-                connection = await GetOpenConnectionAsync().ConfigureAwait(false);
-                command = connection.CreateCommand();
-                command.CommandText = "SELECT Id, PreviewContent, Timestamp, ClipType, SourceApp, IsPinned, WasTrimmed, SizeInBytes FROM clips WHERE Id = @Id";
-                command.Parameters.AddWithValue("@Id", id);
-
-                reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
-                if (await reader.ReadAsync().ConfigureAwait(false))
+                return new Clip
                 {
-                    var idOrdinal = reader.GetOrdinal("Id");
-                    var previewContentOrdinal = reader.GetOrdinal("PreviewContent");
-                    var timestampOrdinal = reader.GetOrdinal("Timestamp");
-                    var clipTypeOrdinal = reader.GetOrdinal("ClipType");
-                    var sourceAppOrdinal = reader.GetOrdinal("SourceApp");
-                    var isPinnedOrdinal = reader.GetOrdinal("IsPinned");
-                    var wasTrimmedOrdinal = reader.GetOrdinal("WasTrimmed");
-                    var sizeInBytesOrdinal = reader.GetOrdinal("SizeInBytes");
+                    Id = reader.GetInt32(reader.GetOrdinal("Id")),
+                    PreviewContent = reader.IsDBNull(reader.GetOrdinal("PreviewContent")) ? null : reader.GetString(reader.GetOrdinal("PreviewContent")),
+                    Timestamp = DateTime.Parse(reader.GetString(reader.GetOrdinal("Timestamp")), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind).ToLocalTime(),
+                    ClipType = reader.GetString(reader.GetOrdinal("ClipType")),
+                    SourceApp = reader.IsDBNull(reader.GetOrdinal("SourceApp")) ? null : reader.GetString(reader.GetOrdinal("SourceApp")),
+                    IsPinned = reader.GetInt64(reader.GetOrdinal("IsPinned")) == 1,
+                    WasTrimmed = reader.GetInt64(reader.GetOrdinal("WasTrimmed")) == 1,
+                    SizeInBytes = reader.GetInt64(reader.GetOrdinal("SizeInBytes"))
+                };
+            }, default, param).ConfigureAwait(false);
 
-                    string? previewContent = null;
-                    if (!await reader.IsDBNullAsync(previewContentOrdinal).ConfigureAwait(false))
-                    {
-                        previewContent = reader.GetString(previewContentOrdinal);
-                    }
-
-                    string? sourceApp = null;
-                    if (!await reader.IsDBNullAsync(sourceAppOrdinal).ConfigureAwait(false))
-                    {
-                        sourceApp = reader.GetString(sourceAppOrdinal);
-                    }
-
-                    return new Clip
-                    {
-                        Id = reader.GetInt32(idOrdinal),
-                        PreviewContent = previewContent,
-                        Timestamp = DateTime.Parse(reader.GetString(timestampOrdinal), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind).ToLocalTime(),
-                        ClipType = reader.GetString(clipTypeOrdinal),
-                        SourceApp = sourceApp,
-                        IsPinned = reader.GetInt64(isPinnedOrdinal) == 1,
-                        WasTrimmed = reader.GetInt64(wasTrimmedOrdinal) == 1,
-                        SizeInBytes = reader.GetInt64(sizeInBytesOrdinal)
-                    };
-                }
+            if (clip == null)
+            {
                 throw new InvalidOperationException($"Clip with ID {id} not found.");
             }
-            finally
-            {
-                if (reader != null) { await reader.DisposeAsync().ConfigureAwait(false); }
-                if (command != null) { await command.DisposeAsync().ConfigureAwait(false); }
-                if (connection != null) { await connection.DisposeAsync().ConfigureAwait(false); }
-            }
+            return clip;
         }
 
         public async Task<int> AddClipAsync(string content, string clipType, string? sourceApp, bool wasTrimmed)
@@ -230,7 +199,7 @@ namespace Cliptoo.Core.Database
                     {
                         statCmd = connection.CreateCommand();
                         statCmd.Transaction = transaction;
-                        statCmd.CommandText = "UPDATE stats SET Value = COALESCE(Value, 0) + 1 WHERE Key = 'TotalClipsEver'";
+                        statCmd.CommandText = "UPDATE stats SET Value = COALESCE(Value, 0) + 1 WHERE Key = 'UniqueClipsEver'";
                         await statCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
                     }
                     finally
@@ -286,56 +255,18 @@ namespace Cliptoo.Core.Database
             return ExecuteNonQueryAsync(sql, parameters);
         }
 
-        public async IAsyncEnumerable<string> GetAllImageClipPathsAsync()
+        public IAsyncEnumerable<string> GetAllImageClipPathsAsync()
         {
-            SqliteConnection? connection = null;
-            SqliteCommand? command = null;
-            SqliteDataReader? reader = null;
-            try
-            {
-                connection = await GetOpenConnectionAsync().ConfigureAwait(false);
-                command = connection.CreateCommand();
-                command.CommandText = "SELECT Content FROM clips WHERE ClipType = @ClipType";
-                command.Parameters.AddWithValue("@ClipType", AppConstants.ClipTypes.Image);
-
-                reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
-                while (await reader.ReadAsync().ConfigureAwait(false))
-                {
-                    yield return reader.GetString(0);
-                }
-            }
-            finally
-            {
-                if (reader != null) { await reader.DisposeAsync().ConfigureAwait(false); }
-                if (command != null) { await command.DisposeAsync().ConfigureAwait(false); }
-                if (connection != null) { await connection.DisposeAsync().ConfigureAwait(false); }
-            }
+            var sql = "SELECT Content FROM clips WHERE ClipType = @ClipType";
+            var param = new SqliteParameter("@ClipType", AppConstants.ClipTypes.Image);
+            return QueryAsync(sql, reader => reader.GetString(0), default, param);
         }
 
-        public async IAsyncEnumerable<string> GetAllLinkClipUrlsAsync()
+        public IAsyncEnumerable<string> GetAllLinkClipUrlsAsync()
         {
-            SqliteConnection? connection = null;
-            SqliteCommand? command = null;
-            SqliteDataReader? reader = null;
-            try
-            {
-                connection = await GetOpenConnectionAsync().ConfigureAwait(false);
-                command = connection.CreateCommand();
-                command.CommandText = "SELECT DISTINCT Content FROM clips WHERE ClipType = @ClipType";
-                command.Parameters.AddWithValue("@ClipType", AppConstants.ClipTypes.Link);
-
-                reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
-                while (await reader.ReadAsync().ConfigureAwait(false))
-                {
-                    yield return reader.GetString(0);
-                }
-            }
-            finally
-            {
-                if (reader != null) { await reader.DisposeAsync().ConfigureAwait(false); }
-                if (command != null) { await command.DisposeAsync().ConfigureAwait(false); }
-                if (connection != null) { await connection.DisposeAsync().ConfigureAwait(false); }
-            }
+            var sql = "SELECT DISTINCT Content FROM clips WHERE ClipType = @ClipType";
+            var param = new SqliteParameter("@ClipType", AppConstants.ClipTypes.Link);
+            return QueryAsync(sql, reader => reader.GetString(0), default, param);
         }
 
         public Task DeleteClipAsync(int id)
@@ -369,68 +300,24 @@ namespace Cliptoo.Core.Database
 
         public async Task<Clip?> GetClipByIdAsync(int id)
         {
-            SqliteConnection? connection = null;
-            SqliteCommand? command = null;
-            SqliteDataReader? reader = null;
-            try
-            {
-                connection = await GetOpenConnectionAsync().ConfigureAwait(false);
-                command = connection.CreateCommand();
-                command.CommandText = "SELECT * FROM clips WHERE Id = @Id";
-                command.Parameters.AddWithValue("@Id", id);
+            var sql = "SELECT * FROM clips WHERE Id = @Id";
+            var param = new SqliteParameter("@Id", id);
 
-                reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
-                if (await reader.ReadAsync().ConfigureAwait(false))
+            return await QuerySingleOrDefaultAsync(sql, reader =>
+            {
+                return new Clip
                 {
-                    var idOrdinal = reader.GetOrdinal("Id");
-                    var contentOrdinal = reader.GetOrdinal("Content");
-                    var previewContentOrdinal = reader.GetOrdinal("PreviewContent");
-                    var timestampOrdinal = reader.GetOrdinal("Timestamp");
-                    var clipTypeOrdinal = reader.GetOrdinal("ClipType");
-                    var sourceAppOrdinal = reader.GetOrdinal("SourceApp");
-                    var isPinnedOrdinal = reader.GetOrdinal("IsPinned");
-                    var wasTrimmedOrdinal = reader.GetOrdinal("WasTrimmed");
-                    var sizeInBytesOrdinal = reader.GetOrdinal("SizeInBytes");
-
-                    string? content = null;
-                    if (!await reader.IsDBNullAsync(contentOrdinal).ConfigureAwait(false))
-                    {
-                        content = reader.GetString(contentOrdinal);
-                    }
-
-                    string? previewContent = null;
-                    if (!await reader.IsDBNullAsync(previewContentOrdinal).ConfigureAwait(false))
-                    {
-                        previewContent = reader.GetString(previewContentOrdinal);
-                    }
-
-                    string? sourceApp = null;
-                    if (!await reader.IsDBNullAsync(sourceAppOrdinal).ConfigureAwait(false))
-                    {
-                        sourceApp = reader.GetString(sourceAppOrdinal);
-                    }
-
-                    return new Clip
-                    {
-                        Id = reader.GetInt32(idOrdinal),
-                        Content = content,
-                        PreviewContent = previewContent,
-                        Timestamp = DateTime.Parse(reader.GetString(timestampOrdinal), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind).ToLocalTime(),
-                        ClipType = reader.GetString(clipTypeOrdinal),
-                        SourceApp = sourceApp,
-                        IsPinned = reader.GetInt64(isPinnedOrdinal) == 1,
-                        WasTrimmed = reader.GetInt64(wasTrimmedOrdinal) == 1,
-                        SizeInBytes = reader.GetInt64(sizeInBytesOrdinal)
-                    };
-                }
-                return null;
-            }
-            finally
-            {
-                if (reader != null) { await reader.DisposeAsync().ConfigureAwait(false); }
-                if (command != null) { await command.DisposeAsync().ConfigureAwait(false); }
-                if (connection != null) { await connection.DisposeAsync().ConfigureAwait(false); }
-            }
+                    Id = reader.GetInt32(reader.GetOrdinal("Id")),
+                    Content = reader.IsDBNull(reader.GetOrdinal("Content")) ? null : reader.GetString(reader.GetOrdinal("Content")),
+                    PreviewContent = reader.IsDBNull(reader.GetOrdinal("PreviewContent")) ? null : reader.GetString(reader.GetOrdinal("PreviewContent")),
+                    Timestamp = DateTime.Parse(reader.GetString(reader.GetOrdinal("Timestamp")), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind).ToLocalTime(),
+                    ClipType = reader.GetString(reader.GetOrdinal("ClipType")),
+                    SourceApp = reader.IsDBNull(reader.GetOrdinal("SourceApp")) ? null : reader.GetString(reader.GetOrdinal("SourceApp")),
+                    IsPinned = reader.GetInt64(reader.GetOrdinal("IsPinned")) == 1,
+                    WasTrimmed = reader.GetInt64(reader.GetOrdinal("WasTrimmed")) == 1,
+                    SizeInBytes = reader.GetInt64(reader.GetOrdinal("SizeInBytes"))
+                };
+            }, default, param).ConfigureAwait(false);
         }
 
         private static bool HasColumn(SqliteDataReader reader, string columnName)
@@ -443,34 +330,15 @@ namespace Cliptoo.Core.Database
             return false;
         }
 
-        public async IAsyncEnumerable<Clip> GetAllFileBasedClipsAsync()
+        public IAsyncEnumerable<Clip> GetAllFileBasedClipsAsync()
         {
-            SqliteConnection? connection = null;
-            SqliteCommand? command = null;
-            SqliteDataReader? reader = null;
-            try
+            var sql = "SELECT Id, Content, ClipType FROM clips WHERE ClipType LIKE 'file_%' OR ClipType = 'folder'";
+            return QueryAsync(sql, reader => new Clip
             {
-                connection = await GetOpenConnectionAsync().ConfigureAwait(false);
-                command = connection.CreateCommand();
-                command.CommandText = "SELECT Id, Content, ClipType FROM clips WHERE ClipType LIKE 'file_%' OR ClipType = 'folder'";
-
-                reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
-                while (await reader.ReadAsync().ConfigureAwait(false))
-                {
-                    yield return new Clip
-                    {
-                        Id = reader.GetInt32(0),
-                        Content = reader.GetString(1),
-                        ClipType = reader.GetString(2)
-                    };
-                }
-            }
-            finally
-            {
-                if (reader != null) { await reader.DisposeAsync().ConfigureAwait(false); }
-                if (command != null) { await command.DisposeAsync().ConfigureAwait(false); }
-                if (connection != null) { await connection.DisposeAsync().ConfigureAwait(false); }
-            }
+                Id = reader.GetInt32(0),
+                Content = reader.GetString(1),
+                ClipType = reader.GetString(2)
+            });
         }
 
         public Task UpdateClipTypesAsync(Dictionary<int, string> updates)

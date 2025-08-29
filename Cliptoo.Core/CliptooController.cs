@@ -57,7 +57,7 @@ namespace Cliptoo.Core
         public bool IsUiInteractive { get; set; }
 
         public IClipboardMonitor ClipboardMonitor { get; }
-        public Task<Clip> GetClipPreviewAsync(int id) => _dbManager.GetClipPreviewContentByIdAsync(id);
+        public Task<Clip?> GetClipPreviewAsync(int id) => _dbManager.GetClipPreviewContentByIdAsync(id);
 
         private readonly IIconProvider _iconProvider;
 
