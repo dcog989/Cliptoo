@@ -6,8 +6,6 @@ repomix.config.json
 .archive/
 .gemini/
 .testdata/
-build-production-run.ps1
-build-optimized-release.ps1
 build/
 
 ## Ignore Visual Studio temporary files, build results, and
