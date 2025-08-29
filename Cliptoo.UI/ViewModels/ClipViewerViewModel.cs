@@ -1,16 +1,24 @@
+using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 using Cliptoo.Core;
+using Cliptoo.Core.Interfaces;
+using Cliptoo.Core.Services;
 using Cliptoo.UI.Helpers;
 using Cliptoo.UI.Services;
 using Cliptoo.UI.ViewModels.Base;
+using ICSharpCode.AvalonEdit.Highlighting;
+using ICSharpCode.AvalonEdit.Highlighting.Xshd;
+using System.Xml;
+using Wpf.Ui.Appearance;
 
 namespace Cliptoo.UI.ViewModels
 {
     public class ClipViewerViewModel : ViewModelBase
     {
         private readonly int _clipId;
-        private readonly CliptooController _controller;
+        private readonly IClipDataService _clipDataService;
+        private readonly ISyntaxHighlighter _syntaxHighlighter;
         private readonly FontFamily _editorFontFamily;
         private readonly double _editorFontSize;
         private string _originalClipType = string.Empty;
@@ -30,6 +38,8 @@ namespace Cliptoo.UI.ViewModels
         }
 
         public string ClipInfo { get => _clipInfo; set => SetProperty(ref _clipInfo, value); }
+        public IHighlightingDefinition? SyntaxHighlighting { get; private set; }
+        public ISettingsService SettingsService { get; }
 
         public FontFamily EditorFontFamily => _editorFontFamily;
 
@@ -37,17 +47,18 @@ namespace Cliptoo.UI.ViewModels
 
         public ICommand SaveChangesCommand { get; }
         public ICommand CancelCommand { get; }
-        public CliptooController Controller => _controller;
 
-        public ClipViewerViewModel(int clipId, CliptooController controller, IFontProvider fontProvider)
+        public ClipViewerViewModel(int clipId, IClipDataService clipDataService, ISettingsService settingsService, IFontProvider fontProvider, ISyntaxHighlighter syntaxHighlighter)
         {
             _clipId = clipId;
-            _controller = controller;
+            _clipDataService = clipDataService;
+            SettingsService = settingsService;
+            _syntaxHighlighter = syntaxHighlighter;
 
             SaveChangesCommand = new RelayCommand(async _ => await ExecuteSaveChanges());
             CancelCommand = new RelayCommand(_ => OnRequestClose?.Invoke());
 
-            var settings = _controller.Settings;
+            var settings = SettingsService.Settings;
             _editorFontSize = settings.PreviewFontSize;
             _editorFontFamily = fontProvider.GetFont(settings.PreviewFontFamily);
 
@@ -56,7 +67,7 @@ namespace Cliptoo.UI.ViewModels
 
         private async Task LoadClipAsync()
         {
-            var clip = await _controller.GetClipByIdAsync(_clipId);
+            var clip = await _clipDataService.GetClipByIdAsync(_clipId);
             if (clip == null)
             {
                 OnRequestClose?.Invoke();
@@ -81,13 +92,48 @@ namespace Cliptoo.UI.ViewModels
             var lineCount = string.IsNullOrEmpty(contentForInfo) ? 0 : contentForInfo.Split('\n').Length;
             var formattedSize = FormatUtils.FormatBytes(clip.SizeInBytes);
             ClipInfo = $"Size: {formattedSize}    Lines: {lineCount}";
+
+            LoadSyntaxHighlighting(clip);
+        }
+
+        private void LoadSyntaxHighlighting(Core.Database.Models.Clip clip)
+        {
+            var definitionName = _syntaxHighlighter.GetHighlightingDefinition(clip.ClipType, clip.Content ?? string.Empty);
+            if (definitionName == null)
+            {
+                SyntaxHighlighting = null;
+                OnPropertyChanged(nameof(SyntaxHighlighting));
+                return;
+            }
+
+            var theme = ApplicationThemeManager.GetAppTheme();
+            if (theme == ApplicationTheme.Unknown)
+            {
+                theme = ApplicationThemeManager.GetSystemTheme() == SystemTheme.Dark ? ApplicationTheme.Dark : ApplicationTheme.Light;
+            }
+
+            IHighlightingDefinition? highlighting = null;
+            if (theme == ApplicationTheme.Dark && definitionName == "C#")
+            {
+                var uri = new Uri("pack://application:,,,/Assets/AvalonEditThemes/CSharp-Dark.xshd");
+                var resourceInfo = Application.GetResourceStream(uri);
+                if (resourceInfo != null)
+                {
+                    using var stream = resourceInfo.Stream;
+                    using var reader = new XmlTextReader(stream);
+                    highlighting = HighlightingLoader.Load(reader, HighlightingManager.Instance);
+                }
+            }
+
+            SyntaxHighlighting = highlighting ?? HighlightingManager.Instance.GetDefinition(definitionName);
+            OnPropertyChanged(nameof(SyntaxHighlighting));
         }
 
         private async Task ExecuteSaveChanges()
         {
             if (DocumentContent != _originalContent)
             {
-                await _controller.UpdateClipContentAsync(_clipId, DocumentContent);
+                await _clipDataService.UpdateClipContentAsync(_clipId, DocumentContent);
                 OnClipUpdated?.Invoke();
             }
             OnRequestClose?.Invoke();

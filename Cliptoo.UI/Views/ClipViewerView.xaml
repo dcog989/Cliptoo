@@ -31,6 +31,7 @@
                 Foreground="{DynamicResource PrimaryForeground}"
                 HorizontalScrollBarVisibility="Auto"
                 ShowLineNumbers="True"
+                SyntaxHighlighting="{Binding SyntaxHighlighting}"
                 VerticalScrollBarVisibility="Auto"
                 WordWrap="True" />
         </Grid>

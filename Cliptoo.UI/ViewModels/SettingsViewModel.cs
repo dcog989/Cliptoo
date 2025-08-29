@@ -8,6 +8,7 @@ using System.Windows.Media;
 using Cliptoo.Core;
 using Cliptoo.Core.Configuration;
 using Cliptoo.Core.Database.Models;
+using Cliptoo.Core.Interfaces;
 using Cliptoo.Core.Services;
 using Cliptoo.UI.Services;
 using Cliptoo.UI.ViewModels.Base;
@@ -19,7 +20,8 @@ namespace Cliptoo.UI.ViewModels
 {
     internal partial class SettingsViewModel : ViewModelBase, IDisposable
     {
-        private readonly CliptooController _controller;
+        private readonly IDatabaseService _databaseService;
+        private readonly ISettingsService _settingsService;
         private readonly IContentDialogService _contentDialogService;
         private readonly IStartupManagerService _startupManagerService;
         private readonly IServiceProvider _serviceProvider;
@@ -42,15 +44,16 @@ namespace Cliptoo.UI.ViewModels
         public static Uri GitHubUrl { get; } = new("https://github.com/dcgog989/Cliptoo");
         public ObservableCollection<SendToTarget> SendToTargets { get; }
 
-        public SettingsViewModel(CliptooController controller, IContentDialogService contentDialogService, IStartupManagerService startupManagerService, IServiceProvider serviceProvider, IFontProvider fontProvider, IIconProvider iconProvider)
+        public SettingsViewModel(IDatabaseService databaseService, ISettingsService settingsService, IContentDialogService contentDialogService, IStartupManagerService startupManagerService, IServiceProvider serviceProvider, IFontProvider fontProvider, IIconProvider iconProvider)
         {
-            _controller = controller;
+            _databaseService = databaseService;
+            _settingsService = settingsService;
             _contentDialogService = contentDialogService;
             _startupManagerService = startupManagerService;
             _serviceProvider = serviceProvider;
             _fontProvider = fontProvider;
             _iconProvider = iconProvider;
-            Settings = _controller.Settings;
+            Settings = _settingsService.Settings;
             Settings.PropertyChanged += OnSettingsPropertyChanged;
             _selectedFontFamily = Settings.FontFamily;
             _selectedPreviewFontFamily = Settings.PreviewFontFamily;
@@ -69,7 +72,7 @@ namespace Cliptoo.UI.ViewModels
                 IsBusy = true;
                 try
                 {
-                    await Task.Run(() => _controller.ClearCaches()).ConfigureAwait(true);
+                    await Task.Run(() => _databaseService.ClearCaches()).ConfigureAwait(true);
                     await ShowInformationDialogAsync("Caches Cleared", new System.Windows.Controls.TextBlock { Text = "All cached thumbnails and temporary files have been deleted." }).ConfigureAwait(true);
                 }
                 finally
@@ -84,7 +87,7 @@ namespace Cliptoo.UI.ViewModels
                     IsBusy = true;
                     try
                     {
-                        var result = await Task.Run(async () => await _controller.RunHeavyMaintenanceNowAsync().ConfigureAwait(false)).ConfigureAwait(true);
+                        var result = await Task.Run(async () => await _databaseService.RunHeavyMaintenanceNowAsync().ConfigureAwait(false)).ConfigureAwait(true);
                         await InitializeAsync().ConfigureAwait(true);
 
                         var results = new List<string>();
@@ -236,7 +239,7 @@ namespace Cliptoo.UI.ViewModels
         {
             try
             {
-                Stats = await _controller.GetStatsAsync().ConfigureAwait(true);
+                Stats = await _databaseService.GetStatsAsync().ConfigureAwait(true);
                 OnPropertyChanged(nameof(StatsSummary));
             }
             catch (SqliteException ex)
@@ -289,7 +292,7 @@ namespace Cliptoo.UI.ViewModels
             {
                 Settings.SendToTargets.Add(item);
             }
-            _controller.SaveSettings();
+            _settingsService.SaveSettings();
         }
 
         private void DebounceSave()
@@ -343,7 +346,7 @@ namespace Cliptoo.UI.ViewModels
 
         public void Dispose()
         {
-            _settings.PropertyChanged -= OnSettingsPropertyChanged;
+            Settings.PropertyChanged -= OnSettingsPropertyChanged;
             _saveDebounceTimer.Elapsed -= OnDebounceTimerElapsed;
             _saveDebounceTimer.Dispose();
             if (SendToTargets is not null)
@@ -366,5 +369,4 @@ namespace Cliptoo.UI.ViewModels
         public bool DeletePinned { get => _deletePinned; set => SetProperty(ref _deletePinned, value); }
         public ClearHistoryResult Result { get; set; } = ClearHistoryResult.Cancel;
     }
-
 }

@@ -4,6 +4,7 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using Cliptoo.Core;
 using Cliptoo.Core.Configuration;
+using Cliptoo.Core.Interfaces;
 using Cliptoo.Core.Services;
 using Cliptoo.UI.Services;
 using Cliptoo.UI.ViewModels.Base;
@@ -16,7 +17,11 @@ namespace Cliptoo.UI.ViewModels
 
     public partial class MainViewModel : ViewModelBase
     {
-        private readonly CliptooController _controller;
+        private readonly IClipDataService _clipDataService;
+        private readonly IClipboardService _clipboardService;
+        private readonly ISettingsService _settingsService;
+        private readonly IDatabaseService _databaseService;
+        private readonly IAppInteractionService _appInteractionService;
         private readonly IServiceProvider _serviceProvider;
         private readonly IClipViewModelFactory _clipViewModelFactory;
         private readonly IPastingService _pastingService;
@@ -131,7 +136,7 @@ namespace Cliptoo.UI.ViewModels
                     }
                     AlwaysOnTopChanged?.Invoke(this, value);
                     CurrentSettings.IsAlwaysOnTop = value;
-                    _controller.SaveSettings();
+                    _settingsService.SaveSettings();
                 }
             }
         }
@@ -146,7 +151,7 @@ namespace Cliptoo.UI.ViewModels
                 if (_searchTerm != value)
                 {
                     SetProperty(ref _searchTerm, value);
-                    _controller.NotifyUiActivity();
+                    _appInteractionService.NotifyUiActivity();
                     _debounceTimer.Stop();
                     _debounceTimer.Start();
                 }
@@ -163,7 +168,7 @@ namespace Cliptoo.UI.ViewModels
 
                 if (SetProperty(ref _selectedFilter, value))
                 {
-                    _controller.NotifyUiActivity();
+                    _appInteractionService.NotifyUiActivity();
                     if (IsReadyForEvents && !IsInitializing)
                     {
                         _ = LoadClipsAsync();
@@ -172,16 +177,20 @@ namespace Cliptoo.UI.ViewModels
             }
         }
 
-        public MainViewModel(CliptooController controller, IServiceProvider serviceProvider, IClipViewModelFactory clipViewModelFactory, IPastingService pastingService, IFontProvider fontProvider, INotificationService notificationService, IIconProvider iconProvider)
+        public MainViewModel(IClipDataService clipDataService, IClipboardService clipboardService, ISettingsService settingsService, IDatabaseService databaseService, IAppInteractionService appInteractionService, IServiceProvider serviceProvider, IClipViewModelFactory clipViewModelFactory, IPastingService pastingService, IFontProvider fontProvider, INotificationService notificationService, IIconProvider iconProvider)
         {
-            _controller = controller;
+            _clipDataService = clipDataService;
+            _clipboardService = clipboardService;
+            _settingsService = settingsService;
+            _databaseService = databaseService;
+            _appInteractionService = appInteractionService;
             _serviceProvider = serviceProvider;
             _clipViewModelFactory = clipViewModelFactory;
             _pastingService = pastingService;
             _fontProvider = fontProvider;
             _notificationService = notificationService;
             _iconProvider = iconProvider;
-            _currentSettings = _controller.Settings;
+            _currentSettings = _settingsService.Settings;
             _currentSettings.PropertyChanged += CurrentSettings_PropertyChanged;
             _mainFont = _fontProvider.GetFont(CurrentSettings.FontFamily);
             _previewFont = _fontProvider.GetFont(CurrentSettings.PreviewFontFamily);
@@ -197,10 +206,10 @@ namespace Cliptoo.UI.ViewModels
             HideWindowCommand = new RelayCommand(_ => HideWindow());
             LoadMoreClipsCommand = new RelayCommand(async _ => await LoadMoreClipsAsync());
 
-            _controller.NewClipAdded += Controller_NewClipAdded;
-            _controller.HistoryCleared += Controller_HistoryCleared;
-            _controller.SettingsChanged += OnSettingsChanged;
-            _controller.CachesCleared += Controller_CachesCleared;
+            _clipDataService.NewClipAdded += Controller_NewClipAdded;
+            _clipDataService.HistoryCleared += Controller_HistoryCleared;
+            _settingsService.SettingsChanged += OnSettingsChanged;
+            _databaseService.CachesCleared += Controller_CachesCleared;
 
             _debounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
             _debounceTimer.Tick += OnDebounceTimerElapsed;
@@ -213,7 +222,7 @@ namespace Cliptoo.UI.ViewModels
             _hidePreviewTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
             _hidePreviewTimer.Tick += OnHidePreviewTimerTick;
 
-            IsCompareToolAvailable = _controller.IsCompareToolAvailable();
+            IsCompareToolAvailable = _clipboardService.IsCompareToolAvailable();
         }
 
         private void CurrentSettings_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -410,7 +419,7 @@ namespace Cliptoo.UI.ViewModels
 
             _needsRefreshOnShow = true;
 
-            var settings = _controller.Settings;
+            var settings = _settingsService.Settings;
             if (!settings.RememberSearchInput)
             {
                 _searchTerm = string.Empty;
@@ -473,7 +482,7 @@ namespace Cliptoo.UI.ViewModels
 
         public async Task HandleClipMoveToTop(ClipViewModel clipVM)
         {
-            await _controller.MoveClipToTopAsync(clipVM.Id);
+            await _clipDataService.MoveClipToTopAsync(clipVM.Id);
             await LoadClipsAsync(true);
         }
 
@@ -483,7 +492,7 @@ namespace Cliptoo.UI.ViewModels
         {
             if (!LeftCompareClipId.HasValue) return;
 
-            var result = await _controller.CompareClipsAsync(LeftCompareClipId.Value, clipVM.Id);
+            var result = await _clipboardService.CompareClipsAsync(LeftCompareClipId.Value, clipVM.Id);
             if (!result.success)
             {
                 _notificationService.Show("Compare Failed", result.message, ControlAppearance.Danger, SymbolRegular.ErrorCircle24);
@@ -494,10 +503,10 @@ namespace Cliptoo.UI.ViewModels
         public void Cleanup()
         {
             _currentSettings.PropertyChanged -= CurrentSettings_PropertyChanged;
-            _controller.NewClipAdded -= Controller_NewClipAdded;
-            _controller.HistoryCleared -= Controller_HistoryCleared;
-            _controller.SettingsChanged -= OnSettingsChanged;
-            _controller.CachesCleared -= Controller_CachesCleared;
+            _clipDataService.NewClipAdded -= Controller_NewClipAdded;
+            _clipDataService.HistoryCleared -= Controller_HistoryCleared;
+            _settingsService.SettingsChanged -= OnSettingsChanged;
+            _databaseService.CachesCleared -= Controller_CachesCleared;
             _debounceTimer.Tick -= OnDebounceTimerElapsed;
             _clearClipsTimer.Tick -= OnClearClipsTimerElapsed;
         }

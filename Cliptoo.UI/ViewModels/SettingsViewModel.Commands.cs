@@ -72,11 +72,11 @@ namespace Cliptoo.UI.ViewModels
             {
                 if (viewModel.Result == ClearHistoryResult.ClearAll)
                 {
-                    await Task.Run(async () => await _controller.ClearAllHistoryAsync().ConfigureAwait(false)).ConfigureAwait(true);
+                    await Task.Run(async () => await _databaseService.ClearAllHistoryAsync().ConfigureAwait(false)).ConfigureAwait(true);
                 }
                 else if (viewModel.Result == ClearHistoryResult.ClearUnpinned)
                 {
-                    await Task.Run(async () => await _controller.ClearHistoryAsync().ConfigureAwait(false)).ConfigureAwait(true);
+                    await Task.Run(async () => await _databaseService.ClearHistoryAsync().ConfigureAwait(false)).ConfigureAwait(true);
                 }
                 await InitializeAsync();
             }
@@ -108,7 +108,7 @@ namespace Cliptoo.UI.ViewModels
             IsBusy = true;
             try
             {
-                int count = await Task.Run(async () => await _controller.ClearOversizedClipsAsync(viewModel.SizeMb).ConfigureAwait(false)).ConfigureAwait(true);
+                int count = await Task.Run(async () => await _databaseService.ClearOversizedClipsAsync(viewModel.SizeMb).ConfigureAwait(false)).ConfigureAwait(true);
                 await InitializeAsync();
                 await ShowInformationDialogAsync("Oversized Clips Removed", new System.Windows.Controls.TextBlock { Text = string.Format(CultureInfo.CurrentCulture, "{0} clip(s) larger than {1} MB have been removed.", count, viewModel.SizeMb) });
             }
@@ -124,7 +124,7 @@ namespace Cliptoo.UI.ViewModels
             IsBusy = true;
             try
             {
-                int count = await Task.Run(async () => await _controller.RemoveDeadheadClipsAsync().ConfigureAwait(false)).ConfigureAwait(true);
+                int count = await Task.Run(async () => await _databaseService.RemoveDeadheadClipsAsync().ConfigureAwait(false)).ConfigureAwait(true);
                 await InitializeAsync();
                 await ShowInformationDialogAsync("Deadhead Clips Removed", new System.Windows.Controls.TextBlock { Text = string.Format(CultureInfo.CurrentCulture, "{0} clip(s) pointing to non-existent files or folders have been removed.", count) });
             }

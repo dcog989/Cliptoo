@@ -46,7 +46,7 @@ namespace Cliptoo.UI.ViewModels
 
                 _currentOffset = 0;
 
-                var clipsData = await _controller.GetClipsAsync(limit: PageSize, offset: _currentOffset, searchTerm: localSearchTerm, filterType: localFilterKey, cancellationToken: token);
+                var clipsData = await _clipDataService.GetClipsAsync(limit: PageSize, offset: _currentOffset, searchTerm: localSearchTerm, filterType: localFilterKey, cancellationToken: token);
 
                 if (clipsData.Count < PageSize)
                 {
@@ -87,6 +87,8 @@ namespace Cliptoo.UI.ViewModels
             var vmMap = Clips.ToDictionary(vm => vm.Id);
             var newClipIds = newClips.Select(c => c.Id).ToHashSet();
 
+            // First, remove VMs that are no longer in the new list of clips.
+            // Iterating backwards is important when removing items from a collection.
             for (int i = Clips.Count - 1; i >= 0; i--)
             {
                 if (!newClipIds.Contains(Clips[i].Id))
@@ -95,6 +97,7 @@ namespace Cliptoo.UI.ViewModels
                 }
             }
 
+            // Now, add, move, and update existing items to match the new list order.
             for (int i = 0; i < newClips.Count; i++)
             {
                 var clip = newClips[i];
@@ -111,19 +114,23 @@ namespace Cliptoo.UI.ViewModels
                     ApplyAppearanceToViewModel(vm);
                 }
 
+                // If the item is already at the correct position, do nothing.
                 if (i < Clips.Count && Clips[i].Id == vm.Id)
                 {
                     continue;
                 }
 
+                // The item is not in the correct position, so we need to move or insert it.
                 int oldIndex = Clips.IndexOf(vm);
 
                 if (oldIndex >= 0)
                 {
+                    // The item exists in the collection but at the wrong place. Move it.
                     Clips.Move(oldIndex, i);
                 }
                 else
                 {
+                    // The item is new to the collection. Insert it.
                     Clips.Insert(i, vm);
                 }
             }
@@ -150,7 +157,7 @@ namespace Cliptoo.UI.ViewModels
                     localFilterKey = AppConstants.FilterKeys.All;
                 }
 
-                var clipsData = await _controller.GetClipsAsync(limit: PageSize, offset: _currentOffset, searchTerm: localSearchTerm, filterType: localFilterKey, cancellationToken: token);
+                var clipsData = await _clipDataService.GetClipsAsync(limit: PageSize, offset: _currentOffset, searchTerm: localSearchTerm, filterType: localFilterKey, cancellationToken: token);
 
                 if (token.IsCancellationRequested) return;
 

@@ -4,8 +4,10 @@ using System.Windows.Threading;
 using Cliptoo.Core;
 using Cliptoo.Core.Configuration;
 using Cliptoo.Core.Database;
+using Cliptoo.Core.Interfaces;
 using Cliptoo.Core.Native;
 using Cliptoo.Core.Services;
+using Cliptoo.Core.Services.Models;
 using Cliptoo.UI.Services;
 using Cliptoo.UI.ViewModels;
 using Cliptoo.UI.Views;
@@ -65,6 +67,12 @@ namespace Cliptoo.UI
                     services.AddSingleton<IDbManager, DbManager>();
 
                     services.AddSingleton<CliptooController>();
+                    services.AddSingleton<ISettingsService>(sp => sp.GetRequiredService<CliptooController>());
+                    services.AddSingleton<IClipDataService>(sp => sp.GetRequiredService<CliptooController>());
+                    services.AddSingleton<IClipboardService>(sp => sp.GetRequiredService<CliptooController>());
+                    services.AddSingleton<IDatabaseService>(sp => sp.GetRequiredService<CliptooController>());
+                    services.AddSingleton<IAppInteractionService>(sp => sp.GetRequiredService<CliptooController>());
+
                     services.AddSingleton<ISettingsManager>(new SettingsManager(appDataRoamingPath));
                     services.AddSingleton<IFileTypeClassifier>(new FileTypeClassifier(appDataRoamingPath));
                     services.AddSingleton<IContentProcessor, ContentProcessor>();
@@ -89,7 +97,11 @@ namespace Cliptoo.UI
                     services.AddHostedService<ApplicationHostService>();
 
                     services.AddSingleton<MainViewModel>(sp => new MainViewModel(
-                        sp.GetRequiredService<CliptooController>(),
+                        sp.GetRequiredService<IClipDataService>(),
+                        sp.GetRequiredService<IClipboardService>(),
+                        sp.GetRequiredService<ISettingsService>(),
+                        sp.GetRequiredService<IDatabaseService>(),
+                        sp.GetRequiredService<IAppInteractionService>(),
                         sp,
                         sp.GetRequiredService<IClipViewModelFactory>(),
                         sp.GetRequiredService<IPastingService>(),
@@ -98,7 +110,8 @@ namespace Cliptoo.UI
                         sp.GetRequiredService<Core.Services.IIconProvider>()
                     ));
                     services.AddTransient<SettingsViewModel>(sp => new SettingsViewModel(
-                        sp.GetRequiredService<CliptooController>(),
+                        sp.GetRequiredService<IDatabaseService>(),
+                        sp.GetRequiredService<ISettingsService>(),
                         sp.GetRequiredService<IContentDialogService>(),
                         sp.GetRequiredService<IStartupManagerService>(),
                         sp,

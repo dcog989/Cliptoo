@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Cliptoo.Core.Configuration;
 using Cliptoo.Core.Database;
 using Cliptoo.Core.Database.Models;
+using Cliptoo.Core.Interfaces;
 using Cliptoo.Core.Native;
 using Cliptoo.Core.Native.Models;
 using Cliptoo.Core.Services;
@@ -28,7 +29,7 @@ namespace Cliptoo.Core
         double DatabaseSizeChangeMb
     );
 
-    public class CliptooController : IDisposable
+    public class CliptooController : ISettingsService, IClipDataService, IClipboardService, IDatabaseService, IAppInteractionService, IDisposable
     {
         public event EventHandler? NewClipAdded;
         public event EventHandler? HistoryCleared;
@@ -205,9 +206,9 @@ namespace Cliptoo.Core
             }, nameof(OnClipboardChangedAsync));
         }
 
-        public Task<List<Clip>> GetClipsAsync(uint limit = 100, uint offset = 0, string searchTerm = "", string filterType = "all", CancellationToken cancellationToken = default, [System.Runtime.CompilerServices.CallerMemberName] string caller = "")
+        public Task<List<Clip>> GetClipsAsync(uint limit = 100, uint offset = 0, string searchTerm = "", string filterType = "all", CancellationToken cancellationToken = default)
         {
-            LogManager.Log($"SEARCH_DIAG: Controller.GetClipsAsync called from '{caller}'.");
+            LogManager.LogDebug($"SEARCH_DIAG: Controller.GetClipsAsync called.");
             return _dbManager.GetClipsAsync(limit, offset, searchTerm, filterType, cancellationToken);
         }
 

@@ -34,7 +34,7 @@ namespace Cliptoo.UI.ViewModels
                 if (Settings.Hotkey != value)
                 {
                     Settings.Hotkey = value;
-                    _controller.SaveSettings(); // Immediate save for hotkeys
+                    _settingsService.SaveSettings(); // Immediate save for hotkeys
                 }
             }
         }
@@ -73,7 +73,7 @@ namespace Cliptoo.UI.ViewModels
                 if (Settings.PreviewHotkey != value)
                 {
                     Settings.PreviewHotkey = value;
-                    _controller.SaveSettings(); // Immediate save for hotkeys
+                    _settingsService.SaveSettings(); // Immediate save for hotkeys
                 }
             }
         }
@@ -86,7 +86,7 @@ namespace Cliptoo.UI.ViewModels
                 if (Settings.QuickPasteHotkey != value)
                 {
                     Settings.QuickPasteHotkey = value;
-                    _controller.SaveSettings(); // Immediate save for hotkeys
+                    _settingsService.SaveSettings(); // Immediate save for hotkeys
                 }
             }
         }

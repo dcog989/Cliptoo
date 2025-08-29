@@ -21,7 +21,7 @@ namespace Cliptoo.UI.Views
         {
             if (DataContext is ClipViewerViewModel vm)
             {
-                var settings = vm.Controller.Settings;
+                var settings = vm.SettingsService.Settings;
                 this.Width = settings.EditorWindowWidth;
                 this.Height = settings.EditorWindowHeight;
 
@@ -69,12 +69,12 @@ namespace Cliptoo.UI.Views
             {
                 vm.OnRequestClose -= OnRequestClose;
 
-                var settings = vm.Controller.Settings;
+                var settings = vm.SettingsService.Settings;
                 settings.EditorWindowWidth = Math.Round(this.Width);
                 settings.EditorWindowHeight = Math.Round(this.Height);
                 settings.EditorWindowX = Math.Round(this.Left);
                 settings.EditorWindowY = Math.Round(this.Top);
-                vm.Controller.SaveSettings();
+                vm.SettingsService.SaveSettings();
             }
             base.OnClosed(e);
         }

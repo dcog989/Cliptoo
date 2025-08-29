@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Windows;
 using System.Windows.Input;
 using Cliptoo.Core.Database.Models;
+using Cliptoo.Core.Services;
 using Cliptoo.UI.Services;
 using Cliptoo.UI.Views;
 using Microsoft.Extensions.DependencyInjection;
@@ -23,7 +24,7 @@ namespace Cliptoo.UI.ViewModels
             IsPasting = true;
             try
             {
-                var clip = await _controller.GetClipByIdAsync(clipVM.Id);
+                var clip = await _clipDataService.GetClipByIdAsync(clipVM.Id);
                 if (clip == null) return;
 
                 var stopwatch = Stopwatch.StartNew();
@@ -35,7 +36,7 @@ namespace Cliptoo.UI.ViewModels
                 HideWindow();
 
                 await pasteAction(clip);
-                await _controller.UpdatePasteCountAsync();
+                await _clipboardService.UpdatePasteCountAsync();
 
                 await LoadClipsAsync(true);
             }
@@ -73,7 +74,13 @@ namespace Cliptoo.UI.ViewModels
                 this.IsAlwaysOnTop = false;
             }
 
-            var viewerViewModel = new ClipViewerViewModel(clipVM.Id, _controller, _serviceProvider.GetRequiredService<IFontProvider>());
+            var viewerViewModel = new ClipViewerViewModel(
+                clipVM.Id,
+                _clipDataService,
+                _settingsService,
+                _fontProvider,
+                _serviceProvider.GetRequiredService<ISyntaxHighlighter>()
+            );
             viewerViewModel.OnClipUpdated += RefreshClipList;
 
             var viewerWindow = _serviceProvider.GetRequiredService<Views.ClipViewerWindow>();
