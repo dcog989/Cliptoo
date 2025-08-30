@@ -7,7 +7,6 @@ using Cliptoo.Core.Database;
 using Cliptoo.Core.Interfaces;
 using Cliptoo.Core.Native;
 using Cliptoo.Core.Services;
-using Cliptoo.Core.Services.Models;
 using Cliptoo.UI.Services;
 using Cliptoo.UI.ViewModels;
 using Cliptoo.UI.Views;
@@ -135,14 +134,14 @@ namespace Cliptoo.UI
 
         protected override async void OnExit(ExitEventArgs e)
         {
-            LogManager.Log("App.OnExit called.");
+            LogManager.LogDebug("App.OnExit called.");
             if (_host != null)
             {
                 await _host.StopAsync();
             }
-            LogManager.Log("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+            LogManager.Log("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
             LogManager.Log($"Application shutdown complete on {DateTime.Now:yyyyMMdd}.");
-            LogManager.Log("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n");
+            LogManager.Log("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n");
         }
 
         private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)

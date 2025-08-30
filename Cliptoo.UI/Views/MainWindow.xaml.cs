@@ -33,8 +33,11 @@ namespace Cliptoo.UI.Views
                 {
                     ClipListView.ScrollIntoView(ClipListView.Items[0]);
                     ClipListView.SelectedIndex = 0;
-                    var firstItem = ClipListView.ItemContainerGenerator.ContainerFromIndex(0) as System.Windows.Controls.ListViewItem;
-                    firstItem?.Focus();
+                    if (!SearchTextBox.IsKeyboardFocusWithin)
+                    {
+                        var firstItem = ClipListView.ItemContainerGenerator.ContainerFromIndex(0) as System.Windows.Controls.ListViewItem;
+                        firstItem?.Focus();
+                    }
                 }
             }));
         }

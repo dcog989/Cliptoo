@@ -154,7 +154,8 @@
                     <Grid Grid.Column="1" Margin="4,0,0,0">
                         <ui:TextBox
                             x:Name="SearchTextBox"
-                            Padding="2,2,32,2"
+                            Padding="4,4,32,4"
+                            FontFamily="Source Code Pro"
                             Text="{Binding SearchTerm, UpdateSourceTrigger=PropertyChanged}" />
                         <Button
                             x:Name="FilterButton"
