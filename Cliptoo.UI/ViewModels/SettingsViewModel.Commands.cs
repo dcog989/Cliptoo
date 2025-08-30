@@ -78,6 +78,10 @@ namespace Cliptoo.UI.ViewModels
                 {
                     await Task.Run(async () => await _databaseService.ClearHistoryAsync().ConfigureAwait(false)).ConfigureAwait(true);
                 }
+                if (viewModel.DeleteLogs)
+                {
+                    await Task.Run(() => Core.Configuration.LogManager.ClearLogs()).ConfigureAwait(false);
+                }
                 await InitializeAsync();
             }
             finally
@@ -179,5 +183,6 @@ namespace Cliptoo.UI.ViewModels
                 SendToTargets.Remove(target);
             }
         }
+
     }
 }

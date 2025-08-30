@@ -401,6 +401,9 @@ namespace Cliptoo.UI.ViewModels
     {
         private bool _deletePinned;
         public bool DeletePinned { get => _deletePinned; set => SetProperty(ref _deletePinned, value); }
+        private bool _deleteLogs;
+        public bool DeleteLogs { get => _deleteLogs; set => SetProperty(ref _deleteLogs, value); }
         public ClearHistoryResult Result { get; set; } = ClearHistoryResult.Cancel;
     }
+
 }

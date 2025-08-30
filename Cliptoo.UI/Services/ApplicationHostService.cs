@@ -219,11 +219,13 @@ namespace Cliptoo.UI.Services
             SystemThemeWatcher.UnWatch(_mainWindow);
             LogManager.Log("DIAG_THEME: SystemThemeWatcher.UnWatch() called.");
 
+            var finalTheme = wpfuiTheme;
             if (wpfuiTheme == ApplicationTheme.Unknown)
             {
                 LogManager.Log("DIAG_THEME: Theme is 'Unknown'. Applying current system theme and starting watcher.");
                 var systemTheme = ApplicationThemeManager.GetSystemTheme();
-                ApplicationThemeManager.Apply(systemTheme == SystemTheme.Dark ? ApplicationTheme.Dark : ApplicationTheme.Light, WindowBackdropType.Mica, false);
+                finalTheme = systemTheme == SystemTheme.Dark ? ApplicationTheme.Dark : ApplicationTheme.Light;
+                ApplicationThemeManager.Apply(finalTheme, WindowBackdropType.Mica, false);
                 LogManager.Log($"DIAG_THEME: Applied system theme: {systemTheme}.");
                 SystemThemeWatcher.Watch(_mainWindow, WindowBackdropType.Mica, false);
                 LogManager.Log("DIAG_THEME: SystemThemeWatcher.Watch() called.");
@@ -233,6 +235,16 @@ namespace Cliptoo.UI.Services
                 LogManager.Log($"DIAG_THEME: Applying manual theme: {wpfuiTheme}.");
                 ApplicationThemeManager.Apply(wpfuiTheme, WindowBackdropType.Mica, false);
                 LogManager.Log($"DIAG_THEME: ApplicationThemeManager.Apply({wpfuiTheme}) called.");
+            }
+            if (finalTheme == ApplicationTheme.Dark)
+            {
+                Application.Current.Resources["HyperlinkBlueBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#5599FF"));
+                Application.Current.Resources["HyperlinkBlueBrushHover"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#88BBFF"));
+            }
+            else
+            {
+                Application.Current.Resources["HyperlinkBlueBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#0078D4"));
+                Application.Current.Resources["HyperlinkBlueBrushHover"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#005A9E"));
             }
 
             ApplyAccentFromSettings(_controller.Settings);

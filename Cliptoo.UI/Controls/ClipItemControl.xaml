@@ -54,6 +54,9 @@
                                     <DataTrigger Binding="{Binding MainViewModel.SendToTargets.Count}" Value="0">
                                         <Setter Property="Visibility" Value="Collapsed" />
                                     </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsSourceMissing}" Value="True">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </DataTrigger>
                                 </Style.Triggers>
                             </Style>
                         </MenuItem.Style>

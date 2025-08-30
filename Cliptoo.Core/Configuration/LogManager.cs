@@ -11,12 +11,14 @@ namespace Cliptoo.Core.Configuration
         private static string? _logFolder;
         private static DateTime _currentLogDate;
         private static readonly object _lock = new object();
+        private static string? _appDataPath;
 
         public static string LoggingLevel { get; set; } = "Info";
         public static bool IsInitialized { get; private set; }
 
         public static void Initialize(string appDataPath)
         {
+            _appDataPath = appDataPath;
             try
             {
                 _logFolder = Path.Combine(appDataPath, "Cliptoo", "Logs");
@@ -51,6 +53,41 @@ namespace Cliptoo.Core.Configuration
                     Console.WriteLine(message);
                     // Throwing here will prevent the application from starting without logging, which is critical.
                     throw new InvalidOperationException(message, fallbackEx);
+                }
+            }
+        }
+
+        public static void ClearLogs()
+        {
+            if (string.IsNullOrEmpty(_logFolder) || _appDataPath is null) return;
+
+            lock (_lock)
+            {
+                try
+                {
+                    IsInitialized = false; // Stop logging temporarily
+
+                    var directory = new DirectoryInfo(_logFolder);
+                    foreach (var file in directory.EnumerateFiles("*.log*"))
+                    {
+                        try
+                        {
+                            file.Delete();
+                        }
+                        catch (IOException)
+                        {
+                            // File might be locked, just ignore.
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Failed to clear logs: {ex.Message}");
+                }
+                finally
+                {
+                    Initialize(_appDataPath);
+                    Log("Log files cleared by user.");
                 }
             }
         }

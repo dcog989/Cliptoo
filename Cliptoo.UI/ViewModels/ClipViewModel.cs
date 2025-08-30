@@ -37,7 +37,18 @@ namespace Cliptoo.UI.ViewModels
         private string? _fileTypeInfo;
         private bool _isFilePropertiesLoading;
         private bool _isSourceMissing;
-        public bool IsSourceMissing { get => _isSourceMissing; private set => SetProperty(ref _isSourceMissing, value); }
+        public bool IsSourceMissing
+        {
+            get => _isSourceMissing;
+            private set
+            {
+                if (SetProperty(ref _isSourceMissing, value))
+                {
+                    OnPropertyChanged(nameof(IsOpenable));
+                    OnPropertyChanged(nameof(ShowCompareMenu));
+                }
+            }
+        }
         private CancellationTokenSource? _filePropertiesCts;
         private string? _pageTitle;
         private bool _isPageTitleLoading;
@@ -54,7 +65,7 @@ namespace Cliptoo.UI.ViewModels
         public ImageSource? FileTypeInfoIcon { get => _fileTypeInfoIcon; private set => SetProperty(ref _fileTypeInfoIcon, value); }
         public bool IsTextTransformable => IsEditable;
         public bool IsCompareToolAvailable => MainViewModel.IsCompareToolAvailable;
-        public bool ShowCompareMenu => IsComparable && IsCompareToolAvailable;
+        public bool ShowCompareMenu => !IsSourceMissing && IsComparable && IsCompareToolAvailable;
         public MainViewModel MainViewModel { get; }
 
         public int Id => _clip.Id;
@@ -87,7 +98,7 @@ namespace Cliptoo.UI.ViewModels
         public bool CanPasteAsPlainText => IsRtf;
         public bool CanPasteAsRtf => Controller.Settings.PasteAsPlainText && IsRtf;
         public bool IsEditable => !IsImage && !ClipType.StartsWith("file_", StringComparison.Ordinal) && ClipType != AppConstants.ClipTypes.Folder;
-        public bool IsOpenable => IsImage || ClipType.StartsWith("file_", StringComparison.Ordinal) || ClipType == AppConstants.ClipTypes.Folder || ClipType == AppConstants.ClipTypes.Link;
+        public bool IsOpenable => !IsSourceMissing && (IsImage || ClipType.StartsWith("file_", StringComparison.Ordinal) || ClipType == AppConstants.ClipTypes.Folder || ClipType == AppConstants.ClipTypes.Link);
         public static string OpenCommandHeader => "Open";
 
         public bool IsFileBased => IsImage || ClipType.StartsWith("file_", StringComparison.Ordinal) || ClipType == AppConstants.ClipTypes.Folder;
@@ -208,6 +219,8 @@ namespace Cliptoo.UI.ViewModels
             OnPropertyChanged(nameof(IsLinkToolTip));
             OnPropertyChanged(nameof(SizeInBytes));
             OnPropertyChanged(nameof(IsContentTruncated));
+            OnPropertyChanged(nameof(IsOpenable));
+            OnPropertyChanged(nameof(ShowCompareMenu));
         }
 
         private async Task LoadIconsAsync()
