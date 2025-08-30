@@ -16,23 +16,14 @@ namespace Cliptoo.Core.Services
 
         private static readonly HashSet<string> _codeKeywords = new(StringComparer.Ordinal)
         {
-            "public", "private", "protected", "static", "void", "class", "interface", "enum",
-            "if", "else", "switch", "case", "for", "foreach", "while", "do", "return", "break",
-            "using", "namespace", "import", "from", "new", "var", "let", "const", "get", "set",
-            "async", "await", "yield", "try", "catch", "finally", "throw",
-            "int", "string", "bool", "double", "float", "char", "object",
-            "def", "lambda", "import", "from", "as", "with",
-            "function", "return", "new", "var", "let", "const", "=>",
-            "SELECT", "FROM", "WHERE", "GROUP", "BY", "ORDER", "JOIN", "INSERT", "UPDATE", "DELETE",
-            "<html>", "<div>", "<script>", "<style>", "<body>"
+            "public", "private", "protected", "static", "void", "class", "interface", "enum", "if", "else", "switch", "case", "for", "foreach", "while", "do", "return", "break", "using", "namespace", "import", "from", "new", "var", "let", "const", "get", "set", "async", "await", "yield", "try", "catch", "finally", "throw", "int", "string", "bool", "double", "float", "char", "object", "def", "lambda", "import", "from", "as", "with", "function", "return", "new", "var", "let", "const", "=>", "SELECT", "FROM", "WHERE", "GROUP", "BY", "ORDER", "JOIN", "INSERT", "UPDATE", "DELETE", "<html>", "<div>", "<script>", "<style>", "<body>"
         };
 
         private static readonly char[] _wordDelimiters = { ' ', '.', '(', ')', '[', ']', '{', '}', ';', ':', ',', '<', '>', '/', '\\', '"', '\'' };
 
         private static readonly HashSet<char> _codeSymbols = new()
         {
-            '{', '}', '(', ')', '[', ']', ';', ':', ',', '<', '>', '=', '+', '-', '*', '/', '%',
-            '&', '|', '^', '!', '~', '?', '#'
+            '{', '}', '(', ')', '[', ']', ';', ':', ',', '<', '>', '=', '+', '-', '*', '/', '%', '&', '|', '^', '!', '~', '?', '#'
         };
 
         public ContentProcessor(IFileTypeClassifier fileTypeClassifier)
@@ -61,11 +52,13 @@ namespace Cliptoo.Core.Services
             }
 
             var lines = content.Split(_newlineChars, StringSplitOptions.RemoveEmptyEntries);
+
             if (lines.Length > 0 && lines.Length <= MaxLinesForFilePathCheck)
             {
                 var trimmedLines = lines.Select(l => l.Trim()).ToList();
 
-                if (trimmedLines.All(l => !string.IsNullOrEmpty(l) && Path.IsPathRooted(l) && (Directory.Exists(l) || File.Exists(l))))
+                if (trimmedLines.All(l => !string.IsNullOrEmpty(l) && Path.IsPathRooted(l)) &&
+                    trimmedLines.Take(20).All(l => Directory.Exists(l) || File.Exists(l)))
                 {
                     if (trimmedLines.Count == 1)
                     {

@@ -174,6 +174,7 @@ namespace Cliptoo.Core.Database
         public async Task<int> RemoveDeadheadClipsAsync()
         {
             var allIdsToDelete = new List<int>();
+            var checkTasks = new List<Task>();
             SqliteConnection? connection = null;
 
             try
@@ -212,9 +213,10 @@ namespace Cliptoo.Core.Database
                     }
                     offset += clipsToCheck.Count;
 
-                    await Task.Run(() =>
+                    var batchToCheck = clipsToCheck.ToList(); // Capture the current batch
+                    checkTasks.Add(Task.Run(() =>
                     {
-                        foreach (var clip in clipsToCheck)
+                        foreach (var clip in batchToCheck)
                         {
                             var contentPath = clip.Content.Trim();
                             bool shouldDelete = false;
@@ -235,7 +237,7 @@ namespace Cliptoo.Core.Database
                                 }
                             }
                         }
-                    }).ConfigureAwait(false);
+                    }));
                 }
             }
             finally
@@ -243,6 +245,7 @@ namespace Cliptoo.Core.Database
                 if (connection != null) { await connection.DisposeAsync().ConfigureAwait(false); }
             }
 
+            await Task.WhenAll(checkTasks).ConfigureAwait(false);
 
             if (allIdsToDelete.Count > 0)
             {
