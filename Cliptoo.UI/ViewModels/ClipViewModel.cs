@@ -298,7 +298,7 @@ namespace Cliptoo.UI.ViewModels
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
                 {
-                    Core.Configuration.LogManager.Log(ex, $"Failed to load thumbnail image source from path: {newThumbnailPath}");
+                    LogManager.Log(ex, $"Failed to load thumbnail image source from path: {newThumbnailPath}");
                     ThumbnailSource = null;
                     HasThumbnail = false;
                 }

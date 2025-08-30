@@ -28,27 +28,27 @@ namespace Cliptoo.UI.ViewModels
         {
             if (transformType == null) return;
 
-            Core.Configuration.LogManager.LogDebug($"TRANSFORM_DIAG: Starting transform '{transformType}' for Clip ID {Id}.");
+            LogManager.LogDebug($"TRANSFORM_DIAG: Starting transform '{transformType}' for Clip ID {Id}.");
 
             await Controller.MoveClipToTopAsync(Id).ConfigureAwait(false);
 
             var fullClip = await GetFullClipAsync().ConfigureAwait(false);
             if (fullClip == null)
             {
-                Core.Configuration.LogManager.LogDebug("TRANSFORM_DIAG: Aborted, full clip content is null.");
+                LogManager.LogDebug("TRANSFORM_DIAG: Aborted, full clip content is null.");
                 return;
             }
 
-            Core.Configuration.LogManager.LogDebug($"TRANSFORM_DIAG: Full clip content (first 100 chars): {fullClip.Content?.Substring(0, Math.Min(100, fullClip.Content.Length))}");
+            LogManager.LogDebug($"TRANSFORM_DIAG: Full clip content (first 100 chars): {fullClip.Content?.Substring(0, Math.Min(100, fullClip.Content.Length))}");
 
             string contentToTransform = (fullClip.ClipType == AppConstants.ClipTypes.Rtf
                 ? RtfUtils.ToPlainText(fullClip.Content ?? string.Empty)
                 : fullClip.Content) ?? string.Empty;
 
-            Core.Configuration.LogManager.LogDebug($"TRANSFORM_DIAG: Content to transform (is RTF: {fullClip.ClipType == AppConstants.ClipTypes.Rtf}): {contentToTransform.Substring(0, Math.Min(100, contentToTransform.Length))}");
+            LogManager.LogDebug($"TRANSFORM_DIAG: Content to transform (is RTF: {fullClip.ClipType == AppConstants.ClipTypes.Rtf}): {contentToTransform.Substring(0, Math.Min(100, contentToTransform.Length))}");
 
             var transformedContent = Controller.TransformText(contentToTransform, transformType);
-            Core.Configuration.LogManager.LogDebug($"TRANSFORM_DIAG: Transformed content: '{transformedContent}' (Length: {transformedContent.Length})");
+            LogManager.LogDebug($"TRANSFORM_DIAG: Transformed content: '{transformedContent}' (Length: {transformedContent.Length})");
 
 
             var mainWindow = Application.Current.MainWindow;
@@ -68,7 +68,7 @@ namespace Cliptoo.UI.ViewModels
                 await Task.Delay(20).ConfigureAwait(false);
             }
             stopwatch.Stop();
-            Core.Configuration.LogManager.LogDebug($"TRANSFORM_DIAG: Waited {stopwatch.ElapsedMilliseconds}ms for focus change.");
+            LogManager.LogDebug($"TRANSFORM_DIAG: Waited {stopwatch.ElapsedMilliseconds}ms for focus change.");
 
 
             await _pastingService.PasteTextAsync(transformedContent).ConfigureAwait(false);
@@ -101,7 +101,7 @@ namespace Cliptoo.UI.ViewModels
             }
             catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or ObjectDisposedException or FileNotFoundException)
             {
-                Core.Configuration.LogManager.Log(ex, $"Failed to open path: {fullClip.Content}");
+                LogManager.Log(ex, $"Failed to open path: {fullClip.Content}");
                 _notificationService.Show("Error", $"Could not open path: {ex.Message}", ControlAppearance.Danger, SymbolRegular.ErrorCircle24);
             }
         }
@@ -110,15 +110,15 @@ namespace Cliptoo.UI.ViewModels
         {
             if (target == null)
             {
-                Core.Configuration.LogManager.LogDebug("SENDTO_DIAG: ExecuteSendTo called with null target.");
+                LogManager.LogDebug("SENDTO_DIAG: ExecuteSendTo called with null target.");
                 return;
             }
-            Core.Configuration.LogManager.LogDebug($"SENDTO_DIAG: ExecuteSendTo called for target: {target.Name} ({target.Path})");
+            LogManager.LogDebug($"SENDTO_DIAG: ExecuteSendTo called for target: {target.Name} ({target.Path})");
 
             var clip = await GetFullClipAsync().ConfigureAwait(false);
             if (clip?.Content == null)
             {
-                Core.Configuration.LogManager.LogDebug("SENDTO_DIAG: Clip content is null, aborting.");
+                LogManager.LogDebug("SENDTO_DIAG: Clip content is null, aborting.");
                 return;
             }
 
@@ -156,7 +156,7 @@ namespace Cliptoo.UI.ViewModels
             }
             catch (Exception ex) when (ex is IOException or System.ComponentModel.Win32Exception or UnauthorizedAccessException or PlatformNotSupportedException)
             {
-                Core.Configuration.LogManager.Log(ex, $"Failed to send to path: {target.Path} with content {contentPath}");
+                LogManager.Log(ex, $"Failed to send to path: {target.Path} with content {contentPath}");
                 _notificationService.Show("Error", $"Could not send to '{target.Name}'.", ControlAppearance.Danger, SymbolRegular.ErrorCircle24);
             }
         }

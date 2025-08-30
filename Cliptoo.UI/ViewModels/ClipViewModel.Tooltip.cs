@@ -2,6 +2,7 @@ using System.IO;
 using System.Text;
 using Cliptoo.Core;
 using Cliptoo.Core.Database.Models;
+using Cliptoo.Core.Configuration;
 using Cliptoo.UI.Helpers;
 
 namespace Cliptoo.UI.ViewModels
@@ -51,7 +52,7 @@ namespace Cliptoo.UI.ViewModels
                 }
                 catch (Exception ex)
                 {
-                    Core.Configuration.LogManager.Log(ex, "Failed to read text file for tooltip preview.");
+                    LogManager.Log(ex, "Failed to read text file for tooltip preview.");
                     if (ex is IOException && (uint)ex.HResult == 0x80070020)
                     {
                         textFileContent = "Error: File is in use.";

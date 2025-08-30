@@ -7,6 +7,7 @@ using System.Threading;
 using System.Windows;
 using Cliptoo.Core.Native.Models;
 using Cliptoo.Core.Services;
+using Cliptoo.Core.Configuration;
 
 namespace Cliptoo.Core.Native
 {
@@ -35,7 +36,7 @@ namespace Cliptoo.Core.Native
             {
                 if (_suppressionActive.IsSet)
                 {
-                    Configuration.LogManager.LogDebug("Suppression window closed by timer.");
+                    LogManager.LogDebug("Suppression window closed by timer.");
                     _hashesToSuppress.Clear();
                     _suppressionActive.Reset();
                 }
@@ -84,7 +85,7 @@ namespace Cliptoo.Core.Native
                     return;
                 }
 
-                Configuration.LogManager.LogDebug("A different clip was detected during the suppression window. Processing it.");
+                LogManager.LogDebug("A different clip was detected during the suppression window. Processing it.");
                 _suppressionResetTimer.Stop();
                 _hashesToSuppress.Clear();
                 _suppressionActive.Reset();
@@ -166,7 +167,7 @@ namespace Cliptoo.Core.Native
             {
                 if (_hashesToSuppress.Contains(format.Value.Hash))
                 {
-                    Configuration.LogManager.LogDebug($"Suppressed self-generated clip based on format '{format.Key}'.");
+                    LogManager.LogDebug($"Suppressed self-generated clip based on format '{format.Key}'.");
                     if (format.Key == DataFormats.Rtf || format.Key == DataFormats.UnicodeText) _lastTextHash = format.Value.Hash;
                     else if (format.Key == "Image") _lastImageHash = format.Value.Hash;
                     else if (format.Key == "FileDrop") _lastFileDropHash = format.Value.Hash;

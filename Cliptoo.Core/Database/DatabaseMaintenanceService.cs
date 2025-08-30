@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
+using Cliptoo.Core.Configuration;
 
 namespace Cliptoo.Core.Database
 {
@@ -32,7 +33,7 @@ namespace Cliptoo.Core.Database
 
         public async Task CompactDbAsync()
         {
-            Configuration.LogManager.LogDebug("DB_LOCK_DIAG: Starting database compaction.");
+            LogManager.LogDebug("DB_LOCK_DIAG: Starting database compaction.");
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             const int maxRetries = 4;
             const int initialDelayMs = 250;
@@ -45,7 +46,7 @@ namespace Cliptoo.Core.Database
                     {
                         SqliteConnection.ClearPool(connectionForPoolClear);
                     }
-                    Configuration.LogManager.LogDebug($"DB_LOCK_DIAG: SQLite connection pool cleared (Attempt {i + 1}).");
+                    LogManager.LogDebug($"DB_LOCK_DIAG: SQLite connection pool cleared (Attempt {i + 1}).");
 
                     SqliteConnection? connection = null;
                     SqliteCommand? command = null;
@@ -58,22 +59,22 @@ namespace Cliptoo.Core.Database
                         var ftsTableExists = await command.ExecuteScalarAsync().ConfigureAwait(false) != null;
                         if (ftsTableExists)
                         {
-                            Configuration.LogManager.LogDebug("DB_LOCK_DIAG: Optimizing FTS index...");
+                            LogManager.LogDebug("DB_LOCK_DIAG: Optimizing FTS index...");
                             var ftsStopwatch = System.Diagnostics.Stopwatch.StartNew();
                             command.CommandText = "INSERT INTO clips_fts(clips_fts) VALUES('optimize');";
                             await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                             ftsStopwatch.Stop();
-                            Configuration.LogManager.LogDebug($"DB_LOCK_DIAG: FTS optimization finished in {ftsStopwatch.ElapsedMilliseconds}ms.");
+                            LogManager.LogDebug($"DB_LOCK_DIAG: FTS optimization finished in {ftsStopwatch.ElapsedMilliseconds}ms.");
                         }
 
-                        Configuration.LogManager.LogDebug("DB_LOCK_DIAG: Starting VACUUM...");
+                        LogManager.LogDebug("DB_LOCK_DIAG: Starting VACUUM...");
                         var vacuumStopwatch = System.Diagnostics.Stopwatch.StartNew();
                         command.CommandText = "VACUUM;";
                         await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                         vacuumStopwatch.Stop();
-                        Configuration.LogManager.LogDebug($"DB_LOCK_DIAG: VACUUM finished in {vacuumStopwatch.ElapsedMilliseconds}ms.");
+                        LogManager.LogDebug($"DB_LOCK_DIAG: VACUUM finished in {vacuumStopwatch.ElapsedMilliseconds}ms.");
                         stopwatch.Stop();
-                        Configuration.LogManager.LogDebug($"DB_LOCK_DIAG: Database compaction successful in {stopwatch.ElapsedMilliseconds}ms on attempt {i + 1}.");
+                        LogManager.LogDebug($"DB_LOCK_DIAG: Database compaction successful in {stopwatch.ElapsedMilliseconds}ms on attempt {i + 1}.");
                         return; // Success
                     }
                     finally
@@ -86,12 +87,12 @@ namespace Cliptoo.Core.Database
                 {
                     if (i == maxRetries - 1)
                     {
-                        Configuration.LogManager.Log(ex, $"DB_LOCK_DIAG: Database compaction failed after {maxRetries} attempts. The database remained locked.");
+                        LogManager.Log(ex, $"DB_LOCK_DIAG: Database compaction failed after {maxRetries} attempts. The database remained locked.");
                         break;
                     }
 
                     var delay = initialDelayMs * (int)Math.Pow(2, i);
-                    Configuration.LogManager.LogDebug($"DB_LOCK_DIAG: Database is busy. Retrying compaction in {delay}ms... (Attempt {i + 1})");
+                    LogManager.LogDebug($"DB_LOCK_DIAG: Database is busy. Retrying compaction in {delay}ms... (Attempt {i + 1})");
                     await Task.Delay(delay).ConfigureAwait(false);
                 }
             }
@@ -99,7 +100,7 @@ namespace Cliptoo.Core.Database
 
         public async Task<int> PerformCleanupAsync(uint days, uint maxClips, bool forceCompact = false)
         {
-            Configuration.LogManager.LogDebug("DB_LOCK_DIAG: Starting cleanup process...");
+            LogManager.LogDebug("DB_LOCK_DIAG: Starting cleanup process...");
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             SqliteConnection? connection = null;
             try
@@ -160,7 +161,7 @@ namespace Cliptoo.Core.Database
                     await CompactDbAsync().ConfigureAwait(false);
                 }
                 stopwatch.Stop();
-                Configuration.LogManager.LogDebug($"DB_LOCK_DIAG: Cleanup process finished in {stopwatch.ElapsedMilliseconds}ms. Removed {totalAffected} clips.");
+                LogManager.LogDebug($"DB_LOCK_DIAG: Cleanup process finished in {stopwatch.ElapsedMilliseconds}ms. Removed {totalAffected} clips.");
 
                 return totalAffected;
             }

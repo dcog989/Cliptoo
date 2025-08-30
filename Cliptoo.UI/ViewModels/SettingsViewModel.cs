@@ -2,7 +2,6 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Diagnostics;
-using System.Globalization;
 using System.IO;
 using System.Windows;
 using System.Windows.Media;
@@ -13,7 +12,6 @@ using Cliptoo.Core.Interfaces;
 using Cliptoo.Core.Services;
 using Cliptoo.UI.Services;
 using Cliptoo.UI.ViewModels.Base;
-using Cliptoo.UI.Views;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 using Wpf.Ui;
@@ -278,7 +276,7 @@ namespace Cliptoo.UI.ViewModels
             }
             catch (SqliteException ex)
             {
-                Core.Configuration.LogManager.Log(ex, "Failed to load database stats.");
+                LogManager.Log(ex, "Failed to load database stats.");
                 Stats = new DbStats();
             }
         }
@@ -362,7 +360,7 @@ namespace Cliptoo.UI.ViewModels
             }
             catch (Exception ex)
             {
-                Core.Configuration.LogManager.Log(ex, "Failed to populate system fonts. Using fallbacks.");
+                LogManager.Log(ex, "Failed to populate system fonts. Using fallbacks.");
                 if (SystemFonts.Count == 0)
                 {
                     SystemFonts.Add("Source Code Pro");

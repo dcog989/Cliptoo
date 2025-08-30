@@ -3,7 +3,7 @@ using System.Windows;
 using System.Windows.Input;
 using Cliptoo.Core.Database.Models;
 using Cliptoo.Core.Services;
-using Cliptoo.UI.Services;
+using Cliptoo.Core.Configuration;
 using Cliptoo.UI.Views;
 using Microsoft.Extensions.DependencyInjection;
 using Wpf.Ui.Controls;
@@ -42,7 +42,7 @@ namespace Cliptoo.UI.ViewModels
             }
             catch (Exception ex)
             {
-                Core.Configuration.LogManager.Log(ex, "Paste action failed.");
+                LogManager.Log(ex, "Paste action failed.");
                 _notificationService.Show("Paste Failed", "Could not paste the selected item. The clipboard may be in use by another application.", ControlAppearance.Danger, SymbolRegular.ErrorCircle24);
             }
             finally

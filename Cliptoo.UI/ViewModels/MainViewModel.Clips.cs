@@ -16,7 +16,7 @@ namespace Cliptoo.UI.ViewModels
         public async Task LoadClipsAsync(bool scrollToTop = false)
         {
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-            Cliptoo.Core.Configuration.LogManager.LogDebug($"LoadClipsAsync called. IsReadyForEvents: {IsReadyForEvents}");
+            LogManager.LogDebug($"LoadClipsAsync called. IsReadyForEvents: {IsReadyForEvents}");
             if (!_isReadyForEvents)
             {
                 return;

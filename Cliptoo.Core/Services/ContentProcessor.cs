@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Cliptoo.Core.Services.Models;
+using Cliptoo.Core.Configuration;
 
 namespace Cliptoo.Core.Services
 {
@@ -105,7 +106,7 @@ namespace Cliptoo.Core.Services
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
             {
-                Configuration.LogManager.Log(ex, $"Failed to parse .url file: {filePath}");
+                LogManager.Log(ex, $"Failed to parse .url file: {filePath}");
             }
             return null;
         }

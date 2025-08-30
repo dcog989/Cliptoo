@@ -1,6 +1,7 @@
 using System.IO;
 using System.Text;
 using Cliptoo.Core;
+using Cliptoo.Core.Configuration;
 using Cliptoo.Core.Services;
 using Cliptoo.UI.Helpers;
 using Cliptoo.UI.ViewModels;
@@ -49,7 +50,7 @@ namespace Cliptoo.UI.Services
             {
                 if (!token.IsCancellationRequested)
                 {
-                    Core.Configuration.LogManager.Log(ex, "Failed to load page title.");
+                    LogManager.Log(ex, "Failed to load page title.");
                     return vm.DisplayContent;
                 }
             }
@@ -155,7 +156,7 @@ namespace Cliptoo.UI.Services
                 {
                     fileProperties = "Error reading properties.";
                 }
-                Core.Configuration.LogManager.Log(ex, "Failed to load file properties.");
+                LogManager.Log(ex, "Failed to load file properties.");
             }
 
             return (fileProperties, fileTypeInfo, isMissing);

@@ -265,7 +265,7 @@ namespace Cliptoo.UI.ViewModels
 
         public void InitializeFirstFilter()
         {
-            Cliptoo.Core.Configuration.LogManager.LogDebug($"InitializeFirstFilter called.");
+            LogManager.LogDebug($"InitializeFirstFilter called.");
             _selectedFilter = FilterOptions.FirstOrDefault() ?? new FilterOption("All", AppConstants.FilterKeys.All, null);
             OnPropertyChanged(nameof(SelectedFilter));
         }

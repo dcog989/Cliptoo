@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
+using Cliptoo.Core.Configuration;
 
 namespace Cliptoo.Core.Services
 {
@@ -62,11 +63,11 @@ namespace Cliptoo.Core.Services
 
         public string Transform(string content, string transformType)
         {
-            Core.Configuration.LogManager.LogDebug($"TRANSFORM_DIAG (Transformer): Applying '{transformType}'. Input: '{content}'.");
+            LogManager.LogDebug($"TRANSFORM_DIAG (Transformer): Applying '{transformType}'. Input: '{content}'.");
             if (_transformations.TryGetValue(transformType, out var transformFunc))
             {
                 var result = transformFunc(content);
-                Core.Configuration.LogManager.LogDebug($"TRANSFORM_DIAG (Transformer): Result: '{result}'.");
+                LogManager.LogDebug($"TRANSFORM_DIAG (Transformer): Result: '{result}'.");
                 return result;
             }
             return content;
