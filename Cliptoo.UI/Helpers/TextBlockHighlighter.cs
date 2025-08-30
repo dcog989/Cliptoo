@@ -59,7 +59,6 @@ namespace Cliptoo.UI.Helpers
             {
                 var lvi = FindAncestor<System.Windows.Controls.ListViewItem>(textBlock);
                 var lviForeground = lvi?.Foreground;
-                Core.Configuration.LogManager.LogDebug($"DIAG_HIGHLIGHTER: OnFontPropertyChanged fired. TextBlock.FG={textBlock.Foreground}, Ancestor LVI.FG={lviForeground}");
                 UpdateInlines(textBlock);
             }
         }

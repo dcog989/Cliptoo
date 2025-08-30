@@ -58,55 +58,46 @@ namespace Cliptoo.UI.Services
         {
             try
             {
-                Cliptoo.Core.Configuration.LogManager.Log("DIAG: ApplicationHostService.StartAsync START");
                 await _controller.InitializeAsync();
-                Cliptoo.Core.Configuration.LogManager.Log("DIAG: Controller initialized.");
+                Cliptoo.Core.Configuration.LogManager.Log("Controller initialized.");
 
                 await Application.Current.Dispatcher.InvokeAsync(async () =>
                 {
                     try
                     {
-                        Cliptoo.Core.Configuration.LogManager.Log("DIAG: Dispatcher.InvokeAsync started.");
                         _controller.SettingsChanged += OnSettingsChanged;
 
                         var settings = _controller.Settings;
                         _currentHotkey = settings.Hotkey;
-                        Cliptoo.Core.Configuration.LogManager.Log("DIAG: Settings loaded.");
+                        Cliptoo.Core.Configuration.LogManager.Log("Settings loaded.");
 
                         _mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
                         _mainWindow.MaxHeight = SystemParameters.WorkArea.Height * 0.9;
-                        Cliptoo.Core.Configuration.LogManager.Log("DIAG: MainWindow created.");
 
                         _mainViewModel = _serviceProvider.GetRequiredService<MainWindow>().DataContext as MainViewModel;
                         if (_mainViewModel != null)
                         {
-                            Cliptoo.Core.Configuration.LogManager.Log("DIAG_LOAD: AHS - Initializing MainViewModel...");
                             await _mainViewModel.InitializeAsync();
                             _mainViewModel.IsAlwaysOnTop = settings.IsAlwaysOnTop;
-                            Cliptoo.Core.Configuration.LogManager.Log("DIAG_LOAD: AHS - Calling InitializeFirstFilter...");
                             _mainViewModel.InitializeFirstFilter();
-                            LogManager.Log("DIAG: MainViewModel initialized.");
+                            LogManager.Log("MainViewModel initialized.");
                         }
 
                         _mainWindow.Opacity = 0;
                         _mainWindow.WindowStartupLocation = WindowStartupLocation.Manual;
                         _mainWindow.Left = -9999;
-                        Cliptoo.Core.Configuration.LogManager.Log("DIAG: Calling _mainWindow.Show()");
                         _mainWindow.Show();
                         _snackbarService.SetSnackbarPresenter(_mainWindow.SnackbarPresenter);
-                        Cliptoo.Core.Configuration.LogManager.Log("DIAG: Calling _mainWindow.Hide()");
                         _mainWindow.Hide();
                         _mainWindow.Opacity = 1;
 
                         var windowInteropHelper = new WindowInteropHelper(_mainWindow);
                         IntPtr handle = windowInteropHelper.EnsureHandle();
-                        Cliptoo.Core.Configuration.LogManager.Log("DIAG: Window handle created.");
 
                         ApplyTheme(settings.Theme);
 
                         _hwndSource = HwndSource.FromHwnd(handle);
                         _hwndSource?.AddHook(HwndHook);
-                        Cliptoo.Core.Configuration.LogManager.Log("DIAG: HwndHook added.");
 
                         _globalHotkey = new GlobalHotkey(handle);
                         if (!_globalHotkey.Register(_currentHotkey))
@@ -119,11 +110,11 @@ namespace Cliptoo.UI.Services
                         {
                             _globalHotkey.HotkeyPressed += OnHotkeyPressed;
                         }
-                        Cliptoo.Core.Configuration.LogManager.Log("DIAG: Global hotkey registered.");
+                        Cliptoo.Core.Configuration.LogManager.Log("Global hotkey registered.");
 
                         _controller.ClipboardMonitor.Start(handle);
                         _controller.ProcessingFailed += OnProcessingFailed;
-                        Cliptoo.Core.Configuration.LogManager.Log("DIAG: Clipboard monitor started.");
+                        Cliptoo.Core.Configuration.LogManager.Log("Clipboard monitor started.");
 
                         _mainWindow.Width = settings.WindowWidth;
                         _mainWindow.Height = settings.WindowHeight;
@@ -131,18 +122,17 @@ namespace Cliptoo.UI.Services
                         if (_mainViewModel != null)
                         {
                             _mainViewModel.AlwaysOnTopChanged += OnViewModelAlwaysOnTopChanged;
-                            Cliptoo.Core.Configuration.LogManager.Log("DIAG_LOAD: AHS - MainViewModel.IsReadyForEvents = true");
                             _mainViewModel.IsReadyForEvents = true;
                         }
 
                         InitializeTrayIcon();
-                        Cliptoo.Core.Configuration.LogManager.Log("DIAG: Tray icon initialized.");
+                        Cliptoo.Core.Configuration.LogManager.Log("Tray icon initialized.");
 
                         if (_mainViewModel != null)
                         {
                             _mainViewModel.IsInitializing = false;
                             _ = _mainViewModel.LoadClipsAsync();
-                            Cliptoo.Core.Configuration.LogManager.Log("DIAG_LOAD: AHS - Initializing COMPLETE.");
+                            Cliptoo.Core.Configuration.LogManager.Log("Initializing COMPLETE.");
                         }
                     }
                     catch (Exception ex)
@@ -184,7 +174,6 @@ namespace Cliptoo.UI.Services
         private void OnSettingsChanged(object? sender, EventArgs e)
         {
             var settings = _controller.Settings;
-            LogManager.Log($"DIAG_THEME: OnSettingsChanged fired. New theme from settings: '{settings.Theme}'");
             if (_globalHotkey != null && _currentHotkey != settings.Hotkey)
             {
                 _currentHotkey = settings.Hotkey;
@@ -200,11 +189,9 @@ namespace Cliptoo.UI.Services
 
         private void ApplyTheme(string themeName)
         {
-            LogManager.Log($"DIAG_THEME: ApplyTheme started with themeName: '{themeName}'.");
 
             if (_mainWindow is null || !_mainWindow.IsLoaded || new WindowInteropHelper(_mainWindow).Handle == IntPtr.Zero)
             {
-                LogManager.Log("DIAG_THEME: ApplyTheme aborted. MainWindow is null, not loaded, or has no handle.");
                 return;
             }
 
@@ -214,27 +201,20 @@ namespace Cliptoo.UI.Services
                 "dark" => ApplicationTheme.Dark,
                 _ => ApplicationTheme.Unknown,
             };
-            LogManager.Log($"DIAG_THEME: Resolved wpfuiTheme to: {wpfuiTheme}.");
 
             SystemThemeWatcher.UnWatch(_mainWindow);
-            LogManager.Log("DIAG_THEME: SystemThemeWatcher.UnWatch() called.");
 
             var finalTheme = wpfuiTheme;
             if (wpfuiTheme == ApplicationTheme.Unknown)
             {
-                LogManager.Log("DIAG_THEME: Theme is 'Unknown'. Applying current system theme and starting watcher.");
                 var systemTheme = ApplicationThemeManager.GetSystemTheme();
                 finalTheme = systemTheme == SystemTheme.Dark ? ApplicationTheme.Dark : ApplicationTheme.Light;
                 ApplicationThemeManager.Apply(finalTheme, WindowBackdropType.Mica, false);
-                LogManager.Log($"DIAG_THEME: Applied system theme: {systemTheme}.");
                 SystemThemeWatcher.Watch(_mainWindow, WindowBackdropType.Mica, false);
-                LogManager.Log("DIAG_THEME: SystemThemeWatcher.Watch() called.");
             }
             else
             {
-                LogManager.Log($"DIAG_THEME: Applying manual theme: {wpfuiTheme}.");
                 ApplicationThemeManager.Apply(wpfuiTheme, WindowBackdropType.Mica, false);
-                LogManager.Log($"DIAG_THEME: ApplicationThemeManager.Apply({wpfuiTheme}) called.");
             }
             if (finalTheme == ApplicationTheme.Dark)
             {
@@ -248,10 +228,8 @@ namespace Cliptoo.UI.Services
             }
 
             ApplyAccentFromSettings(_controller.Settings);
-            LogManager.Log("DIAG_THEME: ApplyAccentFromSettings called.");
 
             var actualTheme = ApplicationThemeManager.GetAppTheme();
-            LogManager.Log($"DIAG_THEME: ApplyTheme finished. Actual theme after applying is: {actualTheme}.");
         }
 
         private void InitializeTrayIcon()

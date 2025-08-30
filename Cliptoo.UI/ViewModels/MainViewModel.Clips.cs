@@ -16,7 +16,7 @@ namespace Cliptoo.UI.ViewModels
         public async Task LoadClipsAsync(bool scrollToTop = false)
         {
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-            Cliptoo.Core.Configuration.LogManager.Log($"DIAG_LOAD: LoadClipsAsync called. IsReadyForEvents: {IsReadyForEvents}");
+            Cliptoo.Core.Configuration.LogManager.LogDebug($"LoadClipsAsync called. IsReadyForEvents: {IsReadyForEvents}");
             if (!_isReadyForEvents)
             {
                 return;
@@ -199,7 +199,6 @@ namespace Cliptoo.UI.ViewModels
 
         public void RefreshClipList()
         {
-            Cliptoo.Core.Configuration.LogManager.Log($"DIAG_LOAD: RefreshClipList called. IsWindowVisible: {IsWindowVisible}, IsReady: {IsReadyForEvents}");
             if (!IsWindowVisible)
             {
                 _needsRefreshOnShow = true;
@@ -214,7 +213,6 @@ namespace Cliptoo.UI.ViewModels
 
         private void OnNewClipAdded()
         {
-            Cliptoo.Core.Configuration.LogManager.Log($"DIAG_LOAD: OnNewClipAdded called. IsWindowVisible: {IsWindowVisible}, IsReady: {IsReadyForEvents}");
             if (!IsWindowVisible)
             {
                 _needsRefreshOnShow = true;

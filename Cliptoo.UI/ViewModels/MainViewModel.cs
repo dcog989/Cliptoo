@@ -163,7 +163,6 @@ namespace Cliptoo.UI.ViewModels
             get => _selectedFilter;
             set
             {
-                Cliptoo.Core.Configuration.LogManager.Log($"DIAG_LOAD: SelectedFilter setter called with '{value?.Key}'. Current is '{_selectedFilter?.Key}'. IsInitializing: {IsInitializing}");
                 if (_selectedFilter == value || value == null) return;
 
                 if (SetProperty(ref _selectedFilter, value))
@@ -266,7 +265,7 @@ namespace Cliptoo.UI.ViewModels
 
         public void InitializeFirstFilter()
         {
-            Cliptoo.Core.Configuration.LogManager.Log($"DIAG_LOAD: InitializeFirstFilter called.");
+            Cliptoo.Core.Configuration.LogManager.LogDebug($"InitializeFirstFilter called.");
             _selectedFilter = FilterOptions.FirstOrDefault() ?? new FilterOption("All", AppConstants.FilterKeys.All, null);
             OnPropertyChanged(nameof(SelectedFilter));
         }
@@ -401,7 +400,7 @@ namespace Cliptoo.UI.ViewModels
             _clearClipsTimer.Stop();
             if (!IsWindowVisible && Clips.Count > 0)
             {
-                Core.Configuration.LogManager.Log("DIAG: Delayed timer elapsed. Clearing clips collection to conserve memory.");
+                Core.Configuration.LogManager.Log("Delayed timer elapsed. Clearing clips collection to conserve memory.");
                 Clips.Clear();
                 _currentOffset = 0;
             }
@@ -444,10 +443,9 @@ namespace Cliptoo.UI.ViewModels
 
             if (IsInitializing)
             {
-                Cliptoo.Core.Configuration.LogManager.Log($"DIAG_LOAD: HandleWindowShown called during initialization. Aborting load.");
                 return;
             }
-            Cliptoo.Core.Configuration.LogManager.Log($"DIAG_LOAD: HandleWindowShown called. NeedsRefresh: {_needsRefreshOnShow}, IsReady: {IsReadyForEvents}, ClipCount: {Clips.Count}");
+            LogManager.Log($"HandleWindowShown called. NeedsRefresh: {_needsRefreshOnShow}, IsReady: {IsReadyForEvents}, ClipCount: {Clips.Count}");
 
             // If the clips were cleared by the timer, we must reload.
             if (Clips.Count == 0)

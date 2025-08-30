@@ -67,7 +67,6 @@ namespace Cliptoo.UI.Helpers
 
             if (wasConfiguredModifierReleased)
             {
-                Core.Configuration.LogManager.LogDebug($"DIAG_INPUT: OnKeyUp detected modifier release. Deactivating QuickPaste mode.");
                 viewModel.IsQuickPasteModeActive = false;
             }
         }
@@ -78,14 +77,11 @@ namespace Cliptoo.UI.Helpers
             var searchTextBox = GetSearchTextBox(window);
             var focusedElement = Keyboard.FocusedElement as DependencyObject;
 
-            Core.Configuration.LogManager.LogDebug($"DIAG_INPUT: PreviewTextInput: Text='{e.Text}', Focused={focusedElement?.GetType().Name}, SearchFocused={searchTextBox?.IsKeyboardFocusWithin}");
-
             if (searchTextBox == null || searchTextBox.IsKeyboardFocusWithin || focusedElement is TextBox)
             {
                 return;
             }
 
-            Core.Configuration.LogManager.LogDebug($"DIAG_INPUT: PreviewTextInput: Redirecting focus for text '{e.Text}' to SearchBox.");
             searchTextBox.Focus();
         }
 
@@ -119,11 +115,6 @@ namespace Cliptoo.UI.Helpers
             var searchTextBox = GetSearchTextBox(window);
             var clipListView = GetClipListView(window);
             var focusedElement = Keyboard.FocusedElement as DependencyObject;
-
-            if (!e.IsRepeat)
-            {
-                Core.Configuration.LogManager.LogDebug($"DIAG_INPUT: PreviewKeyDown: Key={e.Key}, Focused={focusedElement?.GetType().Name}, SearchFocused={searchTextBox?.IsKeyboardFocusWithin}, IsRepeat={e.IsRepeat}");
-            }
 
             if (viewModel == null || searchTextBox == null || clipListView == null) return;
 
@@ -269,7 +260,6 @@ namespace Cliptoo.UI.Helpers
                 }
                 else if (e.Key == Key.Space)
                 {
-                    Core.Configuration.LogManager.LogDebug($"DIAG_INPUT: Space detected while ListView has focus. Redirecting to SearchBox.");
                     e.Handled = true;
                     searchTextBox.Focus();
                     var caretIndex = searchTextBox.CaretIndex;

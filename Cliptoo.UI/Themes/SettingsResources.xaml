@@ -7,19 +7,19 @@
     xmlns:viewModels="clr-namespace:Cliptoo.UI.ViewModels">
 
     <x:Array x:Key="LaunchPositionOptions" Type="sys:String">
-        <sys:String>cursor</sys:String>
-        <sys:String>center</sys:String>
-        <sys:String>top left</sys:String>
-        <sys:String>top right</sys:String>
-        <sys:String>bottom left</sys:String>
-        <sys:String>bottom right</sys:String>
-        <sys:String>fixed</sys:String>
+        <sys:String>Cursor</sys:String>
+        <sys:String>Center</sys:String>
+        <sys:String>Top left</sys:String>
+        <sys:String>Top right</sys:String>
+        <sys:String>Bottom left</sys:String>
+        <sys:String>Bottom right</sys:String>
+        <sys:String>Fixed</sys:String>
     </x:Array>
 
     <x:Array x:Key="PaddingOptions" Type="sys:String">
-        <sys:String>compact</sys:String>
-        <sys:String>standard</sys:String>
-        <sys:String>luxury</sys:String>
+        <sys:String>Compact</sys:String>
+        <sys:String>Standard</sys:String>
+        <sys:String>Luxury</sys:String>
     </x:Array>
 
     <Style x:Key="SettingLabel" TargetType="TextBlock">

@@ -162,7 +162,6 @@ namespace Cliptoo.UI.Views
 
         private void MainWindow_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
         {
-            Cliptoo.Core.Configuration.LogManager.Log($"DIAG: MainWindow_IsVisibleChanged - NewValue: {e.NewValue}");
             _viewModel.IsWindowVisible = (bool)e.NewValue;
 
             if (e.NewValue is true)
