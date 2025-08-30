@@ -400,7 +400,7 @@ namespace Cliptoo.UI.ViewModels
             _clearClipsTimer.Stop();
             if (!IsWindowVisible && Clips.Count > 0)
             {
-                Core.Configuration.LogManager.Log("Delayed timer elapsed. Clearing clips collection to conserve memory.");
+                LogManager.Log("Delayed timer elapsed. Clearing clips collection to conserve memory.");
                 Clips.Clear();
                 _currentOffset = 0;
             }
@@ -445,7 +445,6 @@ namespace Cliptoo.UI.ViewModels
             {
                 return;
             }
-            LogManager.Log($"HandleWindowShown called. NeedsRefresh: {_needsRefreshOnShow}, IsReady: {IsReadyForEvents}, ClipCount: {Clips.Count}");
 
             // If the clips were cleared by the timer, we must reload.
             if (Clips.Count == 0)

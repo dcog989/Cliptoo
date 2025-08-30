@@ -101,15 +101,15 @@ namespace Cliptoo.Core
 
         public async Task InitializeAsync()
         {
-            LogManager.Log("CliptooController initializing...");
+            LogManager.LogDebug("CliptooController initializing...");
             LogManager.LoggingLevel = Settings.LoggingLevel;
             CleanupTempFiles();
             await _dbManager.InitializeAsync().ConfigureAwait(false);
-            LogManager.Log("Database initialized successfully.");
+            LogManager.LogDebug("Database initialized successfully.");
 
             ClipboardMonitor.ClipboardChanged += OnClipboardChangedAsync;
             _cleanupTimer.Start();
-            LogManager.Log("CliptooController initialization complete.");
+            LogManager.LogDebug("CliptooController initialization complete.");
             _isInitialized = true;
             _fileTypeClassifier.FileTypesChanged += OnFileTypesChanged;
         }
@@ -208,7 +208,6 @@ namespace Cliptoo.Core
 
         public Task<List<Clip>> GetClipsAsync(uint limit = 100, uint offset = 0, string searchTerm = "", string filterType = "all", CancellationToken cancellationToken = default)
         {
-            LogManager.LogDebug($"SEARCH_DIAG: Controller.GetClipsAsync called.");
             return _dbManager.GetClipsAsync(limit, offset, searchTerm, filterType, cancellationToken);
         }
 

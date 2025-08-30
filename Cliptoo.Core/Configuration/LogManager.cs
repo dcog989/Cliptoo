@@ -29,7 +29,9 @@ namespace Cliptoo.Core.Configuration
                 _currentLogDate = DateTime.Now.Date;
 
                 IsInitialized = true;
-                Log($"LogManager initialized successfully. ({DateTime.Now:yyyyMMdd})");
+                Log($"--------------------------------------------------------------");
+                Log($"LogManager initialized successfully on {DateTime.Now:yyyyMMdd}.");
+                Log($"--------------------------------------------------------------");
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
             {
@@ -80,7 +82,7 @@ namespace Cliptoo.Core.Configuration
                         }
                     }
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or DirectoryNotFoundException or System.Security.SecurityException)
                 {
                     Console.WriteLine($"Failed to clear logs: {ex.Message}");
                 }
@@ -136,7 +138,9 @@ namespace Cliptoo.Core.Configuration
                         _currentLogDate = DateTime.Now.Date;
 
                         IsInitialized = true;
-                        Log($"LogManager initialized successfully. ({DateTime.Now:yyyyMMdd})");
+                        Log($"--------------------------------------------------------------");
+                        Log($"LogManager initialized successfully on {DateTime.Now:yyyyMMdd}.");
+                        Log($"--------------------------------------------------------------");
                     }
 
                     File.AppendAllText(_logFilePath, $"[{DateTime.Now:HH:mm:ss.fff}] {level}: {message}{Environment.NewLine}");

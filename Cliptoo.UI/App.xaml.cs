@@ -28,13 +28,12 @@ namespace Cliptoo.UI
         {
             var roamingPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
             LogManager.Initialize(roamingPath);
-            LogManager.Log("=====================================");
-            LogManager.Log("App constructor started.");
+            LogManager.LogDebug("App constructor started.");
 
             try
             {
                 InitializeComponent();
-                LogManager.Log("InitializeComponent() completed successfully.");
+                LogManager.LogDebug("InitializeComponent() completed successfully.");
             }
             catch (Exception ex)
             {
@@ -131,7 +130,7 @@ namespace Cliptoo.UI
             LogManager.LogDebug("Host built and services configured.");
 
             await _host.StartAsync();
-            LogManager.Log("Host started.");
+            LogManager.LogDebug("Host started.");
         }
 
         protected override async void OnExit(ExitEventArgs e)
@@ -141,8 +140,9 @@ namespace Cliptoo.UI
             {
                 await _host.StopAsync();
             }
-            LogManager.Log($"Application shutdown complete. ({DateTime.Now:yyyyMMdd})");
-            LogManager.Log("=====================================\r\n");
+            LogManager.Log("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+            LogManager.Log($"Application shutdown complete on {DateTime.Now:yyyyMMdd}.");
+            LogManager.Log("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n");
         }
 
         private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)

@@ -59,7 +59,7 @@ namespace Cliptoo.UI.Services
             try
             {
                 await _controller.InitializeAsync();
-                Cliptoo.Core.Configuration.LogManager.Log("Controller initialized.");
+                LogManager.LogDebug("Controller initialized.");
 
                 await Application.Current.Dispatcher.InvokeAsync(async () =>
                 {
@@ -69,7 +69,7 @@ namespace Cliptoo.UI.Services
 
                         var settings = _controller.Settings;
                         _currentHotkey = settings.Hotkey;
-                        Cliptoo.Core.Configuration.LogManager.Log("Settings loaded.");
+                        LogManager.Log("Settings loaded.");
 
                         _mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
                         _mainWindow.MaxHeight = SystemParameters.WorkArea.Height * 0.9;
@@ -80,7 +80,6 @@ namespace Cliptoo.UI.Services
                             await _mainViewModel.InitializeAsync();
                             _mainViewModel.IsAlwaysOnTop = settings.IsAlwaysOnTop;
                             _mainViewModel.InitializeFirstFilter();
-                            LogManager.Log("MainViewModel initialized.");
                         }
 
                         _mainWindow.Opacity = 0;
@@ -110,11 +109,11 @@ namespace Cliptoo.UI.Services
                         {
                             _globalHotkey.HotkeyPressed += OnHotkeyPressed;
                         }
-                        Cliptoo.Core.Configuration.LogManager.Log("Global hotkey registered.");
+                        LogManager.LogDebug("Global hotkey registered.");
 
                         _controller.ClipboardMonitor.Start(handle);
                         _controller.ProcessingFailed += OnProcessingFailed;
-                        Cliptoo.Core.Configuration.LogManager.Log("Clipboard monitor started.");
+                        LogManager.LogDebug("Clipboard monitor started.");
 
                         _mainWindow.Width = settings.WindowWidth;
                         _mainWindow.Height = settings.WindowHeight;
@@ -126,13 +125,13 @@ namespace Cliptoo.UI.Services
                         }
 
                         InitializeTrayIcon();
-                        Cliptoo.Core.Configuration.LogManager.Log("Tray icon initialized.");
+                        LogManager.LogDebug("Tray icon initialized.");
 
                         if (_mainViewModel != null)
                         {
                             _mainViewModel.IsInitializing = false;
                             _ = _mainViewModel.LoadClipsAsync();
-                            Cliptoo.Core.Configuration.LogManager.Log("Initializing COMPLETE.");
+                            LogManager.Log("Initialization COMPLETE.");
                         }
                     }
                     catch (Exception ex)

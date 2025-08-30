@@ -70,7 +70,7 @@ namespace Cliptoo.Core.Services
         {
             LoadConfiguration();
             FileTypesChanged?.Invoke(this, EventArgs.Empty);
-            LogManager.Log("filetypes.json changed, configuration reloaded and change event fired.");
+            LogManager.LogDebug("filetypes.json changed, configuration reloaded and change event fired.");
         }
 
         private void LoadConfiguration()
@@ -101,7 +101,7 @@ namespace Cliptoo.Core.Services
                 try
                 {
                     File.WriteAllText(_configPath, defaultConfigContent);
-                    LogManager.Log("Wrote new/default version of filetypes.json to disk.");
+                    LogManager.LogDebug("Wrote new/default version of filetypes.json to disk.");
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException or NotSupportedException)
                 {
