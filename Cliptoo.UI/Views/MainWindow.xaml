@@ -155,6 +155,7 @@
                         <ui:TextBox
                             x:Name="SearchTextBox"
                             Padding="4,4,32,4"
+                            ClearButtonEnabled="False"
                             FontFamily="Source Code Pro"
                             Text="{Binding SearchTerm, UpdateSourceTrigger=PropertyChanged}" />
                         <Button

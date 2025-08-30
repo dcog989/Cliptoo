@@ -7,7 +7,7 @@ namespace Cliptoo.Core.Database
 {
     public class DatabaseInitializer : RepositoryBase, IDatabaseInitializer
     {
-        private const int CurrentDbVersion = 1;
+        private const int CurrentDbVersion = 3;
 
         public DatabaseInitializer(string dbPath) : base(dbPath) { }
 
@@ -29,44 +29,45 @@ namespace Cliptoo.Core.Database
                 if (currentVersion == 0)
                 {
                     command.CommandText = @"
-                    CREATE TABLE clips (
-                        Id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        Content TEXT NOT NULL,
-                        ContentHash TEXT UNIQUE,
-                        PreviewContent TEXT,
-                        Timestamp TEXT NOT NULL,
-                        ClipType TEXT NOT NULL,
-                        SourceApp TEXT,
-                        IsPinned INTEGER NOT NULL DEFAULT 0,
-                        WasTrimmed INTEGER NOT NULL DEFAULT 0,
-                        SizeInBytes INTEGER NOT NULL DEFAULT 0
-                    );
-                    CREATE INDEX idx_clips_timestamp ON clips(Timestamp);
-                    CREATE TABLE stats (
-                        Key TEXT PRIMARY KEY,
-                        Value INTEGER,
-                        TextValue TEXT
-                    );
-                    CREATE VIRTUAL TABLE clips_fts USING fts5(
-                        Content,
-                        content='clips',
-                        content_rowid='Id',
-                        tokenize='porter'
-                    );
+                        CREATE TABLE clips (
+                            Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            Content TEXT NOT NULL,
+                            ContentHash TEXT UNIQUE,
+                            PreviewContent TEXT,
+                            Timestamp TEXT NOT NULL,
+                            ClipType TEXT NOT NULL,
+                            SourceApp TEXT,
+                            IsPinned INTEGER NOT NULL DEFAULT 0,
+                            WasTrimmed INTEGER NOT NULL DEFAULT 0,
+                            SizeInBytes INTEGER NOT NULL DEFAULT 0
+                        );
+                        CREATE INDEX idx_clips_timestamp ON clips(Timestamp);
+                        CREATE TABLE stats (
+                            Key TEXT PRIMARY KEY,
+                            Value INTEGER,
+                            TextValue TEXT
+                        );
+                        CREATE VIRTUAL TABLE clips_fts USING fts5(
+                            Content,
+                            content='clips',
+                            content_rowid='Id',
+                            tokenize='unicode61 remove_diacritics 2',
+                            prefix=2
+                        );
 
-                    CREATE TRIGGER clips_ai AFTER INSERT ON clips BEGIN
-                        INSERT INTO clips_fts(rowid, Content) VALUES (new.Id, new.Content);
-                    END;
+                        CREATE TRIGGER clips_ai AFTER INSERT ON clips BEGIN
+                            INSERT INTO clips_fts(rowid, Content) VALUES (new.Id, new.Content);
+                        END;
 
-                    CREATE TRIGGER clips_ad AFTER DELETE ON clips BEGIN
-                        INSERT INTO clips_fts(clips_fts, rowid, Content) VALUES ('delete', old.Id, old.Content);
-                    END;
+                        CREATE TRIGGER clips_ad AFTER DELETE ON clips BEGIN
+                            INSERT INTO clips_fts(clips_fts, rowid, Content) VALUES ('delete', old.Id, old.Content);
+                        END;
 
-                    CREATE TRIGGER clips_au AFTER UPDATE ON clips BEGIN
-                        INSERT INTO clips_fts(clips_fts, rowid, Content) VALUES ('delete', old.Id, old.Content);
-                        INSERT INTO clips_fts(rowid, Content) VALUES (new.Id, new.Content);
-                    END;
-                    ";
+                        CREATE TRIGGER clips_au AFTER UPDATE ON clips BEGIN
+                            INSERT INTO clips_fts(clips_fts, rowid, Content) VALUES ('delete', old.Id, old.Content);
+                            INSERT INTO clips_fts(rowid, Content) VALUES (new.Id, new.Content);
+                        END;
+                        ";
                     await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                 }
                 else if (currentVersion < CurrentDbVersion)
@@ -124,6 +125,91 @@ namespace Cliptoo.Core.Database
                     finally
                     {
                         if (alterCmd != null) { await alterCmd.DisposeAsync().ConfigureAwait(false); }
+                    }
+                }
+                if (fromVersion < 2)
+                {
+                    var cmds = new[]
+                    {
+                        "DROP TABLE IF EXISTS clips_fts;",
+                        "DROP TRIGGER IF EXISTS clips_ai;",
+                        "DROP TRIGGER IF EXISTS clips_ad;",
+                        "DROP TRIGGER IF EXISTS clips_au;",
+                        @"CREATE VIRTUAL TABLE clips_fts USING fts5(
+                            Content,
+                            content='clips',
+                            content_rowid='Id',
+                            tokenize='unicode61 remove_diacritics 2'
+                        );",
+                        @"CREATE TRIGGER clips_ai AFTER INSERT ON clips BEGIN
+                            INSERT INTO clips_fts(rowid, Content) VALUES (new.Id, new.Content);
+                        END;",
+                        @"CREATE TRIGGER clips_ad AFTER DELETE ON clips BEGIN
+                            INSERT INTO clips_fts(clips_fts, rowid, Content) VALUES ('delete', old.Id, old.Content);
+                        END;",
+                        @"CREATE TRIGGER clips_au AFTER UPDATE ON clips BEGIN
+                            INSERT INTO clips_fts(clips_fts, rowid, Content) VALUES ('delete', old.Id, old.Content);
+                            INSERT INTO clips_fts(rowid, Content) VALUES (new.Id, new.Content);
+                        END;",
+                        "INSERT INTO clips_fts(rowid, Content) SELECT Id, Content FROM clips;"
+                    };
+                    foreach (var cmdText in cmds)
+                    {
+                        SqliteCommand? cmd = null;
+                        try
+                        {
+                            cmd = connection.CreateCommand();
+                            cmd.Transaction = transaction;
+                            cmd.CommandText = cmdText;
+                            await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            if (cmd != null) { await cmd.DisposeAsync().ConfigureAwait(false); }
+                        }
+                    }
+                }
+                if (fromVersion < 3)
+                {
+                    var cmds = new[]
+                    {
+                        "DROP TABLE IF EXISTS clips_fts;",
+                        "DROP TRIGGER IF EXISTS clips_ai;",
+                        "DROP TRIGGER IF EXISTS clips_ad;",
+                        "DROP TRIGGER IF EXISTS clips_au;",
+                        @"CREATE VIRTUAL TABLE clips_fts USING fts5(
+                            Content,
+                            content='clips',
+                            content_rowid='Id',
+                            tokenize='unicode61 remove_diacritics 2',
+                            prefix=2
+                        );",
+                        @"CREATE TRIGGER clips_ai AFTER INSERT ON clips BEGIN
+                            INSERT INTO clips_fts(rowid, Content) VALUES (new.Id, new.Content);
+                        END;",
+                        @"CREATE TRIGGER clips_ad AFTER DELETE ON clips BEGIN
+                            INSERT INTO clips_fts(clips_fts, rowid, Content) VALUES ('delete', old.Id, old.Content);
+                        END;",
+                        @"CREATE TRIGGER clips_au AFTER UPDATE ON clips BEGIN
+                            INSERT INTO clips_fts(clips_fts, rowid, Content) VALUES ('delete', old.Id, old.Content);
+                            INSERT INTO clips_fts(rowid, Content) VALUES (new.Id, new.Content);
+                        END;",
+                        "INSERT INTO clips_fts(rowid, Content) SELECT Id, Content FROM clips;"
+                    };
+                    foreach (var cmdText in cmds)
+                    {
+                        SqliteCommand? cmd = null;
+                        try
+                        {
+                            cmd = connection.CreateCommand();
+                            cmd.Transaction = transaction;
+                            cmd.CommandText = cmdText;
+                            await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            if (cmd != null) { await cmd.DisposeAsync().ConfigureAwait(false); }
+                        }
                     }
                 }
 

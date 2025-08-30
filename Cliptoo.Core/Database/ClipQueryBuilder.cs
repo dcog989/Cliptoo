@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using Microsoft.Data.Sqlite;
+using Cliptoo.Core.Configuration;
 
 namespace Cliptoo.Core.Database
 {
@@ -10,9 +11,12 @@ namespace Cliptoo.Core.Database
     {
         private static readonly char[] _spaceSeparator = [' '];
 
+
+
         public static void BuildGetClipsQuery(SqliteCommand command, uint limit, uint offset, string searchTerm, string filterType)
         {
             const string columns = "c.Id, c.Timestamp, c.ClipType, c.SourceApp, c.IsPinned, c.WasTrimmed, c.SizeInBytes, c.PreviewContent";
+            LogManager.LogDebug($"SEARCH_DIAG_BUILDER: Building query with searchTerm='{searchTerm}', filterType='{filterType}'");
 
             var queryBuilder = new System.Text.StringBuilder();
             var conditions = new List<string>();
@@ -20,43 +24,22 @@ namespace Cliptoo.Core.Database
 
             if (!string.IsNullOrWhiteSpace(searchTerm))
             {
+                LogManager.LogDebug("SEARCH_DIAG_BUILDER: SearchTerm is not null or whitespace. Entering search query block.");
                 queryBuilder.Append($"SELECT {columns}, snippet(clips_fts, 0, '[HL]', '[/HL]', '...', 60) as MatchContext FROM clips c JOIN clips_fts fts ON c.Id = fts.rowid ");
                 conditions.Add("clips_fts MATCH @SearchTerm");
 
-                var terms = searchTerm.Split(_spaceSeparator, StringSplitOptions.RemoveEmptyEntries)
-                                      .Select(term => term.Replace("\"", "\"\""))
-                                      .ToList();
+                var ftsQuery = string.Join(" AND ", searchTerm.Split(_spaceSeparator, StringSplitOptions.RemoveEmptyEntries).Select(term => $"{term.Replace("\"", "\"\"")}*"));
 
-                string ftsQuery;
-                if (terms.Count > 1)
-                {
-                    // A query that looks for the terms near each other. Terms must not be quoted inside NEAR.
-                    var nearTerms = string.Join(" ", terms.Select(t => $"{t}*"));
-                    var nearQuery = $"NEAR({nearTerms})";
-
-                    // A fallback query that finds all terms as prefixes anywhere in the text.
-                    var allTermsQuery = string.Join(" AND ", terms.Select(t => $"{t}*"));
-
-                    // FTS5 ranks the leftmost part of an OR query higher.
-                    ftsQuery = $"({nearQuery}) OR ({allTermsQuery})";
-                }
-                else if (terms.Count == 1)
-                {
-                    ftsQuery = $"{terms[0]}*";
-                }
-                else
-                {
-                    ftsQuery = string.Empty;
-                }
-
+                LogManager.LogDebug($"SEARCH_DIAG_BUILDER: Generated FTS query string: '{ftsQuery}'");
                 command.Parameters.AddWithValue("@SearchTerm", ftsQuery);
 
-                orderBy = "ORDER BY rank, c.IsPinned DESC, c.Timestamp DESC";
+                orderBy = "ORDER BY c.IsPinned DESC, rank, c.Timestamp DESC";
             }
             else
             {
+                LogManager.LogDebug("SEARCH_DIAG_BUILDER: SearchTerm is null or whitespace. Entering non-search query block.");
                 queryBuilder.Append($"SELECT {columns} FROM clips c ");
-                orderBy = "ORDER BY c.IsPinned DESC, c.Timestamp DESC";
+                orderBy = "ORDER BY c.Timestamp DESC";
             }
 
             if (filterType == AppConstants.FilterKeys.Pinned)
@@ -84,7 +67,9 @@ namespace Cliptoo.Core.Database
             command.Parameters.AddWithValue("@Limit", limit);
             command.Parameters.AddWithValue("@Offset", offset);
             command.CommandText = queryBuilder.ToString();
+            LogManager.LogDebug($"SEARCH_DIAG_BUILDER: Final command text: {command.CommandText}");
         }
+
 
     }
 }
