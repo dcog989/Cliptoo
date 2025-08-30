@@ -36,6 +36,9 @@ namespace Cliptoo.UI.Helpers
                 var oldDescriptorSize = DependencyPropertyDescriptor.FromProperty(TextBlock.FontSizeProperty, typeof(TextBlock));
                 oldDescriptorSize?.RemoveValueChanged(textBlock, OnFontPropertyChanged);
 
+                var oldDescriptorForeground = DependencyPropertyDescriptor.FromProperty(TextBlock.ForegroundProperty, typeof(TextBlock));
+                oldDescriptorForeground?.RemoveValueChanged(textBlock, OnFontPropertyChanged);
+
                 UpdateInlines(textBlock);
 
                 // Subscribe to future property changes
@@ -44,6 +47,9 @@ namespace Cliptoo.UI.Helpers
 
                 var newDescriptorSize = DependencyPropertyDescriptor.FromProperty(TextBlock.FontSizeProperty, typeof(TextBlock));
                 newDescriptorSize?.AddValueChanged(textBlock, OnFontPropertyChanged);
+
+                var newDescriptorForeground = DependencyPropertyDescriptor.FromProperty(TextBlock.ForegroundProperty, typeof(TextBlock));
+                newDescriptorForeground?.AddValueChanged(textBlock, OnFontPropertyChanged);
             }
         }
 
@@ -51,6 +57,9 @@ namespace Cliptoo.UI.Helpers
         {
             if (sender is TextBlock textBlock)
             {
+                var lvi = FindAncestor<System.Windows.Controls.ListViewItem>(textBlock);
+                var lviForeground = lvi?.Foreground;
+                Core.Configuration.LogManager.LogDebug($"DIAG_HIGHLIGHTER: OnFontPropertyChanged fired. TextBlock.FG={textBlock.Foreground}, Ancestor LVI.FG={lviForeground}");
                 UpdateInlines(textBlock);
             }
         }
@@ -62,6 +71,11 @@ namespace Cliptoo.UI.Helpers
 
             if (string.IsNullOrEmpty(formattedText)) return;
 
+            var lvi = FindAncestor<System.Windows.Controls.ListViewItem>(textBlock);
+            bool isSelected = lvi?.IsSelected ?? false;
+
+            Brush currentForeground = isSelected ? Brushes.White : textBlock.Foreground;
+
             const string startTag = "[HL]";
             const string endTag = "[/HL]";
             int lastIndex = 0;
@@ -71,34 +85,51 @@ namespace Cliptoo.UI.Helpers
                 int startIndex = formattedText.IndexOf(startTag, lastIndex, System.StringComparison.Ordinal);
                 if (startIndex == -1)
                 {
-                    textBlock.Inlines.Add(new Run(formattedText.Substring(lastIndex)));
+                    var run = new Run(formattedText.Substring(lastIndex)) { Foreground = currentForeground };
+                    textBlock.Inlines.Add(run);
                     break;
                 }
 
                 int endIndex = formattedText.IndexOf(endTag, startIndex + startTag.Length, System.StringComparison.Ordinal);
                 if (endIndex == -1)
                 {
-                    textBlock.Inlines.Add(new Run(formattedText.Substring(lastIndex)));
+                    var run = new Run(formattedText.Substring(lastIndex)) { Foreground = currentForeground };
+                    textBlock.Inlines.Add(run);
                     break;
                 }
 
                 if (startIndex > lastIndex)
                 {
-                    textBlock.Inlines.Add(new Run(formattedText.Substring(lastIndex, startIndex - lastIndex)));
+                    var run = new Run(formattedText.Substring(lastIndex, startIndex - lastIndex)) { Foreground = currentForeground };
+                    textBlock.Inlines.Add(run);
                 }
 
                 var highlightedText = formattedText.Substring(startIndex + startTag.Length, endIndex - (startIndex + startTag.Length));
-                var run = new Run(highlightedText)
+                var highlightRun = new Run(highlightedText)
                 {
                     FontFamily = textBlock.FontFamily,
                     FontSize = textBlock.FontSize,
                     Background = (SolidColorBrush)Application.Current.FindResource("AccentBrush"),
                     Foreground = Brushes.White
                 };
-                textBlock.Inlines.Add(run);
+                textBlock.Inlines.Add(highlightRun);
 
                 lastIndex = endIndex + endTag.Length;
             }
+        }
+
+        private static T? FindAncestor<T>(DependencyObject current) where T : DependencyObject
+        {
+            do
+            {
+                if (current is T ancestor)
+                {
+                    return ancestor;
+                }
+                current = VisualTreeHelper.GetParent(current);
+            }
+            while (current != null);
+            return null;
         }
     }
 }
