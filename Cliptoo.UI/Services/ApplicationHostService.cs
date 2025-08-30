@@ -59,8 +59,6 @@ namespace Cliptoo.UI.Services
             try
             {
                 await _controller.InitializeAsync();
-                LogManager.LogDebug("Controller initialized.");
-
                 await Application.Current.Dispatcher.InvokeAsync(async () =>
                 {
                     try

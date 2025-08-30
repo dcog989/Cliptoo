@@ -101,7 +101,7 @@ namespace Cliptoo.Core
 
         public async Task InitializeAsync()
         {
-            LogManager.LogDebug("CliptooController initializing...");
+            LogManager.LogDebug("Controller initializing...");
             LogManager.LoggingLevel = Settings.LoggingLevel;
             CleanupTempFiles();
             await _dbManager.InitializeAsync().ConfigureAwait(false);
@@ -109,7 +109,7 @@ namespace Cliptoo.Core
 
             ClipboardMonitor.ClipboardChanged += OnClipboardChangedAsync;
             _cleanupTimer.Start();
-            LogManager.LogDebug("CliptooController initialization complete.");
+            LogManager.LogDebug("Controller initialized.");
             _isInitialized = true;
             _fileTypeClassifier.FileTypesChanged += OnFileTypesChanged;
         }

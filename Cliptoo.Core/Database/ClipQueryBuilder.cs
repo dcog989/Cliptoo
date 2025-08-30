@@ -3,20 +3,17 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using Microsoft.Data.Sqlite;
-using Cliptoo.Core.Configuration;
+using Cliptoo.Core.Configuration; // keep for logmanager
 
 namespace Cliptoo.Core.Database
 {
     internal static class ClipQueryBuilder
     {
         private static readonly char[] _spaceSeparator = [' '];
-
-
+        private const string columns = "c.Id, c.Timestamp, c.ClipType, c.SourceApp, c.IsPinned, c.WasTrimmed, c.SizeInBytes, c.PreviewContent";
 
         public static void BuildGetClipsQuery(SqliteCommand command, uint limit, uint offset, string searchTerm, string filterType)
         {
-            const string columns = "c.Id, c.Timestamp, c.ClipType, c.SourceApp, c.IsPinned, c.WasTrimmed, c.SizeInBytes, c.PreviewContent";
-            LogManager.LogDebug($"SEARCH_DIAG_BUILDER: Building query with searchTerm='{searchTerm}', filterType='{filterType}'");
 
             var queryBuilder = new System.Text.StringBuilder();
             var conditions = new List<string>();
@@ -24,20 +21,17 @@ namespace Cliptoo.Core.Database
 
             if (!string.IsNullOrWhiteSpace(searchTerm))
             {
-                LogManager.LogDebug("SEARCH_DIAG_BUILDER: SearchTerm is not null or whitespace. Entering search query block.");
                 queryBuilder.Append($"SELECT {columns}, snippet(clips_fts, 0, '[HL]', '[/HL]', '...', 60) as MatchContext FROM clips c JOIN clips_fts fts ON c.Id = fts.rowid ");
                 conditions.Add("clips_fts MATCH @SearchTerm");
 
-                var ftsQuery = string.Join(" AND ", searchTerm.Split(_spaceSeparator, StringSplitOptions.RemoveEmptyEntries).Select(term => $"{term.Replace("\"", "\"\"")}*"));
+                var ftsQuery = string.Join(" AND ", searchTerm.Split(_spaceSeparator, StringSplitOptions.RemoveEmptyEntries).Select(term => $"{term.Replace("\"", "\"\"", StringComparison.Ordinal)}*"));
 
-                LogManager.LogDebug($"SEARCH_DIAG_BUILDER: Generated FTS query string: '{ftsQuery}'");
                 command.Parameters.AddWithValue("@SearchTerm", ftsQuery);
 
                 orderBy = "ORDER BY c.IsPinned DESC, rank, c.Timestamp DESC";
             }
             else
             {
-                LogManager.LogDebug("SEARCH_DIAG_BUILDER: SearchTerm is null or whitespace. Entering non-search query block.");
                 queryBuilder.Append($"SELECT {columns} FROM clips c ");
                 orderBy = "ORDER BY c.Timestamp DESC";
             }
@@ -67,9 +61,7 @@ namespace Cliptoo.Core.Database
             command.Parameters.AddWithValue("@Limit", limit);
             command.Parameters.AddWithValue("@Offset", offset);
             command.CommandText = queryBuilder.ToString();
-            LogManager.LogDebug($"SEARCH_DIAG_BUILDER: Final command text: {command.CommandText}");
         }
-
 
     }
 }
