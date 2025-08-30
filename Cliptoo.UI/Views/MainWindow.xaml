@@ -145,10 +145,9 @@
                         Cursor="SizeAll"
                         MouseLeftButtonDown="Logo_MouseLeftButtonDown"
                         Visibility="{Binding DisplayLogo, Converter={StaticResource BooleanToVisibilityConverter}}">
-                        <Image
+                        <ui:ImageIcon
                             Width="24"
                             Height="24"
-                            RenderOptions.BitmapScalingMode="Fant"
                             Source="{Binding LogoIcon}" />
                     </Border>
 
@@ -162,10 +161,9 @@
                             HorizontalAlignment="Right"
                             Style="{StaticResource IconButton}"
                             ToolTip="{Binding SelectedFilter.Name}">
-                            <Image
+                            <ui:ImageIcon
                                 Width="20"
                                 Height="20"
-                                RenderOptions.BitmapScalingMode="HighQuality"
                                 Source="{Binding SelectedFilter.Icon}" />
                         </Button>
                         <Popup
@@ -201,10 +199,9 @@
                                 <MenuItem Command="{Binding HideWindowCommand}" Header="Send to Tray" />
                             </ContextMenu>
                         </Button.ContextMenu>
-                        <Image
+                        <ui:ImageIcon
                             Width="28"
                             Height="28"
-                            RenderOptions.BitmapScalingMode="HighQuality"
                             Source="{Binding MenuIcon}" />
                     </Button>
                 </Grid>

@@ -7,6 +7,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:helpers="clr-namespace:Cliptoo.UI.Helpers"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
     d:DesignHeight="100"
     d:DesignWidth="300"
     mc:Ignorable="d">
@@ -18,7 +19,7 @@
             Visibility="{Binding IsFilePropertiesLoading, Converter={StaticResource BooleanToVisibilityConverter}}" />
         <StackPanel Visibility="{Binding IsFilePropertiesLoading, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=inverse}">
             <StackPanel Orientation="Horizontal" Visibility="{Binding IsSourceMissing, Converter={StaticResource BooleanToVisibilityConverter}}">
-                <Image
+                <ui:ImageIcon
                     Width="24"
                     Height="24"
                     Margin="0,0,8,0"
@@ -49,12 +50,11 @@
                     Margin="0,2,0,0"
                     Orientation="Horizontal"
                     Visibility="{Binding FileTypeInfo, Converter={StaticResource NullToVisibilityConverter}}">
-                    <Image
+                    <ui:ImageIcon
                         Width="16"
                         Height="16"
                         Margin="0,0,5,0"
                         VerticalAlignment="Center"
-                        RenderOptions.BitmapScalingMode="Fant"
                         Source="{Binding FileTypeInfoIcon}" />
                     <TextBlock
                         VerticalAlignment="Center"

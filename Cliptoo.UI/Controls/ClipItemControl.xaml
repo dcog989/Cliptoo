@@ -8,6 +8,7 @@
     xmlns:helpers="clr-namespace:Cliptoo.UI.Helpers"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:tooltips="clr-namespace:Cliptoo.UI.Controls.Tooltips"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
     xmlns:viewModels="clr-namespace:Cliptoo.UI.ViewModels"
     Height="Auto"
     Padding="{Binding PaddingSize, Converter={StaticResource PaddingSizeToThicknessConverter}}"
@@ -243,16 +244,12 @@
 
                     <Grid Width="20" Height="20">
                         <Grid Visibility="{Binding HasThumbnail, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <Image
+                            <ui:Image
                                 RenderOptions.BitmapScalingMode="Fant"
                                 Source="{Binding ThumbnailSource}"
                                 Stretch="Uniform" />
                         </Grid>
-                        <Image
-                            RenderOptions.BitmapScalingMode="Fant"
-                            Source="{Binding ClipTypeIcon}"
-                            Stretch="Uniform"
-                            Visibility="{Binding HasThumbnail, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=inverse}" />
+                        <ui:ImageIcon Source="{Binding ClipTypeIcon}" Visibility="{Binding HasThumbnail, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=inverse}" />
                     </Grid>
                 </StackPanel>
             </Grid>
@@ -267,7 +264,7 @@
                     </Style>
                 </Grid.Style>
                 <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
-                    <Image
+                    <ui:ImageIcon
                         Width="20"
                         Height="20"
                         Margin="0,0,4,0"

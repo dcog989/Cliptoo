@@ -5,6 +5,7 @@
     xmlns:converters="clr-namespace:Cliptoo.UI.Converters"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
     xmlns:viewModels="clr-namespace:Cliptoo.UI.ViewModels"
     d:DataContext="{d:DesignInstance Type=viewModels:MainViewModel}"
     d:DesignHeight="128"
@@ -65,10 +66,9 @@
                             <Binding Path="DataContext.SelectedFilter" RelativeSource="{RelativeSource AncestorType=UserControl}" />
                         </MultiBinding>
                     </RadioButton.IsChecked>
-                    <Image
+                    <ui:ImageIcon
                         Width="20"
                         Height="20"
-                        RenderOptions.BitmapScalingMode="Fant"
                         Source="{Binding Icon}" />
                 </RadioButton>
             </DataTemplate>
