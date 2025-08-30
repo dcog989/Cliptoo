@@ -24,11 +24,11 @@
                         FontSize="32"
                         FontWeight="SemiBold"
                         Text="Cliptoo" />
-                    <TextBlock Foreground="{StaticResource SecondaryForeground}" Text="{Binding AppVersion, StringFormat='Version: {0}'}" />
+                    <TextBlock Foreground="{DynamicResource TextFillColorSecondaryBrush}" Text="{Binding AppVersion, StringFormat='Version: {0}'}" />
                     <TextBlock
                         Margin="0,10,0,0"
                         FontSize="16"
-                        Foreground="{StaticResource SecondaryForeground}">
+                        Foreground="{DynamicResource TextFillColorSecondaryBrush}">
                         <TextBlock.Text>
                             The advanced clipboard manager.
                         </TextBlock.Text>
@@ -38,7 +38,7 @@
                         FontFamily="{Binding SystemFonts[0].FontFamily, Mode=OneWay}"
                         FontSize="16"
                         FontStyle="Italic"
-                        Foreground="{StaticResource SecondaryForeground}">
+                        Foreground="{DynamicResource TextFillColorSecondaryBrush}">
                         <TextBlock.Text>
                             "Klaatu barada nikto!"
                         </TextBlock.Text>

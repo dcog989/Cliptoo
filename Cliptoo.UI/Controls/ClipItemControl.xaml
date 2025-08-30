@@ -31,7 +31,7 @@
                                         <Rectangle
                                             Height="1"
                                             Margin="0,6,0,6"
-                                            Fill="#666666" />
+                                            Fill="{DynamicResource ControlStrokeColorDefaultBrush}" />
                                     </ControlTemplate>
                                 </Setter.Value>
                             </Setter>
@@ -285,10 +285,13 @@
                         TextTrimming="CharacterEllipsis">
                         <TextBlock.Style>
                             <Style TargetType="TextBlock">
-                                <Setter Property="Foreground" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListViewItem}, FallbackValue={StaticResource PrimaryForeground}}" />
+                                <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
                                 <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListViewItem}}" Value="True">
+                                        <Setter Property="Foreground" Value="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
+                                    </DataTrigger>
                                     <DataTrigger Binding="{Binding IsSourceMissing}" Value="True">
-                                        <Setter Property="Foreground" Value="{StaticResource SecondaryForeground}" />
+                                        <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
                                         <Setter Property="TextDecorations" Value="Strikethrough" />
                                     </DataTrigger>
                                     <MultiDataTrigger>
@@ -320,7 +323,7 @@
                             <Setter Property="Fill" Value="{DynamicResource AccentBrush}" />
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListViewItem}}" Value="True">
-                                    <Setter Property="Fill" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListViewItem}}" />
+                                    <Setter Property="Fill" Value="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
@@ -337,7 +340,12 @@
                     </Rectangle.OpacityMask>
                     <Rectangle.Style>
                         <Style TargetType="Rectangle">
-                            <Setter Property="Fill" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListViewItem}}" />
+                            <Setter Property="Fill" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListViewItem}}" Value="True">
+                                    <Setter Property="Fill" Value="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
+                                </DataTrigger>
+                            </Style.Triggers>
                         </Style>
                     </Rectangle.Style>
                 </Rectangle>

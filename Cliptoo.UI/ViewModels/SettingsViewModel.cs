@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Windows;
 using System.Windows.Media;
@@ -12,9 +13,12 @@ using Cliptoo.Core.Interfaces;
 using Cliptoo.Core.Services;
 using Cliptoo.UI.Services;
 using Cliptoo.UI.ViewModels.Base;
+using Cliptoo.UI.Views;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 using Wpf.Ui;
+using Wpf.Ui.Appearance;
+using Wpf.Ui.Controls;
 
 namespace Cliptoo.UI.ViewModels
 {
@@ -194,10 +198,40 @@ namespace Cliptoo.UI.ViewModels
                     _startupManagerService.SetStartup(Settings.StartWithWindows);
                     break;
                 case nameof(Settings.AccentChromaLevel):
-                case nameof(Settings.Theme):
                     UpdateAccentColor();
                     UpdateOklchHueBrush();
                     return; // UpdateAccentColor sets AccentColor which will trigger DebounceSave
+                case nameof(Settings.Theme):
+                    var wpfuiTheme = Settings.Theme?.ToLowerInvariant() switch
+                    {
+                        "light" => ApplicationTheme.Light,
+                        "dark" => ApplicationTheme.Dark,
+                        _ => ApplicationTheme.Unknown,
+                    };
+
+                    if (wpfuiTheme == ApplicationTheme.Unknown)
+                    {
+                        var systemTheme = ApplicationThemeManager.GetSystemTheme() == SystemTheme.Dark ? ApplicationTheme.Dark : ApplicationTheme.Light;
+                        ApplicationThemeManager.Apply(systemTheme, WindowBackdropType.Mica, false);
+
+                        foreach (var window in Application.Current.Windows.OfType<Window>())
+                        {
+                            SystemThemeWatcher.UnWatch(window);
+                            SystemThemeWatcher.Watch(window, WindowBackdropType.Mica, false);
+                        }
+                    }
+                    else
+                    {
+                        ApplicationThemeManager.Apply(wpfuiTheme, WindowBackdropType.Mica, false);
+                        foreach (var window in Application.Current.Windows.OfType<Window>())
+                        {
+                            SystemThemeWatcher.UnWatch(window);
+                        }
+                    }
+
+                    UpdateAccentColor();
+                    UpdateOklchHueBrush();
+                    return;
                 case nameof(Settings.FontFamily):
                     if (_selectedFontFamily != Settings.FontFamily)
                     {

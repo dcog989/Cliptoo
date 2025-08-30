@@ -11,9 +11,9 @@
     x:Name="RootSettingsWindow"
     Title="Cliptoo Settings"
     Width="800"
-    Height="650"
+    Height="700"
     MinWidth="800"
-    MinHeight="650"
+    MinHeight="700"
     d:DataContext="{d:DesignInstance Type=viewModels:SettingsViewModel}"
     x:ClassModifier="internal"
     ExtendsContentIntoTitleBar="True"
@@ -144,7 +144,6 @@
                 <ui:Button
                     Padding="30,10"
                     Appearance="Primary"
-                    Background="{DynamicResource AccentBrush}"
                     Click="Close_Click"
                     Content="Close"
                     IsDefault="True" />
@@ -153,7 +152,4 @@
             <ContentPresenter x:Name="RootContentDialogPresenter" Grid.RowSpan="4" />
         </Grid>
     </ui:ClientAreaBorder>
-
-
-
 </ui:FluentWindow>

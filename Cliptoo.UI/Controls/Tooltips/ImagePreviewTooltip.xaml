@@ -34,7 +34,7 @@
                     VerticalAlignment="Center"
                     FontStyle="Italic"
                     FontWeight="Bold"
-                    Foreground="{DynamicResource ErrorTextBrush}"
+                    Foreground="{DynamicResource SystemFillColorCriticalBrush}"
                     Text="File not found - moved or deleted?" />
             </StackPanel>
         </Grid>
@@ -42,7 +42,7 @@
         <TextBlock
             Margin="0,5,0,0"
             FontStyle="Italic"
-            Foreground="{StaticResource SecondaryForeground}"
+            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
             Text="Loading..."
             Visibility="{Binding IsFilePropertiesLoading, Converter={StaticResource BooleanToVisibilityConverter}}" />
         <StackPanel
@@ -53,14 +53,14 @@
                 FontFamily="{Binding PreviewFont}"
                 FontSize="{Binding PreviewFontSize}"
                 FontWeight="Bold"
-                Foreground="{StaticResource PrimaryForeground}"
+                Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                 Text="{Binding FileName}"
                 TextWrapping="Wrap"
                 Visibility="{Binding FileName, Converter={StaticResource NullToVisibilityConverter}}" />
             <TextBlock
                 FontFamily="{Binding PreviewFont}"
                 FontSize="{Binding PreviewFontSize}"
-                Foreground="{StaticResource PrimaryForeground}"
+                Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                 Text="{Binding FileProperties}"
                 TextWrapping="Wrap" />
             <StackPanel
@@ -78,7 +78,7 @@
                     VerticalAlignment="Center"
                     FontFamily="{Binding PreviewFont}"
                     FontSize="{Binding PreviewFontSize}"
-                    Foreground="{StaticResource SecondaryForeground}"
+                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                     Text="{Binding FileTypeInfo}"
                     TextWrapping="Wrap" />
             </StackPanel>

@@ -41,13 +41,7 @@
         BasedOn="{StaticResource {x:Type ui:TextBox}}"
         TargetType="ui:TextBox">
         <Setter Property="Height" Value="32" />
-        <Setter Property="Padding" Value="2,2" />
-        <Style.Triggers>
-            <Trigger Property="IsKeyboardFocusWithin" Value="True">
-                <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
-                <Setter Property="Background" Value="{DynamicResource SecondaryBackground}" />
-            </Trigger>
-        </Style.Triggers>
+        <Setter Property="Padding" Value="8,4" />
     </Style>
 
     <Style
@@ -56,12 +50,6 @@
         TargetType="ui:NumberBox">
         <Setter Property="Height" Value="32" />
         <Setter Property="Padding" Value="8,4" />
-        <Style.Triggers>
-            <Trigger Property="IsKeyboardFocusWithin" Value="True">
-                <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
-                <Setter Property="Background" Value="{DynamicResource SecondaryBackground}" />
-            </Trigger>
-        </Style.Triggers>
     </Style>
 
     <Style
@@ -93,7 +81,7 @@
     </Style>
 
     <Style x:Key="SettingsTabRadioButton" TargetType="RadioButton">
-        <Setter Property="Foreground" Value="{StaticResource SecondaryForeground}" />
+        <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
         <Setter Property="Padding" Value="24,8" />
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="FontSize" Value="16" />
@@ -116,11 +104,11 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsChecked" Value="True">
-                            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
-                            <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                            <Setter Property="Foreground" Value="{DynamicResource AccentTextFillColorPrimaryBrush}" />
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}" />
                         </Trigger>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+                            <Setter Property="Foreground" Value="{DynamicResource AccentTextFillColorPrimaryBrush}" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -137,7 +125,7 @@
                 <ControlTemplate TargetType="{x:Type Thumb}">
                     <Border
                         Background="{Binding DataContext.AccentBrush, RelativeSource={RelativeSource AncestorType=Window}}"
-                        BorderBrush="{StaticResource PrimaryBorderBrush}"
+                        BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
                         BorderThickness="2"
                         CornerRadius="14" />
                 </ControlTemplate>
@@ -153,7 +141,7 @@
                         <Border
                             Height="14"
                             Background="{Binding DataContext.OklchHueBrush, RelativeSource={RelativeSource AncestorType=Window}}"
-                            BorderBrush="{StaticResource PrimaryBorderBrush}"
+                            BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
                             BorderThickness="1"
                             CornerRadius="7" />
                         <Track x:Name="PART_Track">

@@ -32,7 +32,7 @@
                     Style="{StaticResource SettingLabel}"
                     Text="days." />
                 <TextBlock
-                    Foreground="{StaticResource SecondaryForeground}"
+                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                     Style="{StaticResource SettingLabel}"
                     Text="(0 = unlimited)" />
             </StackPanel>

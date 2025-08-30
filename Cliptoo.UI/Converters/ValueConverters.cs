@@ -239,6 +239,11 @@ namespace Cliptoo.UI.Converters
         {
             ArgumentNullException.ThrowIfNull(values);
 
+            if (values.Any(v => v == DependencyProperty.UnsetValue))
+            {
+                return Visibility.Collapsed;
+            }
+
             foreach (var value in values)
             {
                 if (value is bool b && b)
@@ -263,6 +268,10 @@ namespace Cliptoo.UI.Converters
     {
         public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
         {
+            if (values.Any(v => v == DependencyProperty.UnsetValue))
+            {
+                return Visibility.Collapsed;
+            }
             return values.All(v => v is bool b && b) ? Visibility.Visible : Visibility.Collapsed;
         }
 
@@ -270,5 +279,6 @@ namespace Cliptoo.UI.Converters
         {
             throw new NotSupportedException();
         }
+
     }
 }

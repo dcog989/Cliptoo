@@ -13,7 +13,7 @@
             <Rectangle Fill="{StaticResource CheckerboardBrush}" Visibility="{Binding Content, Converter={StaticResource ColorToTransparencyVisibilityConverter}}" />
             <Border
                 Background="{Binding Content, Converter={StaticResource ColorToBrushConverter}}"
-                BorderBrush="{DynamicResource PrimaryBorderBrush}"
+                BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
                 BorderThickness="1"
                 CornerRadius="4">
                 <Border.Effect>

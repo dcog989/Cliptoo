@@ -125,7 +125,7 @@
 
             <TextBlock
                 Margin="0,5,0,10"
-                Foreground="{StaticResource SecondaryForeground}"
+                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                 Text="Configure apps for the 'Send To' context menu. &quot;{0}&quot; is used as a placeholder for the file path."
                 TextWrapping="Wrap" />
 
