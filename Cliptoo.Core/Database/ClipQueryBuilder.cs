@@ -20,19 +20,43 @@ namespace Cliptoo.Core.Database
 
             if (!string.IsNullOrWhiteSpace(searchTerm))
             {
-                queryBuilder.Append($"SELECT {columns}, snippet(clips_fts, 0, '[HL]', '[/HL]', '...', 15) as MatchContext FROM clips c JOIN clips_fts fts ON c.Id = fts.rowid ");
+                queryBuilder.Append($"SELECT {columns}, snippet(clips_fts, 0, '[HL]', '[/HL]', '...', 60) as MatchContext FROM clips c JOIN clips_fts fts ON c.Id = fts.rowid ");
                 conditions.Add("clips_fts MATCH @SearchTerm");
 
-                var ftsQuery = string.Join(" ", searchTerm.Split(_spaceSeparator, StringSplitOptions.RemoveEmptyEntries)
-                                                            .Select(term => $"\"{term.Replace("\"", "\"\"", StringComparison.Ordinal)}\"*"));
+                var terms = searchTerm.Split(_spaceSeparator, StringSplitOptions.RemoveEmptyEntries)
+                                      .Select(term => term.Replace("\"", "\"\""))
+                                      .ToList();
+
+                string ftsQuery;
+                if (terms.Count > 1)
+                {
+                    // A query that looks for the terms near each other. Terms must not be quoted inside NEAR.
+                    var nearTerms = string.Join(" ", terms.Select(t => $"{t}*"));
+                    var nearQuery = $"NEAR({nearTerms})";
+
+                    // A fallback query that finds all terms as prefixes anywhere in the text.
+                    var allTermsQuery = string.Join(" AND ", terms.Select(t => $"{t}*"));
+
+                    // FTS5 ranks the leftmost part of an OR query higher.
+                    ftsQuery = $"({nearQuery}) OR ({allTermsQuery})";
+                }
+                else if (terms.Count == 1)
+                {
+                    ftsQuery = $"{terms[0]}*";
+                }
+                else
+                {
+                    ftsQuery = string.Empty;
+                }
+
                 command.Parameters.AddWithValue("@SearchTerm", ftsQuery);
 
-                orderBy = "ORDER BY rank, c.Timestamp DESC";
+                orderBy = "ORDER BY rank, c.IsPinned DESC, c.Timestamp DESC";
             }
             else
             {
                 queryBuilder.Append($"SELECT {columns} FROM clips c ");
-                orderBy = "ORDER BY c.Timestamp DESC";
+                orderBy = "ORDER BY c.IsPinned DESC, c.Timestamp DESC";
             }
 
             if (filterType == AppConstants.FilterKeys.Pinned)
@@ -61,5 +85,6 @@ namespace Cliptoo.Core.Database
             command.Parameters.AddWithValue("@Offset", offset);
             command.CommandText = queryBuilder.ToString();
         }
+
     }
 }
