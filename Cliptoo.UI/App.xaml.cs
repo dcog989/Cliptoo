@@ -49,7 +49,7 @@ namespace Cliptoo.UI
 
         protected override async void OnStartup(StartupEventArgs e)
         {
-            LogManager.Log("App.OnStartup called.");
+            LogManager.LogDebug("App.OnStartup called.");
             _host = Host.CreateDefaultBuilder()
                 .ConfigureServices((context, services) =>
                 {
@@ -128,7 +128,7 @@ namespace Cliptoo.UI
                 }).Build();
 
             Services = _host.Services;
-            LogManager.Log("Host built and services configured.");
+            LogManager.LogDebug("Host built and services configured.");
 
             await _host.StartAsync();
             LogManager.Log("Host started.");

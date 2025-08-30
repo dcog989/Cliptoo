@@ -100,7 +100,7 @@ namespace Cliptoo.Core.Native
             if (result == 0)
             {
                 int errorCode = Marshal.GetLastWin32Error();
-                LogManager.Log($"PASTE_DIAG: ERROR - InputSimulator: SendInput failed with Win32 error code: {errorCode}");
+                LogManager.LogDebug($"PASTE_DIAG: ERROR - InputSimulator: SendInput failed with Win32 error code: {errorCode}");
             }
             else
             {

@@ -12,12 +12,8 @@
     mc:Ignorable="d">
     <StackPanel>
         <TextBlock
-            FontSize="16"
-            FontWeight="SemiBold"
-            Text="Clear Oversized Clips?" />
-        <TextBlock
             Margin="0,12,0,0"
-            Text="This will permanently delete non-pinned items from your history and cannot be undone."
+            Text="Permanently delete non-pinned and over-sized clips from your history?"
             TextWrapping="Wrap" />
         <StackPanel Margin="0,15,0,0" Orientation="Horizontal">
             <TextBlock
