@@ -47,7 +47,7 @@ namespace Cliptoo.Core.Services
                 return new ProcessingResult(AppConstants.ClipTypes.Color, content, hadLeadingWhitespace);
             }
 
-            if (Uri.IsWellFormedUriString(trimmedContent, UriKind.Absolute))
+            if (Uri.TryCreate(trimmedContent, UriKind.Absolute, out var uri) && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
             {
                 return new ProcessingResult(AppConstants.ClipTypes.Link, content, hadLeadingWhitespace);
             }

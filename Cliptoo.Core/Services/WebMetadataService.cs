@@ -78,6 +78,11 @@ namespace Cliptoo.Core.Services
                 }
             }
 
+            if (url.Scheme == "data")
+            {
+                return await ProcessDataUriFaviconAsync(urlString, successCachePath).ConfigureAwait(false);
+            }
+
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             string? finalIconPath = null;
             try
@@ -294,6 +299,12 @@ namespace Cliptoo.Core.Services
                 return string.IsNullOrEmpty(cachedTitle) ? null : cachedTitle;
             }
 
+            if (url.Scheme != Uri.UriSchemeHttp && url.Scheme != Uri.UriSchemeHttps)
+            {
+                _titleCache.Add(urlString, string.Empty);
+                return null;
+            }
+
             try
             {
                 using var response = await _httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
@@ -369,6 +380,13 @@ namespace Cliptoo.Core.Services
             try
             {
                 LogManager.LogDebug($"Attempting to fetch favicon: {faviconUrl}");
+
+                if (faviconUrl.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
+                {
+                    var result = await ProcessDataUriFaviconAsync(faviconUrl, cachePath).ConfigureAwait(false);
+                    return !string.IsNullOrEmpty(result);
+                }
+
                 if (!Uri.TryCreate(faviconUrl, UriKind.Absolute, out var faviconUri)) return false;
                 var response = await _httpClient.GetAsync(faviconUri).ConfigureAwait(false);
 
@@ -418,11 +436,92 @@ namespace Cliptoo.Core.Services
                     return true;
                 }
             }
-            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or ImageFormatException or NotSupportedException)
+            catch (HttpRequestException ex)
+            {
+                LogManager.LogDebug($"Favicon network request failed for {faviconUrl}: {ex.Message}");
+            }
+            catch (NotSupportedException ex)
+            {
+                LogManager.LogDebug($"Favicon URI scheme not supported for {faviconUrl}: {ex.Message}");
+            }
+            catch (Exception ex) when (ex is TaskCanceledException or ImageFormatException)
             {
                 LogManager.Log(ex, $"Favicon fetch/process failed for {faviconUrl}.");
             }
             return false;
+        }
+
+        private async Task<string?> ProcessDataUriFaviconAsync(string dataUri, string cachePath)
+        {
+            try
+            {
+                var match = Regex.Match(dataUri, @"^data:(?<type>[^;]+);(?<encoding>\w+),(?<data>.+)$");
+                if (!match.Success)
+                {
+                    LogManager.LogDebug($"Could not parse data URI: {dataUri.Substring(0, Math.Min(100, dataUri.Length))}");
+                    return null;
+                }
+
+                var encoding = match.Groups["encoding"].Value;
+                if (!encoding.Equals("base64", StringComparison.OrdinalIgnoreCase))
+                {
+                    LogManager.LogDebug($"Unsupported data URI encoding: {encoding}");
+                    return null;
+                }
+
+                var base64Data = match.Groups["data"].Value;
+                var bytes = Convert.FromBase64String(base64Data);
+                var mediaType = match.Groups["type"].Value;
+                var extension = GetExtensionFromMediaType(mediaType);
+                if (string.IsNullOrEmpty(extension))
+                {
+                    LogManager.LogDebug($"Unsupported media type in data URI: {mediaType}");
+                    return null;
+                }
+
+                await using var stream = new MemoryStream(bytes);
+                byte[]? outputBytes = null;
+
+                if (extension == ".SVG")
+                {
+                    using var reader = new StreamReader(stream);
+                    var svgContent = await reader.ReadToEndAsync().ConfigureAwait(false);
+                    outputBytes = await ServiceUtils.GenerateSvgPreviewAsync(svgContent, ThumbnailSize, "light", true).ConfigureAwait(false);
+                }
+                else
+                {
+                    using var image = await _imageDecoder.DecodeAsync(stream, extension).ConfigureAwait(false);
+                    if (image != null)
+                    {
+                        image.Mutate(x => x.Resize(ThumbnailSize, ThumbnailSize));
+                        using var ms = new MemoryStream();
+                        await image.SaveAsPngAsync(ms, _pngEncoder).ConfigureAwait(false);
+                        outputBytes = ms.ToArray();
+                    }
+                }
+
+                if (outputBytes != null)
+                {
+                    await File.WriteAllBytesAsync(cachePath, outputBytes).ConfigureAwait(false);
+                    LogManager.LogDebug($"Successfully processed and cached data URI favicon.");
+                    return cachePath;
+                }
+            }
+            catch (Exception ex) when (ex is FormatException or ArgumentException)
+            {
+                LogManager.LogDebug($"Could not process data URI, it may be invalid or truncated. URI: {dataUri.Substring(0, Math.Min(100, dataUri.Length))}. Error: {ex.Message}");
+            }
+            return null;
+        }
+
+        private static string GetExtensionFromMediaType(string mediaType)
+        {
+            if (mediaType.Contains("svg")) return ".SVG";
+            if (mediaType.Contains("png")) return ".PNG";
+            if (mediaType.Contains("vnd.microsoft.icon") || mediaType.Contains("x-icon")) return ".ICO";
+            if (mediaType.Contains("webp")) return ".WEBP";
+            if (mediaType.Contains("jpeg") || mediaType.Contains("jpg")) return ".JPG";
+            return string.Empty;
         }
 
         public void ClearCache()

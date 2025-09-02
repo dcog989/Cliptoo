@@ -8,9 +8,10 @@ namespace Cliptoo.Core.Configuration
     public static class LogManager
     {
         private static string? _logFilePath;
+        public static string? LogFilePath => _logFilePath;
         private static string? _logFolder;
         private static DateTime _currentLogDate;
-        private static readonly object _lock = new object();
+        private readonly static object _lock = new object();
         private static string? _appDataPath;
 
         public static string LoggingLevel { get; set; } = "Info";
@@ -173,11 +174,11 @@ namespace Cliptoo.Core.Configuration
             try
             {
                 var sb = new StringBuilder();
-                sb.AppendLine(CultureInfo.InvariantCulture, $"[{DateTime.Now:HH:mm:ss.fff}] ERROR: An exception occurred.");
-                if (!string.IsNullOrEmpty(context))
-                {
-                    sb.AppendLine(CultureInfo.InvariantCulture, $"Context: {context}");
-                }
+                var initialMessage = string.IsNullOrEmpty(context)
+                    ? "An exception occurred."
+                    : $"An exception occurred: {context}";
+
+                sb.AppendLine(CultureInfo.InvariantCulture, $"[{DateTime.Now:HH:mm:ss.fff}] ERROR: {initialMessage}");
                 sb.AppendLine(CultureInfo.InvariantCulture, $"Type: {exception.GetType().FullName}");
                 sb.AppendLine(CultureInfo.InvariantCulture, $"Message: {exception.Message}");
                 sb.AppendLine("StackTrace:");

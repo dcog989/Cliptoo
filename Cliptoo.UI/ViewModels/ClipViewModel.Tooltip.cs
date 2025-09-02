@@ -17,11 +17,12 @@ namespace Cliptoo.UI.ViewModels
         public bool IsRtf => ClipType == AppConstants.ClipTypes.Rtf;
         public bool IsLinkToolTip => ClipType == AppConstants.ClipTypes.Link;
         public bool IsPreviewableAsTextFile =>
-            ClipType is AppConstants.ClipTypes.FileText or AppConstants.ClipTypes.Dev ||
+            (ClipType is AppConstants.ClipTypes.FileText or AppConstants.ClipTypes.Dev ||
             (ClipType == AppConstants.ClipTypes.Document &&
             (Content.EndsWith(".md", StringComparison.OrdinalIgnoreCase) ||
                 Content.EndsWith(".markdown", StringComparison.OrdinalIgnoreCase) ||
-                Content.EndsWith(".csv", StringComparison.OrdinalIgnoreCase)));
+                Content.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))))
+            && !string.Equals(Content, LogManager.LogFilePath, StringComparison.OrdinalIgnoreCase);
 
         public bool ShowFileInfoTooltip => IsFileBased && !IsImage && !IsPreviewableAsTextFile;
         public bool ShowTextualTooltip => IsPreviewableAsTextFile || (!IsFileBased && !IsLinkToolTip && ClipType != AppConstants.ClipTypes.Color);
