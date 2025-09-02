@@ -1,4 +1,3 @@
-using System.Threading.Tasks;
 using System.Windows.Media;
 using Cliptoo.Core.Services;
 

@@ -5,7 +5,6 @@ using System.Windows.Threading;
 using Cliptoo.Core;
 using Cliptoo.Core.Configuration;
 using Cliptoo.Core.Interfaces;
-using Cliptoo.Core.Services;
 using Cliptoo.UI.Services;
 using Cliptoo.UI.ViewModels.Base;
 using Wpf.Ui.Appearance;

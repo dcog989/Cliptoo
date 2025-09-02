@@ -1,6 +1,4 @@
 using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
 using System.Windows.Media.Imaging;
 using Cliptoo.Core.Services;
 using SixLabors.ImageSharp;
