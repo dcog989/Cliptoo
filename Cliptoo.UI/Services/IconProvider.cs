@@ -1,11 +1,14 @@
+using System;
 using System.Collections.Concurrent;
 using System.IO;
+using System.Linq;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Cliptoo.Core.Configuration;
 using Cliptoo.Core.Services;
 using SkiaSharp;
+using Svg.Skia;
 
 namespace Cliptoo.UI.Services
 {
@@ -48,10 +51,13 @@ namespace Cliptoo.UI.Services
                 {
                     try
                     {
+                        var bytes = File.ReadAllBytes(cacheFilePath);
+                        using var ms = new MemoryStream(bytes);
+
                         var bitmapImage = new BitmapImage();
                         bitmapImage.BeginInit();
-                        bitmapImage.UriSource = new Uri(cacheFilePath);
                         bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
+                        bitmapImage.StreamSource = ms;
                         bitmapImage.EndInit();
                         bitmapImage.Freeze();
 
@@ -136,7 +142,7 @@ namespace Cliptoo.UI.Services
 
                 return await Task.Run(() =>
                 {
-                    using var skSvg = new Svg.Skia.SKSvg();
+                    using var skSvg = new SKSvg();
                     using var picture = skSvg.FromSvg(svgContent);
                     if (picture == null || picture.CullRect.Width <= 0 || picture.CullRect.Height <= 0) return null;
 
@@ -254,6 +260,20 @@ namespace Cliptoo.UI.Services
             {
                 LogManager.Log(ex, "Failed to perform icon cache cleanup.");
                 return 0;
+            }
+        }
+
+        public void ClearCache()
+        {
+            try
+            {
+                ServiceUtils.DeleteDirectoryContents(_iconCachePath);
+                _cache.Clear();
+                LogManager.Log("Icon cache cleared successfully.");
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                LogManager.Log(ex, "Failed to clear icon cache.");
             }
         }
     }

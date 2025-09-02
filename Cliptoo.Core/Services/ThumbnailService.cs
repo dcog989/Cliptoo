@@ -17,8 +17,9 @@ namespace Cliptoo.Core.Services
         private readonly string _previewCacheDir;
         private readonly PngEncoder _pngEncoder;
         private readonly JpegEncoder _jpegEncoder;
+        private readonly IImageDecoder _imageDecoder;
 
-        public ThumbnailService(string appCachePath)
+        public ThumbnailService(string appCachePath, IImageDecoder imageDecoder)
         {
             _cacheDir = Path.Combine(appCachePath, "Cliptoo", "Thumbnails");
             _previewCacheDir = Path.Combine(appCachePath, "Cliptoo", "Previews");
@@ -27,6 +28,7 @@ namespace Cliptoo.Core.Services
 
             _pngEncoder = new PngEncoder { CompressionLevel = PngCompressionLevel.Level6 };
             _jpegEncoder = new JpegEncoder { Quality = 50 };
+            _imageDecoder = imageDecoder;
         }
 
         private static string GetTargetExtension(string imagePath)
@@ -80,7 +82,8 @@ namespace Cliptoo.Core.Services
                 }
                 else
                 {
-                    using var image = await ImageDecoder.DecodeAsync(imagePath).ConfigureAwait(false);
+                    using var stream = File.OpenRead(imagePath);
+                    using var image = await _imageDecoder.DecodeAsync(stream, sourceExtension).ConfigureAwait(false);
                     if (image == null) return null;
 
                     image.Mutate(x => x.Resize(new ResizeOptions

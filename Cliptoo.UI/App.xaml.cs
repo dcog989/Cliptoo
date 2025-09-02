@@ -74,13 +74,17 @@ namespace Cliptoo.UI
                     services.AddSingleton<ISettingsManager>(new SettingsManager(appDataRoamingPath));
                     services.AddSingleton<IFileTypeClassifier>(new FileTypeClassifier(appDataRoamingPath));
                     services.AddSingleton<IContentProcessor, ContentProcessor>();
-                    services.AddSingleton<IThumbnailService>(new ThumbnailService(appDataLocalPath));
-                    services.AddSingleton<IWebMetadataService>(new WebMetadataService(appDataLocalPath));
+                    services.AddSingleton<ImageSharpDecoder>();
+                    services.AddSingleton<IImageDecoder, WpfImageDecoder>();
+                    services.AddSingleton<IThumbnailService>(sp => new ThumbnailService(appDataLocalPath, sp.GetRequiredService<IImageDecoder>()));
+                    services.AddSingleton<IWebMetadataService>(sp => new WebMetadataService(appDataLocalPath, sp.GetRequiredService<IImageDecoder>()));
                     services.AddSingleton<ISyntaxHighlighter, SyntaxHighlighter>();
                     services.AddSingleton<IClipboardMonitor, ClipboardMonitor>();
                     services.AddSingleton<ITextTransformer, TextTransformer>();
                     services.AddSingleton<ICompareToolService, CompareToolService>();
-                    services.AddSingleton<Core.Services.IIconProvider>(sp => new IconProvider(sp.GetRequiredService<ISettingsManager>(), appDataLocalPath));
+                    services.AddSingleton<IconProvider>(sp => new IconProvider(sp.GetRequiredService<ISettingsManager>(), appDataLocalPath));
+                    services.AddSingleton<IIconProvider>(sp => sp.GetRequiredService<IconProvider>());
+                    services.AddSingleton<Core.Services.IIconCacheManager>(sp => sp.GetRequiredService<IconProvider>());
 
                     services.AddSingleton<ISnackbarService, SnackbarService>();
                     services.AddSingleton<INotificationService, NotificationService>();
@@ -105,7 +109,7 @@ namespace Cliptoo.UI
                         sp.GetRequiredService<IPastingService>(),
                         sp.GetRequiredService<IFontProvider>(),
                         sp.GetRequiredService<INotificationService>(),
-                        sp.GetRequiredService<Core.Services.IIconProvider>()
+                        sp.GetRequiredService<IIconProvider>()
                     ));
                     services.AddTransient<SettingsViewModel>(sp => new SettingsViewModel(
                         sp.GetRequiredService<IDatabaseService>(),
@@ -114,7 +118,7 @@ namespace Cliptoo.UI
                         sp.GetRequiredService<IStartupManagerService>(),
                         sp,
                         sp.GetRequiredService<IFontProvider>(),
-                        sp.GetRequiredService<Core.Services.IIconProvider>()
+                        sp.GetRequiredService<IIconProvider>()
                     ));
 
                     services.AddSingleton<MainWindow>();

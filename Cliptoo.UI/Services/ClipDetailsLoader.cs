@@ -11,6 +11,13 @@ namespace Cliptoo.UI.Services
 {
     public class ClipDetailsLoader : IClipDetailsLoader
     {
+        private readonly IImageDecoder _imageDecoder;
+
+        public ClipDetailsLoader(IImageDecoder imageDecoder)
+        {
+            _imageDecoder = imageDecoder;
+        }
+
         public async Task<string?> GetThumbnailAsync(ClipViewModel vm, IThumbnailService thumbnailService, IWebMetadataService webMetadataService, string theme)
         {
             var extension = Path.GetExtension(vm.Content)?.ToLowerInvariant() ?? string.Empty;
@@ -119,9 +126,11 @@ namespace Cliptoo.UI.Services
                             try
                             {
                                 var extension = Path.GetExtension(path).ToLowerInvariant();
+                                using var stream = File.OpenRead(path);
+
                                 if (extension == ".jxl")
                                 {
-                                    using var image = await Core.Services.ImageDecoder.DecodeAsync(path);
+                                    using var image = await _imageDecoder.DecodeAsync(stream, extension);
                                     if (image != null)
                                     {
                                         sb.AppendLine($"Dimensions: {image.Width} x {image.Height}");
@@ -129,7 +138,7 @@ namespace Cliptoo.UI.Services
                                 }
                                 else
                                 {
-                                    var imageInfo = await Image.IdentifyAsync(path, token);
+                                    var imageInfo = await Image.IdentifyAsync(stream, token);
                                     if (imageInfo != null)
                                     {
                                         sb.AppendLine($"Dimensions: {imageInfo.Width} x {imageInfo.Height}");

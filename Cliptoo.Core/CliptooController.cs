@@ -60,7 +60,7 @@ namespace Cliptoo.Core
         public IClipboardMonitor ClipboardMonitor { get; }
         public Task<Clip?> GetClipPreviewAsync(int id) => _dbManager.GetClipPreviewContentByIdAsync(id);
 
-        private readonly IIconProvider _iconProvider;
+        private readonly IIconCacheManager _iconCacheManager;
 
         public CliptooController(
             ISettingsManager settingsManager,
@@ -72,7 +72,7 @@ namespace Cliptoo.Core
             IClipboardMonitor clipboardMonitor,
             ITextTransformer textTransformer,
             ICompareToolService compareToolService,
-            IIconProvider iconProvider)
+            IIconCacheManager iconCacheManager)
         {
             _settingsManager = settingsManager;
             _dbManager = dbManager;
@@ -83,7 +83,7 @@ namespace Cliptoo.Core
             ClipboardMonitor = clipboardMonitor;
             _textTransformer = textTransformer;
             _compareToolService = compareToolService;
-            _iconProvider = iconProvider;
+            _iconCacheManager = iconCacheManager;
             _clipCache = new LruCache<int, Clip>(ClipCacheSize);
             _settings = _settingsManager.Load();
 
@@ -443,7 +443,7 @@ namespace Cliptoo.Core
                 LogManager.Log($"Favicon cache cleanup complete. Removed {prunedFaviconCount} orphaned files.");
             }
 
-            int iconCacheCleaned = _iconProvider.CleanupIconCache();
+            int iconCacheCleaned = _iconCacheManager.CleanupIconCache();
 
             var validClipboardImages = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             await foreach (var path in _dbManager.GetAllImageClipPathsAsync().ConfigureAwait(false))
@@ -511,8 +511,11 @@ namespace Cliptoo.Core
         public void ClearCaches()
         {
             LogManager.Log("Clearing thumbnail and temp file caches.");
+            _clipCache.Clear();
             _thumbnailService.ClearCache();
             _webMetadataService.ClearCache();
+            _iconCacheManager.ClearCache();
+            ServiceUtils.DeleteDirectoryContents(_clipboardImageCachePath);
             CleanupTempFiles();
             CachesCleared?.Invoke(this, EventArgs.Empty);
         }

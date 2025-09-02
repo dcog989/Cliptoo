@@ -4,6 +4,7 @@ using Cliptoo.Core;
 using Cliptoo.Core.Database.Models;
 using Cliptoo.Core.Configuration;
 using Cliptoo.UI.Helpers;
+using System.Windows.Media.Imaging;
 
 namespace Cliptoo.UI.ViewModels
 {
@@ -177,11 +178,37 @@ namespace Cliptoo.UI.ViewModels
 
             if (isMissing)
             {
-                ImagePreviewPath = null;
+                ImagePreviewSource = null;
                 return;
             }
 
-            ImagePreviewPath = await _clipDetailsLoader.GetImagePreviewAsync(this, _thumbnailService, largestDimension, _theme);
+            var imagePreviewPath = await _clipDetailsLoader.GetImagePreviewAsync(this, _thumbnailService, largestDimension, _theme);
+
+            if (!string.IsNullOrEmpty(imagePreviewPath))
+            {
+                try
+                {
+                    var bytes = await File.ReadAllBytesAsync(imagePreviewPath).ConfigureAwait(false);
+                    using var ms = new MemoryStream(bytes);
+
+                    var bitmapImage = new BitmapImage();
+                    bitmapImage.BeginInit();
+                    bitmapImage.StreamSource = ms;
+                    bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
+                    bitmapImage.EndInit();
+                    bitmapImage.Freeze();
+                    ImagePreviewSource = bitmapImage;
+                }
+                catch (Exception ex)
+                {
+                    LogManager.Log(ex, $"Failed to load image preview from path: {imagePreviewPath}");
+                    ImagePreviewSource = null;
+                }
+            }
+            else
+            {
+                ImagePreviewSource = null;
+            }
         }
 
         public async Task LoadPageTitleAsync()

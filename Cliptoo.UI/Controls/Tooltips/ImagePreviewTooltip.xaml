@@ -18,7 +18,7 @@
                 HorizontalAlignment="Center"
                 VerticalAlignment="Center"
                 RenderOptions.BitmapScalingMode="Fant"
-                Source="{Binding ImagePreviewPath}"
+                Source="{Binding ImagePreviewSource}"
                 Stretch="Uniform"
                 Visibility="{Binding IsSourceMissing, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=inverse}" />
             <StackPanel

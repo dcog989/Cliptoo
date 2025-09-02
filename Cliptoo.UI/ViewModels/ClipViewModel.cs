@@ -29,7 +29,7 @@ namespace Cliptoo.UI.ViewModels
         private double _currentFontSize = 14;
         private string _paddingSize;
         private int _index;
-        private string? _imagePreviewPath;
+        private ImageSource? _imagePreviewSource;
         private int _currentThumbnailLoadId;
         private bool _hasThumbnail;
         private string _theme = "light";
@@ -107,7 +107,7 @@ namespace Cliptoo.UI.ViewModels
         public bool IsFilePropertiesLoading { get => _isFilePropertiesLoading; private set => SetProperty(ref _isFilePropertiesLoading, value); }
         public string? PageTitle { get => _pageTitle; private set => SetProperty(ref _pageTitle, value); }
         public bool IsPageTitleLoading { get => _isPageTitleLoading; private set => SetProperty(ref _isPageTitleLoading, value); }
-        public string? ImagePreviewPath { get => _imagePreviewPath; private set => SetProperty(ref _imagePreviewPath, value); }
+        public ImageSource? ImagePreviewSource { get => _imagePreviewSource; private set => SetProperty(ref _imagePreviewSource, value); }
         public bool HasThumbnail { get => _hasThumbnail; private set => SetProperty(ref _hasThumbnail, value); }
 
         public FontFamily PreviewFont { get => _previewFont; set => SetProperty(ref _previewFont, value); }
@@ -287,9 +287,12 @@ namespace Cliptoo.UI.ViewModels
             {
                 try
                 {
+                    var bytes = await File.ReadAllBytesAsync(newThumbnailPath).ConfigureAwait(false);
+                    using var ms = new MemoryStream(bytes);
+
                     var bitmapImage = new BitmapImage();
                     bitmapImage.BeginInit();
-                    bitmapImage.UriSource = new Uri(newThumbnailPath, UriKind.Absolute);
+                    bitmapImage.StreamSource = ms;
                     bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
                     bitmapImage.EndInit();
                     bitmapImage.Freeze();

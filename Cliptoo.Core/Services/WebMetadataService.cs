@@ -32,8 +32,9 @@ namespace Cliptoo.Core.Services
         private readonly LruCache<string, string> _titleCache;
         private readonly ConcurrentDictionary<string, bool> _failedFaviconUrls = new();
         private bool _disposedValue;
+        private readonly IImageDecoder _imageDecoder;
 
-        public WebMetadataService(string appCachePath)
+        public WebMetadataService(string appCachePath, IImageDecoder imageDecoder)
         {
             _faviconCacheDir = Path.Combine(appCachePath, "Cliptoo", "FaviconCache");
             Directory.CreateDirectory(_faviconCacheDir);
@@ -44,6 +45,7 @@ namespace Cliptoo.Core.Services
 
             _pngEncoder = new PngEncoder { CompressionLevel = PngCompressionLevel.Level6 };
             _titleCache = new LruCache<string, string>(100);
+            _imageDecoder = imageDecoder;
         }
 
         public async Task<string?> GetFaviconAsync(Uri url)
@@ -398,7 +400,7 @@ namespace Cliptoo.Core.Services
                     var contentStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
                     await using (contentStream.ConfigureAwait(false))
                     {
-                        using var image = await ImageDecoder.DecodeAsync(contentStream, extension).ConfigureAwait(false);
+                        using var image = await _imageDecoder.DecodeAsync(contentStream, extension).ConfigureAwait(false);
                         if (image != null)
                         {
                             image.Mutate(x => x.Resize(ThumbnailSize, ThumbnailSize));

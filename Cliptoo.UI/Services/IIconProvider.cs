@@ -1,11 +1,11 @@
 using System.Threading.Tasks;
 using System.Windows.Media;
+using Cliptoo.Core.Services;
 
-namespace Cliptoo.Core.Services
+namespace Cliptoo.UI.Services
 {
-    public interface IIconProvider
+    public interface IIconProvider : IIconCacheManager
     {
         Task<ImageSource?> GetIconAsync(string key, int size = 20);
-        int CleanupIconCache();
     }
 }

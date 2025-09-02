@@ -31,7 +31,10 @@ namespace Cliptoo.Core.Services
                 {
                     file.Delete();
                 }
-                catch (IOException) { }
+                catch (IOException ex)
+                {
+                    LogManager.Log(ex, $"Failed to delete cached file: {file.FullName}");
+                }
             }
             foreach (var dir in directory.EnumerateDirectories())
             {
@@ -39,7 +42,10 @@ namespace Cliptoo.Core.Services
                 {
                     dir.Delete(true);
                 }
-                catch (IOException) { }
+                catch (IOException ex)
+                {
+                    LogManager.Log(ex, $"Failed to delete cached directory: {dir.FullName}");
+                }
             }
         }
 
