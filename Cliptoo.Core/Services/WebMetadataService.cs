@@ -140,14 +140,14 @@ namespace Cliptoo.Core.Services
                 return FetchAndProcessFavicon(faviconUrl.ToString(), cachePath, cts.Token);
             }).ToList();
 
-            while (tasks.Any())
+            while (tasks.Count > 0)
             {
                 var completedTask = await Task.WhenAny(tasks).ConfigureAwait(false);
                 tasks.Remove(completedTask);
 
                 if (await completedTask.ConfigureAwait(false))
                 {
-                    cts.Cancel(); // Cancel remaining tasks
+                    await cts.CancelAsync().ConfigureAwait(false); // Cancel remaining tasks
                     return cachePath;
                 }
             }
@@ -401,14 +401,14 @@ namespace Cliptoo.Core.Services
                         LogManager.LogDebug($"Expected SVG content-type for {faviconUrl}, but received {contentType}. Skipping parse.");
                         return false;
                     }
-                    var svgContent = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                    var svgContent = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
                     outputBytes = await ServiceUtils.GenerateSvgPreviewAsync(svgContent, ThumbnailSize, "light", true).ConfigureAwait(false);
                 }
                 else
                 {
-                    using var contentStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
+                    using var contentStream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
                     using var memoryStream = new MemoryStream();
-                    await contentStream.CopyToAsync(memoryStream).ConfigureAwait(false);
+                    await contentStream.CopyToAsync(memoryStream, cancellationToken).ConfigureAwait(false);
                     memoryStream.Position = 0;
 
                     using var image = await _imageDecoder.DecodeAsync(memoryStream, extension).ConfigureAwait(false);
@@ -416,14 +416,14 @@ namespace Cliptoo.Core.Services
                     {
                         image.Mutate(x => x.Resize(ThumbnailSize, ThumbnailSize));
                         using var ms = new MemoryStream();
-                        await image.SaveAsPngAsync(ms, _pngEncoder).ConfigureAwait(false);
+                        await image.SaveAsPngAsync(ms, _pngEncoder, cancellationToken).ConfigureAwait(false);
                         outputBytes = ms.ToArray();
                     }
                 }
 
                 if (outputBytes != null)
                 {
-                    await File.WriteAllBytesAsync(cachePath, outputBytes).ConfigureAwait(false);
+                    await File.WriteAllBytesAsync(cachePath, outputBytes, cancellationToken).ConfigureAwait(false);
                     LogManager.LogDebug($"Successfully processed and cached favicon for {faviconUrl}.");
                     return true;
                 }
