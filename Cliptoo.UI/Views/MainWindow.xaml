@@ -231,49 +231,19 @@
                                 <Setter Property="MinWidth" Value="150" />
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding Content.ClipType, RelativeSource={RelativeSource Self}}" Value="color">
-                                        <Setter Property="ContentTemplate">
-                                            <Setter.Value>
-                                                <DataTemplate>
-                                                    <tooltips:ColorPreviewTooltip />
-                                                </DataTemplate>
-                                            </Setter.Value>
-                                        </Setter>
+                                        <Setter Property="ContentTemplate" Value="{StaticResource ColorTooltipTemplate}" />
                                     </DataTrigger>
                                     <DataTrigger Binding="{Binding Content.IsLinkToolTip, RelativeSource={RelativeSource Self}}" Value="True">
-                                        <Setter Property="ContentTemplate">
-                                            <Setter.Value>
-                                                <DataTemplate>
-                                                    <tooltips:LinkPreviewTooltip />
-                                                </DataTemplate>
-                                            </Setter.Value>
-                                        </Setter>
+                                        <Setter Property="ContentTemplate" Value="{StaticResource LinkTooltipTemplate}" />
                                     </DataTrigger>
                                     <DataTrigger Binding="{Binding Content.ShowTextualTooltip, RelativeSource={RelativeSource Self}}" Value="True">
-                                        <Setter Property="ContentTemplate">
-                                            <Setter.Value>
-                                                <DataTemplate>
-                                                    <tooltips:TextPreviewTooltip />
-                                                </DataTemplate>
-                                            </Setter.Value>
-                                        </Setter>
+                                        <Setter Property="ContentTemplate" Value="{StaticResource TextTooltipTemplate}" />
                                     </DataTrigger>
                                     <DataTrigger Binding="{Binding Content.ShowFileInfoTooltip, RelativeSource={RelativeSource Self}}" Value="True">
-                                        <Setter Property="ContentTemplate">
-                                            <Setter.Value>
-                                                <DataTemplate>
-                                                    <tooltips:FilePreviewTooltip />
-                                                </DataTemplate>
-                                            </Setter.Value>
-                                        </Setter>
+                                        <Setter Property="ContentTemplate" Value="{StaticResource FileInfoTooltipTemplate}" />
                                     </DataTrigger>
                                     <DataTrigger Binding="{Binding Content.IsImage, RelativeSource={RelativeSource Self}}" Value="True">
-                                        <Setter Property="ContentTemplate">
-                                            <Setter.Value>
-                                                <DataTemplate>
-                                                    <tooltips:ImagePreviewTooltip />
-                                                </DataTemplate>
-                                            </Setter.Value>
-                                        </Setter>
+                                        <Setter Property="ContentTemplate" Value="{StaticResource ImageTooltipTemplate}" />
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>

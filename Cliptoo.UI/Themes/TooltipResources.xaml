@@ -1,0 +1,26 @@
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:tooltips="clr-namespace:Cliptoo.UI.Controls.Tooltips">
+
+    <DataTemplate x:Key="ColorTooltipTemplate">
+        <tooltips:ColorPreviewTooltip />
+    </DataTemplate>
+
+    <DataTemplate x:Key="LinkTooltipTemplate">
+        <tooltips:LinkPreviewTooltip />
+    </DataTemplate>
+
+    <DataTemplate x:Key="TextTooltipTemplate">
+        <tooltips:TextPreviewTooltip />
+    </DataTemplate>
+
+    <DataTemplate x:Key="FileInfoTooltipTemplate">
+        <tooltips:FilePreviewTooltip />
+    </DataTemplate>
+
+    <DataTemplate x:Key="ImageTooltipTemplate">
+        <tooltips:ImagePreviewTooltip />
+    </DataTemplate>
+
+</ResourceDictionary>

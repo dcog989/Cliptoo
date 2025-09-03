@@ -11,6 +11,7 @@
                 <ResourceDictionary Source="/Themes/SharedResources.xaml" />
                 <ResourceDictionary Source="/Themes/SettingsResources.xaml" />
                 <ResourceDictionary Source="/Themes/Styles.xaml" />
+                <ResourceDictionary Source="/Themes/TooltipResources.xaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Application.Resources>
