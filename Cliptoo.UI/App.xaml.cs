@@ -14,12 +14,12 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Wpf.Ui;
 using Wpf.Ui.Tray;
-
+using Cliptoo.UI.Native;
 namespace Cliptoo.UI
 {
     public partial class App : Application
     {
-        private IHost? _host;
+        private IHost? _host; private Mutex? _mutex;
 
         public static IServiceProvider Services { get; private set; } = null!;
 
@@ -47,6 +47,15 @@ namespace Cliptoo.UI
 
         protected override async void OnStartup(StartupEventArgs e)
         {
+            _mutex = new Mutex(true, "{CAEEC8DB-0AC3-45E2-BDAF-4B5BB2F47531}-Cliptoo", out bool createdNew);
+
+            if (!createdNew)
+            {
+                WindowUtils.BringExistingInstanceToFront();
+                Application.Current.Shutdown();
+                return;
+            }
+
             LogManager.LogDebug("App.OnStartup called.");
             _host = Host.CreateDefaultBuilder()
                 .ConfigureServices((context, services) =>
@@ -138,6 +147,8 @@ namespace Cliptoo.UI
 
         protected override async void OnExit(ExitEventArgs e)
         {
+            _mutex?.ReleaseMutex();
+            _mutex?.Dispose();
             LogManager.LogDebug("App.OnExit called.");
             if (_host != null)
             {

@@ -32,7 +32,7 @@ namespace Cliptoo.Core.Database
                     .ToList();
             }
 
-            if (sanitizedTerms.Any())
+            if (sanitizedTerms.Count > 0)
             {
                 queryBuilder.Append($"SELECT {columns}, snippet(clips_fts, 0, '[HL]', '[/HL]', '...', 60) as MatchContext FROM clips c JOIN clips_fts fts ON c.Id = fts.rowid ");
                 conditions.Add("clips_fts MATCH @SearchTerm");
