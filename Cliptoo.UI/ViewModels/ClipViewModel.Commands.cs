@@ -59,20 +59,6 @@ namespace Cliptoo.UI.ViewModels
                 mainWindow.Hide();
             }
 
-            // Poll for focus change to ensure the paste command is not sent to Cliptoo itself.
-            var stopwatch = Stopwatch.StartNew();
-            while (stopwatch.ElapsedMilliseconds < 500) // 500ms timeout
-            {
-                if (ProcessUtils.GetForegroundWindowProcessName() != "Cliptoo.UI.exe")
-                {
-                    break;
-                }
-                await Task.Delay(20).ConfigureAwait(false);
-            }
-            stopwatch.Stop();
-            LogManager.LogDebug($"TRANSFORM_DIAG: Waited {stopwatch.ElapsedMilliseconds}ms for focus change.");
-
-
             await _pastingService.PasteTextAsync(transformedContent).ConfigureAwait(false);
             await _clipboardService.UpdatePasteCountAsync().ConfigureAwait(false);
 

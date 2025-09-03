@@ -1,6 +1,7 @@
 using System;
 using System.Runtime.InteropServices;
-using System.Threading;
+using System.Text;
+using System.Threading.Tasks;
 using Cliptoo.Core.Configuration;
 
 namespace Cliptoo.Core.Native
@@ -63,13 +64,68 @@ namespace Cliptoo.Core.Native
         [DllImport("user32.dll", SetLastError = true)]
         private static extern uint SendInput(uint nInputs, [In] INPUT[] pInputs, int cbSize);
 
-        public static void SendPaste()
-        {
-            LogManager.LogDebug("InputSimulator: Waiting 100ms for focus change...");
-            Thread.Sleep(100);
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetForegroundWindow();
 
-            var foregroundProcess = ProcessUtils.GetForegroundWindowProcessName();
-            LogManager.LogDebug($"InputSimulator: Attempting to send paste command to foreground process: '{foregroundProcess ?? "Unknown"}'.");
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+        [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        private static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
+
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool IsWindowVisible(IntPtr hWnd);
+
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool IsWindowEnabled(IntPtr hWnd);
+
+        public static async Task SendPasteAsync()
+        {
+            LogManager.LogDebug("PASTE_DIAG: Polling for focus change...");
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            while (stopwatch.ElapsedMilliseconds < 500)
+            {
+                var foregroundProcessName = ProcessUtils.GetForegroundWindowProcessName();
+                if (foregroundProcessName != "Cliptoo.UI.exe")
+                {
+                    break;
+                }
+
+                await Task.Delay(20).ConfigureAwait(false);
+            }
+            stopwatch.Stop();
+
+            IntPtr finalHwnd = GetForegroundWindow();
+            GetWindowThreadProcessId(finalHwnd, out uint finalPid);
+            var finalSb = new StringBuilder(256);
+            GetWindowText(finalHwnd, finalSb, finalSb.Capacity);
+            var finalProcessName = ProcessUtils.GetForegroundWindowProcessName();
+            bool isVisible = IsWindowVisible(finalHwnd);
+            bool isEnabled = IsWindowEnabled(finalHwnd);
+
+            LogManager.LogDebug($"PASTE_DIAG: Focus change detected after {stopwatch.ElapsedMilliseconds}ms.");
+            LogManager.LogDebug($"PASTE_DIAG: Target HWND: {finalHwnd}, PID: {finalPid}, Process: '{finalProcessName ?? "Unknown"}', Title: '{finalSb}', Visible: {isVisible}, Enabled: {isEnabled}");
+
+            if (!isEnabled || !isVisible)
+            {
+                LogManager.LogDebug($"PASTE_DIAG: Paste aborted. Target window is not visible or not enabled.");
+                return;
+            }
+
+            // A brief, essential pause to allow the target application's message pump to become responsive
+            // after the window focus has switched. This helps prevent the paste command from being lost.
+            if (stopwatch.ElapsedMilliseconds < 50)
+            {
+                await Task.Delay(50).ConfigureAwait(false);
+                LogManager.LogDebug("PASTE_DIAG: Added 50ms post-focus delay for responsiveness.");
+            }
 
             INPUT[] inputs = new INPUT[]
             {
@@ -107,5 +163,6 @@ namespace Cliptoo.Core.Native
                 LogManager.LogDebug("InputSimulator: SendInput call successful.");
             }
         }
+
     }
 }

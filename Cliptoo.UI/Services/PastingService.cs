@@ -67,7 +67,7 @@ namespace Cliptoo.UI.Services
 
                 if (await ClipboardUtils.SafeSet(() => NativeClipboardHelper.SetFileDropList(fileDropList)).ConfigureAwait(false))
                 {
-                    InputSimulator.SendPaste();
+                    await InputSimulator.SendPasteAsync().ConfigureAwait(false);
                 }
             }
         }
@@ -142,7 +142,7 @@ namespace Cliptoo.UI.Services
 
             if (await ClipboardUtils.SafeSet(() => Clipboard.SetDataObject(dataObject, true)).ConfigureAwait(false))
             {
-                InputSimulator.SendPaste();
+                await InputSimulator.SendPasteAsync().ConfigureAwait(false);
             }
         }
 
@@ -160,7 +160,7 @@ namespace Cliptoo.UI.Services
             LogManager.Log($"Pasting transformed text. Length: {text.Length}.");
             if (await ClipboardUtils.SafeSet(() => Clipboard.SetText(text, TextDataFormat.UnicodeText)).ConfigureAwait(false))
             {
-                InputSimulator.SendPaste();
+                await InputSimulator.SendPasteAsync().ConfigureAwait(false);
             }
         }
     }

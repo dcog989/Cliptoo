@@ -20,7 +20,7 @@ namespace Cliptoo.UI.ViewModels
         private async Task PerformPasteAction(ClipViewModel clipVM, Func<Clip, Task> pasteAction)
         {
             if (IsPasting) return;
-
+            LogManager.LogDebug($"PASTE_DIAG: Initiating paste for Clip ID: {clipVM.Id}");
             IsPasting = true;
             try
             {
@@ -32,7 +32,10 @@ namespace Cliptoo.UI.ViewModels
                 {
                     await Task.Delay(20);
                 }
+                stopwatch.Stop();
+                LogManager.LogDebug($"PASTE_DIAG: Modifier key check completed in {stopwatch.ElapsedMilliseconds}ms.");
 
+                LogManager.LogDebug($"PASTE_DIAG: Hiding main window before paste.");
                 HideWindow();
 
                 await pasteAction(clip);
