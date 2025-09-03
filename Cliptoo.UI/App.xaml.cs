@@ -1,4 +1,6 @@
+using System;
 using System.IO;
+using System.Threading;
 using System.Windows;
 using System.Windows.Threading;
 using Cliptoo.Core;
@@ -7,6 +9,7 @@ using Cliptoo.Core.Database;
 using Cliptoo.Core.Interfaces;
 using Cliptoo.Core.Native;
 using Cliptoo.Core.Services;
+using Cliptoo.UI.Native;
 using Cliptoo.UI.Services;
 using Cliptoo.UI.ViewModels;
 using Cliptoo.UI.Views;
@@ -14,7 +17,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Wpf.Ui;
 using Wpf.Ui.Tray;
-using Cliptoo.UI.Native;
+
 namespace Cliptoo.UI
 {
     public partial class App : Application
@@ -75,14 +78,14 @@ namespace Cliptoo.UI
                         services.AddSingleton<IDatabaseStatsService>(new DatabaseStatsService(dbPath));
                         services.AddSingleton<IDbManager, DbManager>();
 
-                        services.AddSingleton<CliptooController>();
-                        services.AddSingleton<ISettingsService>(sp => sp.GetRequiredService<CliptooController>());
-                        services.AddSingleton<IClipDataService>(sp => sp.GetRequiredService<CliptooController>());
-                        services.AddSingleton<IClipboardService>(sp => sp.GetRequiredService<CliptooController>());
-                        services.AddSingleton<IDatabaseService>(sp => sp.GetRequiredService<CliptooController>());
-                        services.AddSingleton<IAppInteractionService>(sp => sp.GetRequiredService<CliptooController>());
-
                         services.AddSingleton<ISettingsManager>(new SettingsManager(appDataRoamingPath));
+                        services.AddSingleton<ISettingsService, SettingsService>();
+                        services.AddSingleton<IClipDataService, ClipDataService>();
+                        services.AddSingleton<IClipboardService, ClipboardService>();
+                        services.AddSingleton<IDatabaseService, DatabaseService>();
+                        services.AddSingleton<IAppInteractionService, AppInteractionService>();
+                        services.AddSingleton<CliptooController>();
+
                         services.AddSingleton<IFileTypeClassifier>(new FileTypeClassifier(appDataRoamingPath));
                         services.AddSingleton<IContentProcessor, ContentProcessor>();
                         services.AddSingleton<ImageSharpDecoder>();

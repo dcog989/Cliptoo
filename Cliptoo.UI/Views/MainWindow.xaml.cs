@@ -1,9 +1,10 @@
+using System;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
-using Cliptoo.Core;
+using Cliptoo.Core.Interfaces;
 using Cliptoo.UI.ViewModels;
 using Wpf.Ui.Controls;
 
@@ -12,13 +13,13 @@ namespace Cliptoo.UI.Views
     public partial class MainWindow : FluentWindow
     {
         private readonly MainViewModel _viewModel;
-        private readonly CliptooController _controller;
+        private readonly ISettingsService _settingsService;
 
-        public MainWindow(MainViewModel viewModel, CliptooController controller)
+        public MainWindow(MainViewModel viewModel, ISettingsService settingsService)
         {
             InitializeComponent();
             _viewModel = viewModel;
-            _controller = controller;
+            _settingsService = settingsService;
             DataContext = _viewModel;
 
             _viewModel.IsWindowVisible = IsVisible;
@@ -73,13 +74,10 @@ namespace Cliptoo.UI.Views
 
         protected override void OnClosed(EventArgs e)
         {
-            if (_controller != null)
-            {
-                var settings = _controller.Settings;
-                settings.WindowWidth = Math.Round(this.Width);
-                settings.WindowHeight = Math.Round(this.Height);
-                _controller.SaveSettings();
-            }
+            var settings = _settingsService.Settings;
+            settings.WindowWidth = Math.Round(this.Width);
+            settings.WindowHeight = Math.Round(this.Height);
+            _settingsService.SaveSettings();
 
             base.OnClosed(e);
             if (Application.Current != null)
@@ -147,19 +145,32 @@ namespace Cliptoo.UI.Views
 
         private void ClipListView_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
-            if (sender is not System.Windows.Controls.ListView listView)
-                return;
-
             var dependencyObject = e.OriginalSource as DependencyObject;
-            if (dependencyObject == null)
-                return;
-
-            var item = System.Windows.Controls.ItemsControl.ContainerFromElement(listView, dependencyObject) as System.Windows.Controls.ListViewItem;
-
-            if (item != null && item.DataContext is ClipViewModel clipVM)
+            while (dependencyObject != null)
             {
-                listView.SelectedItem = item.DataContext;
-                _viewModel.PasteClipCommand.Execute(clipVM);
+                if (dependencyObject is FrameworkElement { DataContext: ClipViewModel clipVM })
+                {
+                    if (sender is System.Windows.Controls.ListView listView)
+                    {
+                        listView.SelectedItem = clipVM;
+                    }
+                    _viewModel.PasteClipCommand.Execute(clipVM);
+                    e.Handled = true;
+                    return;
+                }
+
+                if (dependencyObject is Visual || dependencyObject is System.Windows.Media.Media3D.Visual3D)
+                {
+                    dependencyObject = VisualTreeHelper.GetParent(dependencyObject);
+                }
+                else if (dependencyObject is FrameworkContentElement fce)
+                {
+                    dependencyObject = fce.Parent;
+                }
+                else
+                {
+                    break;
+                }
             }
         }
 

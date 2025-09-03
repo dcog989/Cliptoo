@@ -30,4 +30,10 @@
         <EmbeddedResource Include="Services\DefaultFiletypes.json" />
     </ItemGroup>
 
+    <ItemGroup>
+        <Compile Update="Services\AppInteractionService.cs">
+        <SubType>Code</SubType>
+        </Compile>
+    </ItemGroup>
+
 </Project>

@@ -53,19 +53,12 @@ namespace Cliptoo.UI.ViewModels
 
         private async Task ExecutePasteClip(object? parameter)
         {
-            var clipVM = parameter as ClipViewModel;
-            if (clipVM == null && Clips.Any())
-            {
-                // Fallback for when the command is triggered without a parameter,
-                // e.g., on first load before SelectedItem is fully propagated.
-                clipVM = Clips.FirstOrDefault();
-            }
-
-            if (clipVM != null)
+            if (parameter is ClipViewModel clipVM)
             {
                 await PerformPasteAction(clipVM, clip => _pastingService.PasteClipAsync(clip));
             }
         }
+
         private void OpenSettingsWindow()
         {
             var settingsWindow = _serviceProvider.GetRequiredService<SettingsWindow>();

@@ -1,3 +1,6 @@
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
@@ -5,8 +8,10 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Cliptoo.Core;
 using Cliptoo.Core.Configuration;
+using Cliptoo.Core.Database;
 using Cliptoo.Core.Interfaces;
 using Cliptoo.Core.Native;
+using Cliptoo.Core.Services;
 using Cliptoo.Core.Services.Models;
 using Cliptoo.UI.ViewModels;
 using Cliptoo.UI.Views;
@@ -33,8 +38,12 @@ namespace Cliptoo.UI.Services
         private readonly IServiceProvider _serviceProvider;
         private readonly INotifyIconService _notifyIconService;
         private readonly CliptooController _controller;
+        private readonly ISettingsService _settingsService;
+        private readonly IAppInteractionService _appInteractionService;
+        private readonly IClipDataService _clipDataService;
         private readonly IWindowPositioner _windowPositioner;
         private readonly ISnackbarService _snackbarService;
+        private readonly IDbManager _dbManager;
         private MainWindow? _mainWindow;
         private MainViewModel? _mainViewModel;
         private IGlobalHotkey? _globalHotkey;
@@ -44,7 +53,17 @@ namespace Cliptoo.UI.Services
         private System.Windows.Controls.MenuItem? _showHideMenuItem;
         private string? _currentHotkey;
 
-        public ApplicationHostService(IServiceProvider serviceProvider, INotifyIconService notifyIconService, CliptooController controller, IWindowPositioner windowPositioner, ISnackbarService snackbarService, INotificationService notificationService)
+        public ApplicationHostService(
+            IServiceProvider serviceProvider,
+            INotifyIconService notifyIconService,
+            CliptooController controller,
+            IWindowPositioner windowPositioner,
+            ISnackbarService snackbarService,
+            INotificationService notificationService,
+            ISettingsService settingsService,
+            IAppInteractionService appInteractionService,
+            IClipDataService clipDataService,
+            IDbManager dbManager)
         {
             _serviceProvider = serviceProvider;
             _notifyIconService = notifyIconService;
@@ -52,20 +71,27 @@ namespace Cliptoo.UI.Services
             _windowPositioner = windowPositioner;
             _snackbarService = snackbarService;
             _notificationService = notificationService;
+            _settingsService = settingsService;
+            _appInteractionService = appInteractionService;
+            _clipDataService = clipDataService;
+            _dbManager = dbManager;
         }
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
+            LogManager.LogDebug("ApplicationHostService starting...");
             try
             {
+                await _dbManager.InitializeAsync();
+                LogManager.LogDebug("Database initialized successfully.");
                 await _controller.InitializeAsync();
                 await Application.Current.Dispatcher.InvokeAsync(async () =>
                 {
                     try
                     {
-                        _controller.SettingsChanged += OnSettingsChanged;
+                        _settingsService.SettingsChanged += OnSettingsChanged;
 
-                        var settings = _controller.Settings;
+                        var settings = _settingsService.Settings;
                         _currentHotkey = settings.Hotkey;
                         LogManager.LogDebug("Settings loaded.");
 
@@ -110,6 +136,7 @@ namespace Cliptoo.UI.Services
                         LogManager.LogDebug("Global hotkey registered.");
 
                         _controller.ClipboardMonitor.Start(handle);
+                        _clipDataService.NewClipAdded += OnNewClipAdded;
                         _controller.ProcessingFailed += OnProcessingFailed;
                         LogManager.LogDebug("Clipboard monitor started.");
 
@@ -160,9 +187,16 @@ namespace Cliptoo.UI.Services
                 _notifyIconService.Unregister();
             }
 
-            _controller.SettingsChanged -= OnSettingsChanged;
-            _controller.ProcessingFailed -= OnProcessingFailed;
-            _controller.Dispose();
+            _settingsService.SettingsChanged -= OnSettingsChanged;
+            if (_controller != null)
+            {
+                _controller.ProcessingFailed -= OnProcessingFailed;
+            }
+            if (_clipDataService != null)
+            {
+                _clipDataService.NewClipAdded -= OnNewClipAdded;
+            }
+            _controller?.Dispose();
             Dispose();
 
             return Task.CompletedTask;
@@ -170,7 +204,7 @@ namespace Cliptoo.UI.Services
 
         private void OnSettingsChanged(object? sender, EventArgs e)
         {
-            var settings = _controller.Settings;
+            var settings = _settingsService.Settings;
             if (_globalHotkey != null && _currentHotkey != settings.Hotkey)
             {
                 _currentHotkey = settings.Hotkey;
@@ -182,6 +216,11 @@ namespace Cliptoo.UI.Services
             {
                 ApplyTheme(settings.Theme);
             });
+        }
+
+        private void OnNewClipAdded(object? sender, EventArgs e)
+        {
+            _appInteractionService.NotifyUiActivity();
         }
 
         private void ApplyTheme(string themeName)
@@ -224,7 +263,7 @@ namespace Cliptoo.UI.Services
                 Application.Current.Resources["HyperlinkBlueBrushHover"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#005A9E"));
             }
 
-            ApplyAccentFromSettings(_controller.Settings);
+            ApplyAccentFromSettings(_settingsService.Settings);
 
             var actualTheme = ApplicationThemeManager.GetAppTheme();
         }
@@ -288,8 +327,8 @@ namespace Cliptoo.UI.Services
 
             _notifyIconService.Register();
 
-            if (_mainViewModel != null) _mainViewModel.IsAlwaysOnTop = _controller.Settings.IsAlwaysOnTop;
-            if (_alwaysOnTopMenuItem != null) _alwaysOnTopMenuItem.IsChecked = _controller.Settings.IsAlwaysOnTop;
+            if (_mainViewModel != null) _mainViewModel.IsAlwaysOnTop = _settingsService.Settings.IsAlwaysOnTop;
+            if (_alwaysOnTopMenuItem != null) _alwaysOnTopMenuItem.IsChecked = _settingsService.Settings.IsAlwaysOnTop;
         }
 
         private IntPtr HwndHook(IntPtr hwnd, int msg, IntPtr wparam, IntPtr lparam, ref bool handled)
@@ -372,14 +411,14 @@ namespace Cliptoo.UI.Services
                 Application.Current.Dispatcher.BeginInvoke(new Action(() =>
                 {
                     _mainViewModel?.HideWindow();
-                    _controller.IsUiInteractive = false;
+                    _appInteractionService.IsUiInteractive = false;
                 }));
             }
             else
             {
-                _controller.IsUiInteractive = true;
-                _controller.NotifyUiActivity();
-                _windowPositioner.PositionWindow(_mainWindow, _controller.Settings, isTrayRequest);
+                _appInteractionService.IsUiInteractive = true;
+                _appInteractionService.NotifyUiActivity();
+                _windowPositioner.PositionWindow(_mainWindow, _settingsService.Settings, isTrayRequest);
                 _mainWindow.Show();
                 _mainWindow.WindowState = WindowState.Normal;
                 _mainWindow.Activate();

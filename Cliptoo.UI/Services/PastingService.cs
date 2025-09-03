@@ -1,32 +1,41 @@
+using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media.Imaging;
 using Cliptoo.Core;
+using Cliptoo.Core.Configuration;
 using Cliptoo.Core.Database.Models;
+using Cliptoo.Core.Interfaces;
 using Cliptoo.Core.Native;
 using Cliptoo.Core.Services;
 using Cliptoo.UI.Helpers;
-using Cliptoo.Core.Configuration;
 
 namespace Cliptoo.UI.Services
 {
     internal class PastingService : IPastingService
     {
-        private readonly CliptooController _controller;
+        private readonly ISettingsService _settingsService;
+        private readonly IClipDataService _clipDataService;
+        private readonly IClipboardMonitor _clipboardMonitor;
 
-        public PastingService(CliptooController controller)
+        public PastingService(ISettingsService settingsService, IClipDataService clipDataService, IClipboardMonitor clipboardMonitor)
         {
-            _controller = controller;
+            _settingsService = settingsService;
+            _clipDataService = clipDataService;
+            _clipboardMonitor = clipboardMonitor;
         }
 
         public async Task PasteClipAsync(Clip clip, bool? forcePlainText = null)
         {
             ArgumentNullException.ThrowIfNull(clip);
 
-            await _controller.MoveClipToTopAsync(clip.Id).ConfigureAwait(false);
+            await _clipDataService.MoveClipToTopAsync(clip.Id).ConfigureAwait(false);
 
-            var settings = _controller.Settings;
+            var settings = _settingsService.Settings;
             bool pasteAsPlainText = forcePlainText ?? settings.PasteAsPlainText;
             LogManager.Log($"Pasting clip: ID={clip.Id}, AsPlainText={pasteAsPlainText}.");
             bool isFileOperation = !pasteAsPlainText && (clip.ClipType.StartsWith("file_", StringComparison.Ordinal) || clip.ClipType == AppConstants.ClipTypes.Folder);
@@ -41,9 +50,9 @@ namespace Cliptoo.UI.Services
             }
         }
 
-        private Task HandleFilePasteAsync(Clip clip)
+        private async Task HandleFilePasteAsync(Clip clip)
         {
-            if (clip.Content == null) return Task.CompletedTask;
+            if (clip.Content == null) return;
 
             var paths = clip.Content.Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries);
             if (paths.Length > 0)
@@ -54,14 +63,13 @@ namespace Cliptoo.UI.Services
                 var allFilesText = string.Join(Environment.NewLine, paths);
                 var hash1 = HashingUtils.ComputeHash(Encoding.UTF8.GetBytes(allFilesText));
                 var hash2 = HashingUtils.ComputeHash(Encoding.UTF8.GetBytes(allFilesText.Replace("\r\n", "\n", StringComparison.Ordinal)));
-                _controller.SuppressNextClip(hash1, hash2);
+                _clipboardMonitor.SuppressNextClip(new[] { hash1, hash2 });
 
-                if (NativeClipboardHelper.SetFileDropList(fileDropList))
+                if (await ClipboardUtils.SafeSet(() => NativeClipboardHelper.SetFileDropList(fileDropList)).ConfigureAwait(false))
                 {
                     InputSimulator.SendPaste();
                 }
             }
-            return Task.CompletedTask;
         }
 
         private async Task HandleDataObjectPasteAsync(Clip clip, bool pasteAsPlainText)
@@ -129,7 +137,7 @@ namespace Cliptoo.UI.Services
 
             if (hashesToSuppress.Count > 0)
             {
-                _controller.SuppressNextClip(hashesToSuppress.ToArray());
+                _clipboardMonitor.SuppressNextClip(hashesToSuppress.ToArray());
             }
 
             if (await ClipboardUtils.SafeSet(() => Clipboard.SetDataObject(dataObject, true)).ConfigureAwait(false))
@@ -147,7 +155,7 @@ namespace Cliptoo.UI.Services
             var textWithCrLf = textWithLf.Replace("\n", "\r\n");
             hashesToSuppress.Add(HashingUtils.ComputeHash(Encoding.UTF8.GetBytes(textWithCrLf)));
 
-            _controller.SuppressNextClip(hashesToSuppress.ToArray());
+            _clipboardMonitor.SuppressNextClip(hashesToSuppress.ToArray());
 
             LogManager.Log($"Pasting transformed text. Length: {text.Length}.");
             if (await ClipboardUtils.SafeSet(() => Clipboard.SetText(text, TextDataFormat.UnicodeText)).ConfigureAwait(false))

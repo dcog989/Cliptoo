@@ -1,5 +1,7 @@
+using System;
 using System.Diagnostics;
 using System.IO;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 using Cliptoo.Core;
@@ -30,7 +32,7 @@ namespace Cliptoo.UI.ViewModels
 
             LogManager.LogDebug($"TRANSFORM_DIAG: Starting transform '{transformType}' for Clip ID {Id}.");
 
-            await Controller.MoveClipToTopAsync(Id).ConfigureAwait(false);
+            await _clipDataService.MoveClipToTopAsync(Id).ConfigureAwait(false);
 
             var fullClip = await GetFullClipAsync().ConfigureAwait(false);
             if (fullClip == null)
@@ -47,7 +49,7 @@ namespace Cliptoo.UI.ViewModels
 
             LogManager.LogDebug($"TRANSFORM_DIAG: Content to transform (is RTF: {fullClip.ClipType == AppConstants.ClipTypes.Rtf}): {contentToTransform.Substring(0, Math.Min(100, contentToTransform.Length))}");
 
-            var transformedContent = Controller.TransformText(contentToTransform, transformType);
+            var transformedContent = _clipboardService.TransformText(contentToTransform, transformType);
             LogManager.LogDebug($"TRANSFORM_DIAG: Transformed content: '{transformedContent}' (Length: {transformedContent.Length})");
 
 
@@ -72,7 +74,7 @@ namespace Cliptoo.UI.ViewModels
 
 
             await _pastingService.PasteTextAsync(transformedContent).ConfigureAwait(false);
-            await Controller.UpdatePasteCountAsync().ConfigureAwait(false);
+            await _clipboardService.UpdatePasteCountAsync().ConfigureAwait(false);
 
             MainViewModel.RefreshClipList();
         }
@@ -85,7 +87,7 @@ namespace Cliptoo.UI.ViewModels
             if (clip == null) return;
 
             await _pastingService.PasteClipAsync(clip, forcePlainText: plainText).ConfigureAwait(false);
-            await Controller.UpdatePasteCountAsync().ConfigureAwait(false);
+            await _clipboardService.UpdatePasteCountAsync().ConfigureAwait(false);
         }
 
         private async Task ExecuteOpen()
@@ -165,14 +167,14 @@ namespace Cliptoo.UI.ViewModels
         {
             IsPinned = !IsPinned;
             LogManager.Log($"Toggling pin for clip: ID={Id}, NewState={(IsPinned ? "Pinned" : "Unpinned")}.");
-            await Controller.TogglePinAsync(Id, IsPinned).ConfigureAwait(false);
+            await _clipDataService.TogglePinAsync(Id, IsPinned).ConfigureAwait(false);
             MainViewModel.HandleClipPinToggle(this);
         }
 
         private async Task DeleteAsync()
         {
             LogManager.Log($"Deleting clip: ID={_clip.Id}.");
-            await Controller.DeleteClipAsync(_clip).ConfigureAwait(false);
+            await _clipDataService.DeleteClipAsync(_clip).ConfigureAwait(false);
             MainViewModel.HandleClipDeletion(this);
         }
     }

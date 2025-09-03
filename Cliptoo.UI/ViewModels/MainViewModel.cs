@@ -1,4 +1,8 @@
+using System;
 using System.Collections.ObjectModel;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Threading;
@@ -204,10 +208,10 @@ namespace Cliptoo.UI.ViewModels
             HideWindowCommand = new RelayCommand(_ => HideWindow());
             LoadMoreClipsCommand = new RelayCommand(async _ => await LoadMoreClipsAsync());
 
-            _clipDataService.NewClipAdded += Controller_NewClipAdded;
-            _clipDataService.HistoryCleared += Controller_HistoryCleared;
+            _clipDataService.NewClipAdded += OnNewClipAdded;
+            _databaseService.HistoryCleared += OnHistoryCleared;
             _settingsService.SettingsChanged += OnSettingsChanged;
-            _databaseService.CachesCleared += Controller_CachesCleared;
+            _databaseService.CachesCleared += OnCachesCleared;
 
             _debounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
             _debounceTimer.Tick += OnDebounceTimerElapsed;
@@ -499,17 +503,17 @@ namespace Cliptoo.UI.ViewModels
         public void Cleanup()
         {
             _currentSettings.PropertyChanged -= CurrentSettings_PropertyChanged;
-            _clipDataService.NewClipAdded -= Controller_NewClipAdded;
-            _clipDataService.HistoryCleared -= Controller_HistoryCleared;
+            _clipDataService.NewClipAdded -= OnNewClipAdded;
+            _databaseService.HistoryCleared -= OnHistoryCleared;
             _settingsService.SettingsChanged -= OnSettingsChanged;
-            _databaseService.CachesCleared -= Controller_CachesCleared;
+            _databaseService.CachesCleared -= OnCachesCleared;
             _debounceTimer.Tick -= OnDebounceTimerElapsed;
             _clearClipsTimer.Tick -= OnClearClipsTimerElapsed;
         }
 
-        private void Controller_NewClipAdded(object? sender, EventArgs e) => OnNewClipAdded();
-        private void Controller_HistoryCleared(object? sender, EventArgs e) => RefreshClipList();
-        private void Controller_CachesCleared(object? sender, EventArgs e) => RefreshClipList();
+        private void OnNewClipAdded(object? sender, EventArgs e) => OnNewClipAdded();
+        private void OnHistoryCleared(object? sender, EventArgs e) => RefreshClipList();
+        private void OnCachesCleared(object? sender, EventArgs e) => RefreshClipList();
 
         private static T? FindVisualChild<T>(DependencyObject? obj) where T : DependencyObject
         {

@@ -1,10 +1,14 @@
+using System;
 using System.Globalization;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Cliptoo.Core;
 using Cliptoo.Core.Configuration;
 using Cliptoo.Core.Database.Models;
+using Cliptoo.Core.Interfaces;
 using Cliptoo.Core.Services;
 using Cliptoo.UI.Helpers;
 using Cliptoo.UI.Services;
@@ -16,11 +20,12 @@ namespace Cliptoo.UI.ViewModels
     public partial class ClipViewModel : ViewModelBase
     {
         private Clip _clip;
-        public CliptooController Controller { get; }
         private readonly IPastingService _pastingService;
         private readonly INotificationService _notificationService;
         private readonly IClipDetailsLoader _clipDetailsLoader;
         private readonly IIconProvider _iconProvider;
+        private readonly IClipDataService _clipDataService;
+        private readonly IClipboardService _clipboardService;
         private readonly IThumbnailService _thumbnailService;
         private readonly IWebMetadataService _webMetadataService;
         private ImageSource? _thumbnailSource;
@@ -96,7 +101,7 @@ namespace Cliptoo.UI.ViewModels
         public string? RtfContent => IsRtf ? Content : null;
 
         public bool CanPasteAsPlainText => IsRtf;
-        public bool CanPasteAsRtf => Controller.Settings.PasteAsPlainText && IsRtf;
+        public bool CanPasteAsRtf => MainViewModel.CurrentSettings.PasteAsPlainText && IsRtf;
         public bool IsEditable => !IsImage && !ClipType.StartsWith("file_", StringComparison.Ordinal) && ClipType != AppConstants.ClipTypes.Folder;
         public bool IsOpenable => !IsSourceMissing && (IsImage || ClipType.StartsWith("file_", StringComparison.Ordinal) || ClipType == AppConstants.ClipTypes.Folder || ClipType == AppConstants.ClipTypes.Link);
         public static string OpenCommandHeader => "Open";
@@ -132,19 +137,20 @@ namespace Cliptoo.UI.ViewModels
         public FontFamily CurrentFontFamily { get => _currentFontFamily; set => SetProperty(ref _currentFontFamily, value); }
         public double CurrentFontSize { get => _currentFontSize; set => SetProperty(ref _currentFontSize, value); }
 
-        public ClipViewModel(Clip clip, CliptooController controller, IPastingService pastingService, INotificationService notificationService, IClipDetailsLoader clipDetailsLoader, string paddingSize, MainViewModel mainViewModel, IIconProvider iconProvider, IThumbnailService thumbnailService, IWebMetadataService webMetadataService)
+        public ClipViewModel(Clip clip, IPastingService pastingService, INotificationService notificationService, IClipDetailsLoader clipDetailsLoader, MainViewModel mainViewModel, IIconProvider iconProvider, IClipDataService clipDataService, IClipboardService clipboardService, IThumbnailService thumbnailService, IWebMetadataService webMetadataService)
         {
             ArgumentNullException.ThrowIfNull(clip);
 
             _clip = clip;
-            Controller = controller;
             _pastingService = pastingService;
             _notificationService = notificationService;
             _clipDetailsLoader = clipDetailsLoader;
             _isPinned = clip.IsPinned;
-            _paddingSize = paddingSize;
+            _paddingSize = mainViewModel.CurrentSettings.ClipItemPadding;
             MainViewModel = mainViewModel;
             _iconProvider = iconProvider;
+            _clipDataService = clipDataService;
+            _clipboardService = clipboardService;
             _thumbnailService = thumbnailService;
             _webMetadataService = webMetadataService;
 
@@ -166,7 +172,7 @@ namespace Cliptoo.UI.ViewModels
         {
             // This now fetches the full clip but does NOT store it in the viewmodel's state.
             // It's used as a temporary object for operations like paste, open, or tooltip generation.
-            var fullClip = await Controller.GetClipByIdAsync(Id).ConfigureAwait(false);
+            var fullClip = await _clipDataService.GetClipByIdAsync(Id).ConfigureAwait(false);
             return fullClip;
         }
 
