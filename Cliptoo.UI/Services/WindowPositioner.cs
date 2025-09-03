@@ -29,7 +29,7 @@ namespace Cliptoo.UI.Services
             var positionType = isTrayRequest ? "tray" : settings.LaunchPosition;
             var dpiScale = GetDpiScale(window);
 
-            switch (positionType)
+            switch (positionType.ToLowerInvariant())
             {
                 case "cursor":
                     GetCursorPos(out POINT point);

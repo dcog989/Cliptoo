@@ -77,12 +77,12 @@ namespace Cliptoo.Core.Configuration
         [DefaultValue(14.0f)]
         public float FontSize { get => _fontSize; set => SetProperty(ref _fontSize, value); }
 
-        private string _clipItemPadding = "standard";
-        [DefaultValue("standard")]
+        private string _clipItemPadding = "Standard";
+        [DefaultValue("Standard")]
         public string ClipItemPadding { get => _clipItemPadding; set => SetProperty(ref _clipItemPadding, value); }
 
-        private string _accentChromaLevel = "vibrant";
-        [DefaultValue("vibrant")]
+        private string _accentChromaLevel = "Vibrant";
+        [DefaultValue("Vibrant")]
         public string AccentChromaLevel { get => _accentChromaLevel; set => SetProperty(ref _accentChromaLevel, value); }
 
         private bool _displayLogo = true;
@@ -91,8 +91,8 @@ namespace Cliptoo.Core.Configuration
         #endregion
 
         #region Window Management
-        private string _launchPosition = "cursor";
-        [DefaultValue("cursor")]
+        private string _launchPosition = "Cursor";
+        [DefaultValue("Cursor")]
         public string LaunchPosition { get => _launchPosition; set => SetProperty(ref _launchPosition, value); }
 
         private double _windowWidth = 400.0;

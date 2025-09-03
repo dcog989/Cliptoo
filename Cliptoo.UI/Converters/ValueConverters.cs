@@ -153,11 +153,17 @@ namespace Cliptoo.UI.Converters
         }
     }
 
+    // UPDATE
     internal class PaddingSizeToThicknessConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            return value switch
+            if (value is not string paddingString)
+            {
+                return new Thickness(2, 6, 4, 6); // default to standard
+            }
+
+            return paddingString.ToLowerInvariant() switch
             {
                 "compact" => new Thickness(0, 2, 2, 2),
                 "luxury" => new Thickness(4, 8, 4, 8),
