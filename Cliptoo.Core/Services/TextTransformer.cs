@@ -17,6 +17,7 @@ namespace Cliptoo.Core.Services
             _transformations = new Dictionary<string, Func<string, string>>
         {
             { AppConstants.TransformTypes.Upper, content => content.ToUpperInvariant() },
+#pragma warning disable CA1308 // Normalize strings to uppercase
             { AppConstants.TransformTypes.Lower, content => content.ToLowerInvariant() },
             { AppConstants.TransformTypes.Trim, content => content.Trim() },
             { AppConstants.TransformTypes.Capitalize, content => CultureInfo.CurrentCulture.TextInfo.ToTitleCase(content.ToLowerInvariant()) },
@@ -53,6 +54,7 @@ namespace Cliptoo.Core.Services
                 }
                 return camelResult.ToString();
             }},
+#pragma warning restore CA1308 // Normalize strings to uppercase
             { AppConstants.TransformTypes.Deslug, content => content.Replace('-', ' ').Replace('_', ' ') },
             { AppConstants.TransformTypes.Lf1, content => content + Environment.NewLine },
             { AppConstants.TransformTypes.Lf2, content => content + Environment.NewLine + Environment.NewLine },

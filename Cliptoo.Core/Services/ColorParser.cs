@@ -59,7 +59,7 @@ namespace Cliptoo.Core.Services
         private static readonly Regex HexLegacyNumRegex = new(@"^0x(?:([a-f\d]{2}))?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static readonly Regex OklchRegex = new(@"^oklch\(\s*([+\-\d.%]+)\s+([+\-\d.%]+)\s+([+\-\d.%a-z°]+)\s*(?:[\/\s]\s*([+\-\d.%]+)\s*)?\)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
-        private static readonly Dictionary<string, string> NamedColors = new() {
+        private static readonly Dictionary<string, string> NamedColors = new(StringComparer.OrdinalIgnoreCase) {
             {"aliceblue", "#f0f8ff"}, {"antiquewhite", "#faebd7"}, {"aqua", "#00ffff"}, {"aquamarine", "#7fffd4"}, {"azure", "#f0ffff"},
             {"beige", "#f5f5dc"}, {"bisque", "#ffe4c4"}, {"black", "#000000"}, {"blanchedalmond", "#ffebcd"}, {"blue", "#0000ff"},
             {"blueviolet", "#8a2be2"}, {"brown", "#a52a2a"}, {"burlywood", "#deb887"}, {"cadetblue", "#5f9ea0"}, {"chartreuse", "#7fff00"},
@@ -98,8 +98,7 @@ namespace Cliptoo.Core.Services
             if (string.IsNullOrWhiteSpace(input)) return false;
 
             var str = input.Trim();
-            var lowerStr = str.ToLowerInvariant();
-            if (NamedColors.TryGetValue(lowerStr, out var hex))
+            if (NamedColors.TryGetValue(str, out var hex))
             {
                 str = hex;
             }
@@ -238,7 +237,7 @@ namespace Cliptoo.Core.Services
 
         private static double ParseHue(string value)
         {
-            var str = value.ToLowerInvariant().Trim();
+            var str = value.ToUpperInvariant().Trim();
             var numStr = Regex.Match(str, @"[+\-\d.]+").Value;
             if (string.IsNullOrEmpty(numStr)) return 0;
 
@@ -257,7 +256,7 @@ namespace Cliptoo.Core.Services
             {
                 normalized = num * 360;
             }
-            else // deg is the default, covers "deg" unit and unitless numbers
+            else // deg is the default, covers "deg" unit and unit-less numbers
             {
                 normalized = num;
             }
