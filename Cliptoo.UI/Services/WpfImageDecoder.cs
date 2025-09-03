@@ -18,7 +18,19 @@ namespace Cliptoo.UI.Services
         {
             if (extension == ".ICO")
             {
-                return await DecodeIcoAsync(stream);
+                var image = await DecodeIcoAsync(stream);
+
+                if (image == null)
+                {
+                    if (stream.CanSeek)
+                    {
+                        stream.Position = 0;
+                    }
+                    // Pass a non-ICO, non-JXL extension to let ImageSharp auto-detect
+                    return await _baseDecoder.DecodeAsync(stream, ".PNG");
+                }
+
+                return image;
             }
 
             return await _baseDecoder.DecodeAsync(stream, extension);

@@ -21,13 +21,9 @@ namespace Cliptoo.Core.Services
         private readonly string _faviconCacheDir;
         private readonly HttpClient _httpClient;
         private readonly PngEncoder _pngEncoder;
-
-        private record FaviconCandidate(string Url, int Priority);
-
         private static readonly Regex LinkTagRegex = new("<link[^>]+>", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-        private static readonly Regex RelAttributeRegex = new("rel\\s*=\\s*['\"][^'\"]*\\bicon\\b[^'\"]*['\"]", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private static readonly Regex RelAttributeRegex = new("rel\\s*=\\s*['\"](?:[^'\"]*\\b(?:icon|apple-touch-icon)\\b[^'\"]*)['\"]", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         private static readonly Regex HrefAttributeRegex = new("href\\s*=\\s*(?:['\"]([^'\"]+)['\"]|([^>\\s]+))", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-        private static readonly Regex SizesAttributeRegex = new("sizes\\s*=\\s*['\"](\\d+x\\d+)['\"]", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         private static readonly Regex TitleRegex = new("<title[^>]*>\\s*(.+?)\\s*</title>", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         private readonly LruCache<string, string> _titleCache;
         private readonly ConcurrentDictionary<string, bool> _failedFaviconUrls = new();
@@ -87,13 +83,13 @@ namespace Cliptoo.Core.Services
             string? finalIconPath = null;
             try
             {
-                LogManager.LogDebug($"Favicon Discovery for {urlString}: Starting Stage 1 (Root Icon Check).");
-                finalIconPath = await TryFetchRootIconsAsync(url, successCachePath).ConfigureAwait(false);
+                LogManager.LogDebug($"Favicon Discovery for {urlString}: Stage 1 (HTML Head Parse).");
+                finalIconPath = await TryFetchIconsFromHtmlAsync(url, successCachePath).ConfigureAwait(false);
 
                 if (finalIconPath == null)
                 {
-                    LogManager.LogDebug($"Favicon Discovery for {urlString}: Stage 1 failed. Starting Stage 2 (HTML Head Parse).");
-                    finalIconPath = await TryFetchIconsFromHtmlAsync(url, successCachePath).ConfigureAwait(false);
+                    LogManager.LogDebug($"Favicon Discovery for {urlString}: Stage 1 failed. Stage 2 (Root Icon Check).");
+                    finalIconPath = await TryFetchRootIconAsync(url, successCachePath).ConfigureAwait(false);
                 }
 
                 if (finalIconPath != null)
@@ -133,16 +129,12 @@ namespace Cliptoo.Core.Services
             return finalIconPath;
         }
 
-        private async Task<string?> TryFetchRootIconsAsync(Uri baseUri, string cachePath)
+        private async Task<string?> TryFetchRootIconAsync(Uri baseUri, string cachePath)
         {
-            var rootIconNames = new[] { "/favicon.ico", "/favicon.png", "/favicon.svg", "/favicon.webp" };
-            foreach (var iconName in rootIconNames)
+            var faviconUrl = new Uri(baseUri, "/favicon.ico");
+            if (await FetchAndProcessFavicon(faviconUrl.ToString(), cachePath).ConfigureAwait(false))
             {
-                var faviconUrl = new Uri(baseUri, iconName);
-                if (await FetchAndProcessFavicon(faviconUrl.ToString(), cachePath).ConfigureAwait(false))
-                {
-                    return cachePath;
-                }
+                return cachePath;
             }
             return null;
         }
@@ -171,10 +163,8 @@ namespace Cliptoo.Core.Services
                 return null;
             }
 
-
             if (string.IsNullOrEmpty(headContent)) return null;
 
-            var candidates = new List<FaviconCandidate>();
             foreach (Match linkMatch in LinkTagRegex.Matches(headContent))
             {
                 var linkTag = linkMatch.Value;
@@ -187,14 +177,10 @@ namespace Cliptoo.Core.Services
                 var pathOnly = href.Split('?').First();
                 var extension = Path.GetExtension(pathOnly).ToUpperInvariant();
 
-                if (extension != ".PNG" && extension != ".ICO" && extension != ".WEBP" && extension != ".SVG")
+                if (extension != ".PNG" && extension != ".ICO" && extension != ".SVG" && extension != ".WEBP")
                 {
                     continue;
                 }
-
-                var sizesMatch = SizesAttributeRegex.Match(linkTag);
-                var size = sizesMatch.Success ? sizesMatch.Groups[1].Value : string.Empty;
-                var priority = GetPriorityFromSize(size);
 
                 string fullUrl;
                 if (href.StartsWith("//", StringComparison.Ordinal))
@@ -206,14 +192,9 @@ namespace Cliptoo.Core.Services
                     fullUrl = new Uri(pageUri, href).ToString();
                 }
 
-                candidates.Add(new FaviconCandidate(fullUrl, priority));
-            }
-
-            foreach (var candidate in candidates.OrderBy(c => c.Priority))
-            {
-                if (await FetchAndProcessFavicon(candidate.Url, cachePath).ConfigureAwait(false))
+                if (await FetchAndProcessFavicon(fullUrl, cachePath).ConfigureAwait(false))
                 {
-                    return cachePath;
+                    return cachePath; // Return on first success
                 }
             }
 
@@ -277,18 +258,6 @@ namespace Cliptoo.Core.Services
             return content.ToString();
         }
 
-
-        private static int GetPriorityFromSize(string size)
-        {
-            return size switch
-            {
-                "32x32" => 0,
-                "48x48" => 1,
-                "24x24" => 2,
-                var s when !string.IsNullOrEmpty(s) => 3,
-                _ => 4
-            };
-        }
 
         public async Task<string?> GetPageTitleAsync(Uri url)
         {
@@ -388,6 +357,13 @@ namespace Cliptoo.Core.Services
                 }
 
                 if (!Uri.TryCreate(faviconUrl, UriKind.Absolute, out var faviconUri)) return false;
+
+                if (faviconUri.Scheme != Uri.UriSchemeHttp && faviconUri.Scheme != Uri.UriSchemeHttps)
+                {
+                    LogManager.LogDebug($"Unsupported URI scheme '{faviconUri.Scheme}' for favicon discovery. Skipping.");
+                    return false;
+                }
+
                 var response = await _httpClient.GetAsync(faviconUri).ConfigureAwait(false);
 
                 if (!response.IsSuccessStatusCode)
@@ -415,17 +391,18 @@ namespace Cliptoo.Core.Services
                 }
                 else
                 {
-                    var contentStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
-                    await using (contentStream.ConfigureAwait(false))
+                    using var contentStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
+                    using var memoryStream = new MemoryStream();
+                    await contentStream.CopyToAsync(memoryStream).ConfigureAwait(false);
+                    memoryStream.Position = 0;
+
+                    using var image = await _imageDecoder.DecodeAsync(memoryStream, extension).ConfigureAwait(false);
+                    if (image != null)
                     {
-                        using var image = await _imageDecoder.DecodeAsync(contentStream, extension).ConfigureAwait(false);
-                        if (image != null)
-                        {
-                            image.Mutate(x => x.Resize(ThumbnailSize, ThumbnailSize));
-                            using var ms = new MemoryStream();
-                            await image.SaveAsPngAsync(ms, _pngEncoder).ConfigureAwait(false);
-                            outputBytes = ms.ToArray();
-                        }
+                        image.Mutate(x => x.Resize(ThumbnailSize, ThumbnailSize));
+                        using var ms = new MemoryStream();
+                        await image.SaveAsPngAsync(ms, _pngEncoder).ConfigureAwait(false);
+                        outputBytes = ms.ToArray();
                     }
                 }
 
@@ -479,7 +456,7 @@ namespace Cliptoo.Core.Services
                     return null;
                 }
 
-                await using var stream = new MemoryStream(bytes);
+                using var stream = new MemoryStream(bytes);
                 byte[]? outputBytes = null;
 
                 if (extension == ".SVG")
@@ -516,11 +493,11 @@ namespace Cliptoo.Core.Services
 
         private static string GetExtensionFromMediaType(string mediaType)
         {
-            if (mediaType.Contains("svg")) return ".SVG";
-            if (mediaType.Contains("png")) return ".PNG";
-            if (mediaType.Contains("vnd.microsoft.icon") || mediaType.Contains("x-icon")) return ".ICO";
-            if (mediaType.Contains("webp")) return ".WEBP";
-            if (mediaType.Contains("jpeg") || mediaType.Contains("jpg")) return ".JPG";
+            if (mediaType.Contains("svg", StringComparison.OrdinalIgnoreCase)) return ".SVG";
+            if (mediaType.Contains("png", StringComparison.OrdinalIgnoreCase)) return ".PNG";
+            if (mediaType.Contains("vnd.microsoft.icon", StringComparison.OrdinalIgnoreCase) || mediaType.Contains("x-icon", StringComparison.OrdinalIgnoreCase)) return ".ICO";
+            if (mediaType.Contains("webp", StringComparison.OrdinalIgnoreCase)) return ".WEBP";
+            if (mediaType.Contains("jpeg", StringComparison.OrdinalIgnoreCase) || mediaType.Contains("jpg", StringComparison.OrdinalIgnoreCase)) return ".JPG";
             return string.Empty;
         }
 
