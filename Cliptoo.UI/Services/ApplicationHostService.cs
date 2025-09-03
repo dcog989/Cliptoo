@@ -67,7 +67,7 @@ namespace Cliptoo.UI.Services
 
                         var settings = _controller.Settings;
                         _currentHotkey = settings.Hotkey;
-                        LogManager.Log("Settings loaded.");
+                        LogManager.LogDebug("Settings loaded.");
 
                         _mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
                         _mainWindow.MaxHeight = SystemParameters.WorkArea.Height * 0.9;
