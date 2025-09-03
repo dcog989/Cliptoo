@@ -10,6 +10,6 @@ namespace Cliptoo.Core.Services
         Task<string?> GetPageTitleAsync(Uri url);
         void ClearCache();
         void ClearCacheForUrl(Uri url);
-        Task<int> PruneCacheAsync(IAsyncEnumerable<string> validUrls);
+        Task<int> PruneCacheAsync();
     }
 }

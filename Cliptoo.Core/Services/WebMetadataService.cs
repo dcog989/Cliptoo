@@ -23,7 +23,7 @@ namespace Cliptoo.Core.Services
         private readonly HttpClient _httpClient;
         private readonly PngEncoder _pngEncoder;
         private static readonly Regex LinkTagRegex = new("<link[^>]+>", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-        private static readonly Regex RelAttributeRegex = new("rel\\s*=\\s*['\"](?:[^'\"]*\\b(?:icon|apple-touch-icon)\\b[^'\"]*)['\"]", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private static readonly Regex RelAttributeRegex = new("rel\\s*=\\s*(?:['\"](?<v>[^'\"]*)['\"]|(?<v>[^>\\s]+))", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         private static readonly Regex HrefAttributeRegex = new("href\\s*=\\s*(?:['\"]([^'\"]+)['\"]|([^>\\s]+))", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         private static readonly Regex TitleRegex = new("<title[^>]*>\\s*(.+?)\\s*</title>", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         private readonly LruCache<string, string> _titleCache;
@@ -48,7 +48,7 @@ namespace Cliptoo.Core.Services
         public async Task<string?> GetFaviconAsync(Uri url)
         {
             if (url is null) return null;
-            var urlString = url.ToString();
+            var urlString = url.GetLeftPart(UriPartial.Authority);
             if (_failedFaviconUrls.ContainsKey(urlString))
             {
                 LogManager.LogDebug($"FAVICON_CACHE_DIAG: Hit (failure cache) for '{urlString}'.");
@@ -191,29 +191,32 @@ namespace Cliptoo.Core.Services
             }
             catch (TaskCanceledException)
             {
-                LogManager.LogDebug($"HTML head fetch for {pageUri} was cancelled.");
+                LogManager.LogDebug($"HTML head fetch for {pageUri} was canceled.");
                 return null;
             }
 
-
             if (string.IsNullOrEmpty(headContent)) return null;
 
+            var iconUrls = new List<string>();
             foreach (Match linkMatch in LinkTagRegex.Matches(headContent))
             {
                 var linkTag = linkMatch.Value;
-                if (!RelAttributeRegex.IsMatch(linkTag)) continue;
+                var relMatch = RelAttributeRegex.Match(linkTag);
+                if (!relMatch.Success) continue;
+
+                var relValue = relMatch.Groups["v"].Value;
+                if (!(relValue.Contains("icon", StringComparison.OrdinalIgnoreCase) ||
+                        relValue.Contains("shortcut", StringComparison.OrdinalIgnoreCase) ||
+                        relValue.Contains("apple-touch-icon", StringComparison.OrdinalIgnoreCase)))
+                {
+                    continue;
+                }
 
                 var hrefMatch = HrefAttributeRegex.Match(linkTag);
                 if (!hrefMatch.Success) continue;
 
                 var href = hrefMatch.Groups[1].Success ? hrefMatch.Groups[1].Value : hrefMatch.Groups[2].Value;
-                var pathOnly = href.Split('?').First();
-                var extension = Path.GetExtension(pathOnly).ToUpperInvariant();
-
-                if (extension != ".PNG" && extension != ".ICO" && extension != ".SVG" && extension != ".WEBP")
-                {
-                    continue;
-                }
+                if (string.IsNullOrWhiteSpace(href)) continue;
 
                 string fullUrl;
                 if (href.StartsWith("//", StringComparison.Ordinal))
@@ -224,10 +227,26 @@ namespace Cliptoo.Core.Services
                 {
                     fullUrl = new Uri(pageUri, href).ToString();
                 }
+                iconUrls.Add(fullUrl);
+            }
 
-                if (await FetchAndProcessFavicon(fullUrl, cachePath).ConfigureAwait(false))
+            if (iconUrls.Count == 0) return null;
+
+            using var cts = new CancellationTokenSource();
+            using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, timeoutCts.Token);
+
+            var tasks = iconUrls.Select(url => FetchAndProcessFavicon(url, cachePath, linkedCts.Token)).ToList();
+
+            while (tasks.Count > 0)
+            {
+                var completedTask = await Task.WhenAny(tasks).ConfigureAwait(false);
+                tasks.Remove(completedTask);
+
+                if (await completedTask.ConfigureAwait(false))
                 {
-                    return cachePath; // Return on first success
+                    await cts.CancelAsync().ConfigureAwait(false);
+                    return cachePath;
                 }
             }
 
@@ -381,6 +400,7 @@ namespace Cliptoo.Core.Services
 
         private async Task<bool> FetchAndProcessFavicon(string faviconUrl, string cachePath, CancellationToken cancellationToken = default)
         {
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             try
             {
                 LogManager.LogDebug($"Attempting to fetch favicon: {faviconUrl}");
@@ -463,6 +483,11 @@ namespace Cliptoo.Core.Services
             catch (ImageFormatException ex)
             {
                 LogManager.Log(ex, $"Favicon fetch/process failed for {faviconUrl}.");
+            }
+            finally
+            {
+                stopwatch.Stop();
+                LogManager.LogDebug($"PERF_DIAG: Individual favicon fetch for '{faviconUrl}' completed in {stopwatch.ElapsedMilliseconds}ms.");
             }
             return false;
         }
@@ -558,7 +583,7 @@ namespace Cliptoo.Core.Services
         public void ClearCacheForUrl(Uri url)
         {
             if (url is null) return;
-            var urlString = url.ToString();
+            var urlString = url.GetLeftPart(UriPartial.Authority);
 
             try
             {
@@ -584,26 +609,44 @@ namespace Cliptoo.Core.Services
             }
         }
 
-        public async Task<int> PruneCacheAsync(IAsyncEnumerable<string> validUrls)
+        public async Task<int> PruneCacheAsync()
         {
-            ArgumentNullException.ThrowIfNull(validUrls);
-            var validCacheFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            var enumerator = validUrls.GetAsyncEnumerator();
+            int count = 0;
+            if (!Directory.Exists(_faviconCacheDir)) return 0;
+
+            var filesToDelete = new List<string>();
+            var cutoff = DateTime.UtcNow.AddDays(-90);
+
             try
             {
-                while (await enumerator.MoveNextAsync().ConfigureAwait(false))
+                foreach (var file in Directory.EnumerateFiles(_faviconCacheDir))
                 {
-                    var url = enumerator.Current;
-                    validCacheFiles.Add(ServiceUtils.GetCachePath(url, _faviconCacheDir, ".png"));
-                    validCacheFiles.Add(ServiceUtils.GetCachePath(url, _faviconCacheDir, ".failed"));
+                    var fileInfo = new FileInfo(file);
+                    if (fileInfo.LastAccessTimeUtc < cutoff)
+                    {
+                        filesToDelete.Add(file);
+                    }
                 }
             }
-            finally
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or DirectoryNotFoundException)
             {
-                await enumerator.DisposeAsync().ConfigureAwait(false);
+                LogManager.Log(ex, $"Failed to enumerate files for pruning in {_faviconCacheDir}");
+                return 0;
             }
 
-            return await ServiceUtils.PruneDirectoryAsync(_faviconCacheDir, validCacheFiles).ConfigureAwait(false);
+            foreach (var file in filesToDelete)
+            {
+                try
+                {
+                    await Task.Run(() => File.Delete(file)).ConfigureAwait(false);
+                    count++;
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    LogManager.Log(ex, $"Could not delete orphaned cache file: {file}");
+                }
+            }
+            return count;
         }
 
         protected virtual void Dispose(bool disposing)

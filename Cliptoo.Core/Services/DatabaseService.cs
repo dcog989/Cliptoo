@@ -146,8 +146,7 @@ namespace Cliptoo.Core.Services
                 LogManager.Log($"Image cache cleanup complete. Removed {prunedImageCount} orphaned files.");
             }
 
-            var validLinkUrlsStream = _dbManager.GetAllLinkClipUrlsAsync();
-            int prunedFaviconCount = await _webMetadataService.PruneCacheAsync(validLinkUrlsStream).ConfigureAwait(false);
+            int prunedFaviconCount = await _webMetadataService.PruneCacheAsync().ConfigureAwait(false);
             if (prunedFaviconCount > 0)
             {
                 LogManager.Log($"Favicon cache cleanup complete. Removed {prunedFaviconCount} orphaned files.");
