@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Linq;
 using Microsoft.Data.Sqlite;
 using Cliptoo.Core.Configuration; // keep for logmanager
+using System.Text.RegularExpressions;
 
 namespace Cliptoo.Core.Database
 {
@@ -14,20 +15,29 @@ namespace Cliptoo.Core.Database
 
         public static void BuildGetClipsQuery(SqliteCommand command, uint limit, uint offset, string searchTerm, string filterType)
         {
-
             var queryBuilder = new System.Text.StringBuilder();
             var conditions = new List<string>();
             string orderBy;
 
+            var sanitizedTerms = new List<string>();
             if (!string.IsNullOrWhiteSpace(searchTerm))
+            {
+                sanitizedTerms = searchTerm.Split(_spaceSeparator, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(term =>
+                    {
+                        var sanitized = Regex.Replace(term, @"^[^\p{L}\p{N}]+", "");
+                        return sanitized.Replace("\"", "\"\"", StringComparison.Ordinal);
+                    })
+                    .Where(sanitized => !string.IsNullOrEmpty(sanitized))
+                    .ToList();
+            }
+
+            if (sanitizedTerms.Any())
             {
                 queryBuilder.Append($"SELECT {columns}, snippet(clips_fts, 0, '[HL]', '[/HL]', '...', 60) as MatchContext FROM clips c JOIN clips_fts fts ON c.Id = fts.rowid ");
                 conditions.Add("clips_fts MATCH @SearchTerm");
-
-                var ftsQuery = string.Join(" AND ", searchTerm.Split(_spaceSeparator, StringSplitOptions.RemoveEmptyEntries).Select(term => $"{term.Replace("\"", "\"\"", StringComparison.Ordinal)}*"));
-
+                var ftsQuery = string.Join(" AND ", sanitizedTerms.Select(term => $"{term}*"));
                 command.Parameters.AddWithValue("@SearchTerm", ftsQuery);
-
                 orderBy = "ORDER BY c.IsPinned DESC, rank, c.Timestamp DESC";
             }
             else
