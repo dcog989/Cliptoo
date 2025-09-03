@@ -134,10 +134,13 @@ namespace Cliptoo.Core.Services
         {
             var rootIconNames = new[] { "/favicon.ico", "/favicon.png", "/favicon.svg" };
             using var cts = new CancellationTokenSource();
+            using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, timeoutCts.Token);
+
             var tasks = rootIconNames.Select(iconName =>
             {
                 var faviconUrl = new Uri(baseUri, iconName);
-                return FetchAndProcessFavicon(faviconUrl.ToString(), cachePath, cts.Token);
+                return FetchAndProcessFavicon(faviconUrl.ToString(), cachePath, linkedCts.Token);
             }).ToList();
 
             while (tasks.Count > 0)
@@ -172,11 +175,17 @@ namespace Cliptoo.Core.Services
                     await stream.DisposeAsync().ConfigureAwait(false);
                 }
             }
-            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+            catch (HttpRequestException ex)
             {
-                LogManager.Log(ex, $"Failed to fetch HTML head for {pageUri}");
+                LogManager.LogDebug($"Failed to fetch HTML head for {pageUri}: {ex.Message}");
                 return null;
             }
+            catch (TaskCanceledException)
+            {
+                LogManager.LogDebug($"HTML head fetch for {pageUri} was canceled.");
+                return null;
+            }
+
 
             if (string.IsNullOrEmpty(headContent)) return null;
 
@@ -436,7 +445,11 @@ namespace Cliptoo.Core.Services
             {
                 LogManager.LogDebug($"Favicon URI scheme not supported for {faviconUrl}: {ex.Message}");
             }
-            catch (Exception ex) when (ex is TaskCanceledException or ImageFormatException)
+            catch (TaskCanceledException)
+            {
+                LogManager.LogDebug($"Favicon fetch for {faviconUrl} was canceled (another task likely succeeded).");
+            }
+            catch (ImageFormatException ex)
             {
                 LogManager.Log(ex, $"Favicon fetch/process failed for {faviconUrl}.");
             }
