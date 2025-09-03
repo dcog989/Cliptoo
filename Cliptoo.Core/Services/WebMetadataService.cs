@@ -182,7 +182,7 @@ namespace Cliptoo.Core.Services
             }
             catch (TaskCanceledException)
             {
-                LogManager.LogDebug($"HTML head fetch for {pageUri} was canceled.");
+                LogManager.LogDebug($"HTML head fetch for {pageUri} was cancelled.");
                 return null;
             }
 
@@ -447,7 +447,7 @@ namespace Cliptoo.Core.Services
             }
             catch (TaskCanceledException)
             {
-                LogManager.LogDebug($"Favicon fetch for {faviconUrl} was canceled (another task likely succeeded).");
+                LogManager.LogDebug($"Favicon fetch for {faviconUrl} was cancelled (another task likely succeeded).");
             }
             catch (ImageFormatException ex)
             {
