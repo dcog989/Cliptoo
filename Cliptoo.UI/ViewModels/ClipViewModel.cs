@@ -293,7 +293,26 @@ namespace Cliptoo.UI.ViewModels
             {
                 try
                 {
-                    var bytes = await File.ReadAllBytesAsync(newThumbnailPath).ConfigureAwait(false);
+                    byte[]? bytes = null;
+                    for (int i = 0; i < 3; i++)
+                    {
+                        try
+                        {
+                            bytes = await File.ReadAllBytesAsync(newThumbnailPath).ConfigureAwait(false);
+                            break;
+                        }
+                        catch (IOException)
+                        {
+                            await Task.Delay(50).ConfigureAwait(false);
+                        }
+                    }
+                    if (bytes == null)
+                    {
+                        ThumbnailSource = null;
+                        HasThumbnail = false;
+                        return;
+                    }
+
                     using var ms = new MemoryStream(bytes);
 
                     var bitmapImage = new BitmapImage();
