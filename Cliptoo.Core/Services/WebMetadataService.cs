@@ -6,6 +6,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using Cliptoo.Core.Configuration;
 using SixLabors.ImageSharp;
@@ -131,10 +132,24 @@ namespace Cliptoo.Core.Services
 
         private async Task<string?> TryFetchRootIconAsync(Uri baseUri, string cachePath)
         {
-            var faviconUrl = new Uri(baseUri, "/favicon.ico");
-            if (await FetchAndProcessFavicon(faviconUrl.ToString(), cachePath).ConfigureAwait(false))
+            var rootIconNames = new[] { "/favicon.ico", "/favicon.png", "/favicon.svg" };
+            using var cts = new CancellationTokenSource();
+            var tasks = rootIconNames.Select(iconName =>
             {
-                return cachePath;
+                var faviconUrl = new Uri(baseUri, iconName);
+                return FetchAndProcessFavicon(faviconUrl.ToString(), cachePath, cts.Token);
+            }).ToList();
+
+            while (tasks.Any())
+            {
+                var completedTask = await Task.WhenAny(tasks).ConfigureAwait(false);
+                tasks.Remove(completedTask);
+
+                if (await completedTask.ConfigureAwait(false))
+                {
+                    cts.Cancel(); // Cancel remaining tasks
+                    return cachePath;
+                }
             }
             return null;
         }
@@ -344,7 +359,7 @@ namespace Cliptoo.Core.Services
             return null;
         }
 
-        private async Task<bool> FetchAndProcessFavicon(string faviconUrl, string cachePath)
+        private async Task<bool> FetchAndProcessFavicon(string faviconUrl, string cachePath, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -364,7 +379,7 @@ namespace Cliptoo.Core.Services
                     return false;
                 }
 
-                var response = await _httpClient.GetAsync(faviconUri).ConfigureAwait(false);
+                var response = await _httpClient.GetAsync(faviconUri, cancellationToken).ConfigureAwait(false);
 
                 if (!response.IsSuccessStatusCode)
                 {

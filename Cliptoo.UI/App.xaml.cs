@@ -57,92 +57,101 @@ namespace Cliptoo.UI
             }
 
             LogManager.LogDebug("App.OnStartup called.");
-            _host = Host.CreateDefaultBuilder()
-                .ConfigureServices((context, services) =>
-                {
-                    var appDataRoamingPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-                    var appDataLocalPath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            try
+            {
+                _host = Host.CreateDefaultBuilder()
+                    .ConfigureServices((context, services) =>
+                    {
+                        var appDataRoamingPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                        var appDataLocalPath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
 
-                    var dbFolder = Path.Combine(appDataRoamingPath, "Cliptoo", "Database");
-                    Directory.CreateDirectory(dbFolder);
-                    var dbPath = Path.Combine(dbFolder, "cliptoo_history.db");
+                        var dbFolder = Path.Combine(appDataRoamingPath, "Cliptoo", "Database");
+                        Directory.CreateDirectory(dbFolder);
+                        var dbPath = Path.Combine(dbFolder, "cliptoo_history.db");
 
-                    services.AddSingleton<IDatabaseInitializer>(new DatabaseInitializer(dbPath));
-                    services.AddSingleton<IClipRepository>(new ClipRepository(dbPath));
-                    services.AddSingleton<IDatabaseMaintenanceService>(new DatabaseMaintenanceService(dbPath));
-                    services.AddSingleton<IDatabaseStatsService>(new DatabaseStatsService(dbPath));
-                    services.AddSingleton<IDbManager, DbManager>();
+                        services.AddSingleton<IDatabaseInitializer>(new DatabaseInitializer(dbPath));
+                        services.AddSingleton<IClipRepository>(new ClipRepository(dbPath));
+                        services.AddSingleton<IDatabaseMaintenanceService>(new DatabaseMaintenanceService(dbPath));
+                        services.AddSingleton<IDatabaseStatsService>(new DatabaseStatsService(dbPath));
+                        services.AddSingleton<IDbManager, DbManager>();
 
-                    services.AddSingleton<CliptooController>();
-                    services.AddSingleton<ISettingsService>(sp => sp.GetRequiredService<CliptooController>());
-                    services.AddSingleton<IClipDataService>(sp => sp.GetRequiredService<CliptooController>());
-                    services.AddSingleton<IClipboardService>(sp => sp.GetRequiredService<CliptooController>());
-                    services.AddSingleton<IDatabaseService>(sp => sp.GetRequiredService<CliptooController>());
-                    services.AddSingleton<IAppInteractionService>(sp => sp.GetRequiredService<CliptooController>());
+                        services.AddSingleton<CliptooController>();
+                        services.AddSingleton<ISettingsService>(sp => sp.GetRequiredService<CliptooController>());
+                        services.AddSingleton<IClipDataService>(sp => sp.GetRequiredService<CliptooController>());
+                        services.AddSingleton<IClipboardService>(sp => sp.GetRequiredService<CliptooController>());
+                        services.AddSingleton<IDatabaseService>(sp => sp.GetRequiredService<CliptooController>());
+                        services.AddSingleton<IAppInteractionService>(sp => sp.GetRequiredService<CliptooController>());
 
-                    services.AddSingleton<ISettingsManager>(new SettingsManager(appDataRoamingPath));
-                    services.AddSingleton<IFileTypeClassifier>(new FileTypeClassifier(appDataRoamingPath));
-                    services.AddSingleton<IContentProcessor, ContentProcessor>();
-                    services.AddSingleton<ImageSharpDecoder>();
-                    services.AddSingleton<IImageDecoder, WpfImageDecoder>();
-                    services.AddSingleton<IThumbnailService>(sp => new ThumbnailService(appDataLocalPath, sp.GetRequiredService<IImageDecoder>()));
-                    services.AddSingleton<IWebMetadataService>(sp => new WebMetadataService(appDataLocalPath, sp.GetRequiredService<IImageDecoder>()));
-                    services.AddSingleton<ISyntaxHighlighter, SyntaxHighlighter>();
-                    services.AddSingleton<IClipboardMonitor, ClipboardMonitor>();
-                    services.AddSingleton<ITextTransformer, TextTransformer>();
-                    services.AddSingleton<ICompareToolService, CompareToolService>();
-                    services.AddSingleton<IconProvider>(sp => new IconProvider(sp.GetRequiredService<ISettingsManager>(), appDataLocalPath));
-                    services.AddSingleton<IIconProvider>(sp => sp.GetRequiredService<IconProvider>());
-                    services.AddSingleton<Core.Services.IIconCacheManager>(sp => sp.GetRequiredService<IconProvider>());
+                        services.AddSingleton<ISettingsManager>(new SettingsManager(appDataRoamingPath));
+                        services.AddSingleton<IFileTypeClassifier>(new FileTypeClassifier(appDataRoamingPath));
+                        services.AddSingleton<IContentProcessor, ContentProcessor>();
+                        services.AddSingleton<ImageSharpDecoder>();
+                        services.AddSingleton<IImageDecoder, WpfImageDecoder>();
+                        services.AddSingleton<IThumbnailService>(sp => new ThumbnailService(appDataLocalPath, sp.GetRequiredService<IImageDecoder>()));
+                        services.AddSingleton<IWebMetadataService>(sp => new WebMetadataService(appDataLocalPath, sp.GetRequiredService<IImageDecoder>()));
+                        services.AddSingleton<ISyntaxHighlighter, SyntaxHighlighter>();
+                        services.AddSingleton<IClipboardMonitor, ClipboardMonitor>();
+                        services.AddSingleton<ITextTransformer, TextTransformer>();
+                        services.AddSingleton<ICompareToolService, CompareToolService>();
+                        services.AddSingleton<IconProvider>(sp => new IconProvider(sp.GetRequiredService<ISettingsManager>(), appDataLocalPath));
+                        services.AddSingleton<IIconProvider>(sp => sp.GetRequiredService<IconProvider>());
+                        services.AddSingleton<Core.Services.IIconCacheManager>(sp => sp.GetRequiredService<IconProvider>());
 
-                    services.AddSingleton<ISnackbarService, SnackbarService>();
-                    services.AddSingleton<INotificationService, NotificationService>();
-                    services.AddSingleton<IFontProvider, FontProvider>();
-                    services.AddSingleton<IClipViewModelFactory, ClipViewModelFactory>();
-                    services.AddSingleton<IClipDetailsLoader, ClipDetailsLoader>();
-                    services.AddSingleton<IPastingService, PastingService>();
-                    services.AddSingleton<IWindowPositioner, WindowPositioner>();
-                    services.AddSingleton<IStartupManagerService, StartupManagerService>();
-                    services.AddSingleton<INotifyIconService, CustomNotifyIconService>();
-                    services.AddSingleton<IContentDialogService, ContentDialogService>();
-                    services.AddHostedService<ApplicationHostService>();
+                        services.AddSingleton<ISnackbarService, SnackbarService>();
+                        services.AddSingleton<INotificationService, NotificationService>();
+                        services.AddSingleton<IFontProvider, FontProvider>();
+                        services.AddSingleton<IClipViewModelFactory, ClipViewModelFactory>();
+                        services.AddSingleton<IClipDetailsLoader, ClipDetailsLoader>();
+                        services.AddSingleton<IPastingService, PastingService>();
+                        services.AddSingleton<IWindowPositioner, WindowPositioner>();
+                        services.AddSingleton<IStartupManagerService, StartupManagerService>();
+                        services.AddSingleton<INotifyIconService, CustomNotifyIconService>();
+                        services.AddSingleton<IContentDialogService, ContentDialogService>();
+                        services.AddHostedService<ApplicationHostService>();
 
-                    services.AddSingleton<MainViewModel>(sp => new MainViewModel(
-                        sp.GetRequiredService<IClipDataService>(),
-                        sp.GetRequiredService<IClipboardService>(),
-                        sp.GetRequiredService<ISettingsService>(),
-                        sp.GetRequiredService<IDatabaseService>(),
-                        sp.GetRequiredService<IAppInteractionService>(),
-                        sp,
-                        sp.GetRequiredService<IClipViewModelFactory>(),
-                        sp.GetRequiredService<IPastingService>(),
-                        sp.GetRequiredService<IFontProvider>(),
-                        sp.GetRequiredService<INotificationService>(),
-                        sp.GetRequiredService<IIconProvider>()
-                    ));
-                    services.AddTransient<SettingsViewModel>(sp => new SettingsViewModel(
-                        sp.GetRequiredService<IDatabaseService>(),
-                        sp.GetRequiredService<ISettingsService>(),
-                        sp.GetRequiredService<IContentDialogService>(),
-                        sp.GetRequiredService<IStartupManagerService>(),
-                        sp,
-                        sp.GetRequiredService<IFontProvider>(),
-                        sp.GetRequiredService<IIconProvider>()
-                    ));
+                        services.AddSingleton<MainViewModel>(sp => new MainViewModel(
+                            sp.GetRequiredService<IClipDataService>(),
+                            sp.GetRequiredService<IClipboardService>(),
+                            sp.GetRequiredService<ISettingsService>(),
+                            sp.GetRequiredService<IDatabaseService>(),
+                            sp.GetRequiredService<IAppInteractionService>(),
+                            sp,
+                            sp.GetRequiredService<IClipViewModelFactory>(),
+                            sp.GetRequiredService<IPastingService>(),
+                            sp.GetRequiredService<IFontProvider>(),
+                            sp.GetRequiredService<INotificationService>(),
+                            sp.GetRequiredService<IIconProvider>()
+                        ));
+                        services.AddTransient<SettingsViewModel>(sp => new SettingsViewModel(
+                            sp.GetRequiredService<IDatabaseService>(),
+                            sp.GetRequiredService<ISettingsService>(),
+                            sp.GetRequiredService<IContentDialogService>(),
+                            sp.GetRequiredService<IStartupManagerService>(),
+                            sp,
+                            sp.GetRequiredService<IFontProvider>(),
+                            sp.GetRequiredService<IIconProvider>()
+                        ));
 
-                    services.AddSingleton<MainWindow>();
-                    services.AddTransient<SettingsWindow>();
-                    services.AddTransient<ClearHistoryDialog>();
-                    services.AddTransient<ClearOversizedDialog>();
-                    services.AddTransient<ClipViewerWindow>();
-                    services.AddTransient<AcknowledgementsWindow>();
-                }).Build();
+                        services.AddSingleton<MainWindow>();
+                        services.AddTransient<SettingsWindow>();
+                        services.AddTransient<ClearHistoryDialog>();
+                        services.AddTransient<ClearOversizedDialog>();
+                        services.AddTransient<ClipViewerWindow>();
+                        services.AddTransient<AcknowledgementsWindow>();
+                    }).Build();
 
-            Services = _host.Services;
-            LogManager.LogDebug("Host built and services configured.");
+                Services = _host.Services;
+                LogManager.LogDebug("Host built and services configured.");
 
-            await _host.StartAsync();
-            LogManager.LogDebug("Host started.");
+                await _host.StartAsync();
+                LogManager.LogDebug("Host started.");
+            }
+            catch (Exception ex)
+            {
+                LogManager.Log(ex, "A fatal error occurred during application startup.");
+                MessageBox.Show($"A fatal error occurred during application startup and has been logged. The application will now exit.\n\nError: {ex.Message}", "Cliptoo Startup Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                Application.Current.Shutdown();
+            }
         }
 
         protected override async void OnExit(ExitEventArgs e)
