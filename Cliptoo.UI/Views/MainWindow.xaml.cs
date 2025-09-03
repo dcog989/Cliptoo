@@ -74,10 +74,14 @@ namespace Cliptoo.UI.Views
 
         protected override void OnClosed(EventArgs e)
         {
-            var settings = _settingsService.Settings;
-            settings.WindowWidth = Math.Round(this.Width);
-            settings.WindowHeight = Math.Round(this.Height);
-            _settingsService.SaveSettings();
+            _viewModel.ListScrolledToTopRequest -= OnListScrolledToTopRequest;
+            if (_settingsService != null)
+            {
+                var settings = _settingsService.Settings;
+                settings.WindowWidth = Math.Round(this.Width);
+                settings.WindowHeight = Math.Round(this.Height);
+                _settingsService.SaveSettings();
+            }
 
             base.OnClosed(e);
             if (Application.Current != null)
