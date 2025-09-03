@@ -19,7 +19,7 @@
     </UserControl.Resources>
     <ScrollViewer Padding="15,20,15,15" VerticalScrollBarVisibility="Auto">
         <StackPanel>
-            <StackPanel Margin="0,0,0,0" Orientation="Horizontal">
+            <StackPanel Margin="0,0,10,0" Orientation="Horizontal">
                 <TextBlock Style="{StaticResource SettingLabel}" Text="Launch at" />
                 <ComboBox
                     HorizontalAlignment="Left"
@@ -36,9 +36,18 @@
                     helpers:HotkeyInputBehavior.IsEnabled="True"
                     Style="{StaticResource CaptureHotkeyStyle}"
                     Text="{Binding Hotkey, Mode=OneWay}" />
+                <TextBlock
+                    Margin="10,0,10,0"
+                    Style="{StaticResource SettingLabel}"
+                    Text="with logging level" />
+                <ComboBox
+                    MinWidth="100"
+                    ItemsSource="{StaticResource LoggingLevelOptions}"
+                    SelectedItem="{Binding LoggingLevel}"
+                    Style="{StaticResource SettingsComboBoxStyle}" />
             </StackPanel>
 
-            <StackPanel Margin="20,15,0,0" Visibility="{Binding LaunchPosition, Converter={StaticResource EqualityToVisibilityConverter}, ConverterParameter=fixed}">
+            <StackPanel Margin="20,10,0,0" Visibility="{Binding LaunchPosition, Converter={StaticResource EqualityToVisibilityConverter}, ConverterParameter=fixed}">
                 <TextBlock Style="{StaticResource SettingLabel}" Text="Fixed Position (X, Y):" />
                 <StackPanel Margin="0,5,0,0" Orientation="Horizontal">
                     <ui:NumberBox
@@ -81,7 +90,9 @@
                     ToolTip="Keep the last used filter active when the window is reopened." />
             </UniformGrid>
 
-            <Grid Margin="0,15,0,0">
+            <Separator Margin="0,10,0,10" />
+
+            <Grid Margin="0,5,0,10">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
@@ -97,26 +108,12 @@
                     Text="{Binding CompareToolPath, UpdateSourceTrigger=PropertyChanged}" />
                 <ui:Button
                     Grid.Column="2"
-                    Margin="5,0,0,0"
+                    Margin="10,0,0,0"
                     Command="{Binding BrowseCompareToolCommand}"
                     Content="Browse..."
                     Style="{StaticResource SettingsButtonStyle}" />
             </Grid>
 
-            <StackPanel Margin="0,15,0,0" Orientation="Horizontal">
-                <TextBlock
-                    Margin="0,0,10,0"
-                    VerticalAlignment="Center"
-                    Style="{StaticResource SettingLabel}"
-                    Text="Logging" />
-                <ComboBox
-                    MinWidth="100"
-                    ItemsSource="{StaticResource LoggingLevelOptions}"
-                    SelectedItem="{Binding LoggingLevel}"
-                    Style="{StaticResource SettingsComboBoxStyle}" />
-            </StackPanel>
-
-            <Separator Margin="0,20,0,15" />
 
             <TextBlock
                 FontSize="16"
