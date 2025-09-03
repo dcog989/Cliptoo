@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
@@ -52,6 +53,7 @@ namespace Cliptoo.Core.Native
             {
                 _hashesToSuppress.Add(hash);
             }
+            LogManager.LogDebug($"CLIP_SUPPRESS: Suppressing hashes: {string.Join(", ", _hashesToSuppress)}");
             _suppressionActive.Set();
             _suppressionResetTimer.Start(); // Start the safety-net timer
         }
@@ -163,17 +165,20 @@ namespace Cliptoo.Core.Native
 
         private bool CheckForSuppressedHashes(Dictionary<string, (object Content, ulong Hash)> availableData)
         {
+            var incomingHashes = string.Join(", ", availableData.Values.Select(v => v.Hash));
+            LogManager.LogDebug($"CLIP_SUPPRESS: Checking incoming hashes: [{incomingHashes}]");
             foreach (var format in availableData)
             {
                 if (_hashesToSuppress.Contains(format.Value.Hash))
                 {
-                    LogManager.LogDebug($"Suppressed self-generated clip based on format '{format.Key}'.");
+                    LogManager.LogDebug($"CLIP_SUPPRESS: Match found. Suppressed self-generated clip based on format '{format.Key}' with hash {format.Value.Hash}.");
                     if (format.Key == DataFormats.Rtf || format.Key == DataFormats.UnicodeText) _lastTextHash = format.Value.Hash;
                     else if (format.Key == "Image") _lastImageHash = format.Value.Hash;
                     else if (format.Key == "FileDrop") _lastFileDropHash = format.Value.Hash;
                     return true;
                 }
             }
+            LogManager.LogDebug("CLIP_SUPPRESS: No match found. Processing clip.");
             return false;
         }
 
