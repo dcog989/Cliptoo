@@ -23,11 +23,7 @@ namespace Cliptoo.Core.Database
             if (!string.IsNullOrWhiteSpace(searchTerm))
             {
                 sanitizedTerms = searchTerm.Split(_spaceSeparator, StringSplitOptions.RemoveEmptyEntries)
-                    .Select(term =>
-                    {
-                        var sanitized = Regex.Replace(term, @"^[^\p{L}\p{N}]+", "");
-                        return sanitized.Replace("\"", "\"\"", StringComparison.Ordinal);
-                    })
+                    .Select(term => term.Replace("\"", "\"\"", StringComparison.Ordinal)) // Escape double quotes for FTS5
                     .Where(sanitized => !string.IsNullOrEmpty(sanitized))
                     .ToList();
             }
@@ -36,8 +32,8 @@ namespace Cliptoo.Core.Database
             {
                 queryBuilder.Append($"SELECT {columns}, snippet(clips_fts, 0, '[HL]', '[/HL]', '...', 60) as MatchContext FROM clips c JOIN clips_fts fts ON c.Id = fts.rowid ");
                 conditions.Add("clips_fts MATCH @SearchTerm");
-                var ftsQuery = string.Join(" AND ", sanitizedTerms.Select(term => $"{term}*"));
-                LogManager.LogDebug($"FTS_QUERY_DIAG: Executing query: '{ftsQuery}'");
+                var ftsQuery = string.Join(" ", sanitizedTerms.Select(term => $"\"{term}\"*")); // Wrap terms in quotes for phrase prefix search
+                LogManager.LogDebug($"FTS_QUERY_DIAG: Executing query: '{ftsQuery}' from original search: '{searchTerm}'");
                 command.Parameters.AddWithValue("@SearchTerm", ftsQuery);
                 orderBy = "ORDER BY c.IsPinned DESC, rank, c.Timestamp DESC";
             }
