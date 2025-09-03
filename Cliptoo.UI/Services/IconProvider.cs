@@ -1,5 +1,7 @@
+using System;
 using System.Collections.Concurrent;
 using System.IO;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -42,62 +44,56 @@ namespace Cliptoo.UI.Services
             }
 
             var cacheFilePath = ServiceUtils.GetCachePath(cacheKey, _iconCachePath, ".png");
+            byte[]? iconBytes = null;
 
             if (File.Exists(cacheFilePath))
             {
-                return await Task.Run(() =>
+                try
+                {
+                    iconBytes = await File.ReadAllBytesAsync(cacheFilePath).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    LogManager.Log(ex, $"Failed to read cached icon file: {cacheFilePath}");
+                }
+            }
+            else
+            {
+                iconBytes = await GenerateIconBytesAsync(key, size, dpiScale).ConfigureAwait(false);
+                if (iconBytes != null)
                 {
                     try
                     {
-                        var bytes = File.ReadAllBytes(cacheFilePath);
-                        using var ms = new MemoryStream(bytes);
-
-                        var bitmapImage = new BitmapImage();
-                        bitmapImage.BeginInit();
-                        bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
-                        bitmapImage.StreamSource = ms;
-                        bitmapImage.EndInit();
-                        bitmapImage.Freeze();
-
-                        var drawingImage = new DrawingImage(new ImageDrawing(bitmapImage, new Rect(0, 0, size, size)));
-                        drawingImage.Freeze();
-
-                        _cache.TryAdd(cacheKey, drawingImage);
-                        return drawingImage;
+                        await File.WriteAllBytesAsync(cacheFilePath, iconBytes).ConfigureAwait(false);
                     }
                     catch (Exception ex)
                     {
-                        LogManager.Log(ex, $"Failed to load cached icon: {cacheFilePath}");
-                        return null;
+                        LogManager.Log(ex, $"Failed to save icon to cache: {cacheFilePath}");
                     }
-                });
-            }
-
-            var generatedBitmap = await GenerateBitmapImageAsync(key, size, dpiScale);
-            if (generatedBitmap == null) return null;
-
-            try
-            {
-                using (var fileStream = new FileStream(cacheFilePath, FileMode.Create))
-                {
-                    var encoder = new PngBitmapEncoder();
-                    encoder.Frames.Add(BitmapFrame.Create(generatedBitmap));
-                    encoder.Save(fileStream);
                 }
             }
-            catch (Exception ex)
+
+            if (iconBytes == null) return null;
+
+            return await Application.Current.Dispatcher.InvokeAsync(() =>
             {
-                LogManager.Log(ex, $"Failed to save icon to cache: {cacheFilePath}");
-            }
+                using var ms = new MemoryStream(iconBytes);
+                var bitmapImage = new BitmapImage();
+                bitmapImage.BeginInit();
+                bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
+                bitmapImage.StreamSource = ms;
+                bitmapImage.EndInit();
+                bitmapImage.Freeze();
 
-            var finalDrawingImage = new DrawingImage(new ImageDrawing(generatedBitmap, new Rect(0, 0, size, size)));
-            finalDrawingImage.Freeze();
+                var drawingImage = new DrawingImage(new ImageDrawing(bitmapImage, new Rect(0, 0, size, size)));
+                drawingImage.Freeze();
 
-            _cache.TryAdd(cacheKey, finalDrawingImage);
-            return finalDrawingImage;
+                _cache.TryAdd(cacheKey, drawingImage);
+                return drawingImage;
+            });
         }
 
-        private async Task<BitmapImage?> GenerateBitmapImageAsync(string key, int size, double dpiScale)
+        private async Task<byte[]?> GenerateIconBytesAsync(string key, int size, double dpiScale)
         {
             var iconName = GetIconFileName(key);
             var physicalSize = (int)Math.Ceiling(size * dpiScale);
@@ -160,18 +156,7 @@ namespace Cliptoo.UI.Services
 
                     using var image = SKImage.FromBitmap(bitmap);
                     using var data = image.Encode(SKEncodedImageFormat.Png, 100);
-                    if (data == null) return null;
-
-                    var bitmapImage = new BitmapImage();
-                    using (var ms = new MemoryStream(data.ToArray()))
-                    {
-                        bitmapImage.BeginInit();
-                        bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
-                        bitmapImage.StreamSource = ms;
-                        bitmapImage.EndInit();
-                    }
-                    bitmapImage.Freeze();
-                    return bitmapImage;
+                    return data?.ToArray();
                 });
             }
             catch (Exception ex)
