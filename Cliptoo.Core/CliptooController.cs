@@ -197,9 +197,13 @@ namespace Cliptoo.Core
                 {
                     bool finalWasTrimmed = result.WasTrimmed || wasTruncated;
                     string? sourceApp = result.SourceAppOverride ?? e.SourceApp;
-                    int newClipId = await _dbManager.AddClipAsync(result.Content, result.ClipType, sourceApp, finalWasTrimmed).ConfigureAwait(false);
-                    NewClipAdded?.Invoke(this, EventArgs.Empty);
-                    NotifyUiActivity();
+                    int newClipId = await _dbManager.AddClipAsync(
+                        result.Content,
+                        result.ClipType,
+                        sourceApp,
+                        finalWasTrimmed).ConfigureAwait(false);
+                    LogManager.Log($"New clip added: ID={newClipId}, Type='{result.ClipType}', Source='{sourceApp ?? "Unknown"}'.");
+                    NewClipAdded?.Invoke(this, EventArgs.Empty); NotifyUiActivity();
                 }
                 stopwatch.Stop();
                 LogManager.LogDebug($"PERF_DIAG: OnClipboardChangedAsync processed in {stopwatch.ElapsedMilliseconds}ms.");
@@ -468,6 +472,7 @@ namespace Cliptoo.Core
             double sizeChange = Math.Round(initialStats.DatabaseSizeMb - finalStats.DatabaseSizeMb, 2);
 
             LogManager.Log("Heavy maintenance routine finished.");
+            LogManager.Log($"Maintenance result: {cleaned} clips cleaned, {prunedImageCount} images pruned, {prunedFaviconCount} favicons pruned, {reclassifiedCount} reclassified, {tempFilesCleaned} temp files cleaned, {iconCacheCleaned} icons pruned, {prunedClipboardImageCount} clipboard images pruned. DB size change: {sizeChange:F2} MB.");
 
             return new MaintenanceResult(
                 cleaned,

@@ -164,12 +164,14 @@ namespace Cliptoo.UI.ViewModels
         private async Task TogglePinAsync()
         {
             IsPinned = !IsPinned;
+            LogManager.Log($"Toggling pin for clip: ID={Id}, NewState={(IsPinned ? "Pinned" : "Unpinned")}.");
             await Controller.TogglePinAsync(Id, IsPinned).ConfigureAwait(false);
             MainViewModel.HandleClipPinToggle(this);
         }
 
         private async Task DeleteAsync()
         {
+            LogManager.Log($"Deleting clip: ID={_clip.Id}.");
             await Controller.DeleteClipAsync(_clip).ConfigureAwait(false);
             MainViewModel.HandleClipDeletion(this);
         }
