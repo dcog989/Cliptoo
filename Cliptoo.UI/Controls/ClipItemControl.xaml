@@ -18,340 +18,148 @@
     TextOptions.TextFormattingMode="Display"
     TextOptions.TextRenderingMode="ClearType"
     mc:Ignorable="d">
+    <Grid Background="Transparent" ContextMenuService.ContextMenu="{DynamicResource ClipContextMenu}">
 
-    <Grid>
-        <Grid Background="Transparent">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
 
-            <Grid.ContextMenu>
-                <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
-                    <ContextMenu.Resources>
-                        <Style x:Key="ContextMenuSeparatorStyle" TargetType="Separator">
-                            <Setter Property="Template">
-                                <Setter.Value>
-                                    <ControlTemplate TargetType="Separator">
-                                        <Rectangle
-                                            Height="1"
-                                            Margin="0,6,0,6"
-                                            Fill="{DynamicResource ControlStrokeColorDefaultBrush}" />
-                                    </ControlTemplate>
-                                </Setter.Value>
-                            </Setter>
-                        </Style>
-                    </ContextMenu.Resources>
-                    <MenuItem
-                        Command="{Binding EditClipCommand}"
-                        Header="Edit"
-                        Visibility="{Binding IsEditable, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                    <MenuItem
-                        Command="{Binding OpenCommand}"
-                        Header="{Binding OpenCommandHeader}"
-                        Visibility="{Binding IsOpenable, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                    <MenuItem Header="Send To" ItemsSource="{Binding MainViewModel.SendToTargets}">
-                        <MenuItem.Style>
-                            <Style TargetType="MenuItem">
-                                <Setter Property="Visibility" Value="Visible" />
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding MainViewModel.SendToTargets.Count}" Value="0">
-                                        <Setter Property="Visibility" Value="Collapsed" />
-                                    </DataTrigger>
-                                    <DataTrigger Binding="{Binding IsSourceMissing}" Value="True">
-                                        <Setter Property="Visibility" Value="Collapsed" />
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </MenuItem.Style>
-                        <MenuItem.ItemContainerStyle>
-                            <Style TargetType="MenuItem">
-                                <Setter Property="Header" Value="{Binding Name}" />
-                                <Setter Property="Command" Value="{Binding DataContext.SendToCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
-                                <Setter Property="CommandParameter" Value="{Binding}" />
-                            </Style>
-                        </MenuItem.ItemContainerStyle>
-                    </MenuItem>
-                    <Separator>
-                        <Separator.Style>
-                            <Style BasedOn="{StaticResource ContextMenuSeparatorStyle}" TargetType="Separator">
-                                <Setter Property="Visibility">
-                                    <Setter.Value>
-                                        <MultiBinding Converter="{StaticResource AnyTrueToVisibilityConverter}">
-                                            <Binding Path="IsEditable" />
-                                            <Binding Path="IsOpenable" />
-                                            <Binding Path="MainViewModel.SendToTargets.Count" />
-                                        </MultiBinding>
-                                    </Setter.Value>
-                                </Setter>
-                            </Style>
-                        </Separator.Style>
-                    </Separator>
-                    <MenuItem
-                        Command="{Binding TogglePinCommand}"
-                        Header="Pin"
-                        IsCheckable="True"
-                        IsChecked="{Binding IsPinned, Mode=OneWay}">
-                        <MenuItem.Icon>
-                            <Image
-                                Width="16"
-                                Height="16"
-                                Source="{Binding MainViewModel.PinIcon16}" />
-                        </MenuItem.Icon>
-                    </MenuItem>
-                    <MenuItem Command="{Binding MoveToTopCommand}" Header="Move to Top" />
-                    <Separator Style="{StaticResource ContextMenuSeparatorStyle}">
-                        <Separator.Visibility>
-                            <MultiBinding Converter="{StaticResource AnyTrueToVisibilityConverter}">
-                                <Binding Path="IsPasteGroupVisible" />
-                                <Binding Path="ShowCompareMenu" />
-                            </MultiBinding>
-                        </Separator.Visibility>
-                    </Separator>
-                    <MenuItem
-                        Command="{Binding PasteAsPlainTextCommand}"
-                        Header="Plain Text"
-                        Visibility="{Binding CanPasteAsPlainText, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                    <MenuItem
-                        Command="{Binding PasteAsRtfCommand}"
-                        Header="RTF Text"
-                        Visibility="{Binding CanPasteAsRtf, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                    <MenuItem Header="Paste Transform" Visibility="{Binding IsTextTransformable, Converter={StaticResource BooleanToVisibilityConverter}}">
-                        <MenuItem
-                            Command="{Binding TransformAndPasteCommand}"
-                            CommandParameter="{x:Static core:AppConstants+TransformTypes.Trim}"
-                            Header="Trim Whitespace" />
-                        <MenuItem
-                            Command="{Binding TransformAndPasteCommand}"
-                            CommandParameter="{x:Static core:AppConstants+TransformTypes.Lf1}"
-                            Header="1 Line Feed After" />
-                        <MenuItem
-                            Command="{Binding TransformAndPasteCommand}"
-                            CommandParameter="{x:Static core:AppConstants+TransformTypes.Lf2}"
-                            Header="2 Line Feeds After" />
-                        <MenuItem
-                            Command="{Binding TransformAndPasteCommand}"
-                            CommandParameter="{x:Static core:AppConstants+TransformTypes.RemoveLf}"
-                            Header="Remove Line Feeds" />
-                        <MenuItem
-                            Command="{Binding TransformAndPasteCommand}"
-                            CommandParameter="{x:Static core:AppConstants+TransformTypes.Timestamp}"
-                            Header="Timestamp Prefix" />
-                    </MenuItem>
-                    <MenuItem Header="Paste Case" Visibility="{Binding IsTextTransformable, Converter={StaticResource BooleanToVisibilityConverter}}">
-                        <MenuItem
-                            Command="{Binding TransformAndPasteCommand}"
-                            CommandParameter="{x:Static core:AppConstants+TransformTypes.Upper}"
-                            Header="UPPER CASE" />
-                        <MenuItem
-                            Command="{Binding TransformAndPasteCommand}"
-                            CommandParameter="{x:Static core:AppConstants+TransformTypes.Lower}"
-                            Header="lower case" />
-                        <MenuItem
-                            Command="{Binding TransformAndPasteCommand}"
-                            CommandParameter="{x:Static core:AppConstants+TransformTypes.Capitalize}"
-                            Header="Capitalize Case" />
-                        <MenuItem
-                            Command="{Binding TransformAndPasteCommand}"
-                            CommandParameter="{x:Static core:AppConstants+TransformTypes.Sentence}"
-                            Header="Sentence case" />
-                        <MenuItem
-                            Command="{Binding TransformAndPasteCommand}"
-                            CommandParameter="{x:Static core:AppConstants+TransformTypes.Invert}"
-                            Header="iNVERT cASE" />
-                        <MenuItem
-                            Command="{Binding TransformAndPasteCommand}"
-                            CommandParameter="{x:Static core:AppConstants+TransformTypes.Kebab}"
-                            Header="kebab-case" />
-                        <MenuItem
-                            Command="{Binding TransformAndPasteCommand}"
-                            CommandParameter="{x:Static core:AppConstants+TransformTypes.Snake}"
-                            Header="snake__case" />
-                        <MenuItem
-                            Command="{Binding TransformAndPasteCommand}"
-                            CommandParameter="{x:Static core:AppConstants+TransformTypes.Camel}"
-                            Header="CamelCase" />
-                        <MenuItem
-                            Command="{Binding TransformAndPasteCommand}"
-                            CommandParameter="{x:Static core:AppConstants+TransformTypes.Deslug}"
-                            Header="Deslug" />
-                    </MenuItem>
-                    <Separator Style="{StaticResource ContextMenuSeparatorStyle}">
-                        <Separator.Visibility>
-                            <MultiBinding Converter="{StaticResource AllTrueToVisibilityConverter}">
-                                <Binding Path="IsPasteGroupVisible" />
-                                <Binding Path="ShowCompareMenu" />
-                            </MultiBinding>
-                        </Separator.Visibility>
-                    </Separator>
-                    <MenuItem
-                        Command="{Binding SelectForCompareLeftCommand}"
-                        Header="{Binding CompareLeftHeader}"
-                        Visibility="{Binding ShowCompareMenu, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                    <MenuItem Command="{Binding CompareWithSelectedRightCommand}" Header="Compare Right">
-                        <MenuItem.Style>
-                            <Style TargetType="MenuItem">
+        <Grid
+            Grid.Column="0"
+            Width="Auto"
+            Height="Auto"
+            Margin="0,0,10,0"
+            VerticalAlignment="Center"
+            ToolTip="{Binding ClipType, Converter={StaticResource ClipTypeToFriendlyNameConverter}}">
+            <Grid
+                Width="20"
+                Height="20"
+                Visibility="{Binding ClipType, Converter={StaticResource EqualityToVisibilityConverter}, ConverterParameter=color}">
+                <Rectangle Fill="{StaticResource CheckerboardBrush}" Visibility="{Binding Content, Converter={StaticResource ColorToTransparencyVisibilityConverter}}" />
+                <Border
+                    Background="{Binding Content, Converter={StaticResource ColorToBrushConverter}}"
+                    BorderBrush="Gray"
+                    BorderThickness="1"
+                    CornerRadius="3" />
+            </Grid>
+
+            <StackPanel Orientation="Horizontal">
+                <StackPanel.Style>
+                    <Style TargetType="StackPanel">
+                        <Setter Property="Visibility" Value="Visible" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding ClipType}" Value="color">
                                 <Setter Property="Visibility" Value="Collapsed" />
-                                <Style.Triggers>
-                                    <MultiDataTrigger>
-                                        <MultiDataTrigger.Conditions>
-                                            <Condition Binding="{Binding ShowCompareMenu}" Value="True" />
-                                            <Condition Binding="{Binding ShowCompareRightOption}" Value="True" />
-                                        </MultiDataTrigger.Conditions>
-                                        <Setter Property="Visibility" Value="Visible" />
-                                    </MultiDataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </MenuItem.Style>
-                    </MenuItem>
-                    <Separator Style="{StaticResource ContextMenuSeparatorStyle}" Visibility="{Binding ShowCompareMenu, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                    <MenuItem
-                        Command="{Binding DeleteCommand}"
-                        Foreground="{DynamicResource ErrorTextBrush}"
-                        Header="DELETE" />
-                </ContextMenu>
-            </Grid.ContextMenu>
-
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-
-            <Grid
-                Grid.Column="0"
-                Width="Auto"
-                Height="Auto"
-                Margin="0,0,10,0"
-                VerticalAlignment="Center"
-                ToolTip="{Binding ClipType, Converter={StaticResource ClipTypeToFriendlyNameConverter}}">
-                <Grid
-                    Width="20"
-                    Height="20"
-                    Visibility="{Binding ClipType, Converter={StaticResource EqualityToVisibilityConverter}, ConverterParameter=color}">
-                    <Rectangle Fill="{StaticResource CheckerboardBrush}" Visibility="{Binding Content, Converter={StaticResource ColorToTransparencyVisibilityConverter}}" />
-                    <Border
-                        Background="{Binding Content, Converter={StaticResource ColorToBrushConverter}}"
-                        BorderBrush="Gray"
-                        BorderThickness="1"
-                        CornerRadius="3" />
-                </Grid>
-
-                <StackPanel Orientation="Horizontal">
-                    <StackPanel.Style>
-                        <Style TargetType="StackPanel">
-                            <Setter Property="Visibility" Value="Visible" />
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding ClipType}" Value="color">
-                                    <Setter Property="Visibility" Value="Collapsed" />
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </StackPanel.Style>
-
-                    <Grid Width="20" Height="20">
-                        <Grid Visibility="{Binding HasThumbnail, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <ui:Image
-                                RenderOptions.BitmapScalingMode="Fant"
-                                Source="{Binding ThumbnailSource}"
-                                Stretch="Uniform" />
-                        </Grid>
-                        <ui:ImageIcon Source="{Binding ClipTypeIcon}" Visibility="{Binding HasThumbnail, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=inverse}" />
-                    </Grid>
-                </StackPanel>
-            </Grid>
-            <Grid
-                Grid.Column="1"
-                Background="Transparent"
-                MouseEnter="ClipItem_MouseEnter"
-                MouseLeave="ClipItem_MouseLeave">
-                <Grid.Style>
-                    <Style TargetType="Grid">
-                        <Setter Property="ToolTipService.IsEnabled" Value="{Binding DataContext.CurrentSettings.ShowHoverPreview, RelativeSource={RelativeSource AncestorType=ListView}}" />
+                            </DataTrigger>
+                        </Style.Triggers>
                     </Style>
-                </Grid.Style>
-                <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
-                    <ui:ImageIcon
-                        Width="20"
-                        Height="20"
-                        Margin="0,0,4,0"
-                        VerticalAlignment="Center"
-                        Source="{Binding MainViewModel.WasTrimmedIcon}"
-                        ToolTip="Content was modified (e.g., whitespace trimmed or content truncated)"
-                        Visibility="{Binding WasTrimmed, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                </StackPanel.Style>
 
-                    <TextBlock
-                        x:Name="PreviewTextBlock"
-                        VerticalAlignment="Center"
-                        helpers:TextBlockHighlighter.FormattedText="{Binding Preview}"
-                        FontFamily="{Binding CurrentFontFamily}"
-                        FontSize="{Binding CurrentFontSize}"
-                        TextTrimming="CharacterEllipsis">
-                        <TextBlock.Style>
-                            <Style TargetType="TextBlock">
-                                <!--  Base foreground is now inherited from ListViewItem  -->
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListViewItem}}" Value="True">
-                                        <Setter Property="Foreground" Value="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
-                                    </DataTrigger>
-                                    <DataTrigger Binding="{Binding IsSourceMissing}" Value="True">
-                                        <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
-                                        <Setter Property="TextDecorations" Value="Strikethrough" />
-                                    </DataTrigger>
-                                    <MultiDataTrigger>
-                                        <MultiDataTrigger.Conditions>
-                                            <Condition Binding="{Binding IsPinned}" Value="True" />
-                                            <Condition Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListViewItem}}" Value="False" />
-                                        </MultiDataTrigger.Conditions>
-                                        <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
-                                    </MultiDataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </TextBlock.Style>
-                    </TextBlock>
-                </StackPanel>
-            </Grid>
-
-            <StackPanel Grid.Column="2" Orientation="Horizontal">
-                <Rectangle
-                    Width="20"
-                    Height="20"
-                    Margin="2,0,0,0"
-                    ToolTip="Pinned"
-                    Visibility="{Binding IsPinned, Converter={StaticResource BooleanToVisibilityConverter}}">
-                    <Rectangle.OpacityMask>
-                        <ImageBrush ImageSource="{Binding MainViewModel.PinIcon}" Stretch="Uniform" />
-                    </Rectangle.OpacityMask>
-                    <Rectangle.Style>
-                        <Style TargetType="Rectangle">
-                            <Setter Property="Fill" Value="{DynamicResource AccentBrush}" />
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListViewItem}}" Value="True">
-                                    <Setter Property="Fill" Value="White" />
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Rectangle.Style>
-                </Rectangle>
-
-                <Rectangle
-                    Width="20"
-                    Height="20"
-                    Margin="2,0,0,0"
-                    ToolTip="Multi-line Content"
-                    Visibility="{Binding IsMultiLine, Converter={StaticResource BooleanToVisibilityConverter}}">
-                    <Rectangle.OpacityMask>
-                        <ImageBrush ImageSource="{Binding MainViewModel.MultiLineIcon}" Stretch="Uniform" />
-                    </Rectangle.OpacityMask>
-                    <Rectangle.Style>
-                        <Style TargetType="Rectangle">
-                            <Setter Property="Fill" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListViewItem}}" />
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListViewItem}}" Value="True">
-                                    <Setter Property="Fill" Value="White" />
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Rectangle.Style>
-                </Rectangle>
+                <Grid Width="20" Height="20">
+                    <Grid Visibility="{Binding HasThumbnail, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <ui:Image
+                            RenderOptions.BitmapScalingMode="Fant"
+                            Source="{Binding ThumbnailSource}"
+                            Stretch="Uniform" />
+                    </Grid>
+                    <ui:ImageIcon Source="{Binding ClipTypeIcon}" Visibility="{Binding HasThumbnail, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=inverse}" />
+                </Grid>
             </StackPanel>
-
         </Grid>
+        <Grid
+            Grid.Column="1"
+            Background="Transparent"
+            ToolTipOpening="ClipItem_ToolTipOpening">
+            <Grid.ToolTip>
+                <ToolTip Visibility="Collapsed" />
+            </Grid.ToolTip>
+            <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
+                <ui:ImageIcon
+                    Width="20"
+                    Height="20"
+                    Margin="0,0,4,0"
+                    VerticalAlignment="Center"
+                    Source="{Binding MainViewModel.WasTrimmedIcon}"
+                    ToolTip="Content was modified (e.g., whitespace trimmed or content truncated)"
+                    Visibility="{Binding WasTrimmed, Converter={StaticResource BooleanToVisibilityConverter}}" />
+
+                <TextBlock
+                    x:Name="PreviewTextBlock"
+                    VerticalAlignment="Center"
+                    helpers:TextBlockHighlighter.FormattedText="{Binding Preview}"
+                    FontFamily="{Binding CurrentFontFamily}"
+                    FontSize="{Binding CurrentFontSize}"
+                    TextTrimming="CharacterEllipsis">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <!--  Base foreground is now inherited from ListViewItem  -->
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListViewItem}}" Value="True">
+                                    <Setter Property="Foreground" Value="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IsSourceMissing}" Value="True">
+                                    <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+                                    <Setter Property="TextDecorations" Value="Strikethrough" />
+                                </DataTrigger>
+                                <MultiDataTrigger>
+                                    <MultiDataTrigger.Conditions>
+                                        <Condition Binding="{Binding IsPinned}" Value="True" />
+                                        <Condition Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListViewItem}}" Value="False" />
+                                    </MultiDataTrigger.Conditions>
+                                    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+                                </MultiDataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </StackPanel>
+        </Grid>
+
+        <StackPanel Grid.Column="2" Orientation="Horizontal">
+            <Rectangle
+                Width="20"
+                Height="20"
+                Margin="2,0,0,0"
+                ToolTip="Pinned"
+                Visibility="{Binding IsPinned, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <Rectangle.OpacityMask>
+                    <ImageBrush ImageSource="{Binding MainViewModel.PinIcon}" Stretch="Uniform" />
+                </Rectangle.OpacityMask>
+                <Rectangle.Style>
+                    <Style TargetType="Rectangle">
+                        <Setter Property="Fill" Value="{DynamicResource AccentBrush}" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListViewItem}}" Value="True">
+                                <Setter Property="Fill" Value="White" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Rectangle.Style>
+            </Rectangle>
+
+            <Rectangle
+                Width="20"
+                Height="20"
+                Margin="2,0,0,0"
+                ToolTip="Multi-line Content"
+                Visibility="{Binding IsMultiLine, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <Rectangle.OpacityMask>
+                    <ImageBrush ImageSource="{Binding MainViewModel.MultiLineIcon}" Stretch="Uniform" />
+                </Rectangle.OpacityMask>
+                <Rectangle.Style>
+                    <Style TargetType="Rectangle">
+                        <Setter Property="Fill" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListViewItem}}" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListViewItem}}" Value="True">
+                                <Setter Property="Fill" Value="White" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Rectangle.Style>
+            </Rectangle>
+        </StackPanel>
+
     </Grid>
 </UserControl>

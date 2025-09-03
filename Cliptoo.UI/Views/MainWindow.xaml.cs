@@ -222,6 +222,11 @@ namespace Cliptoo.UI.Views
             }
         }
 
+        private void ClipListView_MouseLeave(object sender, MouseEventArgs e)
+        {
+            _viewModel.RequestHidePreview();
+        }
+
         private void PreviewPopup_MouseEnter(object sender, MouseEventArgs e)
         {
             _viewModel.RequestShowPreview(null);

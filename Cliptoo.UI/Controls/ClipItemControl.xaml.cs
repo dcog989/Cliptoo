@@ -11,20 +11,13 @@ namespace Cliptoo.UI.Controls
             InitializeComponent();
         }
 
-        private void ClipItem_MouseEnter(object sender, MouseEventArgs e)
+        private void ClipItem_ToolTipOpening(object sender, ToolTipEventArgs e)
         {
             if (DataContext is ClipViewModel clipVm)
             {
                 clipVm.MainViewModel?.RequestShowPreview(clipVm);
             }
-        }
-
-        private void ClipItem_MouseLeave(object sender, MouseEventArgs e)
-        {
-            if (DataContext is ClipViewModel clipVm)
-            {
-                clipVm.MainViewModel?.RequestHidePreview();
-            }
+            e.Handled = true;
         }
     }
 }
