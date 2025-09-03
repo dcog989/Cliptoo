@@ -49,10 +49,18 @@ namespace Cliptoo.Core.Services
         {
             if (url is null) return null;
             var urlString = url.ToString();
-            if (_failedFaviconUrls.ContainsKey(urlString)) return null;
+            if (_failedFaviconUrls.ContainsKey(urlString))
+            {
+                LogManager.LogDebug($"FAVICON_CACHE_DIAG: Hit (failure cache) for '{urlString}'.");
+                return null;
+            }
 
             var successCachePath = ServiceUtils.GetCachePath(urlString, _faviconCacheDir, ".png");
-            if (File.Exists(successCachePath)) return successCachePath;
+            if (File.Exists(successCachePath))
+            {
+                LogManager.LogDebug($"FAVICON_CACHE_DIAG: Hit for '{urlString}'.");
+                return successCachePath;
+            }
 
             var failureCachePath = ServiceUtils.GetCachePath(urlString, _faviconCacheDir, ".failed");
             if (File.Exists(failureCachePath))
@@ -75,6 +83,7 @@ namespace Cliptoo.Core.Services
                 }
             }
 
+            LogManager.LogDebug($"FAVICON_CACHE_DIAG: Miss for '{urlString}'. Starting fetch process.");
             if (url.Scheme == "data")
             {
                 return await ProcessDataUriFaviconAsync(urlString, successCachePath).ConfigureAwait(false);
@@ -289,8 +298,10 @@ namespace Cliptoo.Core.Services
             var urlString = url.ToString();
             if (_titleCache.TryGetValue(urlString, out var cachedTitle))
             {
+                LogManager.LogDebug($"TITLE_CACHE_DIAG: Hit for '{urlString}'.");
                 return string.IsNullOrEmpty(cachedTitle) ? null : cachedTitle;
             }
+            LogManager.LogDebug($"TITLE_CACHE_DIAG: Miss for '{urlString}'. Fetching from web.");
 
             if (url.Scheme != Uri.UriSchemeHttp && url.Scheme != Uri.UriSchemeHttps)
             {

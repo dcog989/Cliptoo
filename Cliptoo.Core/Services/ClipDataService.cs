@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Cliptoo.Core.Configuration;
 using Cliptoo.Core.Database;
 using Cliptoo.Core.Database.Models;
 using Cliptoo.Core.Interfaces;
@@ -33,8 +34,10 @@ namespace Cliptoo.Core.Services
         {
             if (_clipCache.TryGetValue(id, out var cachedClip) && cachedClip is not null)
             {
+                LogManager.LogDebug($"CLIP_CACHE_DIAG: Hit for Clip ID {id}.");
                 return cachedClip;
             }
+            LogManager.LogDebug($"CLIP_CACHE_DIAG: Miss for Clip ID {id}. Querying database.");
 
             var clip = await _dbManager.GetClipByIdAsync(id).ConfigureAwait(false);
 

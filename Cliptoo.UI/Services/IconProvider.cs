@@ -40,6 +40,7 @@ namespace Cliptoo.UI.Services
 
             if (_cache.TryGetValue(cacheKey, out var cachedImage))
             {
+                LogManager.LogDebug($"ICON_CACHE_DIAG: In-memory hit for key '{cacheKey}'.");
                 return cachedImage;
             }
 
@@ -48,6 +49,7 @@ namespace Cliptoo.UI.Services
 
             if (File.Exists(cacheFilePath))
             {
+                LogManager.LogDebug($"ICON_CACHE_DIAG: On-disk hit for key '{cacheKey}'.");
                 try
                 {
                     iconBytes = await File.ReadAllBytesAsync(cacheFilePath).ConfigureAwait(false);
@@ -59,6 +61,7 @@ namespace Cliptoo.UI.Services
             }
             else
             {
+                LogManager.LogDebug($"ICON_CACHE_DIAG: Miss for key '{cacheKey}'. Generating new icon.");
                 iconBytes = await GenerateIconBytesAsync(key, size, dpiScale).ConfigureAwait(false);
                 if (iconBytes != null)
                 {

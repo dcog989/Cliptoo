@@ -79,6 +79,8 @@ namespace Cliptoo.UI.Services
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
+            var appVersion = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "0.0.0";
+            LogManager.Log($"Cliptoo v{appVersion} starting up...");
             LogManager.LogDebug("ApplicationHostService starting...");
             try
             {

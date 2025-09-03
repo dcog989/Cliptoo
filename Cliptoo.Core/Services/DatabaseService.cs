@@ -177,11 +177,31 @@ namespace Cliptoo.Core.Services
             var finalStats = await _dbManager.GetStatsAsync().ConfigureAwait(false);
             double sizeChange = Math.Round(initialStats.DatabaseSizeMb - finalStats.DatabaseSizeMb, 2);
 
-            LogManager.Log("Heavy maintenance routine finished.");
-            LogManager.Log($"Maintenance result: {cleaned} clips cleaned, {prunedImageCount} images pruned, {prunedFaviconCount} favicons pruned, {reclassifiedCount} reclassified, {tempFilesCleaned} temp files cleaned, {iconCacheCleaned} icons pruned, {prunedClipboardImageCount} clipboard images pruned. DB size change: {sizeChange:F2} MB.");
+            var summaryParts = new List<string>();
+            if (cleaned > 0) summaryParts.Add($"Removed {cleaned} clips");
+            if (prunedImageCount > 0) summaryParts.Add($"pruned {prunedImageCount} images");
+            if (prunedFaviconCount > 0) summaryParts.Add($"pruned {prunedFaviconCount} favicons");
+            if (iconCacheCleaned > 0) summaryParts.Add($"pruned {iconCacheCleaned} icons");
+            if (prunedClipboardImageCount > 0) summaryParts.Add($"pruned {prunedClipboardImageCount} clipboard images");
+            if (reclassifiedCount > 0) summaryParts.Add($"reclassified {reclassifiedCount} files");
+            if (tempFilesCleaned > 0) summaryParts.Add($"cleaned {tempFilesCleaned} temp files");
+
+            string summary;
+            if (summaryParts.Count > 0)
+            {
+                summary = "Maintenance complete. " + string.Join(", ", summaryParts) + ".";
+            }
+            else
+            {
+                summary = "Maintenance complete. No items required cleaning.";
+            }
+            LogManager.Log(summary);
+
+            LogManager.LogDebug("Heavy maintenance routine finished.");
+            LogManager.LogDebug($"Maintenance result: {cleaned} clips cleaned, {prunedImageCount} images pruned, {prunedFaviconCount} favicons pruned, {reclassifiedCount} reclassified, {tempFilesCleaned} temp files cleaned, {iconCacheCleaned} icons pruned, {prunedClipboardImageCount} clipboard images pruned. DB size change: {sizeChange:F2} MB.");
 
             return new MaintenanceResult(
-                cleaned,
+                            cleaned,
                 prunedImageCount,
                 prunedFaviconCount,
                 reclassifiedCount,

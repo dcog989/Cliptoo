@@ -69,7 +69,13 @@ namespace Cliptoo.Core.Services
 
             var cachePath = GenerateCachePath(imagePath, theme, size, cacheDirectory, targetExtension);
 
-            if (File.Exists(cachePath)) return cachePath;
+            if (File.Exists(cachePath))
+            {
+                LogManager.LogDebug($"THUMB_CACHE_DIAG: Hit for '{imagePath}' (Size: {size}, Theme: {theme ?? "none"}).");
+                return cachePath;
+            }
+            LogManager.LogDebug($"THUMB_CACHE_DIAG: Miss for '{imagePath}' (Size: {size}, Theme: {theme ?? "none"}). Generating new image.");
+
             if (!File.Exists(imagePath)) return null;
 
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();

@@ -37,6 +37,7 @@ namespace Cliptoo.Core.Database
                 queryBuilder.Append($"SELECT {columns}, snippet(clips_fts, 0, '[HL]', '[/HL]', '...', 60) as MatchContext FROM clips c JOIN clips_fts fts ON c.Id = fts.rowid ");
                 conditions.Add("clips_fts MATCH @SearchTerm");
                 var ftsQuery = string.Join(" AND ", sanitizedTerms.Select(term => $"{term}*"));
+                LogManager.LogDebug($"FTS_QUERY_DIAG: Executing query: '{ftsQuery}'");
                 command.Parameters.AddWithValue("@SearchTerm", ftsQuery);
                 orderBy = "ORDER BY c.IsPinned DESC, rank, c.Timestamp DESC";
             }

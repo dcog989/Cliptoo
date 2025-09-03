@@ -186,20 +186,20 @@ namespace Cliptoo.UI.ViewModels
 
         private void OnSettingsPropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
-            // Re-raise the property changed event for the view model so bindings update.
             OnPropertyChanged(e.PropertyName);
 
-            // Handle specific logic for certain properties.
             switch (e.PropertyName)
             {
                 case nameof(Settings.StartWithWindows):
                     _startupManagerService.SetStartup(Settings.StartWithWindows);
+                    LogManager.Log($"Setting 'Start with Windows' changed to: {Settings.StartWithWindows}");
                     break;
                 case nameof(Settings.AccentChromaLevel):
                     UpdateAccentColor();
                     UpdateOklchHueBrush();
-                    return; // UpdateAccentColor sets AccentColor which will trigger DebounceSave
+                    return;
                 case nameof(Settings.Theme):
+                    LogManager.Log($"Setting 'Theme' changed to: {Settings.Theme}");
                     var wpfuiTheme = Settings.Theme?.ToLowerInvariant() switch
                     {
                         "light" => ApplicationTheme.Light,

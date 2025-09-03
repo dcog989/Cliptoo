@@ -34,8 +34,8 @@ namespace Cliptoo.UI.ViewModels
                 if (Settings.Hotkey != value)
                 {
                     Settings.Hotkey = value;
-                    LogManager.Log($"Main hotkey changed to: {value}");
-                    _settingsService.SaveSettings(); // Immediate save for hotkeys
+                    LogManager.Log($"Setting 'Main hotkey' changed to: {value}");
+                    _settingsService.SaveSettings();
                 }
             }
         }
@@ -74,8 +74,8 @@ namespace Cliptoo.UI.ViewModels
                 if (Settings.PreviewHotkey != value)
                 {
                     Settings.PreviewHotkey = value;
-                    LogManager.Log($"Preview hotkey changed to: {value}");
-                    _settingsService.SaveSettings(); // Immediate save for hotkeys
+                    LogManager.Log($"Setting 'Preview hotkey' changed to: {value}");
+                    _settingsService.SaveSettings();
                 }
             }
         }
@@ -88,8 +88,8 @@ namespace Cliptoo.UI.ViewModels
                 if (Settings.QuickPasteHotkey != value)
                 {
                     Settings.QuickPasteHotkey = value;
-                    LogManager.Log($"Quick Paste hotkey changed to: {value}");
-                    _settingsService.SaveSettings(); // Immediate save for hotkeys
+                    LogManager.Log($"Setting 'Quick Paste hotkey' changed to: {value}");
+                    _settingsService.SaveSettings();
                 }
             }
         }
