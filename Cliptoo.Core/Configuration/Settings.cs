@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
@@ -81,8 +81,8 @@ namespace Cliptoo.Core.Configuration
         [DefaultValue("Standard")]
         public string ClipItemPadding { get => _clipItemPadding; set => SetProperty(ref _clipItemPadding, value); }
 
-        private string _accentChromaLevel = "Vibrant";
-        [DefaultValue("Vibrant")]
+        private string _accentChromaLevel = "vibrant";
+        [DefaultValue("vibrant")]
         public string AccentChromaLevel { get => _accentChromaLevel; set => SetProperty(ref _accentChromaLevel, value); }
 
         private bool _displayLogo = true;
@@ -223,7 +223,7 @@ namespace Cliptoo.Core.Configuration
         [DefaultValue(false)]
         public bool PasteAsPlainText { get => _pasteAsPlainText; set => SetProperty(ref _pasteAsPlainText, value); }
 
-        public Collection<SendToTarget> SendToTargets { get; } = new();
+        public List<SendToTarget> SendToTargets { get; set; } = new();
         #endregion
 
         #region Diagnostics
