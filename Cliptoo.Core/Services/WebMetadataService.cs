@@ -149,26 +149,21 @@ namespace Cliptoo.Core.Services
 
         private async Task<string?> TryFetchRootIconAsync(Uri baseUri, string cachePath)
         {
-            var rootIconNames = new[] { "/favicon.ico", "/favicon.png", "/favicon.svg" };
-            using var cts = new CancellationTokenSource();
+            var rootIconNames = new[] { "/favicon.svg", "/favicon.ico", "/favicon.png" }; // Prioritize SVG
             using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
-            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, timeoutCts.Token);
 
-            var tasks = rootIconNames.Select(iconName =>
+            foreach (var iconName in rootIconNames)
             {
                 var faviconUrl = new Uri(baseUri, iconName);
-                return FetchAndProcessFavicon(faviconUrl.ToString(), cachePath, linkedCts.Token);
-            }).ToList();
-
-            while (tasks.Count > 0)
-            {
-                var completedTask = await Task.WhenAny(tasks).ConfigureAwait(false);
-                tasks.Remove(completedTask);
-
-                if (await completedTask.ConfigureAwait(false))
+                if (await FetchAndProcessFavicon(faviconUrl.ToString(), cachePath, timeoutCts.Token).ConfigureAwait(false))
                 {
-                    await cts.CancelAsync().ConfigureAwait(false); // Cancel remaining tasks
-                    return cachePath;
+                    return cachePath; // Success
+                }
+
+                if (timeoutCts.IsCancellationRequested)
+                {
+                    LogManager.LogDebug("FAVICON_DISCOVERY_DIAG: Favicon discovery timed out during root icon check.");
+                    break;
                 }
             }
             return null;
@@ -300,21 +295,19 @@ namespace Cliptoo.Core.Services
 
             LogManager.LogDebug($"FAVICON_DISCOVERY_DIAG: Found {orderedUrls.Count} potential icon URLs. Best candidate: '{orderedUrls.FirstOrDefault()}'");
 
-            using var cts = new CancellationTokenSource();
             using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
-            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, timeoutCts.Token);
 
-            var tasks = orderedUrls.Select(url => FetchAndProcessFavicon(url, cachePath, linkedCts.Token)).ToList();
-
-            while (tasks.Count > 0)
+            foreach (var url in orderedUrls)
             {
-                var completedTask = await Task.WhenAny(tasks).ConfigureAwait(false);
-                tasks.Remove(completedTask);
-
-                if (await completedTask.ConfigureAwait(false))
+                if (await FetchAndProcessFavicon(url, cachePath, timeoutCts.Token).ConfigureAwait(false))
                 {
-                    await cts.CancelAsync().ConfigureAwait(false);
-                    return cachePath;
+                    return cachePath; // Success
+                }
+
+                if (timeoutCts.IsCancellationRequested)
+                {
+                    LogManager.LogDebug("FAVICON_DISCOVERY_DIAG: Favicon discovery timed out during HTML head processing.");
+                    break;
                 }
             }
 
