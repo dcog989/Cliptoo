@@ -1,6 +1,5 @@
 using System;
 using System.Runtime.InteropServices;
-using System.Text;
 using System.Threading.Tasks;
 using Cliptoo.Core.Configuration;
 
@@ -73,8 +72,8 @@ namespace Cliptoo.Core.Native
         private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
 
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-        [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
-        private static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
+        [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        private static extern int GetWindowText(IntPtr hWnd, [Out] char[] lpString, int nMaxCount);
 
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [DllImport("user32.dll")]
@@ -98,20 +97,28 @@ namespace Cliptoo.Core.Native
                     break;
                 }
 
+                IntPtr hwnd = GetForegroundWindow();
+                _ = GetWindowThreadProcessId(hwnd, out uint pid);
+                var buffer = new char[256];
+                _ = GetWindowText(hwnd, buffer, buffer.Length);
+                var windowTitle = new string(buffer).TrimEnd('\0');
+                LogManager.LogDebug($"PASTE_DIAG: Waiting... Still on Cliptoo. HWND: {hwnd}, PID: {pid}, Title: '{windowTitle}'");
+
                 await Task.Delay(20).ConfigureAwait(false);
             }
             stopwatch.Stop();
 
             IntPtr finalHwnd = GetForegroundWindow();
-            GetWindowThreadProcessId(finalHwnd, out uint finalPid);
-            var finalSb = new StringBuilder(256);
-            GetWindowText(finalHwnd, finalSb, finalSb.Capacity);
+            _ = GetWindowThreadProcessId(finalHwnd, out uint finalPid);
+            var finalBuffer = new char[256];
+            _ = GetWindowText(finalHwnd, finalBuffer, finalBuffer.Length);
+            var finalWindowTitle = new string(finalBuffer).TrimEnd('\0');
             var finalProcessName = ProcessUtils.GetForegroundWindowProcessName();
             bool isVisible = IsWindowVisible(finalHwnd);
             bool isEnabled = IsWindowEnabled(finalHwnd);
 
             LogManager.LogDebug($"PASTE_DIAG: Focus change detected after {stopwatch.ElapsedMilliseconds}ms.");
-            LogManager.LogDebug($"PASTE_DIAG: Target HWND: {finalHwnd}, PID: {finalPid}, Process: '{finalProcessName ?? "Unknown"}', Title: '{finalSb}', Visible: {isVisible}, Enabled: {isEnabled}");
+            LogManager.LogDebug($"PASTE_DIAG: Target HWND: {finalHwnd}, PID: {finalPid}, Process: '{finalProcessName ?? "Unknown"}', Title: '{finalWindowTitle}', Visible: {isVisible}, Enabled: {isEnabled}");
 
             if (!isEnabled || !isVisible)
             {
@@ -119,8 +126,6 @@ namespace Cliptoo.Core.Native
                 return;
             }
 
-            // A brief, essential pause to allow the target application's message pump to become responsive
-            // after the window focus has switched. This helps prevent the paste command from being lost.
             if (stopwatch.ElapsedMilliseconds < 50)
             {
                 await Task.Delay(50).ConfigureAwait(false);
@@ -129,26 +134,26 @@ namespace Cliptoo.Core.Native
 
             INPUT[] inputs = new INPUT[]
             {
-                new INPUT
-                {
-                    type = INPUT_KEYBOARD,
-                    u = new InputUnion { ki = new KEYBDINPUT { wVk = VK_CONTROL, dwFlags = 0 } }
-                },
-                new INPUT
-                {
-                    type = INPUT_KEYBOARD,
-                    u = new InputUnion { ki = new KEYBDINPUT { wVk = VK_V, dwFlags = 0 } }
-                },
-                new INPUT
-                {
-                    type = INPUT_KEYBOARD,
-                    u = new InputUnion { ki = new KEYBDINPUT { wVk = VK_V, dwFlags = KEYEVENTF_KEYUP } }
-                },
-                new INPUT
-                {
-                    type = INPUT_KEYBOARD,
-                    u = new InputUnion { ki = new KEYBDINPUT { wVk = VK_CONTROL, dwFlags = KEYEVENTF_KEYUP } }
-                }
+        new INPUT
+        {
+            type = INPUT_KEYBOARD,
+            u = new InputUnion { ki = new KEYBDINPUT { wVk = VK_CONTROL, dwFlags = 0 } }
+        },
+        new INPUT
+        {
+            type = INPUT_KEYBOARD,
+            u = new InputUnion { ki = new KEYBDINPUT { wVk = VK_V, dwFlags = 0 } }
+        },
+        new INPUT
+        {
+            type = INPUT_KEYBOARD,
+            u = new InputUnion { ki = new KEYBDINPUT { wVk = VK_V, dwFlags = KEYEVENTF_KEYUP } }
+        },
+        new INPUT
+        {
+            type = INPUT_KEYBOARD,
+            u = new InputUnion { ki = new KEYBDINPUT { wVk = VK_CONTROL, dwFlags = KEYEVENTF_KEYUP } }
+        }
             };
 
             LogManager.LogDebug("InputSimulator: Sending Ctrl+V input.");

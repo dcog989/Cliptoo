@@ -20,9 +20,8 @@
                     Source="{Binding LogoIcon}" />
                 <StackPanel VerticalAlignment="Center" TextBlock.TextAlignment="Center">
                     <TextBlock
-                        FontFamily="{Binding SystemFonts[0].FontFamily, Mode=OneWay}"
+                        FontFamily="Source Code Pro"
                         FontSize="32"
-                        FontWeight="SemiBold"
                         Text="Cliptoo" />
                     <TextBlock Foreground="{DynamicResource TextFillColorSecondaryBrush}" Text="{Binding AppVersion, StringFormat='Version: {0}'}" />
                     <TextBlock
@@ -35,7 +34,7 @@
                     </TextBlock>
                     <TextBlock
                         Margin="0,10,0,0"
-                        FontFamily="{Binding SystemFonts[0].FontFamily, Mode=OneWay}"
+                        FontFamily="Source Code Pro"
                         FontSize="16"
                         FontStyle="Italic"
                         Foreground="{DynamicResource TextFillColorSecondaryBrush}">
@@ -51,14 +50,14 @@
                 </StackPanel>
             </StackPanel>
 
-            <Separator Margin="0,15,0,15" />
+            <Separator Margin="0,20,0,10" />
 
-            <TextBlock Margin="0,15,0,0" TextBlock.TextAlignment="Center">
+            <TextBlock Margin="0,10,0,0" TextBlock.TextAlignment="Center">
                 <Hyperlink Command="{Binding OpenExeFolderCommand}">
-                    <Run FontFamily="Source Code Pro" Text="{Binding ExePathDir, Mode=OneWay}" />
+                    <Run Text="{Binding ExePathDir, Mode=OneWay}" />
                 </Hyperlink>
-                <Run FontFamily="Source Code Pro" Text="\" />
-                <Run FontFamily="Source Code Pro" Text="{Binding ExePathFile, Mode=OneWay}" />
+                <Run Text="\" />
+                <Run Text="{Binding ExePathFile, Mode=OneWay}" />
             </TextBlock>
             <TextBlock Margin="0,5,0,0" TextBlock.TextAlignment="Center">
                 <Run Text="Settings + data stored at " />

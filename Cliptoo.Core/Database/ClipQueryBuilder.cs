@@ -4,7 +4,6 @@ using System.Globalization;
 using System.Linq;
 using Microsoft.Data.Sqlite;
 using Cliptoo.Core.Configuration; // keep for logmanager
-using System.Text.RegularExpressions;
 
 namespace Cliptoo.Core.Database
 {

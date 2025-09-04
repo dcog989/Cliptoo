@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Cliptoo.Core.Configuration;
@@ -89,7 +88,7 @@ namespace Cliptoo.Core
                     int count = await _databaseService.ReclassifyAllClipsAsync().ConfigureAwait(false);
                     LogManager.Log($"Re-classification complete. {count} clips updated.");
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is IOException or SqliteException)
                 {
                     LogManager.Log(ex, "Error during background re-classification.");
                 }
@@ -121,7 +120,7 @@ namespace Cliptoo.Core
                         LogManager.LogDebug("Idle timer check: Heavy maintenance not due yet.");
                     }
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is IOException or SqliteException)
                 {
                     LogManager.Log(ex, "Error during scheduled cleanup.");
                 }
@@ -134,7 +133,7 @@ namespace Cliptoo.Core
             {
                 try
                 {
-                    await ProcessClipboardChange(e);
+                    await ProcessClipboardChange(e).ConfigureAwait(false);
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or UnknownImageFormatException or ImageFormatException or SqliteException)
                 {
