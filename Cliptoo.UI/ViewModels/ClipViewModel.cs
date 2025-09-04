@@ -121,8 +121,10 @@ namespace Cliptoo.UI.ViewModels
         public string CompareLeftHeader { get => _compareLeftHeader; set => SetProperty(ref _compareLeftHeader, value); }
         public bool ShowCompareRightOption { get => _showCompareRightOption; set => SetProperty(ref _showCompareRightOption, value); }
 
-        public string? TooltipTextContent { get; set; }
-        public string? LineCountInfo { get; set; }
+        public string? TooltipTextContent { get => _tooltipTextContent; private set => SetProperty(ref _tooltipTextContent, value); }
+        private string? _tooltipTextContent;
+        public string? LineCountInfo { get => _lineCountInfo; private set => SetProperty(ref _lineCountInfo, value); }
+        private string? _lineCountInfo;
 
         public bool IsPasteGroupVisible => IsEditable || IsRtf;
 

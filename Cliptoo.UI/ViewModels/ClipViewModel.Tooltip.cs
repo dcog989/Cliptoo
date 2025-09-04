@@ -85,11 +85,24 @@ namespace Cliptoo.UI.ViewModels
 
         public void ClearTooltipContent()
         {
+            if (!_isTooltipContentLoaded) return;
+
+            _pageTitleCts?.Cancel();
+            _filePropertiesCts?.Cancel();
+
+            // Clear all data loaded specifically for the tooltip
             TooltipTextContent = null;
             LineCountInfo = null;
+            ImagePreviewSource = null;
+            PageTitle = null;
+            FileProperties = null;
+            FileTypeInfo = null;
+            FileTypeInfoIcon = null;
+
+            // Reset state flags
             _isTooltipContentLoaded = false;
-            OnPropertyChanged(nameof(TooltipTextContent));
-            OnPropertyChanged(nameof(LineCountInfo));
+            IsPageTitleLoading = false;
+            IsFilePropertiesLoading = false;
         }
 
         private void GenerateTooltipProperties(Clip clipToDisplay, string? textFileContent = null)
@@ -164,9 +177,6 @@ namespace Cliptoo.UI.ViewModels
                 TooltipTextContent = null;
                 LineCountInfo = null;
             }
-
-            OnPropertyChanged(nameof(TooltipTextContent));
-            OnPropertyChanged(nameof(LineCountInfo));
         }
 
         public async Task LoadImagePreviewAsync(uint largestDimension)
