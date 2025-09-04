@@ -1,8 +1,5 @@
-using System;
+using System.Runtime;
 using System.Collections.ObjectModel;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Threading;
@@ -437,10 +434,20 @@ namespace Cliptoo.UI.ViewModels
             }
 
             Application.Current.MainWindow?.Hide();
+
+            // Hint to the GC to be more aggressive now that the UI is hidden.
+            GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
+            GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, true, true);
+            GCSettings.LatencyMode = GCLatencyMode.Batch;
+            LogManager.LogDebug("GC mode set to Batch and collection requested.");
         }
 
         public void HandleWindowShown()
         {
+            // Restore interactive GC mode for UI responsiveness.
+            GCSettings.LatencyMode = GCLatencyMode.Interactive;
+            LogManager.LogDebug("GC mode restored to Interactive.");
+
             // Stop the timer to prevent the collection from being cleared.
             _clearClipsTimer.Stop();
 
