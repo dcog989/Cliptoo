@@ -1,12 +1,9 @@
-using System;
 using System.Diagnostics;
 using System.IO;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 using Cliptoo.Core;
 using Cliptoo.Core.Configuration;
-using Cliptoo.Core.Native;
 using Cliptoo.UI.Helpers;
 using Wpf.Ui.Controls;
 
@@ -160,8 +157,11 @@ namespace Cliptoo.UI.ViewModels
         private async Task DeleteAsync()
         {
             LogManager.Log($"Deleting clip: ID={_clip.Id}.");
-            await _clipDataService.DeleteClipAsync(_clip).ConfigureAwait(false);
+            var fullClip = await GetFullClipAsync().ConfigureAwait(false);
+            await _clipDataService.DeleteClipAsync(fullClip ?? _clip).ConfigureAwait(false);
+
             MainViewModel.HandleClipDeletion(this);
         }
+
     }
 }

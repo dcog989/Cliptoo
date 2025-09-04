@@ -26,6 +26,7 @@ namespace Cliptoo.UI.ViewModels
         private readonly IThumbnailService _thumbnailService;
         private readonly IWebMetadataService _webMetadataService;
         private ImageSource? _thumbnailSource;
+        private bool _isThumbnailLoading;
         private bool _isPinned;
         private FontFamily _currentFontFamily = new("Segoe UI");
         private double _currentFontSize = 14;
@@ -121,15 +122,29 @@ namespace Cliptoo.UI.ViewModels
         public string CompareLeftHeader { get => _compareLeftHeader; set => SetProperty(ref _compareLeftHeader, value); }
         public bool ShowCompareRightOption { get => _showCompareRightOption; set => SetProperty(ref _showCompareRightOption, value); }
 
-        public string? TooltipTextContent { get => _tooltipTextContent; private set => SetProperty(ref _tooltipTextContent, value); }
         private string? _tooltipTextContent;
-        public string? LineCountInfo { get => _lineCountInfo; private set => SetProperty(ref _lineCountInfo, value); }
+        public string? TooltipTextContent { get => _tooltipTextContent; private set => SetProperty(ref _tooltipTextContent, value); }
+
         private string? _lineCountInfo;
+        public string? LineCountInfo { get => _lineCountInfo; private set => SetProperty(ref _lineCountInfo, value); }
 
         public bool IsPasteGroupVisible => IsEditable || IsRtf;
 
         public bool IsPinned { get => _isPinned; set => SetProperty(ref _isPinned, value); }
-        public ImageSource? ThumbnailSource { get => _thumbnailSource; private set => SetProperty(ref _thumbnailSource, value); }
+
+        public ImageSource? ThumbnailSource
+        {
+            get
+            {
+                if (_thumbnailSource == null && !_isThumbnailLoading)
+                {
+                    _ = LoadThumbnailAsync();
+                }
+                return _thumbnailSource;
+            }
+            private set => SetProperty(ref _thumbnailSource, value);
+        }
+
         public string PaddingSize { get => _paddingSize; set => SetProperty(ref _paddingSize, value); }
         public string Preview { get; private set; } = string.Empty;
 
@@ -139,6 +154,7 @@ namespace Cliptoo.UI.ViewModels
         public ClipViewModel(Clip clip, IPastingService pastingService, INotificationService notificationService, IClipDetailsLoader clipDetailsLoader, MainViewModel mainViewModel, IIconProvider iconProvider, IClipDataService clipDataService, IClipboardService clipboardService, IThumbnailService thumbnailService, IWebMetadataService webMetadataService)
         {
             ArgumentNullException.ThrowIfNull(clip);
+            ArgumentNullException.ThrowIfNull(mainViewModel);
 
             _clip = clip;
             _pastingService = pastingService;
@@ -179,13 +195,10 @@ namespace Cliptoo.UI.ViewModels
         {
             ArgumentNullException.ThrowIfNull(clip);
 
-            Interlocked.Increment(ref _currentThumbnailLoadId);
-
             _clip = clip;
             _theme = theme;
             IsPinned = clip.IsPinned;
-            ThumbnailSource = null;
-            HasThumbnail = false;
+            ReleaseThumbnail();
             FileProperties = null;
             FileTypeInfo = null;
             PageTitle = null;
@@ -206,7 +219,6 @@ namespace Cliptoo.UI.ViewModels
             UpdatePreviewText();
             ClearTooltipContent();
             _ = LoadIconsAsync();
-            _ = LoadThumbnailAsync(theme);
 
             OnPropertyChanged(nameof(FileName));
             OnPropertyChanged(nameof(Content));
@@ -278,62 +290,80 @@ namespace Cliptoo.UI.ViewModels
             OnPropertyChanged(nameof(Preview));
         }
 
-        public async Task LoadThumbnailAsync(string theme)
+        public void ReleaseThumbnail()
         {
-            var loadId = _currentThumbnailLoadId;
-            string? newThumbnailPath = await _clipDetailsLoader.GetThumbnailAsync(this, _thumbnailService, _webMetadataService, theme).ConfigureAwait(false);
+            Interlocked.Increment(ref _currentThumbnailLoadId);
+            ThumbnailSource = null;
+            HasThumbnail = false;
+            _isThumbnailLoading = false;
+        }
 
-            if (loadId != _currentThumbnailLoadId)
-            {
-                return;
-            }
+        public async Task LoadThumbnailAsync()
+        {
+            if (_isThumbnailLoading) return;
 
-            if (!string.IsNullOrEmpty(newThumbnailPath))
+            _isThumbnailLoading = true;
+            try
             {
-                try
+                var loadId = Interlocked.Increment(ref _currentThumbnailLoadId);
+                string? newThumbnailPath = await _clipDetailsLoader.GetThumbnailAsync(this, _thumbnailService, _webMetadataService, _theme).ConfigureAwait(false);
+
+                if (loadId != _currentThumbnailLoadId)
                 {
-                    byte[]? bytes = null;
-                    for (int i = 0; i < 3; i++)
+                    return;
+                }
+
+                if (!string.IsNullOrEmpty(newThumbnailPath))
+                {
+                    try
                     {
-                        try
+                        byte[]? bytes = null;
+                        for (int i = 0; i < 3; i++)
                         {
-                            bytes = await File.ReadAllBytesAsync(newThumbnailPath).ConfigureAwait(false);
-                            break;
+                            try
+                            {
+                                bytes = await File.ReadAllBytesAsync(newThumbnailPath).ConfigureAwait(false);
+                                break;
+                            }
+                            catch (IOException)
+                            {
+                                await Task.Delay(50).ConfigureAwait(false);
+                            }
                         }
-                        catch (IOException)
+                        if (bytes == null)
                         {
-                            await Task.Delay(50).ConfigureAwait(false);
+                            ThumbnailSource = null;
+                            HasThumbnail = false;
+                            return;
                         }
+
+                        using var ms = new MemoryStream(bytes);
+
+                        var bitmapImage = new BitmapImage();
+                        bitmapImage.BeginInit();
+                        bitmapImage.StreamSource = ms;
+                        bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
+                        bitmapImage.EndInit();
+                        bitmapImage.Freeze();
+                        ThumbnailSource = bitmapImage;
+                        HasThumbnail = true;
                     }
-                    if (bytes == null)
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
                     {
+                        LogManager.Log(ex, $"Failed to load thumbnail image source from path: {newThumbnailPath}");
                         ThumbnailSource = null;
                         HasThumbnail = false;
-                        return;
                     }
-
-                    using var ms = new MemoryStream(bytes);
-
-                    var bitmapImage = new BitmapImage();
-                    bitmapImage.BeginInit();
-                    bitmapImage.StreamSource = ms;
-                    bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
-                    bitmapImage.EndInit();
-                    bitmapImage.Freeze();
-                    ThumbnailSource = bitmapImage;
-                    HasThumbnail = true;
                 }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+                else
                 {
-                    LogManager.Log(ex, $"Failed to load thumbnail image source from path: {newThumbnailPath}");
                     ThumbnailSource = null;
                     HasThumbnail = false;
                 }
             }
-            else
+            finally
             {
-                ThumbnailSource = null;
-                HasThumbnail = false;
+                _isThumbnailLoading = false;
             }
         }
 

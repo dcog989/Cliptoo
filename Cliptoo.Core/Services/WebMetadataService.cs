@@ -90,36 +90,56 @@ namespace Cliptoo.Core.Services
             }
 
             LogManager.LogDebug($"FAVICON_CACHE_DIAG: Miss for '{urlString}'. Starting fetch process.");
-            if (url.Scheme == "data")
-            {
-                return await ProcessDataUriFaviconAsync(urlString, successCachePath).ConfigureAwait(false);
-            }
 
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             string? finalIconPath = null;
             try
             {
-                LogManager.LogDebug($"Favicon Discovery for {urlString}: Stage 1 (HTML Head Parse).");
-                finalIconPath = await TryFetchIconsFromHtmlAsync(url, successCachePath).ConfigureAwait(false);
-
-                if (finalIconPath == null)
+                var (pageTitle, htmlCandidates) = await FetchAndParseHtmlHeadAsync(url).ConfigureAwait(false);
+                if (pageTitle != null)
                 {
-                    LogManager.LogDebug($"Favicon Discovery for {urlString}: Stage 1 failed. Stage 2 (Root Icon Check).");
-                    finalIconPath = await TryFetchRootIconAsync(url, successCachePath).ConfigureAwait(false);
+                    _titleCache.Add(url.ToString(), pageTitle);
+                }
+
+                var rootCandidates = new List<FaviconCandidate>
+        {
+            new() { Url = new Uri(url, "/favicon.svg").ToString(), Score = 9000 },
+            new() { Url = new Uri(url, "/favicon.ico").ToString(), Score = 4000 },
+            new() { Url = new Uri(url, "/apple-touch-icon.png").ToString(), Score = 3000 },
+            new() { Url = new Uri(url, "/favicon-32x32.png").ToString(), Score = 968 },
+            new() { Url = new Uri(url, "/favicon.png").ToString(), Score = 500 }
+        };
+
+                var allCandidates = htmlCandidates.Concat(rootCandidates)
+                    .OrderByDescending(c => c.Score)
+                    .Select(c => c.Url)
+                    .Distinct()
+                    .ToList();
+
+                LogManager.LogDebug($"FAVICON_DISCOVERY_DIAG: Found {allCandidates.Count} total candidates. Best candidate: '{allCandidates.FirstOrDefault()}'");
+
+                using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                foreach (var iconUrl in allCandidates)
+                {
+                    if (await FetchAndProcessFavicon(iconUrl, successCachePath, timeoutCts.Token).ConfigureAwait(false))
+                    {
+                        finalIconPath = successCachePath;
+                        break;
+                    }
+                    if (timeoutCts.IsCancellationRequested)
+                    {
+                        LogManager.LogDebug("FAVICON_DISCOVERY_DIAG: Favicon discovery timed out.");
+                        break;
+                    }
                 }
 
                 if (finalIconPath != null)
                 {
                     if (File.Exists(failureCachePath))
                     {
-                        try
-                        {
-                            File.Delete(failureCachePath);
-                        }
+                        try { File.Delete(failureCachePath); }
                         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                        {
-                            LogManager.Log(ex, $"Could not delete stale failure cache file: {failureCachePath}");
-                        }
+                        { LogManager.Log(ex, $"Could not delete stale failure cache file: {failureCachePath}"); }
                     }
                 }
                 else
@@ -131,9 +151,7 @@ namespace Cliptoo.Core.Services
                         await File.WriteAllTextAsync(failureCachePath, DateTime.UtcNow.ToString("o")).ConfigureAwait(false);
                     }
                     catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                    {
-                        LogManager.Log(ex, $"Failed to create/update failure cache file for {urlString}");
-                    }
+                    { LogManager.Log(ex, $"Failed to create/update failure cache file for {urlString}"); }
                 }
             }
             finally
@@ -145,192 +163,134 @@ namespace Cliptoo.Core.Services
             return finalIconPath;
         }
 
-        private async Task<string?> TryFetchRootIconAsync(Uri baseUri, string cachePath)
+        private async Task<(string? Title, List<FaviconCandidate> Candidates)> FetchAndParseHtmlHeadAsync(Uri pageUri)
         {
-            var rootIconNames = new[] { "/favicon.svg", "/favicon.ico", "/favicon.png" }; // Prioritize SVG
-            using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+            var candidates = new List<FaviconCandidate>();
+            string? title = null;
 
-            foreach (var iconName in rootIconNames)
-            {
-                var faviconUrl = new Uri(baseUri, iconName);
-                if (await FetchAndProcessFavicon(faviconUrl.ToString(), cachePath, timeoutCts.Token).ConfigureAwait(false))
-                {
-                    return cachePath; // Success
-                }
-
-                if (timeoutCts.IsCancellationRequested)
-                {
-                    LogManager.LogDebug("FAVICON_DISCOVERY_DIAG: Favicon discovery timed out during root icon check.");
-                    break;
-                }
-            }
-            return null;
-        }
-
-        private async Task<string?> TryFetchIconsFromHtmlAsync(Uri pageUri, string cachePath)
-        {
-            string? headContent;
             try
             {
                 var response = await _httpClient.GetAsync(pageUri, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
-                if (!response.IsSuccessStatusCode) return null;
+                if (!response.IsSuccessStatusCode) return (null, candidates);
 
-                Stream stream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
-                try
+                string? headContent;
+                using (Stream stream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
                 {
                     headContent = await ReadHeadContentAsync(stream).ConfigureAwait(false);
                 }
-                finally
+
+                if (string.IsNullOrEmpty(headContent)) return (null, candidates);
+
+                var titleMatch = TitleRegex.Match(headContent);
+                if (titleMatch.Success)
                 {
-                    await stream.DisposeAsync().ConfigureAwait(false);
+                    title = System.Net.WebUtility.HtmlDecode(titleMatch.Groups[1].Value.Trim());
+                }
+
+                foreach (Match linkMatch in LinkTagRegex.Matches(headContent))
+                {
+                    var linkTag = linkMatch.Value;
+                    var relMatch = RelAttributeRegex.Match(linkTag);
+                    if (!relMatch.Success) continue;
+
+                    var relValue = relMatch.Groups["v"].Value;
+                    var relParts = relValue.Split(_spaceSeparator, StringSplitOptions.RemoveEmptyEntries);
+                    var isIcon = relParts.Any(p =>
+                        p.Equals("icon", StringComparison.OrdinalIgnoreCase) ||
+                        p.Equals("shortcut", StringComparison.OrdinalIgnoreCase) ||
+                        p.Equals("apple-touch-icon", StringComparison.OrdinalIgnoreCase) ||
+                        p.Equals("apple-touch-icon-precomposed", StringComparison.OrdinalIgnoreCase)
+                    );
+                    if (!isIcon) continue;
+
+                    var hrefMatch = HrefAttributeRegex.Match(linkTag);
+                    if (!hrefMatch.Success) continue;
+
+                    var href = hrefMatch.Groups[1].Success ? hrefMatch.Groups[1].Value : hrefMatch.Groups[2].Value;
+                    if (string.IsNullOrWhiteSpace(href)) continue;
+
+                    var fullUrl = href.StartsWith("//", StringComparison.Ordinal)
+                        ? $"{pageUri.Scheme}:{href}"
+                        : new Uri(pageUri, href).ToString();
+
+                    int score = CalculateFaviconScore(linkTag, fullUrl);
+                    candidates.Add(new FaviconCandidate { Url = fullUrl, Score = score });
                 }
             }
-            catch (HttpRequestException ex)
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
             {
-                LogManager.LogDebug($"Failed to fetch HTML head for {pageUri}: {ex.Message}");
-                return null;
-            }
-            catch (TaskCanceledException)
-            {
-                LogManager.LogDebug($"HTML head fetch for {pageUri} was canceled.");
-                return null;
+                LogManager.LogDebug($"Failed to fetch or parse HTML head for {pageUri}: {ex.Message}");
             }
 
-            if (string.IsNullOrEmpty(headContent)) return null;
-            LogManager.LogDebug($"FAVICON_DISCOVERY_DIAG: HTML head content length: {headContent.Length}.");
+            return (title, candidates);
+        }
 
-            var iconCandidates = new List<FaviconCandidate>();
-            foreach (Match linkMatch in LinkTagRegex.Matches(headContent))
+        private static int CalculateFaviconScore(string linkTag, string fullUrl)
+        {
+            int score = 0;
+            string extension = Path.GetExtension(fullUrl).ToLowerInvariant();
+
+            if (extension == ".svg") score = 10000;
+            else if (extension == ".ico") score = 5000;
+            else
             {
-                var linkTag = linkMatch.Value;
-                var relMatch = RelAttributeRegex.Match(linkTag);
-                if (!relMatch.Success) continue;
-
-                var relValue = relMatch.Groups["v"].Value;
-                var relParts = relValue.Split(_spaceSeparator, StringSplitOptions.RemoveEmptyEntries);
-                var isIcon = relParts.Any(p =>
-                    p.Equals("icon", StringComparison.OrdinalIgnoreCase) ||
-                    p.Equals("shortcut", StringComparison.OrdinalIgnoreCase) ||
-                    p.Equals("apple-touch-icon", StringComparison.OrdinalIgnoreCase) ||
-                    p.Equals("apple-touch-icon-precomposed", StringComparison.OrdinalIgnoreCase)
-                );
-
-                if (!isIcon)
+                var sizesMatch = SizesAttributeRegex.Match(linkTag);
+                if (sizesMatch.Success)
                 {
-                    continue;
-                }
-
-                var hrefMatch = HrefAttributeRegex.Match(linkTag);
-                if (!hrefMatch.Success) continue;
-
-                var href = hrefMatch.Groups[1].Success ? hrefMatch.Groups[1].Value : hrefMatch.Groups[2].Value;
-                if (string.IsNullOrWhiteSpace(href)) continue;
-
-                string fullUrl;
-                if (href.StartsWith("//", StringComparison.Ordinal))
-                {
-                    fullUrl = $"{pageUri.Scheme}:{href}";
-                }
-                else
-                {
-                    fullUrl = new Uri(pageUri, href).ToString();
-                }
-
-                int score = 0;
-                string extension = Path.GetExtension(fullUrl).ToLowerInvariant();
-
-                if (extension == ".svg")
-                {
-                    score = 10000;
-                }
-                else if (extension == ".ico")
-                {
-                    score = 5000;
-                }
-                else
-                {
-                    var sizesMatch = SizesAttributeRegex.Match(linkTag);
-                    if (sizesMatch.Success)
-                    {
-                        var sizesValue = sizesMatch.Groups["v"].Value.ToLowerInvariant();
-                        if (sizesValue == "any")
-                        {
-                            score = 100;
-                        }
-                        else
-                        {
-                            var firstSizePart = sizesValue.Split(' ')[0];
-                            var dimension = firstSizePart.Split('x')[0];
-                            if (int.TryParse(dimension, out int size))
-                            {
-                                if (size >= 32)
-                                {
-                                    score = 1000 - (size - 32);
-                                }
-                                else
-                                {
-                                    score = size;
-                                }
-                            }
-                        }
-                    }
+                    var sizesValue = sizesMatch.Groups["v"].Value.ToLowerInvariant();
+                    if (sizesValue == "any") score = 100;
                     else
                     {
-                        score = 32;
+                        var firstSizePart = sizesValue.Split(' ')[0];
+                        var dimension = firstSizePart.Split('x')[0];
+                        if (int.TryParse(dimension, out int size))
+                        {
+                            score = size >= 32 ? 1000 - Math.Abs(size - 32) : size;
+                        }
                     }
                 }
-
-                iconCandidates.Add(new FaviconCandidate { Url = fullUrl, Score = score });
-            }
-
-            if (iconCandidates.Count == 0)
-            {
-                LogManager.LogDebug("FAVICON_DISCOVERY_DIAG: No icon URLs found in the HTML head.");
-                return null;
-            }
-
-            var orderedUrls = iconCandidates.OrderByDescending(c => c.Score).Select(c => c.Url).Distinct().ToList();
-
-            LogManager.LogDebug($"FAVICON_DISCOVERY_DIAG: Found {orderedUrls.Count} potential icon URLs. Best candidate: '{orderedUrls.FirstOrDefault()}'");
-
-            using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
-
-            foreach (var url in orderedUrls)
-            {
-                if (await FetchAndProcessFavicon(url, cachePath, timeoutCts.Token).ConfigureAwait(false))
+                else
                 {
-                    return cachePath; // Success
-                }
-
-                if (timeoutCts.IsCancellationRequested)
-                {
-                    LogManager.LogDebug("FAVICON_DISCOVERY_DIAG: Favicon discovery timed out during HTML head processing.");
-                    break;
+                    score = 32;
                 }
             }
-
-            return null;
+            return score;
         }
 
         private static async Task<string?> ReadHeadContentAsync(Stream stream)
         {
-            using var reader = new StreamReader(stream, Encoding.UTF8, true, 1024, true);
-            var buffer = new char[150 * 1024]; // Increased buffer to 150KB
+            using var reader = new StreamReader(stream, Encoding.UTF8, true, 1024, leaveOpen: true);
+            var contentBuilder = new StringBuilder();
+            var buffer = new char[4096];
+            int totalCharsRead = 0;
+            const int maxCharsToRead = 100 * 1024;
 
-            int charsRead = await reader.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false);
-            if (charsRead == 0) return null;
-
-            var content = new string(buffer, 0, charsRead);
-            int headEndIndex = content.IndexOf("</head>", StringComparison.OrdinalIgnoreCase);
-
-            if (headEndIndex != -1)
+            while (totalCharsRead < maxCharsToRead)
             {
-                // Return only the content up to the end of the head tag
-                return content.Substring(0, headEndIndex + "</head>".Length);
+                int charsRead = await reader.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false);
+                if (charsRead == 0)
+                {
+                    break;
+                }
+
+                contentBuilder.Append(buffer, 0, charsRead);
+                totalCharsRead += charsRead;
+
+                string currentContent = contentBuilder.ToString();
+                int headEndIndex = currentContent.IndexOf("</head>", StringComparison.OrdinalIgnoreCase);
+                if (headEndIndex != -1)
+                {
+                    return currentContent.Substring(0, headEndIndex + "</head>".Length);
+                }
             }
 
-            LogManager.LogDebug("HTML </head> tag not found within the first 150KB. Using partial content for discovery.");
-            return content;
+            if (totalCharsRead > 0)
+            {
+                LogManager.LogDebug($"HTML </head> tag not found within the first {maxCharsToRead / 1024}KB. Using partial content for discovery.");
+                return contentBuilder.ToString();
+            }
+
+            return null;
         }
 
         public async Task<string?> GetPageTitleAsync(Uri url)

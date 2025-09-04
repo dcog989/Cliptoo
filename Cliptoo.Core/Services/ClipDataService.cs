@@ -66,16 +66,6 @@ namespace Cliptoo.Core.Services
         {
             ArgumentNullException.ThrowIfNull(clip);
 
-            // If the content is missing (e.g., from a preview-only object), fetch the full clip first.
-            if (clip.Content is null && (clip.ClipType == AppConstants.ClipTypes.Link))
-            {
-                var fullClip = await GetClipByIdAsync(clip.Id).ConfigureAwait(false);
-                if (fullClip != null)
-                {
-                    clip = fullClip; // Replace with the full clip object
-                }
-            }
-
             await _dbManager.DeleteClipAsync(clip.Id).ConfigureAwait(false);
             _clipCache.Remove(clip.Id);
             ClipDeleted?.Invoke(this, EventArgs.Empty);

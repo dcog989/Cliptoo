@@ -9,6 +9,8 @@ using System.Windows;
 using Cliptoo.Core.Native.Models;
 using Cliptoo.Core.Services;
 using Cliptoo.Core.Configuration;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats.Png;
 
 namespace Cliptoo.Core.Native
 {
@@ -194,7 +196,6 @@ namespace Cliptoo.Core.Native
         private static Dictionary<string, (object Content, ulong Hash)> GetAvailableClipboardData()
         {
             var availableData = new Dictionary<string, (object Content, ulong Hash)>();
-
             if (ClipboardUtils.SafeGet(() => Clipboard.ContainsData(DataFormats.Rtf)) == true)
             {
                 var rtfText = ClipboardUtils.SafeGet(() => Clipboard.GetData(DataFormats.Rtf) as string);
@@ -222,13 +223,26 @@ namespace Cliptoo.Core.Native
                 var imageSource = ClipboardUtils.SafeGet(() => Clipboard.GetImage());
                 if (imageSource != null)
                 {
-                    using (var stream = new MemoryStream())
+                    using (var wpfStream = new MemoryStream())
                     {
-                        var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
-                        encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(imageSource));
-                        encoder.Save(stream);
-                        var bytes = stream.ToArray();
-                        availableData["Image"] = (bytes, HashingUtils.ComputeHash(bytes));
+                        var wpfEncoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+                        wpfEncoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(imageSource));
+                        wpfEncoder.Save(wpfStream);
+                        wpfStream.Position = 0;
+
+                        using (var image = Image.Load(wpfStream))
+                        {
+                            using (var outputStream = new MemoryStream())
+                            {
+                                var pngEncoder = new PngEncoder()
+                                {
+                                    CompressionLevel = PngCompressionLevel.BestCompression,
+                                };
+                                image.Save(outputStream, pngEncoder);
+                                var bytes = outputStream.ToArray();
+                                availableData["Image"] = (bytes, HashingUtils.ComputeHash(bytes));
+                            }
+                        }
                     }
                 }
             }
