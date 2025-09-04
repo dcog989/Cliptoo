@@ -17,13 +17,13 @@ namespace Cliptoo.Core.Services.Models
 
         public string? SourceAppOverride { get; }
 
-        public bool WasTrimmed { get; }
+        public bool SourceHadWhitespaceTrimmed { get; }
 
-        public ProcessingResult(string clipType, string content, bool wasTrimmed = false, string? sourceAppOverride = null)
+        public ProcessingResult(string clipType, string content, bool sourceHadWhitespaceTrimmed = false, string? sourceAppOverride = null)
         {
             ClipType = clipType;
             Content = content;
-            WasTrimmed = wasTrimmed;
+            SourceHadWhitespaceTrimmed = sourceHadWhitespaceTrimmed;
             SourceAppOverride = sourceAppOverride;
         }
     }

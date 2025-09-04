@@ -188,7 +188,7 @@ namespace Cliptoo.Core
 
             if (result != null)
             {
-                bool finalWasTrimmed = result.WasTrimmed || wasTruncated;
+                bool finalWasTrimmed = result.SourceHadWhitespaceTrimmed || wasTruncated;
                 string? sourceApp = result.SourceAppOverride ?? e.SourceApp;
                 await _clipDataService.AddClipAsync(
                     result.Content,
