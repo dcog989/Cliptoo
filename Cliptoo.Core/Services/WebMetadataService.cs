@@ -262,10 +262,12 @@ namespace Cliptoo.Core.Services
             using var reader = new StreamReader(stream, Encoding.UTF8, true, 1024, leaveOpen: true);
             var contentBuilder = new StringBuilder();
             var buffer = new char[4096];
-            int totalCharsRead = 0;
-            const int maxCharsToRead = 100 * 1024;
+            int totalBytesRead = 0;
+            const int maxKBToRead = 350;
+            const int maxBytesToRead = maxKBToRead * 1024;
+            var currentEncoding = reader.CurrentEncoding;
 
-            while (totalCharsRead < maxCharsToRead)
+            while (totalBytesRead < maxBytesToRead)
             {
                 int charsRead = await reader.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false);
                 if (charsRead == 0)
@@ -273,8 +275,10 @@ namespace Cliptoo.Core.Services
                     break;
                 }
 
+                int bytesReadInThisChunk = currentEncoding.GetByteCount(buffer, 0, charsRead);
+                totalBytesRead += bytesReadInThisChunk;
+
                 contentBuilder.Append(buffer, 0, charsRead);
-                totalCharsRead += charsRead;
 
                 string currentContent = contentBuilder.ToString();
                 int headEndIndex = currentContent.IndexOf("</head>", StringComparison.OrdinalIgnoreCase);
@@ -284,9 +288,9 @@ namespace Cliptoo.Core.Services
                 }
             }
 
-            if (totalCharsRead > 0)
+            if (totalBytesRead > 0)
             {
-                LogManager.LogDebug($"HTML </head> tag not found within the first {maxCharsToRead / 1024}KB. Using partial content for discovery.");
+                LogManager.LogDebug($"HTML </head> tag not found within the first {maxKBToRead}KB. Using partial content for discovery.");
                 return contentBuilder.ToString();
             }
 
@@ -311,72 +315,16 @@ namespace Cliptoo.Core.Services
 
             try
             {
-                using var response = await _httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
-                if (!response.IsSuccessStatusCode)
-                {
-                    _titleCache.Add(urlString, string.Empty);
-                    return null;
-                }
-
-                var encoding = Encoding.UTF8;
-                var charset = response.Content.Headers.ContentType?.CharSet;
-                if (!string.IsNullOrEmpty(charset))
-                {
-                    try
-                    {
-                        encoding = Encoding.GetEncoding(charset);
-                    }
-                    catch (ArgumentException) { /* Fallback to UTF-8 */ }
-                }
-
-                var stream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
-                try
-                {
-                    using var reader = new StreamReader(stream, encoding, true, 1024, true); // leaveOpen = true
-
-                    var buffer = new char[4096];
-                    var content = new StringBuilder();
-                    string? title = null;
-
-                    while (true)
-                    {
-                        int charsRead = await reader.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false);
-                        if (charsRead == 0) break;
-
-                        content.Append(buffer, 0, charsRead);
-                        var currentContent = content.ToString();
-
-                        var match = TitleRegex.Match(currentContent);
-                        if (match.Success)
-                        {
-                            title = System.Net.WebUtility.HtmlDecode(match.Groups[1].Value.Trim());
-                            break;
-                        }
-
-                        if (currentContent.Contains("</head>", StringComparison.OrdinalIgnoreCase) || content.Length > 150 * 1024)
-                        {
-                            break;
-                        }
-                    }
-                    _titleCache.Add(urlString, title ?? string.Empty);
-                    return title;
-                }
-                finally
-                {
-                    await stream.DisposeAsync().ConfigureAwait(false);
-                }
+                var (title, _) = await FetchAndParseHtmlHeadAsync(url).ConfigureAwait(false);
+                _titleCache.Add(urlString, title ?? string.Empty);
+                return title;
             }
-            catch (HttpRequestException ex)
-            {
-                LogManager.LogDebug($"HTTP request for title failed for {url}: {ex.Message}");
-            }
-            catch (Exception ex) when (ex is TaskCanceledException or IOException)
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException)
             {
                 LogManager.Log(ex, $"Failed to fetch page title for {url}");
+                _titleCache.Add(urlString, string.Empty);
+                return null;
             }
-
-            _titleCache.Add(urlString, string.Empty);
-            return null;
         }
 
         private async Task<bool> FetchAndProcessFavicon(string faviconUrl, string cachePath, CancellationToken cancellationToken = default)
