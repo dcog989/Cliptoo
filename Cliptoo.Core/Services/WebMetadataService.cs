@@ -31,6 +31,7 @@ namespace Cliptoo.Core.Services
         private readonly ConcurrentDictionary<string, bool> _failedFaviconUrls = new();
         private bool _disposedValue;
         private readonly IImageDecoder _imageDecoder;
+        private static readonly char[] _spaceSeparator = [' '];
 
         public WebMetadataService(string appCachePath, IImageDecoder imageDecoder)
         {
@@ -213,7 +214,7 @@ namespace Cliptoo.Core.Services
                 if (!relMatch.Success) continue;
 
                 var relValue = relMatch.Groups["v"].Value;
-                var relParts = relValue.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                var relParts = relValue.Split(_spaceSeparator, StringSplitOptions.RemoveEmptyEntries);
                 var isIcon = relParts.Any(p =>
                     p.Equals("icon", StringComparison.OrdinalIgnoreCase) ||
                     p.Equals("shortcut", StringComparison.OrdinalIgnoreCase) ||
