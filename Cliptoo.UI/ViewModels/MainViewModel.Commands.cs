@@ -35,13 +35,34 @@ namespace Cliptoo.UI.ViewModels
                 stopwatch.Stop();
                 LogManager.LogDebug($"PASTE_DIAG: Modifier key check completed in {stopwatch.ElapsedMilliseconds}ms.");
 
-                LogManager.LogDebug($"PASTE_DIAG: Hiding main window before paste.");
-                HideWindow();
+                bool wasOnTop = IsAlwaysOnTop;
+
+                if (wasOnTop)
+                {
+                    LogManager.LogDebug($"PASTE_DIAG: Temporarily hiding window for paste (AlwaysOnTop is active).");
+                    Application.Current.MainWindow?.Hide();
+                }
+                else
+                {
+                    LogManager.LogDebug($"PASTE_DIAG: Hiding main window before paste.");
+                    HideWindow();
+                }
 
                 await pasteAction(clip);
                 await _clipboardService.UpdatePasteCountAsync();
 
                 await LoadClipsAsync(true);
+
+                if (wasOnTop)
+                {
+                    LogManager.LogDebug($"PASTE_DIAG: Restoring main window visibility (AlwaysOnTop is active).");
+                    Application.Current.MainWindow?.Show();
+                    Application.Current.MainWindow?.Activate();
+                }
+                else
+                {
+                    _needsRefreshOnShow = false;
+                }
             }
             catch (Exception ex)
             {
