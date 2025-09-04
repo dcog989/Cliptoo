@@ -241,7 +241,11 @@ namespace Cliptoo.UI.Views
         {
             _viewModel.VerticalScrollOffset = e.VerticalOffset;
 
-            // Do not trigger load more on upward scroll or during initial layout churn where change can be 0.
+            if (e.VerticalChange != 0 && _viewModel.IsPreviewOpen)
+            {
+                _viewModel.RequestHidePreview();
+            }
+
             if (e.VerticalChange <= 0)
             {
                 return;
@@ -252,7 +256,6 @@ namespace Cliptoo.UI.Views
                 return;
             }
 
-            // Load more when 10 items are left to scroll.
             if (e.VerticalOffset + e.ViewportHeight >= e.ExtentHeight - 10)
             {
                 _viewModel.LoadMoreClipsCommand.Execute(null);

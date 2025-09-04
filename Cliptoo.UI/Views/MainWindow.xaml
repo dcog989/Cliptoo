@@ -400,6 +400,8 @@
                 AllowsTransparency="True"
                 DataContext="{Binding}"
                 IsOpen="{Binding IsPreviewOpen, Mode=TwoWay}"
+                MouseEnter="PreviewPopup_MouseEnter"
+                MouseLeave="PreviewPopup_MouseLeave"
                 Placement="Mouse"
                 PopupAnimation="Fade">
                 <Border
