@@ -59,14 +59,12 @@ namespace Cliptoo.Core.Services
             var urlString = url.GetLeftPart(UriPartial.Authority);
             if (_failedFaviconUrls.ContainsKey(urlString))
             {
-                LogManager.LogDebug($"FAVICON_CACHE_DIAG: Hit (failure cache) for '{urlString}'.");
                 return null;
             }
 
             var successCachePath = ServiceUtils.GetCachePath(urlString, _faviconCacheDir, ".png");
             if (File.Exists(successCachePath))
             {
-                LogManager.LogDebug($"FAVICON_CACHE_DIAG: Hit for '{urlString}'.");
                 return successCachePath;
             }
 
@@ -341,7 +339,6 @@ namespace Cliptoo.Core.Services
             var urlString = url.ToString();
             if (_titleCache.TryGetValue(urlString, out var cachedTitle))
             {
-                LogManager.LogDebug($"TITLE_CACHE_DIAG: Hit for '{urlString}'.");
                 return string.IsNullOrEmpty(cachedTitle) ? null : cachedTitle;
             }
             LogManager.LogDebug($"TITLE_CACHE_DIAG: Miss for '{urlString}'. Fetching from web.");

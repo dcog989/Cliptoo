@@ -35,7 +35,6 @@ namespace Cliptoo.Core.Services
         {
             if (_clipCache.TryGetValue(id, out var cachedClip) && cachedClip is not null)
             {
-                LogManager.LogDebug($"CLIP_CACHE_DIAG: Hit for Clip ID {id}.");
                 return cachedClip;
             }
             LogManager.LogDebug($"CLIP_CACHE_DIAG: Miss for Clip ID {id}. Querying database.");
