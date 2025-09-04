@@ -614,6 +614,7 @@ namespace Cliptoo.Core.Services
         {
             if (url is null) return;
             var urlString = url.GetLeftPart(UriPartial.Authority);
+            LogManager.LogDebug($"FAVICON_CACHE_DIAG: Clearing cache for URL: {urlString}");
 
             try
             {
@@ -621,17 +622,20 @@ namespace Cliptoo.Core.Services
                 if (File.Exists(successCachePath))
                 {
                     File.Delete(successCachePath);
+                    LogManager.LogDebug($"FAVICON_CACHE_DIAG: Deleted success cache file: {successCachePath}");
                 }
 
                 var failureCachePath = ServiceUtils.GetCachePath(urlString, _faviconCacheDir, ".failed");
                 if (File.Exists(failureCachePath))
                 {
                     File.Delete(failureCachePath);
+                    LogManager.LogDebug($"FAVICON_CACHE_DIAG: Deleted failure cache file: {failureCachePath}");
                 }
 
-                _failedFaviconUrls.TryRemove(urlString, out _);
-
-                LogManager.LogDebug($"Cleared favicon cache for URL: {urlString}");
+                if (_failedFaviconUrls.TryRemove(urlString, out _))
+                {
+                    LogManager.LogDebug($"FAVICON_CACHE_DIAG: Removed '{urlString}' from in-memory failure cache.");
+                }
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {

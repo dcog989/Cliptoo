@@ -64,6 +64,7 @@ namespace Cliptoo.Core
             _databaseService.CleanupTempFiles();
 
             ClipboardMonitor.ClipboardChanged += OnClipboardChangedAsync;
+            _clipDataService.ClipDeleted += OnClipDeleted;
             _fileTypeClassifier.FileTypesChanged += OnFileTypesChanged;
             _cleanupTimer.Start();
 
@@ -141,6 +142,11 @@ namespace Cliptoo.Core
                     ProcessingFailed?.Invoke(this, new ProcessingFailedEventArgs("Failed to Save Clip", "Could not process and save the latest clipboard item. See logs for details."));
                 }
             });
+        }
+
+        private void OnClipDeleted(object? sender, EventArgs e)
+        {
+            ClipboardMonitor.ForgetLastContentHashes();
         }
 
         private async Task ProcessClipboardChange(ClipboardChangedEventArgs e)
@@ -229,10 +235,12 @@ namespace Cliptoo.Core
                 LogManager.Log("Cliptoo shutting down.");
                 _cleanupTimer.Stop();
                 _cleanupTimer.Dispose();
+                _clipDataService.ClipDeleted -= OnClipDeleted;
                 _fileTypeClassifier.FileTypesChanged -= OnFileTypesChanged;
                 ClipboardMonitor.ClipboardChanged -= OnClipboardChangedAsync;
                 ClipboardMonitor.Dispose();
             }
         }
+
     }
 }

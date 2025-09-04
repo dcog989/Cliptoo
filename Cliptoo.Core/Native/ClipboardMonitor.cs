@@ -26,6 +26,15 @@ namespace Cliptoo.Core.Native
         private readonly System.Timers.Timer _suppressionResetTimer;
         private readonly ManualResetEventSlim _suppressionActive = new(false);
 
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+        [DllImport("user32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool AddClipboardFormatListener(IntPtr hwnd);
+
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+        [DllImport("user32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool RemoveClipboardFormatListener(IntPtr hwnd);
 
         public ClipboardMonitor()
         {
@@ -256,14 +265,12 @@ namespace Cliptoo.Core.Native
             GC.SuppressFinalize(this);
         }
 
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-        [DllImport("user32.dll", SetLastError = true)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool AddClipboardFormatListener(IntPtr hwnd);
-
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-        [DllImport("user32.dll", SetLastError = true)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool RemoveClipboardFormatListener(IntPtr hwnd);
+        public void ForgetLastContentHashes()
+        {
+            LogManager.LogDebug("Forgetting last content hashes due to a deletion.");
+            _lastTextHash = 0;
+            _lastImageHash = 0;
+            _lastFileDropHash = 0;
+        }
     }
 }

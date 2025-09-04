@@ -17,5 +17,6 @@ namespace Cliptoo.Core.Interfaces
         Task MoveClipToTopAsync(int id);
         void ClearCache();
         event EventHandler? NewClipAdded;
+        event EventHandler? ClipDeleted;
     }
 }

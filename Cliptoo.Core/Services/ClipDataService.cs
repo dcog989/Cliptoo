@@ -17,6 +17,7 @@ namespace Cliptoo.Core.Services
         private const int ClipCacheSize = 20;
 
         public event EventHandler? NewClipAdded;
+        public event EventHandler? ClipDeleted;
 
         public ClipDataService(IDbManager dbManager, IWebMetadataService webMetadataService)
         {
@@ -65,8 +66,20 @@ namespace Cliptoo.Core.Services
         public async Task DeleteClipAsync(Clip clip)
         {
             ArgumentNullException.ThrowIfNull(clip);
+
+            // If the content is missing (e.g., from a preview-only object), fetch the full clip first.
+            if (clip.Content is null && (clip.ClipType == AppConstants.ClipTypes.Link))
+            {
+                var fullClip = await GetClipByIdAsync(clip.Id).ConfigureAwait(false);
+                if (fullClip != null)
+                {
+                    clip = fullClip; // Replace with the full clip object
+                }
+            }
+
             await _dbManager.DeleteClipAsync(clip.Id).ConfigureAwait(false);
             _clipCache.Remove(clip.Id);
+            ClipDeleted?.Invoke(this, EventArgs.Empty);
 
             if (clip.ClipType == AppConstants.ClipTypes.Link && clip.Content is not null && Uri.TryCreate(clip.Content, UriKind.Absolute, out var uri))
             {

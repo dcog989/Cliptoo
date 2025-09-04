@@ -28,5 +28,6 @@ namespace Cliptoo.Core.Native
         /// </summary>
         void ProcessSystemUpdate();
         void SuppressNextClip(IEnumerable<ulong> hashes);
+        void ForgetLastContentHashes();
     }
 }
