@@ -37,12 +37,23 @@
                 Width="20"
                 Height="20"
                 Visibility="{Binding ClipType, Converter={StaticResource EqualityToVisibilityConverter}, ConverterParameter=color}">
-                <Rectangle Fill="{StaticResource CheckerboardBrush}" Visibility="{Binding Content, Converter={StaticResource ColorToTransparencyVisibilityConverter}}" />
                 <Border
-                    Background="{Binding Content, Converter={StaticResource ColorToBrushConverter}}"
-                    BorderBrush="Gray"
-                    BorderThickness="1"
-                    CornerRadius="3" />
+                    Background="{StaticResource CheckerboardBrush}"
+                    CornerRadius="3"
+                    Visibility="{Binding Content, Converter={StaticResource ColorToTransparencyVisibilityConverter}}" />
+                <Border Background="{Binding Content, Converter={StaticResource ColorToBrushConverter}}" CornerRadius="3">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="BorderBrush" Value="Gray" />
+                            <Setter Property="BorderThickness" Value="1" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Content, Converter={StaticResource ColorToTransparencyVisibilityConverter}}" Value="Visible">
+                                    <Setter Property="BorderThickness" Value="0" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                </Border>
             </Grid>
 
             <StackPanel Orientation="Horizontal">

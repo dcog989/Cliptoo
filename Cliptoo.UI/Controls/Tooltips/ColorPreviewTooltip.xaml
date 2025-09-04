@@ -10,12 +10,22 @@
     mc:Ignorable="d">
     <StackPanel Margin="5">
         <Grid Width="100" Height="100">
-            <Rectangle Fill="{StaticResource CheckerboardBrush}" Visibility="{Binding Content, Converter={StaticResource ColorToTransparencyVisibilityConverter}}" />
             <Border
-                Background="{Binding Content, Converter={StaticResource ColorToBrushConverter}}"
-                BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
-                BorderThickness="1"
-                CornerRadius="4">
+                Background="{StaticResource CheckerboardBrush}"
+                CornerRadius="4"
+                Visibility="{Binding Content, Converter={StaticResource ColorToTransparencyVisibilityConverter}}" />
+            <Border Background="{Binding Content, Converter={StaticResource ColorToBrushConverter}}" CornerRadius="4">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
+                        <Setter Property="BorderThickness" Value="1" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding Content, Converter={StaticResource ColorToTransparencyVisibilityConverter}}" Value="Visible">
+                                <Setter Property="BorderThickness" Value="0" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
                 <Border.Effect>
                     <DropShadowEffect
                         BlurRadius="4"
