@@ -25,6 +25,7 @@ namespace Cliptoo.Core.Services
         private static readonly Regex LinkTagRegex = new("<link[^>]+>", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         private static readonly Regex RelAttributeRegex = new("rel\\s*=\\s*(?:['\"](?<v>[^'\"]*)['\"]|(?<v>[^>\\s]+))", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         private static readonly Regex HrefAttributeRegex = new("href\\s*=\\s*(?:['\"]([^'\"]+)['\"]|([^>\\s]+))", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private static readonly Regex SizesAttributeRegex = new("sizes\\s*=\\s*(?:['\"](?<v>[^'\"]*)['\"]|(?<v>[^>\\s]+))", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         private static readonly Regex TitleRegex = new("<title[^>]*>\\s*(.+?)\\s*</title>", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         private readonly LruCache<string, string> _titleCache;
         private readonly ConcurrentDictionary<string, bool> _failedFaviconUrls = new();
@@ -43,6 +44,12 @@ namespace Cliptoo.Core.Services
             _pngEncoder = new PngEncoder { CompressionLevel = PngCompressionLevel.Level6 };
             _titleCache = new LruCache<string, string>(100);
             _imageDecoder = imageDecoder;
+        }
+
+        private struct FaviconCandidate
+        {
+            public string Url { get; set; }
+            public int Score { get; set; }
         }
 
         public async Task<string?> GetFaviconAsync(Uri url)
@@ -196,8 +203,9 @@ namespace Cliptoo.Core.Services
             }
 
             if (string.IsNullOrEmpty(headContent)) return null;
+            LogManager.LogDebug($"FAVICON_DISCOVERY_DIAG: HTML head content length: {headContent.Length}.");
 
-            var iconUrls = new List<string>();
+            var iconCandidates = new List<FaviconCandidate>();
             foreach (Match linkMatch in LinkTagRegex.Matches(headContent))
             {
                 var linkTag = linkMatch.Value;
@@ -205,9 +213,15 @@ namespace Cliptoo.Core.Services
                 if (!relMatch.Success) continue;
 
                 var relValue = relMatch.Groups["v"].Value;
-                if (!(relValue.Contains("icon", StringComparison.OrdinalIgnoreCase) ||
-                        relValue.Contains("shortcut", StringComparison.OrdinalIgnoreCase) ||
-                        relValue.Contains("apple-touch-icon", StringComparison.OrdinalIgnoreCase)))
+                var relParts = relValue.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                var isIcon = relParts.Any(p =>
+                    p.Equals("icon", StringComparison.OrdinalIgnoreCase) ||
+                    p.Equals("shortcut", StringComparison.OrdinalIgnoreCase) ||
+                    p.Equals("apple-touch-icon", StringComparison.OrdinalIgnoreCase) ||
+                    p.Equals("apple-touch-icon-precomposed", StringComparison.OrdinalIgnoreCase)
+                );
+
+                if (!isIcon)
                 {
                     continue;
                 }
@@ -227,16 +241,69 @@ namespace Cliptoo.Core.Services
                 {
                     fullUrl = new Uri(pageUri, href).ToString();
                 }
-                iconUrls.Add(fullUrl);
+
+                int score = 0;
+                string extension = Path.GetExtension(fullUrl).ToLowerInvariant();
+
+                if (extension == ".svg")
+                {
+                    score = 10000;
+                }
+                else if (extension == ".ico")
+                {
+                    score = 5000;
+                }
+                else
+                {
+                    var sizesMatch = SizesAttributeRegex.Match(linkTag);
+                    if (sizesMatch.Success)
+                    {
+                        var sizesValue = sizesMatch.Groups["v"].Value.ToLowerInvariant();
+                        if (sizesValue == "any")
+                        {
+                            score = 100;
+                        }
+                        else
+                        {
+                            var firstSizePart = sizesValue.Split(' ')[0];
+                            var dimension = firstSizePart.Split('x')[0];
+                            if (int.TryParse(dimension, out int size))
+                            {
+                                if (size >= 32)
+                                {
+                                    score = 1000 - (size - 32);
+                                }
+                                else
+                                {
+                                    score = size;
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        score = 32;
+                    }
+                }
+
+                iconCandidates.Add(new FaviconCandidate { Url = fullUrl, Score = score });
             }
 
-            if (iconUrls.Count == 0) return null;
+            if (iconCandidates.Count == 0)
+            {
+                LogManager.LogDebug("FAVICON_DISCOVERY_DIAG: No icon URLs found in the HTML head.");
+                return null;
+            }
+
+            var orderedUrls = iconCandidates.OrderByDescending(c => c.Score).Select(c => c.Url).Distinct().ToList();
+
+            LogManager.LogDebug($"FAVICON_DISCOVERY_DIAG: Found {orderedUrls.Count} potential icon URLs. Best candidate: '{orderedUrls.FirstOrDefault()}'");
 
             using var cts = new CancellationTokenSource();
             using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, timeoutCts.Token);
 
-            var tasks = iconUrls.Select(url => FetchAndProcessFavicon(url, cachePath, linkedCts.Token)).ToList();
+            var tasks = orderedUrls.Select(url => FetchAndProcessFavicon(url, cachePath, linkedCts.Token)).ToList();
 
             while (tasks.Count > 0)
             {
@@ -256,60 +323,23 @@ namespace Cliptoo.Core.Services
         private static async Task<string?> ReadHeadContentAsync(Stream stream)
         {
             using var reader = new StreamReader(stream, Encoding.UTF8, true, 1024, true);
-            var buffer = new char[4096];
-            var content = new StringBuilder();
-            bool inScript = false;
-            bool inStyle = false;
+            var buffer = new char[150 * 1024]; // Increased buffer to 150KB
 
-            while (true)
+            int charsRead = await reader.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false);
+            if (charsRead == 0) return null;
+
+            var content = new string(buffer, 0, charsRead);
+            int headEndIndex = content.IndexOf("</head>", StringComparison.OrdinalIgnoreCase);
+
+            if (headEndIndex != -1)
             {
-                int charsRead = await reader.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false);
-                if (charsRead == 0) break;
-
-                content.Append(buffer, 0, charsRead);
-                var currentContent = content.ToString();
-
-                int searchIndex = 0;
-                while (searchIndex < currentContent.Length)
-                {
-                    int scriptIndex = currentContent.IndexOf(inScript ? "</script>" : "<script", searchIndex, StringComparison.OrdinalIgnoreCase);
-                    int styleIndex = currentContent.IndexOf(inStyle ? "</style>" : "<style", searchIndex, StringComparison.OrdinalIgnoreCase);
-                    int headIndex = currentContent.IndexOf("</head>", searchIndex, StringComparison.OrdinalIgnoreCase);
-
-                    int firstIndex = new[] { scriptIndex, styleIndex, headIndex }.Where(i => i != -1).DefaultIfEmpty(-1).Min();
-
-                    if (firstIndex == -1)
-                    {
-                        searchIndex = currentContent.Length;
-                        continue;
-                    }
-
-                    if (firstIndex == headIndex && !inScript && !inStyle)
-                    {
-                        return currentContent.Substring(0, headIndex + "</head>".Length);
-                    }
-                    if (firstIndex == scriptIndex)
-                    {
-                        inScript = !inScript;
-                        searchIndex = scriptIndex + (inScript ? "<script".Length : "</script>".Length);
-                    }
-                    else if (firstIndex == styleIndex)
-                    {
-                        inStyle = !inStyle;
-                        searchIndex = styleIndex + (inStyle ? "<style".Length : "</style>".Length);
-                    }
-                }
-
-                if (content.Length > 100 * 1024)
-                {
-                    LogManager.LogDebug("HTML head section not found within the first 100KB. Aborting parse.");
-                    return content.ToString();
-                }
+                // Return only the content up to the end of the head tag
+                return content.Substring(0, headEndIndex + "</head>".Length);
             }
 
-            return content.ToString();
+            LogManager.LogDebug("HTML </head> tag not found within the first 150KB. Using partial content for discovery.");
+            return content;
         }
-
 
         public async Task<string?> GetPageTitleAsync(Uri url)
         {
@@ -666,5 +696,6 @@ namespace Cliptoo.Core.Services
             Dispose(disposing: true);
             GC.SuppressFinalize(this);
         }
+
     }
 }
