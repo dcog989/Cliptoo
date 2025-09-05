@@ -148,7 +148,7 @@ namespace Cliptoo.UI.ViewModels
             OpenGitHubUrlCommand = new RelayCommand(_ => Process.Start(new ProcessStartInfo(GitHubUrl.AbsoluteUri) { UseShellExecute = true }));
             OpenSettingsFolderCommand = new RelayCommand(_ => Process.Start(new ProcessStartInfo(SettingsFolderPath) { UseShellExecute = true }));
             OpenTempDataFolderCommand = new RelayCommand(_ => Process.Start(new ProcessStartInfo(TempDataPath) { UseShellExecute = true }));
-            OpenAcknowledgementsWindowCommand = new RelayCommand(_ => ShowAcknowledgementsWindow());
+            OpenAcknowledgementsWindowCommand = new RelayCommand(ShowAcknowledgementsWindow);
             OpenExeFolderCommand = new RelayCommand(_ => Process.Start(new ProcessStartInfo(ExePathDir) { UseShellExecute = true }));
             BrowseCompareToolCommand = new RelayCommand(_ => ExecuteBrowseCompareTool());
             AddSendToTargetCommand = new RelayCommand(_ => ExecuteAddSendToTarget());

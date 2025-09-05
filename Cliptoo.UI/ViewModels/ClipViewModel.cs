@@ -205,17 +205,7 @@ namespace Cliptoo.UI.ViewModels
             PageTitle = null;
             IsSourceMissing = false;
 
-            if (IsFileBased && !string.IsNullOrEmpty(Content))
-            {
-                if (ClipType == AppConstants.ClipTypes.Folder)
-                {
-                    IsSourceMissing = !Directory.Exists(Content.Trim());
-                }
-                else
-                {
-                    IsSourceMissing = !File.Exists(Content.Trim());
-                }
-            }
+            _ = UpdateSourceMissingStateAsync();
 
             UpdatePreviewText();
             ClearTooltipContent();
@@ -239,6 +229,24 @@ namespace Cliptoo.UI.ViewModels
             OnPropertyChanged(nameof(IsContentTruncated));
             OnPropertyChanged(nameof(IsOpenable));
             OnPropertyChanged(nameof(ShowCompareMenu));
+        }
+
+        private async Task UpdateSourceMissingStateAsync()
+        {
+            bool isMissing = false;
+            if (IsFileBased && !string.IsNullOrEmpty(Content))
+            {
+                isMissing = await Task.Run(() =>
+                {
+                    var path = Content.Trim();
+                    if (ClipType == AppConstants.ClipTypes.Folder)
+                    {
+                        return !Directory.Exists(path);
+                    }
+                    return !File.Exists(path);
+                });
+            }
+            IsSourceMissing = isMissing;
         }
 
         private async Task LoadIconsAsync()

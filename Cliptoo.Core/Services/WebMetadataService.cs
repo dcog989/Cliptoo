@@ -60,7 +60,6 @@ namespace Cliptoo.Core.Services
 
             var urlString = url.GetLeftPart(UriPartial.Authority);
 
-            // Return cached task if a fetch is already in progress for this URL
             return _ongoingFetches.GetOrAdd(urlString, key => FetchAndCacheFaviconAsync(new Uri(key)));
         }
 
@@ -69,16 +68,10 @@ namespace Cliptoo.Core.Services
             var urlString = url.GetLeftPart(UriPartial.Authority);
             try
             {
-                if (_failedFaviconUrls.ContainsKey(urlString))
-                {
-                    return null;
-                }
+                if (_failedFaviconUrls.ContainsKey(urlString)) return null;
 
                 var successCachePath = ServiceUtils.GetCachePath(urlString, _faviconCacheDir, ".png");
-                if (File.Exists(successCachePath))
-                {
-                    return successCachePath;
-                }
+                if (File.Exists(successCachePath)) return successCachePath;
 
                 var failureCachePath = ServiceUtils.GetCachePath(urlString, _faviconCacheDir, ".failed");
                 if (File.Exists(failureCachePath))
@@ -86,13 +79,10 @@ namespace Cliptoo.Core.Services
                     try
                     {
                         var timestampText = await File.ReadAllTextAsync(failureCachePath).ConfigureAwait(false);
-                        if (DateTime.TryParse(timestampText, null, System.Globalization.DateTimeStyles.RoundtripKind, out var timestamp))
+                        if (DateTime.TryParse(timestampText, null, System.Globalization.DateTimeStyles.RoundtripKind, out var timestamp) && (DateTime.UtcNow - timestamp) < FailureCacheDuration)
                         {
-                            if ((DateTime.UtcNow - timestamp) < FailureCacheDuration)
-                            {
-                                _failedFaviconUrls.TryAdd(urlString, true);
-                                return null;
-                            }
+                            _failedFaviconUrls.TryAdd(urlString, true);
+                            return null;
                         }
                     }
                     catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -104,47 +94,53 @@ namespace Cliptoo.Core.Services
                 LogManager.LogDebug($"FAVICON_CACHE_DIAG: Miss for '{urlString}'. Starting fetch process.");
                 var stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
-                var (pageTitle, htmlCandidates) = await FetchAndParseHtmlHeadAsync(url).ConfigureAwait(false);
-                if (pageTitle != null)
+                using var overallCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+                // Task 1: Fetch HTML and parse for candidates
+                var htmlParseTask = FetchAndParseHtmlHeadAsync(url);
+
+                // Task 2: Try fetching the common /favicon.ico in parallel
+                var icoTask = FetchAndProcessFavicon(new Uri(url, "/favicon.ico").ToString(), successCachePath, overallCts.Token);
+
+                await Task.WhenAll(htmlParseTask, icoTask).ConfigureAwait(false);
+
+                // If favicon.ico was found, we are done
+                if (await icoTask)
                 {
-                    _titleCache.Add(url.ToString(), pageTitle);
+                    LogManager.LogDebug($"FAVICON_DISCOVERY_DIAG: Success with direct fetch of /favicon.ico for {urlString}");
+                    return successCachePath;
                 }
 
-                var rootCandidates = new List<FaviconCandidate>
+                var (pageTitle, htmlCandidates) = await htmlParseTask;
+                if (pageTitle != null) _titleCache.Add(url.ToString(), pageTitle);
+
+                // If HTML parsing yielded candidates, try fetching them
+                if (htmlCandidates.Any())
                 {
-                    new() { Url = new Uri(url, "/favicon.svg").ToString(), Score = 500 },
-                    new() { Url = new Uri(url, "/favicon.ico").ToString(), Score = 400 },
-                    new() { Url = new Uri(url, "/apple-touch-icon.png").ToString(), Score = 300 },
-                    new() { Url = new Uri(url, "/favicon.png").ToString(), Score = 200 }
-                };
-
-                var allCandidates = htmlCandidates.Concat(rootCandidates)
-                    .OrderByDescending(c => c.Score)
-                    .Select(c => c.Url)
-                    .Distinct()
-                    .ToList();
-
-                LogManager.LogDebug($"FAVICON_DISCOVERY_DIAG: Found {allCandidates.Count} total candidates. Best candidate: '{allCandidates.FirstOrDefault()}'");
-
-                using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-                foreach (var iconUrl in allCandidates)
-                {
-                    if (await FetchAndProcessFavicon(iconUrl, successCachePath, timeoutCts.Token).ConfigureAwait(false))
+                    var orderedCandidates = htmlCandidates.OrderByDescending(c => c.Score).Select(c => c.Url).Distinct();
+                    foreach (var candidateUrl in orderedCandidates)
                     {
-                        if (File.Exists(failureCachePath))
+                        if (await FetchAndProcessFavicon(candidateUrl, successCachePath, overallCts.Token).ConfigureAwait(false))
                         {
-                            try { File.Delete(failureCachePath); }
-                            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { LogManager.Log(ex, $"Could not delete stale failure cache file: {failureCachePath}"); }
+                            LogManager.LogDebug($"FAVICON_DISCOVERY_DIAG: Success with HTML-parsed candidate {candidateUrl} for {urlString}");
+                            return successCachePath;
                         }
-                        return successCachePath;
-                    }
-                    if (timeoutCts.IsCancellationRequested)
-                    {
-                        LogManager.LogDebug("FAVICON_DISCOVERY_DIAG: Favicon discovery timed out.");
-                        break;
                     }
                 }
 
+                // Final fallbacks if all else fails
+                if (await FetchAndProcessFavicon(new Uri(url, "/favicon.svg").ToString(), successCachePath, overallCts.Token).ConfigureAwait(false))
+                {
+                    LogManager.LogDebug($"FAVICON_DISCOVERY_DIAG: Success with fallback fetch of /favicon.svg for {urlString}");
+                    return successCachePath;
+                }
+                if (await FetchAndProcessFavicon(new Uri(url, "/favicon.png").ToString(), successCachePath, overallCts.Token).ConfigureAwait(false))
+                {
+                    LogManager.LogDebug($"FAVICON_DISCOVERY_DIAG: Success with fallback fetch of /favicon.png for {urlString}");
+                    return successCachePath;
+                }
+
+                // If we reach here, all attempts failed
                 LogManager.LogDebug($"Favicon Discovery for {urlString}: All stages failed. Caching failure.");
                 _failedFaviconUrls.TryAdd(urlString, true);
                 try
@@ -159,7 +155,6 @@ namespace Cliptoo.Core.Services
             }
             finally
             {
-                // Remove the task from the dictionary once it's complete, so future attempts can re-run the logic.
                 _ongoingFetches.TryRemove(urlString, out _);
             }
         }
@@ -175,7 +170,6 @@ namespace Cliptoo.Core.Services
                 var response = await _httpClient.GetAsync(pageUri, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
                 if (!response.IsSuccessStatusCode) return (null, candidates);
 
-                // Use the final request URI after any redirects as the default base
                 var baseUri = response.RequestMessage?.RequestUri ?? pageUri;
 
                 string? headContent;
@@ -186,7 +180,6 @@ namespace Cliptoo.Core.Services
 
                 if (string.IsNullOrEmpty(headContent)) return (null, candidates);
 
-                // Override with <base> tag if present
                 var baseTagRegex = new Regex("<base[^>]+href\\s*=\\s*(?:['\"](?<v>[^'\"]*)['\"]|(?<v>[^>\\s]+))", RegexOptions.IgnoreCase | RegexOptions.Compiled);
                 var baseMatch = baseTagRegex.Match(headContent);
                 if (baseMatch.Success)
@@ -215,14 +208,11 @@ namespace Cliptoo.Core.Services
                     if (!relMatch.Success) continue;
 
                     var relValue = relMatch.Groups["v"].Value;
-                    var relParts = relValue.Split(_spaceSeparator, StringSplitOptions.RemoveEmptyEntries);
-                    var isIcon = relParts.Any(p =>
-                        p.Equals("icon", StringComparison.OrdinalIgnoreCase) ||
-                        p.Equals("shortcut", StringComparison.OrdinalIgnoreCase) ||
-                        p.Equals("apple-touch-icon", StringComparison.OrdinalIgnoreCase) ||
-                        p.Equals("apple-touch-icon-precomposed", StringComparison.OrdinalIgnoreCase)
-                    );
-                    if (!isIcon) continue;
+
+                    if (relValue.IndexOf("icon", StringComparison.OrdinalIgnoreCase) < 0)
+                    {
+                        continue;
+                    }
 
                     var hrefMatch = HrefAttributeRegex.Match(linkTag);
                     if (!hrefMatch.Success) continue;
@@ -230,7 +220,6 @@ namespace Cliptoo.Core.Services
                     var href = hrefMatch.Groups[1].Success ? hrefMatch.Groups[1].Value : hrefMatch.Groups[2].Value;
                     if (string.IsNullOrWhiteSpace(href)) continue;
 
-                    // Use the determined baseUri for resolution
                     var fullUrl = new Uri(baseUri, href).ToString();
 
                     int score = CalculateFaviconScore(linkTag, fullUrl);
@@ -271,7 +260,7 @@ namespace Cliptoo.Core.Services
                 }
                 else
                 {
-                    score = 32;
+                    score = 32; // Default score for PNGs without size
                 }
             }
             return score;
@@ -279,42 +268,47 @@ namespace Cliptoo.Core.Services
 
         private static async Task<string?> ReadHeadContentAsync(Stream stream)
         {
-            using var reader = new StreamReader(stream, Encoding.UTF8, true, 1024, leaveOpen: true);
-            var contentBuilder = new StringBuilder();
-            var buffer = new char[4096];
-            int totalBytesRead = 0;
-            const int maxKBToRead = 350;
-            const int maxBytesToRead = maxKBToRead * 1024;
-            var currentEncoding = reader.CurrentEncoding;
+            const int maxBytesToRead = 350 * 1024;
+            using var memoryStream = new MemoryStream();
 
+            var buffer = new byte[8192];
+            int totalBytesRead = 0;
             while (totalBytesRead < maxBytesToRead)
             {
-                int charsRead = await reader.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false);
-                if (charsRead == 0)
+                int bytesToRead = Math.Min(buffer.Length, maxBytesToRead - totalBytesRead);
+                int bytesRead = await stream.ReadAsync(buffer, 0, bytesToRead).ConfigureAwait(false);
+                if (bytesRead == 0)
                 {
                     break;
                 }
+                await memoryStream.WriteAsync(buffer, 0, bytesRead).ConfigureAwait(false);
+                totalBytesRead += bytesRead;
 
-                int bytesReadInThisChunk = currentEncoding.GetByteCount(buffer, 0, charsRead);
-                totalBytesRead += bytesReadInThisChunk;
-
-                contentBuilder.Append(buffer, 0, charsRead);
-
-                string currentContent = contentBuilder.ToString();
-                int headEndIndex = currentContent.IndexOf("</head>", StringComparison.OrdinalIgnoreCase);
-                if (headEndIndex != -1)
+                var tempString = Encoding.UTF8.GetString(buffer, 0, bytesRead);
+                if (tempString.Contains("</head>", StringComparison.OrdinalIgnoreCase))
                 {
-                    return currentContent.Substring(0, headEndIndex + "</head>".Length);
+                    break;
                 }
             }
 
-            if (totalBytesRead > 0)
+            memoryStream.Position = 0;
+
+            using var reader = new StreamReader(memoryStream, Encoding.UTF8, true);
+            var content = await reader.ReadToEndAsync().ConfigureAwait(false);
+
+            if (string.IsNullOrEmpty(content))
             {
-                LogManager.LogDebug($"HTML </head> tag not found within the first {maxKBToRead}KB. Using partial content for discovery.");
-                return contentBuilder.ToString();
+                return null;
             }
 
-            return null;
+            int headEndIndex = content.IndexOf("</head>", StringComparison.OrdinalIgnoreCase);
+            if (headEndIndex != -1)
+            {
+                return content.Substring(0, headEndIndex + "</head>".Length);
+            }
+
+            LogManager.LogDebug($"HTML </head> tag not found within the first {maxBytesToRead / 1024}KB. Using partial content for discovery.");
+            return content;
         }
 
         public async Task<string?> GetPageTitleAsync(Uri url)
@@ -352,6 +346,7 @@ namespace Cliptoo.Core.Services
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             try
             {
+                if (cancellationToken.IsCancellationRequested) return false;
                 LogManager.LogDebug($"Attempting to fetch favicon: {faviconUrl}");
 
                 if (faviconUrl.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
@@ -367,7 +362,6 @@ namespace Cliptoo.Core.Services
                     return false;
                 }
 
-                // Use HEAD request to check for existence and content type first
                 using var headRequest = new HttpRequestMessage(HttpMethod.Head, faviconUri);
                 var headResponse = await _httpClient.SendAsync(headRequest, cancellationToken).ConfigureAwait(false);
 
@@ -377,7 +371,6 @@ namespace Cliptoo.Core.Services
                     return false;
                 }
 
-                // If HEAD is successful, proceed with GET
                 var response = await _httpClient.GetAsync(faviconUri, cancellationToken).ConfigureAwait(false);
                 if (!response.IsSuccessStatusCode) return false;
 

@@ -73,7 +73,7 @@
             </TextBlock>
 
             <TextBlock Margin="0,20,0,0" TextBlock.TextAlignment="Center">
-                <Hyperlink Command="{Binding OpenAcknowledgementsWindowCommand}">
+                <Hyperlink Command="{Binding OpenAcknowledgementsWindowCommand}" CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}">
                     <Run Text="Thanks, acknowledgements, and attributions" />
                 </Hyperlink>
             </TextBlock>

@@ -149,10 +149,13 @@ namespace Cliptoo.UI.ViewModels
             await _contentDialogService.ShowAsync(dialog, CancellationToken.None);
         }
 
-        private void ShowAcknowledgementsWindow()
+        private void ShowAcknowledgementsWindow(object? ownerWindow)
         {
             var window = _serviceProvider.GetRequiredService<AcknowledgementsWindow>();
-            window.Owner = Application.Current.Windows.OfType<SettingsWindow>().FirstOrDefault();
+            if (ownerWindow is Window owner)
+            {
+                window.Owner = owner;
+            }
             window.ShowDialog();
         }
 
