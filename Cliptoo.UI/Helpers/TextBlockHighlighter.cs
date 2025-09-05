@@ -15,6 +15,9 @@ namespace Cliptoo.UI.Helpers
                 typeof(TextBlockHighlighter),
                 new PropertyMetadata(null, OnFormattedTextChanged));
 
+        private static readonly DependencyProperty IsHandlerAttachedProperty =
+            DependencyProperty.RegisterAttached("IsHandlerAttached", typeof(bool), typeof(TextBlockHighlighter), new PropertyMetadata(false));
+
         public static string GetFormattedText(DependencyObject obj)
         {
             return (string)obj.GetValue(FormattedTextProperty);
@@ -27,38 +30,48 @@ namespace Cliptoo.UI.Helpers
 
         private static void OnFormattedTextChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
-            if (d is TextBlock textBlock)
+            if (d is not TextBlock textBlock) return;
+
+            UpdateInlines(textBlock);
+
+            if (!(bool)textBlock.GetValue(IsHandlerAttachedProperty))
             {
-                // Unsubscribe from previous property changes to avoid memory leaks
-                var oldDescriptorFamily = DependencyPropertyDescriptor.FromProperty(TextBlock.FontFamilyProperty, typeof(TextBlock));
-                oldDescriptorFamily?.RemoveValueChanged(textBlock, OnFontPropertyChanged);
+                var descriptorFamily = DependencyPropertyDescriptor.FromProperty(TextBlock.FontFamilyProperty, typeof(TextBlock));
+                descriptorFamily?.AddValueChanged(textBlock, OnFontPropertyChanged);
 
-                var oldDescriptorSize = DependencyPropertyDescriptor.FromProperty(TextBlock.FontSizeProperty, typeof(TextBlock));
-                oldDescriptorSize?.RemoveValueChanged(textBlock, OnFontPropertyChanged);
+                var descriptorSize = DependencyPropertyDescriptor.FromProperty(TextBlock.FontSizeProperty, typeof(TextBlock));
+                descriptorSize?.AddValueChanged(textBlock, OnFontPropertyChanged);
 
-                var oldDescriptorForeground = DependencyPropertyDescriptor.FromProperty(TextBlock.ForegroundProperty, typeof(TextBlock));
-                oldDescriptorForeground?.RemoveValueChanged(textBlock, OnFontPropertyChanged);
+                var descriptorForeground = DependencyPropertyDescriptor.FromProperty(TextBlock.ForegroundProperty, typeof(TextBlock));
+                descriptorForeground?.AddValueChanged(textBlock, OnFontPropertyChanged);
 
-                UpdateInlines(textBlock);
-
-                // Subscribe to future property changes
-                var newDescriptorFamily = DependencyPropertyDescriptor.FromProperty(TextBlock.FontFamilyProperty, typeof(TextBlock));
-                newDescriptorFamily?.AddValueChanged(textBlock, OnFontPropertyChanged);
-
-                var newDescriptorSize = DependencyPropertyDescriptor.FromProperty(TextBlock.FontSizeProperty, typeof(TextBlock));
-                newDescriptorSize?.AddValueChanged(textBlock, OnFontPropertyChanged);
-
-                var newDescriptorForeground = DependencyPropertyDescriptor.FromProperty(TextBlock.ForegroundProperty, typeof(TextBlock));
-                newDescriptorForeground?.AddValueChanged(textBlock, OnFontPropertyChanged);
+                textBlock.Unloaded += TextBlock_Unloaded;
+                textBlock.SetValue(IsHandlerAttachedProperty, true);
             }
         }
+
+        private static void TextBlock_Unloaded(object sender, RoutedEventArgs e)
+        {
+            if (sender is not TextBlock textBlock) return;
+
+            var descriptorFamily = DependencyPropertyDescriptor.FromProperty(TextBlock.FontFamilyProperty, typeof(TextBlock));
+            descriptorFamily?.RemoveValueChanged(textBlock, OnFontPropertyChanged);
+
+            var descriptorSize = DependencyPropertyDescriptor.FromProperty(TextBlock.FontSizeProperty, typeof(TextBlock));
+            descriptorSize?.RemoveValueChanged(textBlock, OnFontPropertyChanged);
+
+            var descriptorForeground = DependencyPropertyDescriptor.FromProperty(TextBlock.ForegroundProperty, typeof(TextBlock));
+            descriptorForeground?.RemoveValueChanged(textBlock, OnFontPropertyChanged);
+
+            textBlock.Unloaded -= TextBlock_Unloaded;
+            textBlock.SetValue(IsHandlerAttachedProperty, false);
+        }
+
 
         private static void OnFontPropertyChanged(object? sender, System.EventArgs e)
         {
             if (sender is TextBlock textBlock)
             {
-                var lvi = FindAncestor<System.Windows.Controls.ListViewItem>(textBlock);
-                var lviForeground = lvi?.Foreground;
                 UpdateInlines(textBlock);
             }
         }
