@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using System.Xml;
 using Cliptoo.Core.Configuration;
 using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 using SixLabors.ImageSharp.Processing.Processors.Quantization;
 using SkiaSharp;
@@ -16,7 +17,7 @@ namespace Cliptoo.Core.Services
 {
     public static class ServiceUtils
     {
-        internal static byte[]? RenderSvgToPng(string svgContent, int size)
+        internal static Image<Bgra32>? RenderSvgToImageSharp(string svgContent, int size)
         {
             try
             {
@@ -24,7 +25,7 @@ namespace Cliptoo.Core.Services
                 using var picture = skSvg.FromSvg(svgContent);
                 if (picture is null || picture.CullRect.Width <= 0 || picture.CullRect.Height <= 0) return null;
 
-                var info = new SKImageInfo(size, size);
+                var info = new SKImageInfo(size, size, SKColorType.Bgra8888, SKAlphaType.Premul);
                 using var surface = SKSurface.Create(info);
                 var canvas = surface.Canvas;
                 canvas.Clear(SKColors.Transparent);
@@ -34,11 +35,12 @@ namespace Cliptoo.Core.Services
                     canvas.DrawPicture(picture, matrix, paint);
                 }
 
-                using var image = surface.Snapshot();
-                using var data = image.Encode(SKEncodedImageFormat.Png, 100);
-                if (data == null) return null;
+                using var skImage = surface.Snapshot();
+                var skPixmap = skImage.PeekPixels();
+                if (skPixmap == null) return null;
 
-                return data.ToArray();
+                var pixelBytes = skPixmap.GetPixelSpan().ToArray();
+                return Image.LoadPixelData<Bgra32>(pixelBytes, size, size);
             }
             catch (Exception ex)
             {
@@ -94,11 +96,10 @@ namespace Cliptoo.Core.Services
                     svgContent = svgContent.Replace("currentColor", foregroundColor, StringComparison.OrdinalIgnoreCase);
                 }
 
-                var pngBytes = await Task.Run(() => RenderSvgToPng(svgContent, size)).ConfigureAwait(false);
-                if (pngBytes == null) return null;
+                using var imageSharpImage = await Task.Run(() => RenderSvgToImageSharp(svgContent, size)).ConfigureAwait(false);
+                if (imageSharpImage == null) return null;
 
                 using var ms = new MemoryStream();
-                using var imageSharpImage = Image.Load(pngBytes);
                 var pngEncoder = new SixLabors.ImageSharp.Formats.Png.PngEncoder
                 {
                     CompressionLevel = SixLabors.ImageSharp.Formats.Png.PngCompressionLevel.Level6,

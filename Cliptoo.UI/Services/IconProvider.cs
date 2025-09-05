@@ -6,6 +6,7 @@ using System.Windows.Media.Imaging;
 using Cliptoo.Core.Configuration;
 using Cliptoo.Core.Interfaces;
 using Cliptoo.Core.Services;
+using SixLabors.ImageSharp;
 
 namespace Cliptoo.UI.Services
 {
@@ -123,7 +124,12 @@ namespace Cliptoo.UI.Services
                     svgContent = svgContent.Replace("currentColor", "#FFFFFF", StringComparison.OrdinalIgnoreCase);
                 }
 
-                return await Task.Run(() => ServiceUtils.RenderSvgToPng(svgContent, physicalSize));
+                using var imageSharpImage = await Task.Run(() => ServiceUtils.RenderSvgToImageSharp(svgContent, physicalSize));
+                if (imageSharpImage == null) return null;
+
+                using var ms = new MemoryStream();
+                await imageSharpImage.SaveAsPngAsync(ms);
+                return ms.ToArray();
             }
             catch (Exception ex)
             {
