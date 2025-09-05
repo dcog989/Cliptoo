@@ -40,10 +40,13 @@ namespace Cliptoo.UI.Views
             base.OnClosed(e);
 
             var settings = _viewModel.Settings;
-            settings.SettingsWindowWidth = Math.Round(this.Width);
-            settings.SettingsWindowHeight = Math.Round(this.Height);
-            settings.SettingsWindowX = Math.Round(this.Left);
-            settings.SettingsWindowY = Math.Round(this.Top);
+            if (this.WindowState == WindowState.Normal)
+            {
+                settings.SettingsWindowWidth = Math.Round(this.Width);
+                settings.SettingsWindowHeight = Math.Round(this.Height);
+                settings.SettingsWindowX = Math.Round(this.Left);
+                settings.SettingsWindowY = Math.Round(this.Top);
+            }
 
             _viewModel.SaveSettingsCommand.Execute(null);
             _viewModel.Cleanup();

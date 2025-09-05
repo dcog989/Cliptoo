@@ -16,7 +16,6 @@ namespace Cliptoo.UI.Views
             PreviewKeyDown += OnPreviewKeyDown;
             Loaded += OnLoaded;
         }
-
         private void OnLoaded(object sender, RoutedEventArgs e)
         {
             if (DataContext is ClipViewerViewModel vm)
@@ -69,12 +68,15 @@ namespace Cliptoo.UI.Views
             {
                 vm.OnRequestClose -= OnRequestClose;
 
-                var settings = vm.SettingsService.Settings;
-                settings.EditorWindowWidth = Math.Round(this.Width);
-                settings.EditorWindowHeight = Math.Round(this.Height);
-                settings.EditorWindowX = Math.Round(this.Left);
-                settings.EditorWindowY = Math.Round(this.Top);
-                vm.SettingsService.SaveSettings();
+                if (this.WindowState == WindowState.Normal)
+                {
+                    var settings = vm.SettingsService.Settings;
+                    settings.EditorWindowWidth = Math.Round(this.Width);
+                    settings.EditorWindowHeight = Math.Round(this.Height);
+                    settings.EditorWindowX = Math.Round(this.Left);
+                    settings.EditorWindowY = Math.Round(this.Top);
+                    vm.SettingsService.SaveSettings();
+                }
             }
             base.OnClosed(e);
         }
