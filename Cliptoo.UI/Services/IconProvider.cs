@@ -1,7 +1,5 @@
-using System;
 using System.Collections.Concurrent;
 using System.IO;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -12,7 +10,7 @@ using Svg.Skia;
 
 namespace Cliptoo.UI.Services
 {
-    public class IconProvider : IIconProvider
+    internal class IconProvider : IIconProvider
     {
         private readonly ConcurrentDictionary<string, ImageSource> _cache = new();
         private readonly ISettingsManager _settingsManager;
@@ -48,6 +46,7 @@ namespace Cliptoo.UI.Services
 
             if (File.Exists(cacheFilePath))
             {
+                LogManager.LogDebug($"ICON_CACHE_DIAG: On-disk hit for key '{cacheKey}'.");
                 try
                 {
                     iconBytes = await File.ReadAllBytesAsync(cacheFilePath).ConfigureAwait(false);
@@ -76,22 +75,17 @@ namespace Cliptoo.UI.Services
 
             if (iconBytes == null) return null;
 
-            return await Application.Current.Dispatcher.InvokeAsync(() =>
+            var bitmapImage = new BitmapImage();
+            using (var ms = new MemoryStream(iconBytes))
             {
-                using var ms = new MemoryStream(iconBytes);
-                var bitmapImage = new BitmapImage();
                 bitmapImage.BeginInit();
-                bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
                 bitmapImage.StreamSource = ms;
+                bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
                 bitmapImage.EndInit();
-                bitmapImage.Freeze();
-
-                var drawingImage = new DrawingImage(new ImageDrawing(bitmapImage, new Rect(0, 0, size, size)));
-                drawingImage.Freeze();
-
-                _cache.TryAdd(cacheKey, drawingImage);
-                return drawingImage;
-            });
+            }
+            bitmapImage.Freeze();
+            _cache.TryAdd(cacheKey, bitmapImage);
+            return bitmapImage;
         }
 
         private async Task<byte[]?> GenerateIconBytesAsync(string key, int size, double dpiScale)
@@ -116,7 +110,7 @@ namespace Cliptoo.UI.Services
                 if (int.TryParse(key, out _))
                 {
                     var settings = _settingsManager.Load();
-                    var accentColor = (Color)ColorConverter.ConvertFromString(settings.AccentColor);
+                    var accentColor = (System.Windows.Media.Color)ColorConverter.ConvertFromString(settings.AccentColor);
                     var accentColorHex = $"#{accentColor.R:X2}{accentColor.G:X2}{accentColor.B:X2}";
 
                     var brightness = (accentColor.R * 299 + accentColor.G * 587 + accentColor.B * 114) / 1000;
@@ -127,12 +121,7 @@ namespace Cliptoo.UI.Services
                 }
                 else if (svgContent.Contains("currentColor", StringComparison.OrdinalIgnoreCase))
                 {
-                    // Create a white stencil for any icon that uses currentColor
                     svgContent = svgContent.Replace("currentColor", "#FFFFFF", StringComparison.OrdinalIgnoreCase);
-                }
-                else
-                {
-                    // For multi-color icons like the logo, do nothing and let them render as-is.
                 }
 
                 return await Task.Run(() =>
@@ -141,23 +130,20 @@ namespace Cliptoo.UI.Services
                     using var picture = skSvg.FromSvg(svgContent);
                     if (picture == null || picture.CullRect.Width <= 0 || picture.CullRect.Height <= 0) return null;
 
-                    var bitmap = new SKBitmap(physicalSize, physicalSize);
-                    using (var canvas = new SKCanvas(bitmap))
+                    var info = new SKImageInfo(physicalSize, physicalSize);
+                    using var surface = SKSurface.Create(info);
+                    var canvas = surface.Canvas;
+                    canvas.Clear(SKColors.Transparent);
+                    using (var paint = new SKPaint { IsAntialias = true })
                     {
-                        canvas.Clear(SKColors.Transparent);
-                        float scale = Math.Min(physicalSize / picture.CullRect.Width, physicalSize / picture.CullRect.Height);
-                        var matrix = SKMatrix.CreateScale(scale, scale);
-                        matrix.TransX = -picture.CullRect.Left * scale;
-                        matrix.TransY = -picture.CullRect.Top * scale;
-                        using (var paint = new SKPaint { IsAntialias = true })
-                        {
-                            canvas.DrawPicture(picture, matrix, paint);
-                        }
+                        var matrix = SKMatrix.CreateScale((float)physicalSize / picture.CullRect.Width, (float)physicalSize / picture.CullRect.Height);
+                        canvas.DrawPicture(picture, matrix, paint);
                     }
 
-                    using var image = SKImage.FromBitmap(bitmap);
+                    using var image = surface.Snapshot();
                     using var data = image.Encode(SKEncodedImageFormat.Png, 100);
-                    return data?.ToArray();
+                    if (data == null) return null;
+                    return data.ToArray();
                 });
             }
             catch (Exception ex)
@@ -166,6 +152,7 @@ namespace Cliptoo.UI.Services
                 return null;
             }
         }
+
         private string GetIconFileName(string key)
         {
             if (int.TryParse(key, out int num) && num >= 1 && num <= 9)
@@ -261,4 +248,7 @@ namespace Cliptoo.UI.Services
             }
         }
     }
+
+
+
 }

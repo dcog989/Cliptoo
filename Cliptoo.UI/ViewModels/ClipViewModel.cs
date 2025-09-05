@@ -250,7 +250,7 @@ namespace Cliptoo.UI.ViewModels
             if (Index > 0 && Index <= 9)
             {
                 // Generate a high-resolution icon source, the UI will scale it down.
-                QuickPasteIcon = await _iconProvider.GetIconAsync(Index.ToString(CultureInfo.InvariantCulture), 64).ConfigureAwait(true);
+                QuickPasteIcon = await _iconProvider.GetIconAsync(Index.ToString(CultureInfo.InvariantCulture), 32).ConfigureAwait(true);
             }
             else
             {

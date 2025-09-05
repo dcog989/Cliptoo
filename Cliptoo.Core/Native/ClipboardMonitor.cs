@@ -11,6 +11,8 @@ using Cliptoo.Core.Services;
 using Cliptoo.Core.Configuration;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Png;
+using SixLabors.ImageSharp.Processing;
+using SixLabors.ImageSharp.Processing.Processors.Quantization;
 
 namespace Cliptoo.Core.Native
 {
@@ -237,6 +239,8 @@ namespace Cliptoo.Core.Native
                                 var pngEncoder = new PngEncoder()
                                 {
                                     CompressionLevel = PngCompressionLevel.BestCompression,
+                                    ColorType = PngColorType.Palette,
+                                    Quantizer = new OctreeQuantizer(new QuantizerOptions { MaxColors = 255, Dither = KnownDitherings.FloydSteinberg })
                                 };
                                 image.Save(outputStream, pngEncoder);
                                 var bytes = outputStream.ToArray();

@@ -7,6 +7,7 @@ using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Jpeg;
 using SixLabors.ImageSharp.Formats.Png;
 using SixLabors.ImageSharp.Processing;
+using SixLabors.ImageSharp.Processing.Processors.Quantization;
 
 namespace Cliptoo.Core.Services
 {
@@ -26,8 +27,13 @@ namespace Cliptoo.Core.Services
             Directory.CreateDirectory(_cacheDir);
             Directory.CreateDirectory(_previewCacheDir);
 
-            _pngEncoder = new PngEncoder { CompressionLevel = PngCompressionLevel.Level6 };
-            _jpegEncoder = new JpegEncoder { Quality = 50 };
+            _pngEncoder = new PngEncoder
+            {
+                CompressionLevel = PngCompressionLevel.Level6,
+                ColorType = PngColorType.Palette,
+                Quantizer = new OctreeQuantizer(new QuantizerOptions { MaxColors = 255, Dither = KnownDitherings.FloydSteinberg })
+            };
+            _jpegEncoder = new JpegEncoder { Quality = 65 };
             _imageDecoder = imageDecoder;
         }
 

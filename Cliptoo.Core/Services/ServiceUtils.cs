@@ -6,6 +6,9 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
 using Cliptoo.Core.Configuration;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Processing;
+using SixLabors.ImageSharp.Processing.Processors.Quantization;
 using SkiaSharp;
 using Svg.Skia;
 
@@ -66,25 +69,32 @@ namespace Cliptoo.Core.Services
                     using var picture = skSvg.FromSvg(svgContent);
                     if (picture is null || picture.CullRect.Width <= 0 || picture.CullRect.Height <= 0) return null;
 
-                    var scale = Math.Min(size / picture.CullRect.Width, size / picture.CullRect.Height);
-                    var matrix = SKMatrix.CreateScale(scale, scale);
-                    matrix.TransX = -picture.CullRect.Left * scale;
-                    matrix.TransY = -picture.CullRect.Top * scale;
-
-                    var finalWidth = (int)Math.Max(1, picture.CullRect.Width * scale);
-                    var finalHeight = (int)Math.Max(1, picture.CullRect.Height * scale);
-
-                    using var bitmap = new SKBitmap(finalWidth, finalHeight);
-                    using var canvas = new SKCanvas(bitmap);
+                    var info = new SKImageInfo(size, size);
+                    using var surface = SKSurface.Create(info);
+                    var canvas = surface.Canvas;
                     canvas.Clear(SKColors.Transparent);
                     using (var paint = new SKPaint { IsAntialias = true })
                     {
+                        var matrix = SKMatrix.CreateScale((float)size / picture.CullRect.Width, (float)size / picture.CullRect.Height);
                         canvas.DrawPicture(picture, matrix, paint);
                     }
 
-                    using var image = SKImage.FromBitmap(bitmap);
-                    using var data = image.Encode(SKEncodedImageFormat.Png, 60);
-                    return data.ToArray();
+                    using var image = surface.Snapshot();
+                    using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+                    if (data == null) return null;
+
+                    using var stream = data.AsStream();
+                    using var imageSharpImage = await Image.LoadAsync(stream).ConfigureAwait(false);
+
+                    using var ms = new MemoryStream();
+                    var pngEncoder = new SixLabors.ImageSharp.Formats.Png.PngEncoder
+                    {
+                        CompressionLevel = SixLabors.ImageSharp.Formats.Png.PngCompressionLevel.Level6,
+                        ColorType = SixLabors.ImageSharp.Formats.Png.PngColorType.Palette,
+                        Quantizer = new OctreeQuantizer(new QuantizerOptions { MaxColors = 255, Dither = KnownDitherings.FloydSteinberg })
+                    };
+                    await imageSharpImage.SaveAsync(ms, pngEncoder).ConfigureAwait(false);
+                    return ms.ToArray();
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or XmlException)
                 {
