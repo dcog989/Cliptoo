@@ -4,21 +4,20 @@ using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Cliptoo.Core.Configuration;
+using Cliptoo.Core.Interfaces;
 using Cliptoo.Core.Services;
-using SkiaSharp;
-using Svg.Skia;
 
 namespace Cliptoo.UI.Services
 {
     internal class IconProvider : IIconProvider
     {
         private readonly ConcurrentDictionary<string, ImageSource> _cache = new();
-        private readonly ISettingsManager _settingsManager;
+        private readonly ISettingsService _settingsService;
         private readonly string _iconCachePath;
 
-        public IconProvider(ISettingsManager settingsManager, string appDataLocalPath)
+        public IconProvider(ISettingsService settingsService, string appDataLocalPath)
         {
-            _settingsManager = settingsManager;
+            _settingsService = settingsService;
             _iconCachePath = Path.Combine(appDataLocalPath, "Cliptoo", "IconCache");
             Directory.CreateDirectory(_iconCachePath);
         }
@@ -32,7 +31,7 @@ namespace Cliptoo.UI.Services
 
             if (int.TryParse(key, out _))
             {
-                var settings = _settingsManager.Load();
+                var settings = _settingsService.Settings;
                 cacheKey = $"{key}_{size}_{dpiScale}_{settings.AccentColor}";
             }
 
@@ -109,7 +108,7 @@ namespace Cliptoo.UI.Services
 
                 if (int.TryParse(key, out _))
                 {
-                    var settings = _settingsManager.Load();
+                    var settings = _settingsService.Settings;
                     var accentColor = (System.Windows.Media.Color)ColorConverter.ConvertFromString(settings.AccentColor);
                     var accentColorHex = $"#{accentColor.R:X2}{accentColor.G:X2}{accentColor.B:X2}";
 
@@ -124,27 +123,7 @@ namespace Cliptoo.UI.Services
                     svgContent = svgContent.Replace("currentColor", "#FFFFFF", StringComparison.OrdinalIgnoreCase);
                 }
 
-                return await Task.Run(() =>
-                {
-                    using var skSvg = new SKSvg();
-                    using var picture = skSvg.FromSvg(svgContent);
-                    if (picture == null || picture.CullRect.Width <= 0 || picture.CullRect.Height <= 0) return null;
-
-                    var info = new SKImageInfo(physicalSize, physicalSize);
-                    using var surface = SKSurface.Create(info);
-                    var canvas = surface.Canvas;
-                    canvas.Clear(SKColors.Transparent);
-                    using (var paint = new SKPaint { IsAntialias = true })
-                    {
-                        var matrix = SKMatrix.CreateScale((float)physicalSize / picture.CullRect.Width, (float)physicalSize / picture.CullRect.Height);
-                        canvas.DrawPicture(picture, matrix, paint);
-                    }
-
-                    using var image = surface.Snapshot();
-                    using var data = image.Encode(SKEncodedImageFormat.Png, 100);
-                    if (data == null) return null;
-                    return data.ToArray();
-                });
+                return await Task.Run(() => ServiceUtils.RenderSvgToPng(svgContent, physicalSize));
             }
             catch (Exception ex)
             {

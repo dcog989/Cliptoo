@@ -1,6 +1,4 @@
-using System;
 using System.IO;
-using System.Threading;
 using System.Windows;
 using System.Windows.Threading;
 using Cliptoo.Core;
@@ -96,7 +94,7 @@ namespace Cliptoo.UI
                         services.AddSingleton<IClipboardMonitor, ClipboardMonitor>();
                         services.AddSingleton<ITextTransformer, TextTransformer>();
                         services.AddSingleton<ICompareToolService, CompareToolService>();
-                        services.AddSingleton<IconProvider>(sp => new IconProvider(sp.GetRequiredService<ISettingsManager>(), appDataLocalPath));
+                        services.AddSingleton<IconProvider>(sp => new IconProvider(sp.GetRequiredService<ISettingsService>(), appDataLocalPath));
                         services.AddSingleton<IIconProvider>(sp => sp.GetRequiredService<IconProvider>());
                         services.AddSingleton<Core.Services.IIconCacheManager>(sp => sp.GetRequiredService<IconProvider>());
 
