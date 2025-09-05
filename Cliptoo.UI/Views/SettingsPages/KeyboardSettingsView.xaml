@@ -10,39 +10,63 @@
     d:DesignWidth="800"
     mc:Ignorable="d">
     <ScrollViewer Padding="15,20,15,15">
-        <StackPanel>
-            <StackPanel Orientation="Horizontal">
-                <TextBlock Style="{StaticResource SettingLabel}" Text="Launch with hotkey" />
-                <ui:TextBox
-                    Width="160"
-                    helpers:HotkeyInputBehavior.HotkeyTarget="Main"
-                    helpers:HotkeyInputBehavior.IsEnabled="True"
-                    Style="{StaticResource CaptureHotkeyStyle}"
-                    Text="{Binding Hotkey, Mode=OneWay}" />
-            </StackPanel>
-            <StackPanel Margin="0,15,0,0" Orientation="Horizontal">
-                <TextBlock Style="{StaticResource SettingLabel}" Text="Display preview tooltip hotkey" />
-                <ui:TextBox
-                    Width="160"
-                    helpers:HotkeyInputBehavior.HotkeyTarget="Preview"
-                    helpers:HotkeyInputBehavior.IsEnabled="True"
-                    Style="{StaticResource CaptureHotkeyStyle}"
-                    Text="{Binding PreviewHotkey, Mode=OneWay}" />
-            </StackPanel>
-            <StackPanel Margin="0,15,0,0" Orientation="Horizontal">
-                <TextBlock Style="{StaticResource SettingLabel}" Text="Quick paste hotkey" />
-                <ui:TextBox
-                    Width="160"
-                    helpers:HotkeyInputBehavior.HotkeyTarget="QuickPaste"
-                    helpers:HotkeyInputBehavior.IsEnabled="True"
-                    Style="{StaticResource CaptureHotkeyStyle}"
-                    Text="{Binding QuickPasteHotkey, Mode=OneWay}"
-                    ToolTip="Hold this combination to show paste numbers, then press 1-9 to paste" />
-                <TextBlock
-                    Margin="5,0,0,0"
-                    VerticalAlignment="Center"
-                    Text="(activates 1-9)" />
-            </StackPanel>
-        </StackPanel>
+        <Grid Grid.IsSharedSizeScope="True">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" SharedSizeGroup="Labels" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <TextBlock
+                Grid.Row="0"
+                Grid.Column="0"
+                Style="{StaticResource SettingLabel}"
+                Text="Launch main window" />
+            <ui:TextBox
+                Grid.Row="0"
+                Grid.Column="1"
+                Width="130"
+                helpers:HotkeyInputBehavior.HotkeyTarget="Main"
+                helpers:HotkeyInputBehavior.IsEnabled="True"
+                Style="{StaticResource CaptureHotkeyStyle}"
+                Text="{Binding Hotkey, Mode=OneWay}" />
+
+            <TextBlock
+                Grid.Row="1"
+                Grid.Column="0"
+                Margin="0,15,10,0"
+                Style="{StaticResource SettingLabel}"
+                Text="Display preview tooltip" />
+            <ui:TextBox
+                Grid.Row="1"
+                Grid.Column="1"
+                Width="130"
+                Margin="0,15,0,0"
+                helpers:HotkeyInputBehavior.HotkeyTarget="Preview"
+                helpers:HotkeyInputBehavior.IsEnabled="True"
+                Style="{StaticResource CaptureHotkeyStyle}"
+                Text="{Binding PreviewHotkey, Mode=OneWay}" />
+
+            <TextBlock
+                Grid.Row="2"
+                Grid.Column="0"
+                Margin="0,15,10,0"
+                Style="{StaticResource SettingLabel}"
+                Text="Activate quick paste (1 to 9)" />
+            <ui:TextBox
+                Grid.Row="2"
+                Grid.Column="1"
+                Width="130"
+                Margin="0,15,0,0"
+                helpers:HotkeyInputBehavior.HotkeyTarget="QuickPaste"
+                helpers:HotkeyInputBehavior.IsEnabled="True"
+                Style="{StaticResource CaptureHotkeyStyle}"
+                Text="{Binding QuickPasteHotkey, Mode=OneWay}"
+                ToolTip="Hold this combination to show paste numbers, then press 1-9 to paste" />
+        </Grid>
     </ScrollViewer>
 </UserControl>
