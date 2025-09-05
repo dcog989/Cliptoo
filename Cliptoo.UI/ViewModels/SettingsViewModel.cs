@@ -2,8 +2,13 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Media;
 using Cliptoo.Core;
 using Cliptoo.Core.Configuration;
@@ -12,10 +17,11 @@ using Cliptoo.Core.Interfaces;
 using Cliptoo.Core.Services;
 using Cliptoo.UI.Services;
 using Cliptoo.UI.ViewModels.Base;
+using Cliptoo.UI.Views;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Win32;
 using Wpf.Ui;
-using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
 
 namespace Cliptoo.UI.ViewModels
@@ -29,6 +35,7 @@ namespace Cliptoo.UI.ViewModels
         private readonly IServiceProvider _serviceProvider;
         private readonly IFontProvider _fontProvider;
         private readonly IIconProvider _iconProvider;
+        private readonly Cliptoo.UI.Services.IThemeService _themeService;
         private readonly System.Timers.Timer _saveDebounceTimer;
         private Settings _settings = null!;
         private DbStats _stats = null!;
@@ -46,7 +53,7 @@ namespace Cliptoo.UI.ViewModels
         public static Uri GitHubUrl { get; } = new("https://github.com/dcgog989/Cliptoo");
         public ObservableCollection<SendToTarget> SendToTargets { get; }
 
-        public SettingsViewModel(IDatabaseService databaseService, ISettingsService settingsService, IContentDialogService contentDialogService, IStartupManagerService startupManagerService, IServiceProvider serviceProvider, IFontProvider fontProvider, IIconProvider iconProvider)
+        public SettingsViewModel(IDatabaseService databaseService, ISettingsService settingsService, IContentDialogService contentDialogService, IStartupManagerService startupManagerService, IServiceProvider serviceProvider, IFontProvider fontProvider, IIconProvider iconProvider, Cliptoo.UI.Services.IThemeService themeService)
         {
             _databaseService = databaseService;
             _settingsService = settingsService;
@@ -55,6 +62,7 @@ namespace Cliptoo.UI.ViewModels
             _serviceProvider = serviceProvider;
             _fontProvider = fontProvider;
             _iconProvider = iconProvider;
+            _themeService = themeService;
             Settings = _settingsService.Settings;
             Settings.PropertyChanged += OnSettingsPropertyChanged;
             _selectedFontFamily = Settings.FontFamily;
@@ -195,41 +203,16 @@ namespace Cliptoo.UI.ViewModels
                     LogManager.Log($"Setting 'Start with Windows' changed to: {Settings.StartWithWindows}");
                     break;
                 case nameof(Settings.AccentChromaLevel):
-                    UpdateAccentColor();
+                    _themeService.ApplyAccentColor(_accentHue);
                     UpdateOklchHueBrush();
-                    return;
+                    AccentBrush = (SolidColorBrush)Application.Current.Resources["AccentBrush"];
+                    break;
                 case nameof(Settings.Theme):
                     LogManager.Log($"Setting 'Theme' changed to: {Settings.Theme}");
-                    var wpfuiTheme = Settings.Theme?.ToLowerInvariant() switch
-                    {
-                        "light" => ApplicationTheme.Light,
-                        "dark" => ApplicationTheme.Dark,
-                        _ => ApplicationTheme.Unknown,
-                    };
-
-                    if (wpfuiTheme == ApplicationTheme.Unknown)
-                    {
-                        var systemTheme = ApplicationThemeManager.GetSystemTheme() == SystemTheme.Dark ? ApplicationTheme.Dark : ApplicationTheme.Light;
-                        ApplicationThemeManager.Apply(systemTheme, WindowBackdropType.Mica, false);
-
-                        foreach (var window in Application.Current.Windows.OfType<Window>())
-                        {
-                            SystemThemeWatcher.UnWatch(window);
-                            SystemThemeWatcher.Watch(window, WindowBackdropType.Mica, false);
-                        }
-                    }
-                    else
-                    {
-                        ApplicationThemeManager.Apply(wpfuiTheme, WindowBackdropType.Mica, false);
-                        foreach (var window in Application.Current.Windows.OfType<Window>())
-                        {
-                            SystemThemeWatcher.UnWatch(window);
-                        }
-                    }
-
-                    UpdateAccentColor();
+                    _themeService.ApplyThemeFromSettings();
                     UpdateOklchHueBrush();
-                    return;
+                    AccentBrush = (SolidColorBrush)Application.Current.Resources["AccentBrush"];
+                    break;
                 case nameof(Settings.FontFamily):
                     if (_selectedFontFamily != Settings.FontFamily)
                     {

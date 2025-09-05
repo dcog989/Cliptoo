@@ -106,6 +106,7 @@ namespace Cliptoo.UI
                         services.AddSingleton<IPastingService, PastingService>();
                         services.AddSingleton<IWindowPositioner, WindowPositioner>();
                         services.AddSingleton<IStartupManagerService, StartupManagerService>();
+                        services.AddSingleton<Cliptoo.UI.Services.IThemeService, Cliptoo.UI.Services.ThemeService>();
                         services.AddSingleton<INotifyIconService, CustomNotifyIconService>();
                         services.AddSingleton<IContentDialogService, ContentDialogService>();
                         services.AddHostedService<ApplicationHostService>();
@@ -130,7 +131,8 @@ namespace Cliptoo.UI
                             sp.GetRequiredService<IStartupManagerService>(),
                             sp,
                             sp.GetRequiredService<IFontProvider>(),
-                            sp.GetRequiredService<IIconProvider>()
+                            sp.GetRequiredService<IIconProvider>(),
+                            sp.GetRequiredService<Cliptoo.UI.Services.IThemeService>()
                         ));
 
                         services.AddSingleton<MainWindow>();

@@ -44,6 +44,7 @@ namespace Cliptoo.UI.Services
         private readonly IWindowPositioner _windowPositioner;
         private readonly ISnackbarService _snackbarService;
         private readonly IDbManager _dbManager;
+        private readonly IThemeService _themeService;
         private MainWindow? _mainWindow;
         private MainViewModel? _mainViewModel;
         private IGlobalHotkey? _globalHotkey;
@@ -63,7 +64,8 @@ namespace Cliptoo.UI.Services
             ISettingsService settingsService,
             IAppInteractionService appInteractionService,
             IClipDataService clipDataService,
-            IDbManager dbManager)
+            IDbManager dbManager,
+            IThemeService themeService)
         {
             _serviceProvider = serviceProvider;
             _notifyIconService = notifyIconService;
@@ -75,6 +77,7 @@ namespace Cliptoo.UI.Services
             _appInteractionService = appInteractionService;
             _clipDataService = clipDataService;
             _dbManager = dbManager;
+            _themeService = themeService;
         }
 
         public async Task StartAsync(CancellationToken cancellationToken)
@@ -119,7 +122,7 @@ namespace Cliptoo.UI.Services
                         var windowInteropHelper = new WindowInteropHelper(_mainWindow);
                         IntPtr handle = windowInteropHelper.EnsureHandle();
 
-                        ApplyTheme(settings.Theme);
+                        _themeService.Initialize(_mainWindow);
 
                         _hwndSource = HwndSource.FromHwnd(handle);
                         _hwndSource?.AddHook(HwndHook);
@@ -216,58 +219,13 @@ namespace Cliptoo.UI.Services
 
             Application.Current.Dispatcher.Invoke(() =>
             {
-                ApplyTheme(settings.Theme);
+                _themeService.ApplyThemeFromSettings();
             });
         }
 
         private void OnNewClipAdded(object? sender, EventArgs e)
         {
             _appInteractionService.NotifyUiActivity();
-        }
-
-        private void ApplyTheme(string themeName)
-        {
-
-            if (_mainWindow is null || !_mainWindow.IsLoaded || new WindowInteropHelper(_mainWindow).Handle == IntPtr.Zero)
-            {
-                return;
-            }
-
-            var wpfuiTheme = themeName?.ToLowerInvariant() switch
-            {
-                "light" => ApplicationTheme.Light,
-                "dark" => ApplicationTheme.Dark,
-                _ => ApplicationTheme.Unknown,
-            };
-
-            SystemThemeWatcher.UnWatch(_mainWindow);
-
-            var finalTheme = wpfuiTheme;
-            if (wpfuiTheme == ApplicationTheme.Unknown)
-            {
-                var systemTheme = ApplicationThemeManager.GetSystemTheme();
-                finalTheme = systemTheme == SystemTheme.Dark ? ApplicationTheme.Dark : ApplicationTheme.Light;
-                ApplicationThemeManager.Apply(finalTheme, WindowBackdropType.Mica, false);
-                SystemThemeWatcher.Watch(_mainWindow, WindowBackdropType.Mica, false);
-            }
-            else
-            {
-                ApplicationThemeManager.Apply(wpfuiTheme, WindowBackdropType.Mica, false);
-            }
-            if (finalTheme == ApplicationTheme.Dark)
-            {
-                Application.Current.Resources["HyperlinkBlueBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#5599FF"));
-                Application.Current.Resources["HyperlinkBlueBrushHover"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#88BBFF"));
-            }
-            else
-            {
-                Application.Current.Resources["HyperlinkBlueBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#0078D4"));
-                Application.Current.Resources["HyperlinkBlueBrushHover"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#005A9E"));
-            }
-
-            ApplyAccentFromSettings(_settingsService.Settings);
-
-            var actualTheme = ApplicationThemeManager.GetAppTheme();
         }
 
         private void InitializeTrayIcon()
@@ -434,44 +392,6 @@ namespace Cliptoo.UI.Services
             _hwndSource?.RemoveHook(HwndHook);
             _hwndSource?.Dispose();
             GC.SuppressFinalize(this);
-        }
-
-        private void ApplyAccentFromSettings(Settings settings)
-        {
-            try
-            {
-                var color = (Color)ColorConverter.ConvertFromString(settings.AccentColor);
-                Core.Services.ColorParser.RgbToOklch(color.R, color.G, color.B, out _, out _, out var h);
-
-                var currentTheme = ApplicationThemeManager.GetAppTheme();
-                if (currentTheme == ApplicationTheme.Unknown)
-                {
-                    currentTheme = ApplicationThemeManager.GetSystemTheme() == SystemTheme.Dark ? ApplicationTheme.Dark : ApplicationTheme.Light;
-                }
-
-                var lightness = currentTheme == ApplicationTheme.Dark ? 0.62 : 0.70;
-                var hoverLightness = currentTheme == ApplicationTheme.Dark ? 0.68 : 0.64;
-                var chroma = settings.AccentChromaLevel == "vibrant" ? OKLCH_CHROMA_BRIGHT : OKLCH_CHROMA_MUTED;
-
-                var (ar, ag, ab) = Core.Services.ColorParser.OklchToRgb(lightness, chroma, h);
-                var accentColor = Color.FromRgb(ar, ag, ab);
-                var accentBrush = new SolidColorBrush(accentColor);
-                accentBrush.Freeze();
-
-                var (hr, hg, hb) = Core.Services.ColorParser.OklchToRgb(hoverLightness, chroma, h);
-                var hoverColor = Color.FromRgb(hr, hg, hb);
-                var hoverBrush = new SolidColorBrush(hoverColor);
-                hoverBrush.Freeze();
-
-                Application.Current.Resources["AccentBrush"] = accentBrush;
-                Application.Current.Resources["AccentBrushHover"] = hoverBrush;
-
-                ApplicationAccentColorManager.Apply(accentColor);
-            }
-            catch (FormatException ex)
-            {
-                LogManager.Log(ex, $"Invalid accent color format in settings: {settings.AccentColor}");
-            }
         }
 
         private void OnProcessingFailed(object? sender, ProcessingFailedEventArgs e)

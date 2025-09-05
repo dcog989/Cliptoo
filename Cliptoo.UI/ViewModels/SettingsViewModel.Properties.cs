@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Windows;
 using System.Windows.Media;
 using Cliptoo.Core.Configuration;
 using Cliptoo.Core.Database.Models;
@@ -161,7 +162,8 @@ namespace Cliptoo.UI.ViewModels
             {
                 if (SetProperty(ref _accentHue, value))
                 {
-                    UpdateAccentColor();
+                    _themeService.ApplyAccentColor(value);
+                    AccentBrush = (SolidColorBrush)Application.Current.Resources["AccentBrush"];
                 }
             }
         }
