@@ -2,13 +2,8 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Diagnostics;
-using System.Globalization;
 using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Input;
 using System.Windows.Media;
 using Cliptoo.Core;
 using Cliptoo.Core.Configuration;
@@ -17,12 +12,9 @@ using Cliptoo.Core.Interfaces;
 using Cliptoo.Core.Services;
 using Cliptoo.UI.Services;
 using Cliptoo.UI.ViewModels.Base;
-using Cliptoo.UI.Views;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Win32;
 using Wpf.Ui;
-using Wpf.Ui.Controls;
 
 namespace Cliptoo.UI.ViewModels
 {

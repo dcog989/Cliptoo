@@ -1,37 +1,29 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
-using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Cliptoo.Core;
 using Cliptoo.Core.Configuration;
 using Cliptoo.Core.Database;
 using Cliptoo.Core.Interfaces;
 using Cliptoo.Core.Native;
-using Cliptoo.Core.Services;
 using Cliptoo.Core.Services.Models;
 using Cliptoo.UI.ViewModels;
 using Cliptoo.UI.Views;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Wpf.Ui;
-using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
 using Wpf.Ui.Tray;
 
 namespace Cliptoo.UI.Services
 {
-    public class ApplicationHostService : IHostedService, IDisposable
+    internal class ApplicationHostService : IHostedService, IDisposable
     {
         private const int WM_CLIPBOARDUPDATE = 0x031D;
         private const int WM_HOTKEY = 0x0312;
         private const int WM_MOUSEACTIVATE = 0x0021;
         private const int MA_NOACTIVATE = 3;
-        private const double OKLCH_CHROMA_BRIGHT = 0.22;
-        private const double OKLCH_CHROMA_MUTED = 0.10;
         private DateTime _lastToggleVisibility = DateTime.MinValue;
 
         private readonly INotificationService _notificationService;

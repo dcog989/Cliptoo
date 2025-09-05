@@ -1,18 +1,14 @@
-using System;
-using System.Linq;
 using System.Windows;
 using System.Windows.Media;
 using Cliptoo.Core.Configuration;
 using Cliptoo.Core.Interfaces;
 using Cliptoo.Core.Services;
-using Cliptoo.UI.ViewModels;
-using Cliptoo.UI.Views;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
 
 namespace Cliptoo.UI.Services
 {
-    public class ThemeService : IThemeService
+    internal class ThemeService : IThemeService
     {
         private readonly ISettingsService _settingsService;
         private Window? _window;
