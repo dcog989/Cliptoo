@@ -173,6 +173,9 @@ namespace Cliptoo.Core.Services
                 var response = await _httpClient.GetAsync(pageUri, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
                 if (!response.IsSuccessStatusCode) return (null, candidates);
 
+                // Use the final request URI after any redirects as the default base
+                var baseUri = response.RequestMessage?.RequestUri ?? pageUri;
+
                 string? headContent;
                 using (Stream stream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
                 {
@@ -180,6 +183,22 @@ namespace Cliptoo.Core.Services
                 }
 
                 if (string.IsNullOrEmpty(headContent)) return (null, candidates);
+
+                // Override with <base> tag if present
+                var baseTagRegex = new Regex("<base[^>]+href\\s*=\\s*(?:['\"](?<v>[^'\"]*)['\"]|(?<v>[^>\\s]+))", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+                var baseMatch = baseTagRegex.Match(headContent);
+                if (baseMatch.Success)
+                {
+                    var baseHref = baseMatch.Groups["v"].Value;
+                    if (Uri.TryCreate(baseHref, UriKind.Absolute, out var parsedBaseUri))
+                    {
+                        baseUri = parsedBaseUri;
+                    }
+                    else if (Uri.TryCreate(baseUri, baseHref, out var combinedBaseUri))
+                    {
+                        baseUri = combinedBaseUri;
+                    }
+                }
 
                 var titleMatch = TitleRegex.Match(headContent);
                 if (titleMatch.Success)
@@ -209,9 +228,8 @@ namespace Cliptoo.Core.Services
                     var href = hrefMatch.Groups[1].Success ? hrefMatch.Groups[1].Value : hrefMatch.Groups[2].Value;
                     if (string.IsNullOrWhiteSpace(href)) continue;
 
-                    var fullUrl = href.StartsWith("//", StringComparison.Ordinal)
-                        ? $"{pageUri.Scheme}:{href}"
-                        : new Uri(pageUri, href).ToString();
+                    // Use the determined baseUri for resolution
+                    var fullUrl = new Uri(baseUri, href).ToString();
 
                     int score = CalculateFaviconScore(linkTag, fullUrl);
                     candidates.Add(new FaviconCandidate { Url = fullUrl, Score = score });

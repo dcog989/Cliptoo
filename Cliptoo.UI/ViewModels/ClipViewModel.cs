@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.IO;
+using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Cliptoo.Core;
@@ -312,6 +313,7 @@ namespace Cliptoo.UI.ViewModels
                     return;
                 }
 
+                BitmapImage? finalBitmap = null;
                 if (!string.IsNullOrEmpty(newThumbnailPath))
                 {
                     try
@@ -329,36 +331,29 @@ namespace Cliptoo.UI.ViewModels
                                 await Task.Delay(50).ConfigureAwait(false);
                             }
                         }
-                        if (bytes == null)
+                        if (bytes != null)
                         {
-                            ThumbnailSource = null;
-                            HasThumbnail = false;
-                            return;
+                            using var ms = new MemoryStream(bytes);
+                            var bitmapImage = new BitmapImage();
+                            bitmapImage.BeginInit();
+                            bitmapImage.StreamSource = ms;
+                            bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
+                            bitmapImage.EndInit();
+                            bitmapImage.Freeze();
+                            finalBitmap = bitmapImage;
                         }
-
-                        using var ms = new MemoryStream(bytes);
-
-                        var bitmapImage = new BitmapImage();
-                        bitmapImage.BeginInit();
-                        bitmapImage.StreamSource = ms;
-                        bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
-                        bitmapImage.EndInit();
-                        bitmapImage.Freeze();
-                        ThumbnailSource = bitmapImage;
-                        HasThumbnail = true;
                     }
                     catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
                     {
                         LogManager.Log(ex, $"Failed to load thumbnail image source from path: {newThumbnailPath}");
-                        ThumbnailSource = null;
-                        HasThumbnail = false;
                     }
                 }
-                else
+
+                await Application.Current.Dispatcher.InvokeAsync(() =>
                 {
-                    ThumbnailSource = null;
-                    HasThumbnail = false;
-                }
+                    ThumbnailSource = finalBitmap;
+                    HasThumbnail = finalBitmap != null;
+                });
             }
             finally
             {
