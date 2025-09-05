@@ -246,21 +246,21 @@ namespace Cliptoo.Core.Services
         private static int CalculateFaviconScore(string linkTag, string fullUrl)
         {
             int score = 0;
-            string extension = Path.GetExtension(fullUrl).ToLowerInvariant();
+            string extension = Path.GetExtension(fullUrl).ToUpperInvariant();
 
-            if (extension == ".svg") score = 10000;
-            else if (extension == ".ico") score = 5000;
+            if (extension == ".SVG") score = 10000;
+            else if (extension == ".ICO") score = 5000;
             else
             {
                 var sizesMatch = SizesAttributeRegex.Match(linkTag);
                 if (sizesMatch.Success)
                 {
-                    var sizesValue = sizesMatch.Groups["v"].Value.ToLowerInvariant();
-                    if (sizesValue == "any") score = 100;
+                    var sizesValue = sizesMatch.Groups["v"].Value.ToUpperInvariant();
+                    if (sizesValue == "ANY") score = 100;
                     else
                     {
                         var firstSizePart = sizesValue.Split(' ')[0];
-                        var dimension = firstSizePart.Split('x')[0];
+                        var dimension = firstSizePart.Split('X')[0];
                         if (int.TryParse(dimension, out int size))
                         {
                             score = size >= 32 ? 1000 - Math.Abs(size - 32) : size;
