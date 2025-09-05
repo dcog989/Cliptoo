@@ -41,6 +41,8 @@ namespace Cliptoo.Core.Services
 
             _httpClient = new HttpClient();
             _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36");
+            _httpClient.DefaultRequestHeaders.Accept.ParseAdd("text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8");
+            _httpClient.DefaultRequestHeaders.AcceptLanguage.ParseAdd("en-US,en;q=0.9");
             _httpClient.Timeout = TimeSpan.FromSeconds(5);
 
             _pngEncoder = new PngEncoder { CompressionLevel = PngCompressionLevel.Level6 };
@@ -268,14 +270,15 @@ namespace Cliptoo.Core.Services
 
         private static async Task<string?> ReadHeadContentAsync(Stream stream)
         {
-            const int maxBytesToRead = 350 * 1024;
+            const int maxBytesToRead = 777 * 1024;
             using var memoryStream = new MemoryStream();
 
+            // Simple copy loop to reliably read up to maxBytesToRead
             var buffer = new byte[8192];
-            int totalBytesRead = 0;
+            long totalBytesRead = 0;
             while (totalBytesRead < maxBytesToRead)
             {
-                int bytesToRead = Math.Min(buffer.Length, maxBytesToRead - totalBytesRead);
+                int bytesToRead = (int)Math.Min(buffer.Length, maxBytesToRead - totalBytesRead);
                 int bytesRead = await stream.ReadAsync(buffer, 0, bytesToRead).ConfigureAwait(false);
                 if (bytesRead == 0)
                 {
@@ -283,16 +286,12 @@ namespace Cliptoo.Core.Services
                 }
                 await memoryStream.WriteAsync(buffer, 0, bytesRead).ConfigureAwait(false);
                 totalBytesRead += bytesRead;
-
-                var tempString = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-                if (tempString.Contains("</head>", StringComparison.OrdinalIgnoreCase))
-                {
-                    break;
-                }
             }
 
             memoryStream.Position = 0;
+            if (memoryStream.Length == 0) return null;
 
+            // Now process the captured stream
             using var reader = new StreamReader(memoryStream, Encoding.UTF8, true);
             var content = await reader.ReadToEndAsync().ConfigureAwait(false);
 
@@ -301,15 +300,17 @@ namespace Cliptoo.Core.Services
                 return null;
             }
 
-            int headEndIndex = content.IndexOf("</head>", StringComparison.OrdinalIgnoreCase);
+            const string headTag = "</head>";
+            int headEndIndex = content.IndexOf(headTag, StringComparison.OrdinalIgnoreCase);
             if (headEndIndex != -1)
             {
-                return content.Substring(0, headEndIndex + "</head>".Length);
+                return content.Substring(0, headEndIndex + headTag.Length);
             }
 
             LogManager.LogDebug($"HTML </head> tag not found within the first {maxBytesToRead / 1024}KB. Using partial content for discovery.");
             return content;
         }
+
 
         public async Task<string?> GetPageTitleAsync(Uri url)
         {
@@ -552,7 +553,7 @@ namespace Cliptoo.Core.Services
                 foreach (var file in Directory.EnumerateFiles(_faviconCacheDir))
                 {
                     var fileInfo = new FileInfo(file);
-                    if (fileInfo.LastAccessTimeUtc < cutoff)
+                    if (fileInfo.CreationTimeUtc < cutoff)
                     {
                         filesToDelete.Add(file);
                     }
