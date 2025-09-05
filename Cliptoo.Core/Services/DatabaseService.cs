@@ -215,6 +215,11 @@ namespace Cliptoo.Core.Services
         {
             try
             {
+                if (!Directory.Exists(_tempPath))
+                {
+                    return 0;
+                }
+
                 var oldPngFiles = Directory.EnumerateFiles(_tempPath, "cliptoo_*.png")
                     .Where(f => (DateTime.UtcNow - new FileInfo(f).CreationTimeUtc) > TimeSpan.FromHours(1));
 
