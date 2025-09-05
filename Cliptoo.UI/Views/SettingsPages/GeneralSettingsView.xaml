@@ -29,16 +29,6 @@
                 <TextBlock
                     Margin="10,0,10,0"
                     Style="{StaticResource SettingLabel}"
-                    Text="using hotkey" />
-                <ui:TextBox
-                    Width="160"
-                    helpers:HotkeyInputBehavior.HotkeyTarget="Main"
-                    helpers:HotkeyInputBehavior.IsEnabled="True"
-                    Style="{StaticResource CaptureHotkeyStyle}"
-                    Text="{Binding Hotkey, Mode=OneWay}" />
-                <TextBlock
-                    Margin="10,0,10,0"
-                    Style="{StaticResource SettingLabel}"
                     Text="with logging level" />
                 <ComboBox
                     MinWidth="100"
