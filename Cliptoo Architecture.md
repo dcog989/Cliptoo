@@ -65,3 +65,12 @@ Examples:
 `oklch(40% 0.123 121)`
 `oklch(60% 0.156 149 / .5)`
 `oklch(.44 0.6 22 / 67%)`
+
+## favicon logic
+
+1. parallel fetch favicon.ico and stream / load the first 777 KB of HTML until we find `</head>`
+2. read html <title> if missing
+3. cancel html fetch if favicon.ico found
+4. parse for `rel="*icon*"` and then select the right size - 32x32 px or nearest largest of type svg or png or ico or webp
+5. if favicon is not found in html then try fallback favicon.svg and favicon.png
+6. write a fail file if none of the above succeed
