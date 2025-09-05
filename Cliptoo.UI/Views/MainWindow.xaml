@@ -108,6 +108,7 @@
                     MouseLeave="ClipListView_MouseLeave"
                     MouseLeftButtonUp="ClipListView_MouseLeftButtonUp"
                     PreviewKeyDown="ClipListView_PreviewKeyDown"
+                    PreviewMouseRightButtonDown="ClipListView_PreviewMouseRightButtonDown"
                     ScrollViewer.CanContentScroll="True"
                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                     ScrollViewer.ScrollChanged="ClipListView_ScrollChanged"

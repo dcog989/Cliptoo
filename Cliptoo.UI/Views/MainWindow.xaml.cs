@@ -1,4 +1,3 @@
-using System;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -64,6 +63,17 @@ namespace Cliptoo.UI.Views
                     listView.SelectedIndex--;
                     listView.ScrollIntoView(listView.SelectedItem);
                 }
+            }
+        }
+
+        private void ClipListView_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            var dependencyObject = e.OriginalSource as DependencyObject;
+            var listViewItem = FindVisualAncestor<System.Windows.Controls.ListViewItem>(dependencyObject);
+
+            if (listViewItem != null)
+            {
+                listViewItem.IsSelected = true;
             }
         }
 
@@ -275,6 +285,23 @@ namespace Cliptoo.UI.Views
                 T? childOfChild = FindVisualChild<T>(child);
                 if (childOfChild != null)
                     return childOfChild;
+            }
+            return null;
+        }
+
+        private static T? FindVisualAncestor<T>(DependencyObject? d) where T : DependencyObject
+        {
+            while (d != null)
+            {
+                if (d is T target) { return target; }
+                if (d is Visual || d is System.Windows.Media.Media3D.Visual3D)
+                {
+                    d = VisualTreeHelper.GetParent(d);
+                }
+                else
+                {
+                    d = LogicalTreeHelper.GetParent(d);
+                }
             }
             return null;
         }
