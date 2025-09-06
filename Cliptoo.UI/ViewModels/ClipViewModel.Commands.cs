@@ -1,10 +1,8 @@
 using System.Diagnostics;
 using System.IO;
-using System.Windows;
 using System.Windows.Input;
 using Cliptoo.Core;
 using Cliptoo.Core.Configuration;
-using Cliptoo.UI.Helpers;
 using Wpf.Ui.Controls;
 
 namespace Cliptoo.UI.ViewModels
