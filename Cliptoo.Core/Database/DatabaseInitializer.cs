@@ -127,48 +127,7 @@ namespace Cliptoo.Core.Database
                         if (alterCmd != null) { await alterCmd.DisposeAsync().ConfigureAwait(false); }
                     }
                 }
-                if (fromVersion < 2)
-                {
-                    var cmds = new[]
-                    {
-                        "DROP TABLE IF EXISTS clips_fts;",
-                        "DROP TRIGGER IF EXISTS clips_ai;",
-                        "DROP TRIGGER IF EXISTS clips_ad;",
-                        "DROP TRIGGER IF EXISTS clips_au;",
-                        @"CREATE VIRTUAL TABLE clips_fts USING fts5(
-                            Content,
-                            content='clips',
-                            content_rowid='Id',
-                            tokenize='unicode61 remove_diacritics 2'
-                        );",
-                        @"CREATE TRIGGER clips_ai AFTER INSERT ON clips BEGIN
-                            INSERT INTO clips_fts(rowid, Content) VALUES (new.Id, new.Content);
-                        END;",
-                        @"CREATE TRIGGER clips_ad AFTER DELETE ON clips BEGIN
-                            INSERT INTO clips_fts(clips_fts, rowid, Content) VALUES ('delete', old.Id, old.Content);
-                        END;",
-                        @"CREATE TRIGGER clips_au AFTER UPDATE ON clips BEGIN
-                            INSERT INTO clips_fts(clips_fts, rowid, Content) VALUES ('delete', old.Id, old.Content);
-                            INSERT INTO clips_fts(rowid, Content) VALUES (new.Id, new.Content);
-                        END;",
-                        "INSERT INTO clips_fts(rowid, Content) SELECT Id, Content FROM clips;"
-                    };
-                    foreach (var cmdText in cmds)
-                    {
-                        SqliteCommand? cmd = null;
-                        try
-                        {
-                            cmd = connection.CreateCommand();
-                            cmd.Transaction = transaction;
-                            cmd.CommandText = cmdText;
-                            await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
-                        }
-                        finally
-                        {
-                            if (cmd != null) { await cmd.DisposeAsync().ConfigureAwait(false); }
-                        }
-                    }
-                }
+
                 if (fromVersion < 3)
                 {
                     var cmds = new[]
@@ -222,5 +181,6 @@ namespace Cliptoo.Core.Database
                 if (connection != null) { await connection.DisposeAsync().ConfigureAwait(false); }
             }
         }
+
     }
 }
