@@ -27,6 +27,11 @@ namespace Cliptoo.UI.ViewModels
             IsPasting = true;
             try
             {
+                if (CurrentSettings.MoveClipToTopOnPaste)
+                {
+                    await _clipDataService.MoveClipToTopAsync(clipVM.Id).ConfigureAwait(false);
+                }
+
                 var clip = await _clipDataService.GetClipByIdAsync(clipVM.Id);
                 if (clip == null) return;
 

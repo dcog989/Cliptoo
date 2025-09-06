@@ -223,6 +223,10 @@ namespace Cliptoo.Core.Configuration
         [DefaultValue(false)]
         public bool PasteAsPlainText { get => _pasteAsPlainText; set => SetProperty(ref _pasteAsPlainText, value); }
 
+        private bool _moveClipToTopOnPaste = true;
+        [DefaultValue(true)]
+        public bool MoveClipToTopOnPaste { get => _moveClipToTopOnPaste; set => SetProperty(ref _moveClipToTopOnPaste, value); }
+
         public List<SendToTarget> SendToTargets { get; set; } = new();
         #endregion
 

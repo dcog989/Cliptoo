@@ -33,8 +33,6 @@ namespace Cliptoo.UI.Services
         {
             ArgumentNullException.ThrowIfNull(clip);
 
-            await _clipDataService.MoveClipToTopAsync(clip.Id).ConfigureAwait(false);
-
             var settings = _settingsService.Settings;
             bool pasteAsPlainText = forcePlainText ?? settings.PasteAsPlainText;
             LogManager.Log($"Pasting clip: ID={clip.Id}, AsPlainText={pasteAsPlainText}.");

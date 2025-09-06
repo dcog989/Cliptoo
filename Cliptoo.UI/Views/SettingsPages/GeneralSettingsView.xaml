@@ -78,6 +78,11 @@
                     Content="Remember filter selection"
                     IsChecked="{Binding Settings.RememberFilterSelection}"
                     ToolTip="Keep the last used filter active when the window is reopened." />
+                <CheckBox
+                    Margin="0,0,10,0"
+                    Content="Move clips to top on paste"
+                    IsChecked="{Binding Settings.MoveClipToTopOnPaste}"
+                    ToolTip="When using a clip, move it to the top of the list." />
             </UniformGrid>
 
             <Separator Margin="0,10,0,10" />
