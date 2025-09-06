@@ -187,9 +187,9 @@
             <ui:Button
                 Margin="0,10,0,0"
                 HorizontalAlignment="Left"
+                Appearance="Secondary"
                 Command="{Binding AddSendToTargetCommand}"
-                Content="Add Application..."
-                Style="{StaticResource SecondaryAccentButton}" />
+                Content="Add Application..." />
 
         </StackPanel>
     </ScrollViewer>

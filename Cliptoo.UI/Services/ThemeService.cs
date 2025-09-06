@@ -60,11 +60,17 @@ namespace Cliptoo.UI.Services
             {
                 Application.Current.Resources["HyperlinkBlueBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#5599FF"));
                 Application.Current.Resources["HyperlinkBlueBrushHover"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#88BBFF"));
+                var whiteBrush = new SolidColorBrush(Colors.White);
+                whiteBrush.Freeze();
+                Application.Current.Resources["TextOnAccentFillColorPrimaryBrush"] = whiteBrush;
             }
             else
             {
                 Application.Current.Resources["HyperlinkBlueBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#0078D4"));
                 Application.Current.Resources["HyperlinkBlueBrushHover"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#005A9E"));
+                var blackBrush = new SolidColorBrush(Colors.Black);
+                blackBrush.Freeze();
+                Application.Current.Resources["TextOnAccentFillColorPrimaryBrush"] = blackBrush;
             }
 
             try

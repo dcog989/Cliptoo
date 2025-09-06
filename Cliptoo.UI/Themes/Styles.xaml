@@ -8,21 +8,6 @@
     <SolidColorBrush x:Key="HyperlinkBlueBrush" Color="#4E96CE" />
     <SolidColorBrush x:Key="HyperlinkBlueBrushHover" Color="#7CAED4" />
 
-    <Style
-        x:Key="SecondaryAccentButton"
-        BasedOn="{StaticResource {x:Type ui:Button}}"
-        TargetType="ui:Button">
-        <Setter Property="Height" Value="32" />
-        <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
-        <Style.Triggers>
-            <Trigger Property="IsMouseOver" Value="True">
-                <Setter Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
-                <Setter Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}" />
-                <Setter Property="Foreground" Value="White" />
-            </Trigger>
-        </Style.Triggers>
-    </Style>
-
     <Style TargetType="{x:Type ListViewItem}">
         <Setter Property="VerticalContentAlignment" Value="Top" />
         <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />

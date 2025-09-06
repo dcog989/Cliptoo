@@ -3,6 +3,12 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:converters="clr-namespace:Cliptoo.UI.Converters">
 
+    <!--  Custom Brushes that don't have a direct WPF-UI equivalent  -->
+    <SolidColorBrush x:Key="ErrorTextBrush" Color="{DynamicResource SystemFillColorCritical}" />
+    <SolidColorBrush x:Key="HyperlinkBlueBrush" Color="#4E96CE" />
+    <SolidColorBrush x:Key="HyperlinkBlueBrushHover" Color="#7CAED4" />
+    <SolidColorBrush x:Key="TextOnAccentFillColorPrimaryBrush" Color="White" />
+
     <DrawingBrush
         x:Key="CheckerboardBrush"
         TileMode="Tile"

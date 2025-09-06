@@ -62,33 +62,33 @@
                 IsEnabled="{Binding !IsBusy}"
                 Orientation="Horizontal">
                 <ui:Button
+                    Appearance="Secondary"
                     Command="{Binding ClearHistoryCommand}"
                     Content="Clear History..."
-                    Style="{StaticResource SecondaryAccentButton}"
                     ToolTip="Delete all non-pinned clips from the database." />
                 <ui:Button
                     Margin="10,0,0,0"
+                    Appearance="Secondary"
                     Command="{Binding ClearOversizedCommand}"
                     Content="Clear Oversized..."
-                    Style="{StaticResource SecondaryAccentButton}"
                     ToolTip="Delete clips larger than a specified size." />
                 <ui:Button
                     Margin="10,0,0,0"
+                    Appearance="Secondary"
                     Command="{Binding ClearCachesCommand}"
                     Content="Clear Caches"
-                    Style="{StaticResource SecondaryAccentButton}"
                     ToolTip="Delete all cached thumbnails and temporary image files." />
                 <ui:Button
                     Margin="10,0,0,0"
+                    Appearance="Secondary"
                     Command="{Binding RemoveDeadheadClipsCommand}"
                     Content="Deadhead"
-                    Style="{StaticResource SecondaryAccentButton}"
                     ToolTip="Remove clips for files or folders that no longer exist." />
                 <ui:Button
                     Margin="10,0,0,0"
+                    Appearance="Secondary"
                     Command="{Binding RunHeavyMaintenanceCommand}"
                     Content="Run Maintenance"
-                    Style="{StaticResource SecondaryAccentButton}"
                     ToolTip="Run the full daily maintenance routine now (database cleanup, cache pruning, etc)." />
             </StackPanel>
 

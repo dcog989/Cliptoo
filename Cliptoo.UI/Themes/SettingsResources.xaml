@@ -61,6 +61,18 @@
     </Style>
 
     <Style
+        x:Key="PrimaryDialogButton"
+        BasedOn="{StaticResource {x:Type ui:Button}}"
+        TargetType="ui:Button">
+        <Setter Property="Appearance" Value="Primary" />
+        <Style.Triggers>
+            <Trigger Property="IsDefault" Value="True">
+                <Setter Property="Foreground" Value="White" />
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style
         x:Key="CaptureHotkeyStyle"
         BasedOn="{StaticResource SettingsTextBoxStyle}"
         TargetType="ui:TextBox">
