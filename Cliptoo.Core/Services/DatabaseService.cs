@@ -220,13 +220,8 @@ namespace Cliptoo.Core.Services
                     return 0;
                 }
 
-                var oldPngFiles = Directory.EnumerateFiles(_tempPath, "cliptoo_*.png")
+                var oldFiles = Directory.EnumerateFiles(_tempPath, "cliptoo_*.*")
                     .Where(f => (DateTime.UtcNow - new FileInfo(f).CreationTimeUtc) > TimeSpan.FromHours(1));
-
-                var oldTxtFiles = Directory.EnumerateFiles(_tempPath, "cliptoo_compare_*.txt")
-                    .Where(f => (DateTime.UtcNow - new FileInfo(f).CreationTimeUtc) > TimeSpan.FromHours(1));
-
-                var oldFiles = oldPngFiles.Concat(oldTxtFiles);
 
                 int filesDeleted = 0;
                 foreach (var file in oldFiles)
@@ -253,5 +248,6 @@ namespace Cliptoo.Core.Services
                 return 0;
             }
         }
+
     }
 }
