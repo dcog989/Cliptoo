@@ -42,5 +42,6 @@
     <converters:IsTargetedForHotkeyCaptureConverter x:Key="IsTargetedForHotkeyCaptureConverter" />
     <converters:AnyTrueToVisibilityConverter x:Key="AnyTrueToVisibilityConverter" />
     <converters:AllTrueToVisibilityConverter x:Key="AllTrueToVisibilityConverter" />
+    <converters:MultiCommandParameterConverter x:Key="MultiCommandParameterConverter" />
 
 </ResourceDictionary>

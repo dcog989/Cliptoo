@@ -68,12 +68,34 @@ namespace Cliptoo.UI.Views
 
         private void ClipListView_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
         {
-            var dependencyObject = e.OriginalSource as DependencyObject;
-            var listViewItem = FindVisualAncestor<System.Windows.Controls.ListViewItem>(dependencyObject);
+            if (sender is not System.Windows.Controls.ListView listView) return;
 
-            if (listViewItem != null)
+            var hitTestResult = VisualTreeHelper.HitTest(listView, e.GetPosition(listView));
+            if (hitTestResult?.VisualHit != null)
             {
-                listViewItem.IsSelected = true;
+                var ancestor = FindVisualAncestor<System.Windows.Controls.ListViewItem>(hitTestResult.VisualHit);
+                if (ancestor != null)
+                {
+                    listView.SelectedItem = ancestor.DataContext;
+                }
+            }
+        }
+
+        private void ClipListView_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+        {
+            // This handler is for clearing selection when clicking on an empty area.
+            var hitTestResult = VisualTreeHelper.HitTest(sender as Visual, e.GetPosition(sender as IInputElement));
+            if (hitTestResult != null)
+            {
+                var ancestor = FindVisualAncestor<System.Windows.Controls.ListViewItem>(hitTestResult.VisualHit);
+                if (ancestor == null)
+                {
+                    // Click was not on an item, so clear selection.
+                    if (sender is System.Windows.Controls.ListView lv)
+                    {
+                        lv.SelectedItem = null;
+                    }
+                }
             }
         }
 

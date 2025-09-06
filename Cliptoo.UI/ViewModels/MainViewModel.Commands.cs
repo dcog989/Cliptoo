@@ -7,12 +7,15 @@ using Cliptoo.Core.Configuration;
 using Cliptoo.UI.Views;
 using Microsoft.Extensions.DependencyInjection;
 using Wpf.Ui.Controls;
+using Cliptoo.UI.Helpers;
 
 namespace Cliptoo.UI.ViewModels
 {
     public partial class MainViewModel
     {
         public ICommand PasteClipCommand { get; }
+        public ICommand PasteClipAsPlainTextCommand { get; }
+        public ICommand TransformAndPasteCommand { get; }
         public ICommand OpenSettingsCommand { get; }
         public ICommand HideWindowCommand { get; }
         public ICommand LoadMoreClipsCommand { get; }
@@ -75,12 +78,28 @@ namespace Cliptoo.UI.ViewModels
             }
         }
 
-        private async Task ExecutePasteClip(object? parameter)
+        private async Task ExecutePasteClip(object? parameter, bool? forcePlainText)
         {
             if (parameter is ClipViewModel clipVM)
             {
-                await PerformPasteAction(clipVM, clip => _pastingService.PasteClipAsync(clip));
+                await PerformPasteAction(clipVM, clip => _pastingService.PasteClipAsync(clip, forcePlainText));
             }
+        }
+
+        private async Task ExecuteTransformAndPaste(object? parameter)
+        {
+            if (parameter is not object[] values || values.Length != 2) return;
+            if (values[0] is not ClipViewModel clipVM || values[1] is not string transformType) return;
+
+            await PerformPasteAction(clipVM, async clip =>
+            {
+                string contentToTransform = (clip.ClipType == Core.AppConstants.ClipTypes.Rtf
+                    ? RtfUtils.ToPlainText(clip.Content ?? string.Empty)
+                    : clip.Content) ?? string.Empty;
+
+                var transformedContent = _clipboardService.TransformText(contentToTransform, transformType);
+                await _pastingService.PasteTextAsync(transformedContent).ConfigureAwait(false);
+            });
         }
 
         private void OpenSettingsWindow()

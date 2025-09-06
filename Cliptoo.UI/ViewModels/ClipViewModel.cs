@@ -177,10 +177,6 @@ namespace Cliptoo.UI.ViewModels
             OpenCommand = new RelayCommand(async _ => await ExecuteOpen().ConfigureAwait(false));
             SelectForCompareLeftCommand = new RelayCommand(_ => MainViewModel.HandleClipSelectForCompare(this));
             CompareWithSelectedRightCommand = new RelayCommand(_ => MainViewModel.HandleClipCompare(this));
-
-            PasteAsPlainTextCommand = new RelayCommand(async _ => await ExecutePasteAs(plainText: true).ConfigureAwait(false));
-            PasteAsRtfCommand = new RelayCommand(async _ => await ExecutePasteAs(plainText: false).ConfigureAwait(false));
-            TransformAndPasteCommand = new RelayCommand(async param => await ExecuteTransformAndPaste(param as string).ConfigureAwait(false));
             SendToCommand = new RelayCommand(async param => await ExecuteSendTo(param as SendToTarget).ConfigureAwait(false));
         }
 

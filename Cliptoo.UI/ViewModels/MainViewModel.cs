@@ -200,7 +200,9 @@ namespace Cliptoo.UI.ViewModels
             SendToTargets = new ObservableCollection<SendToTarget>(CurrentSettings.SendToTargets);
             _selectedFilter = new FilterOption("All", AppConstants.FilterKeys.All, null);
 
-            PasteClipCommand = new RelayCommand(async param => await ExecutePasteClip(param));
+            PasteClipCommand = new RelayCommand(async param => await ExecutePasteClip(param, forcePlainText: null));
+            PasteClipAsPlainTextCommand = new RelayCommand(async param => await ExecutePasteClip(param, forcePlainText: true));
+            TransformAndPasteCommand = new RelayCommand(async param => await ExecuteTransformAndPaste(param));
             OpenSettingsCommand = new RelayCommand(_ => OpenSettingsWindow());
             HideWindowCommand = new RelayCommand(_ => HideWindow());
             LoadMoreClipsCommand = new RelayCommand(async _ => await LoadMoreClipsAsync());

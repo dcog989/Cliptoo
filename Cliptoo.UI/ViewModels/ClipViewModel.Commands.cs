@@ -18,60 +18,7 @@ namespace Cliptoo.UI.ViewModels
         public ICommand OpenCommand { get; }
         public ICommand SelectForCompareLeftCommand { get; }
         public ICommand CompareWithSelectedRightCommand { get; }
-        public ICommand PasteAsPlainTextCommand { get; }
-        public ICommand PasteAsRtfCommand { get; }
-        public ICommand TransformAndPasteCommand { get; }
         public ICommand SendToCommand { get; }
-
-        private async Task ExecuteTransformAndPaste(string? transformType)
-        {
-            if (transformType == null) return;
-
-            LogManager.LogDebug($"TRANSFORM_DIAG: Starting transform '{transformType}' for Clip ID {Id}.");
-
-            await _clipDataService.MoveClipToTopAsync(Id).ConfigureAwait(false);
-
-            var fullClip = await GetFullClipAsync().ConfigureAwait(false);
-            if (fullClip == null)
-            {
-                LogManager.LogDebug("TRANSFORM_DIAG: Aborted, full clip content is null.");
-                return;
-            }
-
-            LogManager.LogDebug($"TRANSFORM_DIAG: Full clip content (first 100 chars): {fullClip.Content?.Substring(0, Math.Min(100, fullClip.Content.Length))}");
-
-            string contentToTransform = (fullClip.ClipType == AppConstants.ClipTypes.Rtf
-                ? RtfUtils.ToPlainText(fullClip.Content ?? string.Empty)
-                : fullClip.Content) ?? string.Empty;
-
-            LogManager.LogDebug($"TRANSFORM_DIAG: Content to transform (is RTF: {fullClip.ClipType == AppConstants.ClipTypes.Rtf}): {contentToTransform.Substring(0, Math.Min(100, contentToTransform.Length))}");
-
-            var transformedContent = _clipboardService.TransformText(contentToTransform, transformType);
-            LogManager.LogDebug($"TRANSFORM_DIAG: Transformed content: '{transformedContent}' (Length: {transformedContent.Length})");
-
-
-            var mainWindow = Application.Current.MainWindow;
-            if (mainWindow != null)
-            {
-                mainWindow.Hide();
-            }
-
-            await _pastingService.PasteTextAsync(transformedContent).ConfigureAwait(false);
-            await _clipboardService.UpdatePasteCountAsync().ConfigureAwait(false);
-
-            MainViewModel.RefreshClipList();
-        }
-
-        private async Task ExecutePasteAs(bool plainText)
-        {
-            Application.Current.MainWindow?.Hide();
-
-            var clip = await GetFullClipAsync().ConfigureAwait(false);
-            if (clip == null) return;
-
-            await _pastingService.PasteClipAsync(clip, forcePlainText: plainText).ConfigureAwait(false);
-            await _clipboardService.UpdatePasteCountAsync().ConfigureAwait(false);
-        }
 
         private async Task ExecuteOpen()
         {

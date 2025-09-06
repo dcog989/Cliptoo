@@ -108,6 +108,7 @@
                     MouseLeave="ClipListView_MouseLeave"
                     MouseLeftButtonUp="ClipListView_MouseLeftButtonUp"
                     PreviewKeyDown="ClipListView_PreviewKeyDown"
+                    PreviewMouseDown="ClipListView_PreviewMouseDown"
                     PreviewMouseRightButtonDown="ClipListView_PreviewMouseRightButtonDown"
                     ScrollViewer.CanContentScroll="True"
                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
@@ -197,72 +198,175 @@
                                 </Separator.Visibility>
                             </Separator>
                             <MenuItem
-                                Command="{Binding PasteAsPlainTextCommand}"
+                                Command="{Binding DataContext.PasteClipAsPlainTextCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
+                                CommandParameter="{Binding}"
                                 Header="Plain Text"
                                 Visibility="{Binding CanPasteAsPlainText, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                            <MenuItem
-                                Command="{Binding PasteAsRtfCommand}"
-                                Header="RTF Text"
-                                Visibility="{Binding CanPasteAsRtf, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                            <MenuItem Header="RTF Text" Visibility="{Binding CanPasteAsRtf, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <MenuItem.Command>
+                                    <Binding Path="DataContext.PasteClipCommand" RelativeSource="{RelativeSource AncestorType=ListView}" />
+                                </MenuItem.Command>
+                                <MenuItem.CommandParameter>
+                                    <Binding />
+                                </MenuItem.CommandParameter>
+                            </MenuItem>
                             <MenuItem Header="Paste Transform" Visibility="{Binding IsTextTransformable, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                <MenuItem
-                                    Command="{Binding TransformAndPasteCommand}"
-                                    CommandParameter="{x:Static core:AppConstants+TransformTypes.Trim}"
-                                    Header="Trim Whitespace" />
-                                <MenuItem
-                                    Command="{Binding TransformAndPasteCommand}"
-                                    CommandParameter="{x:Static core:AppConstants+TransformTypes.Lf1}"
-                                    Header="1 Line Feed After" />
-                                <MenuItem
-                                    Command="{Binding TransformAndPasteCommand}"
-                                    CommandParameter="{x:Static core:AppConstants+TransformTypes.Lf2}"
-                                    Header="2 Line Feeds After" />
-                                <MenuItem
-                                    Command="{Binding TransformAndPasteCommand}"
-                                    CommandParameter="{x:Static core:AppConstants+TransformTypes.RemoveLf}"
-                                    Header="Remove Line Feeds" />
-                                <MenuItem
-                                    Command="{Binding TransformAndPasteCommand}"
-                                    CommandParameter="{x:Static core:AppConstants+TransformTypes.Timestamp}"
-                                    Header="Timestamp Prefix" />
+                                <MenuItem Header="Trim Whitespace">
+                                    <MenuItem.Command>
+                                        <Binding Path="DataContext.TransformAndPasteCommand" RelativeSource="{RelativeSource AncestorType=ListView}" />
+                                    </MenuItem.Command>
+                                    <MenuItem.CommandParameter>
+                                        <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
+                                            <Binding />
+                                            <Binding Source="{x:Static core:AppConstants+TransformTypes.Trim}" />
+                                        </MultiBinding>
+                                    </MenuItem.CommandParameter>
+                                </MenuItem>
+                                <MenuItem Header="1 Line Feed After">
+                                    <MenuItem.Command>
+                                        <Binding Path="DataContext.TransformAndPasteCommand" RelativeSource="{RelativeSource AncestorType=ListView}" />
+                                    </MenuItem.Command>
+                                    <MenuItem.CommandParameter>
+                                        <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
+                                            <Binding />
+                                            <Binding Source="{x:Static core:AppConstants+TransformTypes.Lf1}" />
+                                        </MultiBinding>
+                                    </MenuItem.CommandParameter>
+                                </MenuItem>
+                                <MenuItem Header="2 Line Feeds After">
+                                    <MenuItem.Command>
+                                        <Binding Path="DataContext.TransformAndPasteCommand" RelativeSource="{RelativeSource AncestorType=ListView}" />
+                                    </MenuItem.Command>
+                                    <MenuItem.CommandParameter>
+                                        <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
+                                            <Binding />
+                                            <Binding Source="{x:Static core:AppConstants+TransformTypes.Lf2}" />
+                                        </MultiBinding>
+                                    </MenuItem.CommandParameter>
+                                </MenuItem>
+                                <MenuItem Header="Remove Line Feeds">
+                                    <MenuItem.Command>
+                                        <Binding Path="DataContext.TransformAndPasteCommand" RelativeSource="{RelativeSource AncestorType=ListView}" />
+                                    </MenuItem.Command>
+                                    <MenuItem.CommandParameter>
+                                        <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
+                                            <Binding />
+                                            <Binding Source="{x:Static core:AppConstants+TransformTypes.RemoveLf}" />
+                                        </MultiBinding>
+                                    </MenuItem.CommandParameter>
+                                </MenuItem>
+                                <MenuItem Header="Timestamp Prefix">
+                                    <MenuItem.Command>
+                                        <Binding Path="DataContext.TransformAndPasteCommand" RelativeSource="{RelativeSource AncestorType=ListView}" />
+                                    </MenuItem.Command>
+                                    <MenuItem.CommandParameter>
+                                        <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
+                                            <Binding />
+                                            <Binding Source="{x:Static core:AppConstants+TransformTypes.Timestamp}" />
+                                        </MultiBinding>
+                                    </MenuItem.CommandParameter>
+                                </MenuItem>
                             </MenuItem>
                             <MenuItem Header="Paste Case" Visibility="{Binding IsTextTransformable, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                <MenuItem
-                                    Command="{Binding TransformAndPasteCommand}"
-                                    CommandParameter="{x:Static core:AppConstants+TransformTypes.Upper}"
-                                    Header="UPPER CASE" />
-                                <MenuItem
-                                    Command="{Binding TransformAndPasteCommand}"
-                                    CommandParameter="{x:Static core:AppConstants+TransformTypes.Lower}"
-                                    Header="lower case" />
-                                <MenuItem
-                                    Command="{Binding TransformAndPasteCommand}"
-                                    CommandParameter="{x:Static core:AppConstants+TransformTypes.Capitalize}"
-                                    Header="Capitalize Case" />
-                                <MenuItem
-                                    Command="{Binding TransformAndPasteCommand}"
-                                    CommandParameter="{x:Static core:AppConstants+TransformTypes.Sentence}"
-                                    Header="Sentence case" />
-                                <MenuItem
-                                    Command="{Binding TransformAndPasteCommand}"
-                                    CommandParameter="{x:Static core:AppConstants+TransformTypes.Invert}"
-                                    Header="iNVERT cASE" />
-                                <MenuItem
-                                    Command="{Binding TransformAndPasteCommand}"
-                                    CommandParameter="{x:Static core:AppConstants+TransformTypes.Kebab}"
-                                    Header="kebab-case" />
-                                <MenuItem
-                                    Command="{Binding TransformAndPasteCommand}"
-                                    CommandParameter="{x:Static core:AppConstants+TransformTypes.Snake}"
-                                    Header="snake__case" />
-                                <MenuItem
-                                    Command="{Binding TransformAndPasteCommand}"
-                                    CommandParameter="{x:Static core:AppConstants+TransformTypes.Camel}"
-                                    Header="CamelCase" />
-                                <MenuItem
-                                    Command="{Binding TransformAndPasteCommand}"
-                                    CommandParameter="{x:Static core:AppConstants+TransformTypes.Deslug}"
-                                    Header="Deslug" />
+                                <MenuItem Header="UPPER CASE">
+                                    <MenuItem.Command>
+                                        <Binding Path="DataContext.TransformAndPasteCommand" RelativeSource="{RelativeSource AncestorType=ListView}" />
+                                    </MenuItem.Command>
+                                    <MenuItem.CommandParameter>
+                                        <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
+                                            <Binding />
+                                            <Binding Source="{x:Static core:AppConstants+TransformTypes.Upper}" />
+                                        </MultiBinding>
+                                    </MenuItem.CommandParameter>
+                                </MenuItem>
+                                <MenuItem Header="lower case">
+                                    <MenuItem.Command>
+                                        <Binding Path="DataContext.TransformAndPasteCommand" RelativeSource="{RelativeSource AncestorType=ListView}" />
+                                    </MenuItem.Command>
+                                    <MenuItem.CommandParameter>
+                                        <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
+                                            <Binding />
+                                            <Binding Source="{x:Static core:AppConstants+TransformTypes.Lower}" />
+                                        </MultiBinding>
+                                    </MenuItem.CommandParameter>
+                                </MenuItem>
+                                <MenuItem Header="Capitalize Case">
+                                    <MenuItem.Command>
+                                        <Binding Path="DataContext.TransformAndPasteCommand" RelativeSource="{RelativeSource AncestorType=ListView}" />
+                                    </MenuItem.Command>
+                                    <MenuItem.CommandParameter>
+                                        <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
+                                            <Binding />
+                                            <Binding Source="{x:Static core:AppConstants+TransformTypes.Capitalize}" />
+                                        </MultiBinding>
+                                    </MenuItem.CommandParameter>
+                                </MenuItem>
+                                <MenuItem Header="Sentence case">
+                                    <MenuItem.Command>
+                                        <Binding Path="DataContext.TransformAndPasteCommand" RelativeSource="{RelativeSource AncestorType=ListView}" />
+                                    </MenuItem.Command>
+                                    <MenuItem.CommandParameter>
+                                        <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
+                                            <Binding />
+                                            <Binding Source="{x:Static core:AppConstants+TransformTypes.Sentence}" />
+                                        </MultiBinding>
+                                    </MenuItem.CommandParameter>
+                                </MenuItem>
+                                <MenuItem Header="iNVERT cASE">
+                                    <MenuItem.Command>
+                                        <Binding Path="DataContext.TransformAndPasteCommand" RelativeSource="{RelativeSource AncestorType=ListView}" />
+                                    </MenuItem.Command>
+                                    <MenuItem.CommandParameter>
+                                        <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
+                                            <Binding />
+                                            <Binding Source="{x:Static core:AppConstants+TransformTypes.Invert}" />
+                                        </MultiBinding>
+                                    </MenuItem.CommandParameter>
+                                </MenuItem>
+                                <MenuItem Header="kebab-case">
+                                    <MenuItem.Command>
+                                        <Binding Path="DataContext.TransformAndPasteCommand" RelativeSource="{RelativeSource AncestorType=ListView}" />
+                                    </MenuItem.Command>
+                                    <MenuItem.CommandParameter>
+                                        <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
+                                            <Binding />
+                                            <Binding Source="{x:Static core:AppConstants+TransformTypes.Kebab}" />
+                                        </MultiBinding>
+                                    </MenuItem.CommandParameter>
+                                </MenuItem>
+                                <MenuItem Header="snake__case">
+                                    <MenuItem.Command>
+                                        <Binding Path="DataContext.TransformAndPasteCommand" RelativeSource="{RelativeSource AncestorType=ListView}" />
+                                    </MenuItem.Command>
+                                    <MenuItem.CommandParameter>
+                                        <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
+                                            <Binding />
+                                            <Binding Source="{x:Static core:AppConstants+TransformTypes.Snake}" />
+                                        </MultiBinding>
+                                    </MenuItem.CommandParameter>
+                                </MenuItem>
+                                <MenuItem Header="CamelCase">
+                                    <MenuItem.Command>
+                                        <Binding Path="DataContext.TransformAndPasteCommand" RelativeSource="{RelativeSource AncestorType=ListView}" />
+                                    </MenuItem.Command>
+                                    <MenuItem.CommandParameter>
+                                        <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
+                                            <Binding />
+                                            <Binding Source="{x:Static core:AppConstants+TransformTypes.Camel}" />
+                                        </MultiBinding>
+                                    </MenuItem.CommandParameter>
+                                </MenuItem>
+                                <MenuItem Header="Deslug">
+                                    <MenuItem.Command>
+                                        <Binding Path="DataContext.TransformAndPasteCommand" RelativeSource="{RelativeSource AncestorType=ListView}" />
+                                    </MenuItem.Command>
+                                    <MenuItem.CommandParameter>
+                                        <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
+                                            <Binding />
+                                            <Binding Source="{x:Static core:AppConstants+TransformTypes.Deslug}" />
+                                        </MultiBinding>
+                                    </MenuItem.CommandParameter>
+                                </MenuItem>
                             </MenuItem>
                             <Separator Style="{StaticResource ContextMenuSeparatorStyle}">
                                 <Separator.Visibility>
