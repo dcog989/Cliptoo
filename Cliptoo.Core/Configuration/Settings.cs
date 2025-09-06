@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
@@ -227,7 +227,7 @@ namespace Cliptoo.Core.Configuration
         [DefaultValue(true)]
         public bool MoveClipToTopOnPaste { get => _moveClipToTopOnPaste; set => SetProperty(ref _moveClipToTopOnPaste, value); }
 
-        public List<SendToTarget> SendToTargets { get; set; } = new();
+        public Collection<SendToTarget> SendToTargets { get; } = new();
         #endregion
 
         #region Diagnostics
