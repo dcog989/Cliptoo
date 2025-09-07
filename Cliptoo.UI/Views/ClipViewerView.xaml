@@ -25,10 +25,10 @@
             <avalonedit:TextEditor
                 x:Name="TextEditor"
                 helpers:AvalonEditHelper.DocumentText="{Binding DocumentContent, UpdateSourceTrigger=PropertyChanged}"
-                Background="{DynamicResource SecondaryBackground}"
+                Background="{DynamicResource ApplicationBackgroundBrush}"
                 FontFamily="{Binding EditorFontFamily}"
                 FontSize="{Binding EditorFontSize}"
-                Foreground="{DynamicResource PrimaryForeground}"
+                Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                 HorizontalScrollBarVisibility="Auto"
                 ShowLineNumbers="True"
                 SyntaxHighlighting="{Binding SyntaxHighlighting}"
@@ -40,9 +40,9 @@
             Grid.Row="1"
             Margin="12,0,12,0"
             Padding="5"
-            BorderBrush="{DynamicResource PrimaryBorderBrush}"
+            BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
             BorderThickness="0,1,0,0">
-            <TextBlock Foreground="{StaticResource SecondaryForeground}" Text="{Binding ClipInfo}" />
+            <TextBlock Foreground="{DynamicResource TextFillColorSecondaryBrush}" Text="{Binding ClipInfo}" />
         </Border>
 
         <StackPanel
