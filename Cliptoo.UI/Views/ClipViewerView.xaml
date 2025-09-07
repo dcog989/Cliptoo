@@ -20,7 +20,6 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
-
         <Grid Grid.Row="0" Margin="12,0,12,0">
             <avalonedit:TextEditor
                 x:Name="TextEditor"
@@ -51,10 +50,10 @@
             HorizontalAlignment="Right"
             Orientation="Horizontal">
             <ui:Button
-                Appearance="Primary"
                 Command="{Binding SaveChangesCommand}"
                 Content="Save Changes"
-                IsDefault="True" />
+                IsDefault="True"
+                Style="{StaticResource PrimaryDialogButton}" />
             <ui:Button
                 Margin="10,0,0,0"
                 Appearance="Secondary"

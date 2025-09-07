@@ -67,7 +67,7 @@
         <Setter Property="Appearance" Value="Primary" />
         <Style.Triggers>
             <Trigger Property="IsDefault" Value="True">
-                <Setter Property="Foreground" Value="White" />
+                <Setter Property="Foreground" Value="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
             </Trigger>
         </Style.Triggers>
     </Style>
@@ -166,5 +166,4 @@
             </Setter.Value>
         </Setter>
     </Style>
-
 </ResourceDictionary>

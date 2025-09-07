@@ -113,7 +113,7 @@ namespace Cliptoo.UI.ViewModels
             }
 
             IHighlightingDefinition? highlighting = null;
-            if (theme == ApplicationTheme.Dark && definitionName == "C#")
+            if (theme == ApplicationTheme.Dark && (definitionName == "C#" || definitionName == "XML" || definitionName == "JavaScript"))
             {
                 var uri = new Uri("pack://application:,,,/Assets/AvalonEditThemes/CSharp-Dark.xshd");
                 var resourceInfo = Application.GetResourceStream(uri);
