@@ -42,10 +42,9 @@ namespace Cliptoo.Core.Services
             return _textTransformer.Transform(content, transformType);
         }
 
-        public async Task<(bool success, string message)> CompareClipsAsync(int leftClipId, int rightClipId)
+        private (string? Path, string? Args) GetCompareTool()
         {
-            var settings = _settingsService.Settings;
-            string? toolPath = settings.CompareToolPath;
+            string? toolPath = _settingsService.Settings.CompareToolPath;
             string? toolArgs;
 
             if (string.IsNullOrWhiteSpace(toolPath) || !File.Exists(toolPath))
@@ -56,6 +55,12 @@ namespace Cliptoo.Core.Services
             {
                 toolArgs = _compareToolService.GetArgsForPath(toolPath);
             }
+            return (toolPath, toolArgs);
+        }
+
+        public async Task<(bool success, string message)> CompareClipsAsync(int leftClipId, int rightClipId)
+        {
+            var (toolPath, toolArgs) = GetCompareTool();
 
             if (string.IsNullOrEmpty(toolPath))
             {
@@ -97,13 +102,7 @@ namespace Cliptoo.Core.Services
 
         public bool IsCompareToolAvailable()
         {
-            string? toolPath = _settingsService.Settings.CompareToolPath;
-            if (!string.IsNullOrWhiteSpace(toolPath) && File.Exists(toolPath))
-            {
-                return true;
-            }
-
-            (toolPath, _) = _compareToolService.FindCompareTool();
+            var (toolPath, _) = GetCompareTool();
             return !string.IsNullOrEmpty(toolPath);
         }
     }

@@ -16,7 +16,6 @@ namespace Cliptoo.Core.Database
         Task UpdateTimestampAsync(int id);
         IAsyncEnumerable<Clip> GetAllFileBasedClipsAsync();
         Task UpdateClipTypesAsync(Dictionary<int, string> updates);
-        Task<Clip?> GetClipPreviewContentByIdAsync(int id);
         IAsyncEnumerable<string> GetAllImageClipPathsAsync();
         IAsyncEnumerable<string> GetAllLinkClipUrlsAsync();
     }

@@ -63,37 +63,17 @@ namespace Cliptoo.Core.Database
 
                 while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
                 {
-                    string? sourceApp = null;
-                    if (!await reader.IsDBNullAsync(ordinals.SourceApp, cancellationToken).ConfigureAwait(false))
-                    {
-                        sourceApp = reader.GetString(ordinals.SourceApp);
-                    }
-
-                    string? previewContent = null;
-                    if (!await reader.IsDBNullAsync(ordinals.PreviewContent, cancellationToken).ConfigureAwait(false))
-                    {
-                        previewContent = reader.GetString(ordinals.PreviewContent);
-                    }
-
-                    bool wasTrimmedDbNull = await reader.IsDBNullAsync(ordinals.WasTrimmed, cancellationToken).ConfigureAwait(false);
-
-                    string? matchContext = null;
-                    if (ordinals.MatchContext != -1 && !await reader.IsDBNullAsync(ordinals.MatchContext, cancellationToken).ConfigureAwait(false))
-                    {
-                        matchContext = reader.GetString(ordinals.MatchContext);
-                    }
-
                     clips.Add(new Clip
                     {
                         Id = reader.GetInt32(ordinals.Id),
                         Timestamp = DateTime.Parse(reader.GetString(ordinals.Timestamp), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind).ToLocalTime(),
                         ClipType = reader.GetString(ordinals.ClipType),
-                        SourceApp = sourceApp,
+                        SourceApp = await reader.IsDBNullAsync(ordinals.SourceApp, cancellationToken).ConfigureAwait(false) ? null : reader.GetString(ordinals.SourceApp),
                         IsPinned = reader.GetInt64(ordinals.IsPinned) == 1,
-                        WasTrimmed = !wasTrimmedDbNull && reader.GetInt64(ordinals.WasTrimmed) == 1,
+                        WasTrimmed = reader.GetInt64(ordinals.WasTrimmed) == 1,
                         SizeInBytes = reader.GetInt64(ordinals.SizeInBytes),
-                        PreviewContent = previewContent,
-                        MatchContext = matchContext
+                        PreviewContent = await reader.IsDBNullAsync(ordinals.PreviewContent, cancellationToken).ConfigureAwait(false) ? null : reader.GetString(ordinals.PreviewContent),
+                        MatchContext = ordinals.MatchContext != -1 && !await reader.IsDBNullAsync(ordinals.MatchContext, cancellationToken).ConfigureAwait(false) ? reader.GetString(ordinals.MatchContext) : null
                     });
                 }
                 return clips;
@@ -104,33 +84,6 @@ namespace Cliptoo.Core.Database
                 if (command != null) { await command.DisposeAsync().ConfigureAwait(false); }
                 if (connection != null) { await connection.DisposeAsync().ConfigureAwait(false); }
             }
-        }
-
-        public async Task<Clip?> GetClipPreviewContentByIdAsync(int id)
-        {
-            var sql = "SELECT Id, PreviewContent, Timestamp, ClipType, SourceApp, IsPinned, WasTrimmed, SizeInBytes FROM clips WHERE Id = @Id";
-            var param = new SqliteParameter("@Id", id);
-
-            var clip = await QuerySingleOrDefaultAsync(sql, reader =>
-            {
-                return new Clip
-                {
-                    Id = reader.GetInt32(reader.GetOrdinal("Id")),
-                    PreviewContent = reader.IsDBNull(reader.GetOrdinal("PreviewContent")) ? null : reader.GetString(reader.GetOrdinal("PreviewContent")),
-                    Timestamp = DateTime.Parse(reader.GetString(reader.GetOrdinal("Timestamp")), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind).ToLocalTime(),
-                    ClipType = reader.GetString(reader.GetOrdinal("ClipType")),
-                    SourceApp = reader.IsDBNull(reader.GetOrdinal("SourceApp")) ? null : reader.GetString(reader.GetOrdinal("SourceApp")),
-                    IsPinned = reader.GetInt64(reader.GetOrdinal("IsPinned")) == 1,
-                    WasTrimmed = reader.GetInt64(reader.GetOrdinal("WasTrimmed")) == 1,
-                    SizeInBytes = reader.GetInt64(reader.GetOrdinal("SizeInBytes"))
-                };
-            }, default, param).ConfigureAwait(false);
-
-            if (clip == null)
-            {
-                throw new InvalidOperationException($"Clip with ID {id} not found.");
-            }
-            return clip;
         }
 
         public async Task<int> AddClipAsync(string content, string clipType, string? sourceApp, bool wasTrimmed)
@@ -307,26 +260,28 @@ namespace Cliptoo.Core.Database
             return ExecuteNonQueryAsync(sql, parameters);
         }
 
+        private static Clip MapFullClipFromReader(SqliteDataReader reader)
+        {
+            return new Clip
+            {
+                Id = reader.GetInt32(reader.GetOrdinal("Id")),
+                Content = reader.IsDBNull(reader.GetOrdinal("Content")) ? null : reader.GetString(reader.GetOrdinal("Content")),
+                PreviewContent = reader.IsDBNull(reader.GetOrdinal("PreviewContent")) ? null : reader.GetString(reader.GetOrdinal("PreviewContent")),
+                Timestamp = DateTime.Parse(reader.GetString(reader.GetOrdinal("Timestamp")), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind).ToLocalTime(),
+                ClipType = reader.GetString(reader.GetOrdinal("ClipType")),
+                SourceApp = reader.IsDBNull(reader.GetOrdinal("SourceApp")) ? null : reader.GetString(reader.GetOrdinal("SourceApp")),
+                IsPinned = reader.GetInt64(reader.GetOrdinal("IsPinned")) == 1,
+                WasTrimmed = reader.GetInt64(reader.GetOrdinal("WasTrimmed")) == 1,
+                SizeInBytes = reader.GetInt64(reader.GetOrdinal("SizeInBytes"))
+            };
+        }
+
         public async Task<Clip?> GetClipByIdAsync(int id)
         {
             var sql = "SELECT * FROM clips WHERE Id = @Id";
             var param = new SqliteParameter("@Id", id);
 
-            return await QuerySingleOrDefaultAsync(sql, reader =>
-            {
-                return new Clip
-                {
-                    Id = reader.GetInt32(reader.GetOrdinal("Id")),
-                    Content = reader.IsDBNull(reader.GetOrdinal("Content")) ? null : reader.GetString(reader.GetOrdinal("Content")),
-                    PreviewContent = reader.IsDBNull(reader.GetOrdinal("PreviewContent")) ? null : reader.GetString(reader.GetOrdinal("PreviewContent")),
-                    Timestamp = DateTime.Parse(reader.GetString(reader.GetOrdinal("Timestamp")), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind).ToLocalTime(),
-                    ClipType = reader.GetString(reader.GetOrdinal("ClipType")),
-                    SourceApp = reader.IsDBNull(reader.GetOrdinal("SourceApp")) ? null : reader.GetString(reader.GetOrdinal("SourceApp")),
-                    IsPinned = reader.GetInt64(reader.GetOrdinal("IsPinned")) == 1,
-                    WasTrimmed = reader.GetInt64(reader.GetOrdinal("WasTrimmed")) == 1,
-                    SizeInBytes = reader.GetInt64(reader.GetOrdinal("SizeInBytes"))
-                };
-            }, default, param).ConfigureAwait(false);
+            return await QuerySingleOrDefaultAsync(sql, MapFullClipFromReader, default, param).ConfigureAwait(false);
         }
 
         private static bool HasColumn(SqliteDataReader reader, string columnName)
