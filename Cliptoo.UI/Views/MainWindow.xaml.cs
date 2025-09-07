@@ -44,25 +44,36 @@ namespace Cliptoo.UI.Views
 
         private void ClipListView_PreviewKeyDown(object sender, KeyEventArgs e)
         {
-            if (sender is not System.Windows.Controls.ListView listView) return;
+            if (sender is not System.Windows.Controls.ListView listView || listView.Items.Count == 0) return;
 
-            if (e.Key == Key.Down)
+            switch (e.Key)
             {
-                e.Handled = true;
-                if (listView.SelectedIndex < listView.Items.Count - 1)
-                {
-                    listView.SelectedIndex++;
+                case Key.Down:
+                    e.Handled = true;
+                    if (listView.SelectedIndex < listView.Items.Count - 1)
+                    {
+                        listView.SelectedIndex++;
+                        listView.ScrollIntoView(listView.SelectedItem);
+                    }
+                    break;
+                case Key.Up:
+                    e.Handled = true;
+                    if (listView.SelectedIndex > 0)
+                    {
+                        listView.SelectedIndex--;
+                        listView.ScrollIntoView(listView.SelectedItem);
+                    }
+                    break;
+                case Key.Home:
+                    e.Handled = true;
+                    listView.SelectedIndex = 0;
                     listView.ScrollIntoView(listView.SelectedItem);
-                }
-            }
-            else if (e.Key == Key.Up)
-            {
-                e.Handled = true;
-                if (listView.SelectedIndex > 0)
-                {
-                    listView.SelectedIndex--;
+                    break;
+                case Key.End:
+                    e.Handled = true;
+                    listView.SelectedIndex = listView.Items.Count - 1;
                     listView.ScrollIntoView(listView.SelectedItem);
-                }
+                    break;
             }
         }
 
