@@ -2,9 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Text;
+using Cliptoo.Core.Configuration;
 using Microsoft.Data.Sqlite;
-using Cliptoo.Core.Configuration; // keep for logmanager
-using System.Diagnostics.CodeAnalysis;
 
 namespace Cliptoo.Core.Database
 {
@@ -13,99 +13,72 @@ namespace Cliptoo.Core.Database
         private static readonly char[] _spaceSeparator = [' '];
         private const string columns = "c.Id, c.Timestamp, c.ClipType, c.SourceApp, c.IsPinned, c.WasTrimmed, c.SizeInBytes, c.PreviewContent";
 
-        [SuppressMessage("Microsoft.Security", "CA2100:Review SQL queries for security vulnerabilities", Justification = "Query is built from safe, hardcoded strings and user input is parameterized.")]
         public static void BuildGetClipsQuery(SqliteCommand command, uint limit, uint offset, string searchTerm, string filterType)
         {
-            var queryBuilder = new System.Text.StringBuilder();
-            string orderBy;
+            var queryBuilder = new StringBuilder();
+            var whereConditions = new List<string>();
 
-            var sanitizedTerms = new List<string>();
-            if (!string.IsNullOrWhiteSpace(searchTerm))
-            {
-                sanitizedTerms = searchTerm.Split(_spaceSeparator, StringSplitOptions.RemoveEmptyEntries)
-                    .Select(term => term.Replace("\"", "\"\"", StringComparison.Ordinal)) // Escape double quotes for FTS5
-                    .Where(sanitized => !string.IsNullOrEmpty(sanitized))
-                    .ToList();
-            }
+            var sanitizedTerms = string.IsNullOrWhiteSpace(searchTerm)
+                ? new List<string>()
+                : searchTerm.Split(_spaceSeparator, StringSplitOptions.RemoveEmptyEntries).Select(term => term.Replace("\"", "\"\"", StringComparison.Ordinal)).Where(sanitized => !string.IsNullOrEmpty(sanitized)).ToList();
 
             if (sanitizedTerms.Count > 0)
             {
-                var ftsQuery = string.Join(" ", sanitizedTerms.Select(term => $"\"{term}\"*"));
-                command.Parameters.AddWithValue("@SearchTerm", ftsQuery);
+                var ftsQuery = string.Join(" ", sanitizedTerms.Select(term => $"{term}*"));
+                command.Parameters.AddWithValue("@FtsSearchTerm", ftsQuery);
 
-                var likeParams = new List<string>();
-                for (int i = 0; i < sanitizedTerms.Count; i++)
-                {
-                    var paramName = $"@LikeTerm{i}";
-                    command.Parameters.AddWithValue(paramName, $"%{sanitizedTerms[i]}%");
-                    likeParams.Add($"c.Content LIKE {paramName}");
-                }
-                var likeCondition = string.Join(" AND ", likeParams);
+                var likeSearchTerm = $"%{string.Join("%", sanitizedTerms.Select(t => t.ToUpperInvariant()))}%";
+                command.Parameters.AddWithValue("@LikeSearchTerm", likeSearchTerm);
 
-                var filterConditions = new System.Text.StringBuilder();
-                if (filterType == AppConstants.FilterKeys.Pinned)
-                {
-                    filterConditions.Append("AND c.IsPinned = 1 ");
-                }
-                else if (filterType == AppConstants.ClipTypes.Link)
-                {
-                    filterConditions.Append("AND (c.ClipType = @FilterTypeLink OR c.ClipType = @FilterTypeFileLink) ");
-                    command.Parameters.AddWithValue("@FilterTypeLink", AppConstants.ClipTypes.Link);
-                    command.Parameters.AddWithValue("@FilterTypeFileLink", AppConstants.ClipTypes.FileLink);
-                }
-                else if (filterType != AppConstants.FilterKeys.All)
-                {
-                    filterConditions.Append(CultureInfo.InvariantCulture, $"AND c.ClipType = @FilterType ");
-                    command.Parameters.AddWithValue("@FilterType", filterType);
-                }
+                var fullSearchTerm = string.Join(" ", sanitizedTerms).ToUpperInvariant();
+                command.Parameters.AddWithValue("@FullSearchTerm", fullSearchTerm);
 
-                queryBuilder.Append("SELECT * FROM ( ");
-                // FTS part
-                queryBuilder.Append(CultureInfo.InvariantCulture, $"SELECT {columns}, snippet(clips_fts, 0, '[HL]', '[/HL]', '...', 60) as MatchContext, 0 as SortPriority ");
-                queryBuilder.Append("FROM clips c JOIN clips_fts fts ON c.Id = fts.rowid ");
-                queryBuilder.Append("WHERE clips_fts MATCH @SearchTerm ");
-                queryBuilder.Append(filterConditions);
+                var firstTermParamName = "@LikeSnippetTerm";
+                var firstTerm = sanitizedTerms.FirstOrDefault();
+                command.Parameters.AddWithValue(firstTermParamName, firstTerm?.ToUpperInvariant() ?? (object)DBNull.Value);
+                string likeSnippet = firstTerm != null
+                    ? $"SUBSTR(c.Content, MAX(1, INSTR(UPPER(c.Content), {firstTermParamName}) - 40), 120)"
+                    : "c.PreviewContent";
 
-                queryBuilder.Append("UNION ALL ");
+                queryBuilder.AppendFormat(CultureInfo.InvariantCulture,
+                    "SELECT {0}, CASE WHEN fts.rowid IS NOT NULL THEN snippet(clips_fts, 0, '[HL]', '[/HL]', '...', 60) ELSE {1} END as MatchContext, CASE WHEN INSTR(UPPER(c.Content), @FullSearchTerm) > 0 THEN 0 WHEN fts.rowid IS NOT NULL THEN 1 ELSE 2 END as Rank ",
+                    columns, likeSnippet);
 
-                // LIKE part
-                queryBuilder.Append(CultureInfo.InvariantCulture, $"SELECT {columns}, NULL as MatchContext, 1 as SortPriority ");
-                queryBuilder.Append("FROM clips c ");
-                queryBuilder.Append(CultureInfo.InvariantCulture, $"WHERE {likeCondition} ");
-                queryBuilder.Append("AND NOT EXISTS (SELECT 1 FROM clips_fts WHERE clips_fts.rowid = c.Id AND clips_fts MATCH @SearchTerm) ");
-                queryBuilder.Append(filterConditions);
-                queryBuilder.Append(") ");
+                queryBuilder.Append("FROM clips c LEFT JOIN clips_fts fts ON c.Id = fts.rowid AND clips_fts MATCH @FtsSearchTerm ");
 
-                orderBy = "ORDER BY IsPinned DESC, SortPriority ASC, Timestamp DESC";
+                whereConditions.Add($"(fts.rowid IS NOT NULL OR UPPER(c.Content) LIKE @LikeSearchTerm)");
             }
             else
             {
-                queryBuilder.Append(CultureInfo.InvariantCulture, $"SELECT {columns} FROM clips c ");
-                orderBy = "ORDER BY c.Timestamp DESC";
-                var conditions = new List<string>();
-                if (filterType == AppConstants.FilterKeys.Pinned)
-                {
-                    conditions.Add("c.IsPinned = 1");
-                }
-                else if (filterType == AppConstants.ClipTypes.Link)
-                {
-                    conditions.Add("(c.ClipType = @FilterTypeLink OR c.ClipType = @FilterTypeFileLink)");
-                    command.Parameters.AddWithValue("@FilterTypeLink", AppConstants.ClipTypes.Link);
-                    command.Parameters.AddWithValue("@FilterTypeFileLink", AppConstants.ClipTypes.FileLink);
-                }
-                else if (filterType != AppConstants.FilterKeys.All)
-                {
-                    conditions.Add("c.ClipType = @FilterType");
-                    command.Parameters.AddWithValue("@FilterType", filterType);
-                }
-
-                if (conditions.Count > 0)
-                {
-                    queryBuilder.Append("WHERE ").Append(string.Join(" AND ", conditions));
-                }
+                queryBuilder.AppendFormat(CultureInfo.InvariantCulture, "SELECT {0} FROM clips c ", columns);
             }
 
-            queryBuilder.Append(CultureInfo.InvariantCulture, $" {orderBy} LIMIT @Limit OFFSET @Offset");
+            if (filterType == AppConstants.FilterKeys.Pinned)
+            {
+                whereConditions.Add("c.IsPinned = 1");
+            }
+            else if (filterType == AppConstants.ClipTypes.Link)
+            {
+                whereConditions.Add("(c.ClipType = @FilterTypeLink OR c.ClipType = @FilterTypeFileLink)");
+                command.Parameters.AddWithValue("@FilterTypeLink", AppConstants.ClipTypes.Link);
+                command.Parameters.AddWithValue("@FilterTypeFileLink", AppConstants.ClipTypes.FileLink);
+            }
+            else if (filterType != AppConstants.FilterKeys.All)
+            {
+                whereConditions.Add("c.ClipType = @FilterType");
+                command.Parameters.AddWithValue("@FilterType", filterType);
+            }
+
+            if (whereConditions.Count > 0)
+            {
+                queryBuilder.Append("WHERE ").Append(string.Join(" AND ", whereConditions));
+            }
+
+            string orderBy = sanitizedTerms.Count > 0
+                ? "ORDER BY c.IsPinned DESC, Rank ASC, c.Timestamp DESC"
+                : "ORDER BY c.Timestamp DESC";
+
+            queryBuilder.Append($" {orderBy} LIMIT @Limit OFFSET @Offset");
             command.Parameters.AddWithValue("@Limit", limit);
             command.Parameters.AddWithValue("@Offset", offset);
             command.CommandText = queryBuilder.ToString();
@@ -113,7 +86,7 @@ namespace Cliptoo.Core.Database
             if (LogManager.LoggingLevel == "Debug")
             {
                 LogManager.LogDebug($"SQL_QUERY_DIAG: Generated query: {command.CommandText}");
-                var paramLog = new System.Text.StringBuilder("SQL_QUERY_DIAG: Parameters: ");
+                var paramLog = new StringBuilder("SQL_QUERY_DIAG: Parameters: ");
                 foreach (SqliteParameter p in command.Parameters)
                 {
                     paramLog.Append(CultureInfo.InvariantCulture, $"{p.ParameterName}='{p.Value}', ");
@@ -121,6 +94,5 @@ namespace Cliptoo.Core.Database
                 LogManager.LogDebug(paramLog.ToString());
             }
         }
-
     }
 }

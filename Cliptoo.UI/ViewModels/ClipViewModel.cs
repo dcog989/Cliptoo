@@ -265,31 +265,57 @@ namespace Cliptoo.UI.ViewModels
         private void UpdatePreviewText()
         {
             string basePreview;
-            if (!string.IsNullOrWhiteSpace(_clip.MatchContext))
+            bool isFtsMatch = !string.IsNullOrWhiteSpace(_clip.MatchContext) && _clip.MatchContext.Contains("[HL]");
+
+            if (isFtsMatch)
             {
-                basePreview = _clip.MatchContext;
-            }
-            else if (_clip.ClipType == AppConstants.ClipTypes.Rtf)
-            {
-                basePreview = RtfUtils.ToPlainText(Content);
+                basePreview = _clip.MatchContext!;
             }
             else
             {
-                using (var reader = new StringReader(DisplayContent))
+                if (!string.IsNullOrWhiteSpace(_clip.MatchContext))
                 {
-                    string? firstLine = string.Empty;
-                    string? currentLine;
-                    while ((currentLine = reader.ReadLine()) != null)
+                    basePreview = _clip.MatchContext!;
+                }
+                else if (_clip.ClipType == AppConstants.ClipTypes.Rtf)
+                {
+                    basePreview = RtfUtils.ToPlainText(Content);
+                }
+                else
+                {
+                    using (var reader = new StringReader(DisplayContent))
                     {
-                        if (!string.IsNullOrWhiteSpace(currentLine))
+                        string? firstLine = string.Empty;
+                        string? currentLine;
+                        while ((currentLine = reader.ReadLine()) != null)
                         {
-                            firstLine = currentLine.Trim();
-                            break;
+                            if (!string.IsNullOrWhiteSpace(currentLine))
+                            {
+                                firstLine = currentLine.Trim();
+                                break;
+                            }
                         }
+                        basePreview = firstLine ?? string.Empty;
                     }
-                    basePreview = firstLine ?? string.Empty;
+                }
+
+                var searchTerm = MainViewModel.SearchTerm;
+                if (!isFtsMatch && !string.IsNullOrEmpty(searchTerm))
+                {
+                    var terms = searchTerm.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                    var tempPreview = basePreview;
+                    foreach (var term in terms)
+                    {
+                        try
+                        {
+                            tempPreview = System.Text.RegularExpressions.Regex.Replace(tempPreview, System.Text.RegularExpressions.Regex.Escape(term), "[HL]$0[/HL]", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                        }
+                        catch (ArgumentException) { /* Invalid regex from search term, skip highlighting */ }
+                    }
+                    basePreview = tempPreview;
                 }
             }
+
             Preview = basePreview.ReplaceLineEndings(" ").Trim();
             OnPropertyChanged(nameof(Preview));
         }
