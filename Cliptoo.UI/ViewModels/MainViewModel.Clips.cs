@@ -1,7 +1,6 @@
 using System.Windows;
 using Cliptoo.Core;
 using Cliptoo.Core.Configuration;
-using Cliptoo.Core.Database.Models;
 
 namespace Cliptoo.UI.ViewModels
 {
