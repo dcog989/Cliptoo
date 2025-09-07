@@ -117,11 +117,15 @@ namespace Cliptoo.UI.Helpers
                 }
 
                 var highlightedText = formattedText.Substring(startIndex + startTag.Length, endIndex - (startIndex + startTag.Length));
+                var highlightBackground = isSelected
+                    ? (SolidColorBrush)Application.Current.FindResource("AccentBrushSelectedHighlight")
+                    : (SolidColorBrush)Application.Current.FindResource("AccentBrush");
+
                 var highlightRun = new Run(highlightedText)
                 {
                     FontFamily = textBlock.FontFamily,
                     FontSize = textBlock.FontSize,
-                    Background = (SolidColorBrush)Application.Current.FindResource("AccentBrush"),
+                    Background = highlightBackground,
                     Foreground = Brushes.White
                 };
                 textBlock.Inlines.Add(highlightRun);

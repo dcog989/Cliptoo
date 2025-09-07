@@ -110,8 +110,15 @@ namespace Cliptoo.UI.Services
                 var hoverBrush = new SolidColorBrush(hoverColor);
                 hoverBrush.Freeze();
 
+                var selectedHighlightLightness = lightness - 0.20;
+                var (shr, shg, shb) = ColorParser.OklchToRgb(selectedHighlightLightness, chroma, hue);
+                var selectedHighlightColor = Color.FromRgb(shr, shg, shb);
+                var selectedHighlightBrush = new SolidColorBrush(selectedHighlightColor);
+                selectedHighlightBrush.Freeze();
+
                 Application.Current.Resources["AccentBrush"] = accentBrush;
                 Application.Current.Resources["AccentBrushHover"] = hoverBrush;
+                Application.Current.Resources["AccentBrushSelectedHighlight"] = selectedHighlightBrush;
 
                 ApplicationAccentColorManager.Apply(accentColor);
 
