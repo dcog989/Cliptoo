@@ -437,11 +437,8 @@ namespace Cliptoo.UI.ViewModels
 
             Application.Current.MainWindow?.Hide();
 
-            // Hint to the GC to be more aggressive now that the UI is hidden.
-            GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
-            GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, true, true);
             GCSettings.LatencyMode = GCLatencyMode.Batch;
-            LogManager.LogDebug("GC mode set to Batch and collection requested.");
+            LogManager.LogDebug("GC mode set to Batch.");
         }
 
         public void HandleWindowShown()

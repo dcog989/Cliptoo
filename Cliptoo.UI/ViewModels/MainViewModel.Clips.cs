@@ -59,7 +59,14 @@ namespace Cliptoo.UI.ViewModels
                 {
                     if (token.IsCancellationRequested) return;
 
-                    SyncClipsCollection(clipsData);
+                    Clips.Clear();
+                    var theme = CurrentThemeString;
+                    foreach (var clip in clipsData)
+                    {
+                        var vm = _clipViewModelFactory.Create(clip, CurrentSettings, theme, this);
+                        ApplyAppearanceToViewModel(vm);
+                        Clips.Add(vm);
+                    }
 
                     if (scrollToTop)
                     {
@@ -78,61 +85,6 @@ namespace Cliptoo.UI.ViewModels
                 _isLoadingMore = false;
                 stopwatch.Stop();
                 LogManager.LogDebug($"PERF_DIAG: MainViewModel.LoadClipsAsync (UI update included) completed in {stopwatch.ElapsedMilliseconds}ms.");
-            }
-        }
-
-        private void SyncClipsCollection(List<Clip> newClips)
-        {
-            var theme = CurrentThemeString;
-            var vmMap = Clips.ToDictionary(vm => vm.Id);
-            var newClipIds = newClips.Select(c => c.Id).ToHashSet();
-
-            // First, remove VMs that are no longer in the new list of clips.
-            // Iterating backwards is important when removing items from a collection.
-            for (int i = Clips.Count - 1; i >= 0; i--)
-            {
-                if (!newClipIds.Contains(Clips[i].Id))
-                {
-                    Clips.RemoveAt(i);
-                }
-            }
-
-            // Now, add, move, and update existing items to match the new list order.
-            for (int i = 0; i < newClips.Count; i++)
-            {
-                var clip = newClips[i];
-                ClipViewModel vm;
-
-                if (vmMap.TryGetValue(clip.Id, out var existingVm))
-                {
-                    vm = existingVm;
-                    vm.UpdateClip(clip, theme);
-                }
-                else
-                {
-                    vm = _clipViewModelFactory.Create(clip, CurrentSettings, theme, this);
-                    ApplyAppearanceToViewModel(vm);
-                }
-
-                // If the item is already at the correct position, do nothing.
-                if (i < Clips.Count && Clips[i].Id == vm.Id)
-                {
-                    continue;
-                }
-
-                // The item is not in the correct position, so we need to move or insert it.
-                int oldIndex = Clips.IndexOf(vm);
-
-                if (oldIndex >= 0)
-                {
-                    // The item exists in the collection but at the wrong place. Move it.
-                    Clips.Move(oldIndex, i);
-                }
-                else
-                {
-                    // The item is new to the collection. Insert it.
-                    Clips.Insert(i, vm);
-                }
             }
         }
 

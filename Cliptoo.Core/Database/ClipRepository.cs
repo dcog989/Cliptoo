@@ -29,6 +29,35 @@ namespace Cliptoo.Core.Database
             return content.Substring(0, charsUsed);
         }
 
+        private static Clip MapPreviewClipFromReader(SqliteDataReader reader)
+        {
+            var ordinals = new
+            {
+                Id = reader.GetOrdinal("Id"),
+                Timestamp = reader.GetOrdinal("Timestamp"),
+                ClipType = reader.GetOrdinal("ClipType"),
+                SourceApp = reader.GetOrdinal("SourceApp"),
+                IsPinned = reader.GetOrdinal("IsPinned"),
+                WasTrimmed = reader.GetOrdinal("WasTrimmed"),
+                SizeInBytes = reader.GetOrdinal("SizeInBytes"),
+                PreviewContent = reader.GetOrdinal("PreviewContent"),
+                MatchContext = HasColumn(reader, "MatchContext") ? reader.GetOrdinal("MatchContext") : -1
+            };
+
+            return new Clip
+            {
+                Id = reader.GetInt32(ordinals.Id),
+                Timestamp = DateTime.Parse(reader.GetString(ordinals.Timestamp), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind).ToLocalTime(),
+                ClipType = reader.GetString(ordinals.ClipType),
+                SourceApp = reader.IsDBNull(ordinals.SourceApp) ? null : reader.GetString(ordinals.SourceApp),
+                IsPinned = reader.GetInt64(ordinals.IsPinned) == 1,
+                WasTrimmed = reader.GetInt64(ordinals.WasTrimmed) == 1,
+                SizeInBytes = reader.GetInt64(ordinals.SizeInBytes),
+                PreviewContent = reader.IsDBNull(ordinals.PreviewContent) ? null : reader.GetString(ordinals.PreviewContent),
+                MatchContext = ordinals.MatchContext != -1 && !reader.IsDBNull(ordinals.MatchContext) ? reader.GetString(ordinals.MatchContext) : null
+            };
+        }
+
         [SuppressMessage("Microsoft.Security", "CA2100:Review SQL queries for security vulnerabilities", Justification = "OrderBy clause is constructed from hardcoded strings, not user input.")]
         public async Task<List<Clip>> GetClipsAsync(uint limit, uint offset, string searchTerm, string filterType, CancellationToken cancellationToken)
         {
@@ -48,33 +77,9 @@ namespace Cliptoo.Core.Database
 
                 reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
 
-                var ordinals = new
-                {
-                    Id = reader.GetOrdinal("Id"),
-                    Timestamp = reader.GetOrdinal("Timestamp"),
-                    ClipType = reader.GetOrdinal("ClipType"),
-                    SourceApp = reader.GetOrdinal("SourceApp"),
-                    IsPinned = reader.GetOrdinal("IsPinned"),
-                    WasTrimmed = reader.GetOrdinal("WasTrimmed"),
-                    SizeInBytes = reader.GetOrdinal("SizeInBytes"),
-                    PreviewContent = reader.GetOrdinal("PreviewContent"),
-                    MatchContext = HasColumn(reader, "MatchContext") ? reader.GetOrdinal("MatchContext") : -1
-                };
-
                 while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
                 {
-                    clips.Add(new Clip
-                    {
-                        Id = reader.GetInt32(ordinals.Id),
-                        Timestamp = DateTime.Parse(reader.GetString(ordinals.Timestamp), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind).ToLocalTime(),
-                        ClipType = reader.GetString(ordinals.ClipType),
-                        SourceApp = await reader.IsDBNullAsync(ordinals.SourceApp, cancellationToken).ConfigureAwait(false) ? null : reader.GetString(ordinals.SourceApp),
-                        IsPinned = reader.GetInt64(ordinals.IsPinned) == 1,
-                        WasTrimmed = reader.GetInt64(ordinals.WasTrimmed) == 1,
-                        SizeInBytes = reader.GetInt64(ordinals.SizeInBytes),
-                        PreviewContent = await reader.IsDBNullAsync(ordinals.PreviewContent, cancellationToken).ConfigureAwait(false) ? null : reader.GetString(ordinals.PreviewContent),
-                        MatchContext = ordinals.MatchContext != -1 && !await reader.IsDBNullAsync(ordinals.MatchContext, cancellationToken).ConfigureAwait(false) ? reader.GetString(ordinals.MatchContext) : null
-                    });
+                    clips.Add(MapPreviewClipFromReader(reader));
                 }
                 return clips;
             }
