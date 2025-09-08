@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.IO;
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Cliptoo.Core;
@@ -17,13 +18,10 @@ namespace Cliptoo.UI.ViewModels
 
     public partial class ClipViewModel : ViewModelBase
     {
-        private Clip _clip;
-        private readonly IPastingService _pastingService;
-        private readonly INotificationService _notificationService;
+        internal Clip _clip;
         private readonly IClipDetailsLoader _clipDetailsLoader;
         private readonly IIconProvider _iconProvider;
         private readonly IClipDataService _clipDataService;
-        private readonly IClipboardService _clipboardService;
         private readonly IThumbnailService _thumbnailService;
         private readonly IWebMetadataService _webMetadataService;
         private ImageSource? _thumbnailSource;
@@ -151,39 +149,41 @@ namespace Cliptoo.UI.ViewModels
 
         public FontFamily CurrentFontFamily { get => _currentFontFamily; set => SetProperty(ref _currentFontFamily, value); }
         public double CurrentFontSize { get => _currentFontSize; set => SetProperty(ref _currentFontSize, value); }
-
-        public ClipViewModel(Clip clip, IPastingService pastingService, INotificationService notificationService, IClipDetailsLoader clipDetailsLoader, MainViewModel mainViewModel, IIconProvider iconProvider, IClipDataService clipDataService, IClipboardService clipboardService, IThumbnailService thumbnailService, IWebMetadataService webMetadataService)
+        public ICommand TogglePinCommand { get; }
+        public ICommand DeleteCommand { get; }
+        public ICommand EditClipCommand { get; }
+        public ICommand MoveToTopCommand { get; }
+        public ICommand OpenCommand { get; }
+        public ICommand SelectForCompareLeftCommand { get; }
+        public ICommand CompareWithSelectedRightCommand { get; }
+        public ICommand SendToCommand { get; }
+        public ClipViewModel(Clip clip, MainViewModel mainViewModel, IClipDetailsLoader clipDetailsLoader, IIconProvider iconProvider, IClipDataService clipDataService, IThumbnailService thumbnailService, IWebMetadataService webMetadataService)
         {
             ArgumentNullException.ThrowIfNull(clip);
             ArgumentNullException.ThrowIfNull(mainViewModel);
 
             _clip = clip;
-            _pastingService = pastingService;
-            _notificationService = notificationService;
             _clipDetailsLoader = clipDetailsLoader;
             _isPinned = clip.IsPinned;
             _paddingSize = mainViewModel.CurrentSettings.ClipItemPadding;
             MainViewModel = mainViewModel;
             _iconProvider = iconProvider;
             _clipDataService = clipDataService;
-            _clipboardService = clipboardService;
             _thumbnailService = thumbnailService;
             _webMetadataService = webMetadataService;
 
-            TogglePinCommand = new RelayCommand(async _ => await TogglePinAsync().ConfigureAwait(false));
-            DeleteCommand = new RelayCommand(async _ => await DeleteAsync().ConfigureAwait(false));
-            EditClipCommand = new RelayCommand(_ => MainViewModel.HandleClipEdit(this));
-            MoveToTopCommand = new RelayCommand(async _ => await MainViewModel.HandleClipMoveToTop(this).ConfigureAwait(false));
-            OpenCommand = new RelayCommand(async _ => await ExecuteOpen().ConfigureAwait(false));
-            SelectForCompareLeftCommand = new RelayCommand(_ => MainViewModel.HandleClipSelectForCompare(this));
-            CompareWithSelectedRightCommand = new RelayCommand(_ => MainViewModel.HandleClipCompare(this));
-            SendToCommand = new RelayCommand(async param => await ExecuteSendTo(param as SendToTarget).ConfigureAwait(false));
+            TogglePinCommand = new RelayCommand(_ => MainViewModel.TogglePinCommand.Execute(this));
+            DeleteCommand = new RelayCommand(_ => MainViewModel.DeleteClipCommand.Execute(this));
+            EditClipCommand = new RelayCommand(_ => MainViewModel.EditClipCommand.Execute(this));
+            MoveToTopCommand = new RelayCommand(_ => MainViewModel.MoveToTopCommand.Execute(this));
+            OpenCommand = new RelayCommand(_ => MainViewModel.OpenCommand.Execute(this));
+            SelectForCompareLeftCommand = new RelayCommand(_ => MainViewModel.SelectForCompareLeftCommand.Execute(this));
+            CompareWithSelectedRightCommand = new RelayCommand(_ => MainViewModel.CompareWithSelectedRightCommand.Execute(this));
+            SendToCommand = new RelayCommand(p => MainViewModel.SendToCommand.Execute(new object[] { this, p as SendToTarget ?? null! }));
         }
 
-        private async Task<Clip?> GetFullClipAsync()
+        internal async Task<Clip?> GetFullClipAsync()
         {
-            // This now fetches the full clip but does NOT store it in the viewmodel's state.
-            // It's used as a temporary object for operations like paste, open, or tooltip generation.
             var fullClip = await _clipDataService.GetClipByIdAsync(Id).ConfigureAwait(false);
             return fullClip;
         }
@@ -396,5 +396,6 @@ namespace Cliptoo.UI.ViewModels
             OnPropertyChanged(nameof(CanPasteAsPlainText));
             OnPropertyChanged(nameof(CanPasteAsRtf));
         }
+
     }
 }

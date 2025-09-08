@@ -9,7 +9,6 @@ using Cliptoo.Core.Interfaces;
 using Cliptoo.UI.Services;
 using Cliptoo.UI.ViewModels.Base;
 using Wpf.Ui.Appearance;
-using Wpf.Ui.Controls;
 
 namespace Cliptoo.UI.ViewModels
 {
@@ -206,6 +205,14 @@ namespace Cliptoo.UI.ViewModels
             OpenSettingsCommand = new RelayCommand(_ => OpenSettingsWindow());
             HideWindowCommand = new RelayCommand(_ => HideWindow());
             LoadMoreClipsCommand = new RelayCommand(async _ => await LoadMoreClipsAsync());
+            TogglePinCommand = new RelayCommand(async p => await ExecuteTogglePin(p));
+            DeleteClipCommand = new RelayCommand(async p => await ExecuteDeleteClip(p));
+            EditClipCommand = new RelayCommand(p => ExecuteEditClip(p));
+            MoveToTopCommand = new RelayCommand(async p => await ExecuteMoveToTop(p));
+            OpenCommand = new RelayCommand(async p => await ExecuteOpen(p));
+            SelectForCompareLeftCommand = new RelayCommand(p => ExecuteSelectForCompareLeft(p));
+            CompareWithSelectedRightCommand = new RelayCommand(async p => await ExecuteCompareWithSelectedRight(p));
+            SendToCommand = new RelayCommand(async p => await ExecuteSendTo(p));
 
             _clipDataService.NewClipAdded += OnNewClipAdded;
             _databaseService.HistoryCleared += OnHistoryCleared;
@@ -469,41 +476,6 @@ namespace Cliptoo.UI.ViewModels
                 });
                 _needsRefreshOnShow = false;
             }
-        }
-
-        public void HandleClipDeletion(ClipViewModel clipVM)
-        {
-            Application.Current.Dispatcher.Invoke(() => Clips.Remove(clipVM));
-        }
-
-        public void HandleClipEdit(ClipViewModel clipVM) => ShowClipEditor(clipVM);
-
-        public void HandleClipPinToggle(ClipViewModel clipVM)
-        {
-            if (SelectedFilter.Key == AppConstants.FilterKeys.Pinned && !clipVM.IsPinned)
-            {
-                Application.Current.Dispatcher.Invoke(() => Clips.Remove(clipVM));
-            }
-        }
-
-        public async Task HandleClipMoveToTop(ClipViewModel clipVM)
-        {
-            await _clipDataService.MoveClipToTopAsync(clipVM.Id);
-            await LoadClipsAsync(true);
-        }
-
-        public void HandleClipSelectForCompare(ClipViewModel clipVM) => LeftCompareClipId = (LeftCompareClipId == clipVM.Id) ? null : clipVM.Id;
-
-        public async void HandleClipCompare(ClipViewModel clipVM)
-        {
-            if (!LeftCompareClipId.HasValue) return;
-
-            var result = await _clipboardService.CompareClipsAsync(LeftCompareClipId.Value, clipVM.Id);
-            if (!result.success)
-            {
-                _notificationService.Show("Compare Failed", result.message, ControlAppearance.Danger, SymbolRegular.ErrorCircle24);
-            }
-            LeftCompareClipId = null;
         }
 
         public void Cleanup()
