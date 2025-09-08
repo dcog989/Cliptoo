@@ -15,7 +15,6 @@ while ($true) {
     # Publish with optimizations for a portable release:
     # --self-contained: Includes the .NET runtime, so no installation is needed.
     # -p:PublishSingleFile=true: Bundles everything into a single .exe file.
-    # -p:PublishTrimmed=true: Removes unused code to reduce file size.
     # -p:PublishReadyToRun=true: Compiles to native code for faster startup.
     dotnet publish (Join-Path $scriptRoot "Cliptoo.UI\Cliptoo.UI.csproj") `
         -c Release `
