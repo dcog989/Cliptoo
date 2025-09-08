@@ -6,6 +6,9 @@ It has been carefully designed to remain performant whether you have 10 clips or
 
 Cliptoo will turn your clipboard history in to a quick-access library of the things you need.
 
+> [!NOTE]
+> For now, there is only a build for x64 Windows systems.
+
 [Download the latest release of Cliptoo](./Cliptoo/releases/latest/).
 
 [![License](https://img.shields.io/github/license/dcog989/cliptoo?style=for-the-badge)](LICENSE)
