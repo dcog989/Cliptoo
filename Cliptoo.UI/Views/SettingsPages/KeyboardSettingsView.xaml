@@ -66,7 +66,7 @@
                 helpers:HotkeyInputBehavior.IsEnabled="True"
                 Style="{StaticResource CaptureHotkeyStyle}"
                 Text="{Binding QuickPasteHotkey, Mode=OneWay}"
-                ToolTip="Hold this combination to show paste numbers, then press 1-9 to paste" />
+                ToolTip="Hold these keys, then press a number (1-9) to paste the corresponding clip." />
         </Grid>
     </ScrollViewer>
 </UserControl>
