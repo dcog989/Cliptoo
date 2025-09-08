@@ -165,9 +165,9 @@ namespace Cliptoo.UI.Converters
 
             return paddingString.ToLowerInvariant() switch
             {
-                "compact" => new Thickness(0, 2, 2, 2),
-                "luxury" => new Thickness(4, 8, 4, 8),
-                _ => new Thickness(4, 6, 4, 6), // standard
+                "compact" => new Thickness(2, 2, 2, 2),
+                "luxury" => new Thickness(8, 8, 8, 8),
+                _ => new Thickness(4, 4, 4, 4), // standard
             };
         }
 
