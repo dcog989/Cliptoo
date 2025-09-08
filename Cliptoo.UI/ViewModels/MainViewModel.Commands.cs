@@ -32,16 +32,8 @@ namespace Cliptoo.UI.ViewModels
                     await _clipDataService.MoveClipToTopAsync(clipVM.Id).ConfigureAwait(false);
                 }
 
-                var clip = await _clipDataService.GetClipByIdAsync(clipVM.Id);
+                var clip = await _clipDataService.GetClipByIdAsync(clipVM.Id).ConfigureAwait(false);
                 if (clip == null) return;
-
-                var stopwatch = Stopwatch.StartNew();
-                while ((Core.Native.KeyboardUtils.IsControlPressed() || Core.Native.KeyboardUtils.IsAltPressed()) && stopwatch.ElapsedMilliseconds < 500)
-                {
-                    await Task.Delay(20);
-                }
-                stopwatch.Stop();
-                LogManager.LogDebug($"PASTE_DIAG: Modifier key check completed in {stopwatch.ElapsedMilliseconds}ms.");
 
                 bool wasOnTop = IsAlwaysOnTop;
 
@@ -57,7 +49,7 @@ namespace Cliptoo.UI.ViewModels
                 }
 
                 await pasteAction(clip);
-                await _clipboardService.UpdatePasteCountAsync();
+                await _clipboardService.UpdatePasteCountAsync().ConfigureAwait(false);
 
                 await LoadClipsAsync(true);
 
