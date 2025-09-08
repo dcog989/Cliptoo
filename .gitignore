@@ -5,6 +5,7 @@ repomix.config.json
 *.pdb
 .archive/
 .gemini/
+Memory Testing.md
 .testdata/
 build/
 eng.traineddata
