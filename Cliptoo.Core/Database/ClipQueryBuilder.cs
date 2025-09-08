@@ -27,26 +27,13 @@ namespace Cliptoo.Core.Database
                 var ftsQuery = string.Join(" ", sanitizedTerms.Select(term => $"{term}*"));
                 command.Parameters.AddWithValue("@FtsSearchTerm", ftsQuery);
 
-                var likeSearchTerm = $"%{string.Join("%", sanitizedTerms.Select(t => t.ToUpperInvariant()))}%";
-                command.Parameters.AddWithValue("@LikeSearchTerm", likeSearchTerm);
-
-                var fullSearchTerm = string.Join(" ", sanitizedTerms).ToUpperInvariant();
-                command.Parameters.AddWithValue("@FullSearchTerm", fullSearchTerm);
-
-                var firstTermParamName = "@LikeSnippetTerm";
-                var firstTerm = sanitizedTerms.FirstOrDefault();
-                command.Parameters.AddWithValue(firstTermParamName, firstTerm?.ToUpperInvariant() ?? (object)DBNull.Value);
-                string likeSnippet = firstTerm != null
-                    ? $"SUBSTR(c.Content, MAX(1, INSTR(UPPER(c.Content), {firstTermParamName}) - 40), 120)"
-                    : "c.PreviewContent";
-
                 queryBuilder.AppendFormat(CultureInfo.InvariantCulture,
-                    "SELECT {0}, CASE WHEN fts.rowid IS NOT NULL THEN snippet(clips_fts, 0, '[HL]', '[/HL]', '...', 60) ELSE {1} END as MatchContext, CASE WHEN INSTR(UPPER(c.Content), @FullSearchTerm) > 0 THEN 0 WHEN fts.rowid IS NOT NULL THEN 1 ELSE 2 END as Rank ",
-                    columns, likeSnippet);
+                    "SELECT {0}, snippet(clips_fts, 0, '[HL]', '[/HL]', '...', 60) as MatchContext ",
+                    columns);
 
-                queryBuilder.Append("FROM clips c LEFT JOIN clips_fts fts ON c.Id = fts.rowid AND clips_fts MATCH @FtsSearchTerm ");
+                queryBuilder.Append("FROM clips c JOIN clips_fts ON c.Id = clips_fts.rowid ");
 
-                whereConditions.Add($"(fts.rowid IS NOT NULL OR UPPER(c.Content) LIKE @LikeSearchTerm)");
+                whereConditions.Add("clips_fts MATCH @FtsSearchTerm");
             }
             else
             {
