@@ -95,12 +95,12 @@ namespace Cliptoo.Core.Configuration
         [DefaultValue("Cursor")]
         public string LaunchPosition { get => _launchPosition; set => SetProperty(ref _launchPosition, value); }
 
-        private double _windowWidth = 400.0;
-        [DefaultValue(400.0)]
+        private double _windowWidth = 600.0;
+        [DefaultValue(600.0)]
         public double WindowWidth { get => _windowWidth; set => SetProperty(ref _windowWidth, value); }
 
-        private double _windowHeight = 500.0;
-        [DefaultValue(500.0)]
+        private double _windowHeight = 400.0;
+        [DefaultValue(400.0)]
         public double WindowHeight { get => _windowHeight; set => SetProperty(ref _windowHeight, value); }
 
         private int _fixedX = 100;
@@ -149,8 +149,8 @@ namespace Cliptoo.Core.Configuration
         #endregion
 
         #region Hotkeys
-        private string _hotkey = "Ctrl+Alt+Q";
-        [DefaultValue("Ctrl+Alt+Q")]
+        private string _hotkey = "Ctrl+Alt+V";
+        [DefaultValue("Ctrl+Alt+V")]
         public string Hotkey { get => _hotkey; set => SetProperty(ref _hotkey, value); }
 
         private string _previewHotkey = "F3";
@@ -171,8 +171,8 @@ namespace Cliptoo.Core.Configuration
         [DefaultValue(1250)]
         public uint HoverPreviewDelay { get => _hoverPreviewDelay; set => SetProperty(ref _hoverPreviewDelay, value); }
 
-        private uint _hoverImagePreviewSize = 350;
-        [DefaultValue(350)]
+        private uint _hoverImagePreviewSize = 400;
+        [DefaultValue(400)]
         public uint HoverImagePreviewSize { get => _hoverImagePreviewSize; set => SetProperty(ref _hoverImagePreviewSize, value); }
 
         private uint _previewTooltipMaxWidth = 600;
