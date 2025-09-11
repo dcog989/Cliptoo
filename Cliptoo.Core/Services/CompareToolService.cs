@@ -65,9 +65,9 @@ namespace Cliptoo.Core.Services
         {
             if (string.IsNullOrWhiteSpace(toolPath)) return "";
 
-            var exeName = Path.GetFileName(toolPath).ToUpperInvariant();
-            if (exeName.Contains("code.exe", StringComparison.Ordinal)) return "--diff";
-            if (exeName.StartsWith("totalcmd", StringComparison.Ordinal)) return "/S=C";
+            var exeName = Path.GetFileName(toolPath);
+            if (exeName.Contains("code.exe", StringComparison.OrdinalIgnoreCase)) return "--diff";
+            if (exeName.StartsWith("totalcmd", StringComparison.OrdinalIgnoreCase)) return "/S=C";
             return "";
         }
 
