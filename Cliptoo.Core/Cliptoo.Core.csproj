@@ -19,7 +19,7 @@
 
     <ItemGroup>
         <PackageReference Include="JxlNet" Version="0.11.1.1" />
-        <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.8" />
+        <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.9" />
         <PackageReference Include="SixLabors.ImageSharp" Version="3.1.11" />
         <PackageReference Include="SkiaSharp" Version="3.119.0" />
         <PackageReference Include="Svg.Skia" Version="3.0.6" />
@@ -32,7 +32,7 @@
 
     <ItemGroup>
         <Compile Update="Services\AppInteractionService.cs">
-        <SubType>Code</SubType>
+            <SubType>Code</SubType>
         </Compile>
     </ItemGroup>
 
