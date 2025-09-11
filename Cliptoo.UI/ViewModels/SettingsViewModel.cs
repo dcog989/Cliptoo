@@ -43,7 +43,7 @@ namespace Cliptoo.UI.ViewModels
         public string SettingsFolderPath { get; }
         public string TempDataPath { get; }
         public static Uri GitHubUrl { get; } = new("https://github.com/dcgog989/Cliptoo");
-        public ObservableCollection<SendToTarget> SendToTargets { get; }
+        public ObservableCollection<SendToTarget> SendToTargets => Settings.SendToTargets;
 
         public SettingsViewModel(IDatabaseService databaseService, ISettingsService settingsService, IContentDialogService contentDialogService, IStartupManagerService startupManagerService, IServiceProvider serviceProvider, IFontProvider fontProvider, IIconProvider iconProvider, Cliptoo.UI.Services.IThemeService themeService)
         {
@@ -157,9 +157,8 @@ namespace Cliptoo.UI.ViewModels
             SystemFonts = new ObservableCollection<string>();
             _ = PopulateFontsAsync();
 
-            SendToTargets = new ObservableCollection<SendToTarget>(Settings.SendToTargets);
-            SendToTargets.CollectionChanged += OnSendToTargetsCollectionChanged;
-            foreach (var target in SendToTargets)
+            Settings.SendToTargets.CollectionChanged += OnSendToTargetsCollectionChanged;
+            foreach (var target in Settings.SendToTargets)
             {
                 target.PropertyChanged += OnSendToTargetPropertyChanged;
             }
@@ -294,11 +293,6 @@ namespace Cliptoo.UI.ViewModels
 
         private void SyncAndSaveSettings()
         {
-            Settings.SendToTargets.Clear();
-            foreach (var item in SendToTargets)
-            {
-                Settings.SendToTargets.Add(item);
-            }
             _settingsService.SaveSettings();
         }
 
@@ -356,10 +350,10 @@ namespace Cliptoo.UI.ViewModels
             Settings.PropertyChanged -= OnSettingsPropertyChanged;
             _saveDebounceTimer.Elapsed -= OnDebounceTimerElapsed;
             _saveDebounceTimer.Dispose();
-            if (SendToTargets is not null)
+            if (Settings?.SendToTargets is not null)
             {
-                SendToTargets.CollectionChanged -= OnSendToTargetsCollectionChanged;
-                foreach (var target in SendToTargets)
+                Settings.SendToTargets.CollectionChanged -= OnSendToTargetsCollectionChanged;
+                foreach (var target in Settings.SendToTargets)
                 {
                     target.PropertyChanged -= OnSendToTargetPropertyChanged;
                 }

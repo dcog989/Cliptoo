@@ -227,7 +227,7 @@ namespace Cliptoo.Core.Configuration
         [DefaultValue(true)]
         public bool MoveClipToTopOnPaste { get => _moveClipToTopOnPaste; set => SetProperty(ref _moveClipToTopOnPaste, value); }
 
-        public Collection<SendToTarget> SendToTargets { get; } = new();
+        public ObservableCollection<SendToTarget> SendToTargets { get; set; } = new();
         #endregion
 
         #region Diagnostics
