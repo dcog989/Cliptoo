@@ -46,7 +46,7 @@ namespace Cliptoo.Core.Database
                 try
                 {
                     command = connection.CreateCommand();
-                    command.CommandText = "SELECT COUNT(*), COALESCE(SUM(LENGTH(Content)), 0), SUM(CASE WHEN IsPinned = 1 THEN 1 ELSE 0 END) FROM clips";
+                    command.CommandText = "SELECT COUNT(*), COALESCE(SUM(LENGTH(Content)), 0), COALESCE(SUM(CASE WHEN IsPinned = 1 THEN 1 ELSE 0 END), 0) FROM clips";
                     reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
                     if (await reader.ReadAsync().ConfigureAwait(false))
                     {
@@ -122,5 +122,6 @@ namespace Cliptoo.Core.Database
                 LastCleanupTimestamp = lastCleanupTimestamp
             };
         }
+
     }
 }
