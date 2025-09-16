@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using Cliptoo.Core.Configuration;
 using Microsoft.Data.Sqlite;
 
@@ -12,15 +13,33 @@ namespace Cliptoo.Core.Database
     {
         private static readonly char[] _spaceSeparator = [' '];
         private const string columns = "c.Id, c.Timestamp, c.ClipType, c.SourceApp, c.IsPinned, c.WasTrimmed, c.SizeInBytes, c.PreviewContent";
+        private static readonly Regex FtsSpecialCharsRegex = new("[^a-zA-Z0-9_]");
 
         public static void BuildGetClipsQuery(SqliteCommand command, uint limit, uint offset, string searchTerm, string filterType)
         {
             var queryBuilder = new StringBuilder();
             var whereConditions = new List<string>();
 
-            var sanitizedTerms = string.IsNullOrWhiteSpace(searchTerm)
-                ? new List<string>()
-                : searchTerm.Split(_spaceSeparator, StringSplitOptions.RemoveEmptyEntries).Select(term => term.Replace("\"", "\"\"", StringComparison.Ordinal)).Where(sanitized => !string.IsNullOrEmpty(sanitized)).ToList();
+            var sanitizedTerms = new List<string>();
+            if (!string.IsNullOrWhiteSpace(searchTerm))
+            {
+                var terms = searchTerm.Split(_spaceSeparator, StringSplitOptions.RemoveEmptyEntries);
+                foreach (var term in terms)
+                {
+                    // Escape double quotes within the term for FTS5
+                    var escapedTerm = term.Replace("\"", "\"\"", StringComparison.Ordinal);
+                    // If the term contains characters that FTS5 treats as separators or syntax,
+                    // it must be enclosed in double quotes to be treated as a single token.
+                    if (FtsSpecialCharsRegex.IsMatch(escapedTerm))
+                    {
+                        sanitizedTerms.Add($"\"{escapedTerm}\"");
+                    }
+                    else
+                    {
+                        sanitizedTerms.Add(escapedTerm);
+                    }
+                }
+            }
 
             if (sanitizedTerms.Count > 0)
             {
