@@ -316,7 +316,7 @@ function New-FullReleasePackage {
             $latestTag = git describe --tags --abbrev=0 2>$null
             $gitLogCommand = if ($latestTag) { "git log $latestTag..HEAD --pretty=format:'- %s (%h)'" } else { "git log --pretty=format:'- %s (%h)'" }
             $logEntries = Invoke-Expression $gitLogCommand
-            $changelogHeader = "# Changelog`n`n"
+            $changelogHeader = "# Cliptoo Changelog`n`n"
             $changelogContent = if ($logEntries) { $changelogHeader + ($logEntries -join "`n") } else { $changelogHeader + "No new changes since the last version." }
             Set-Content -Path $changelogOutputPath -Value $changelogContent
             Write-Host "CHANGELOG.md generated successfully." -ForegroundColor Green
@@ -356,8 +356,8 @@ function Invoke-CleanLogs {
 
 # Main script logic
 try {
-    $projectVersion = Get-ProjectVersion
     :mainLoop while ($true) {
+        $projectVersion = Get-ProjectVersion
         try {
             # This combination is more robust for clearing the screen across different hosts.
             [System.Console]::SetCursorPosition(0, 0)
