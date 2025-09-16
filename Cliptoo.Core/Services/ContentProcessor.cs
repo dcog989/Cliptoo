@@ -52,63 +52,12 @@ namespace Cliptoo.Core.Services
                 return new ProcessingResult(AppConstants.ClipTypes.Link, content, hadLeadingWhitespace);
             }
 
-            var lines = content.Split(_newlineChars, StringSplitOptions.RemoveEmptyEntries);
-
-            if (lines.Length > 0 && lines.Length <= MaxLinesForFilePathCheck)
-            {
-                var trimmedLines = lines.Select(l => l.Trim()).ToList();
-
-                if (trimmedLines.All(l => !string.IsNullOrEmpty(l) && Path.IsPathRooted(l)) &&
-                    trimmedLines.Take(20).All(l => Directory.Exists(l) || File.Exists(l)))
-                {
-                    if (trimmedLines.Count == 1)
-                    {
-                        var singlePath = trimmedLines.First();
-                        if (singlePath.EndsWith(".url", StringComparison.OrdinalIgnoreCase))
-                        {
-                            var extractedUrl = ParseUrlFile(singlePath);
-                            if (!string.IsNullOrEmpty(extractedUrl))
-                            {
-                                return new ProcessingResult(AppConstants.ClipTypes.Link, extractedUrl, hadLeadingWhitespace, Path.GetFileName(singlePath));
-                            }
-                        }
-                        var fileType = _fileTypeClassifier.Classify(singlePath);
-                        return new ProcessingResult(fileType, content, hadLeadingWhitespace);
-                    }
-                    else
-                    {
-                        // Multiple valid paths, treat as a list (plain text)
-                        return new ProcessingResult(AppConstants.ClipTypes.Text, content, hadLeadingWhitespace);
-                    }
-                }
-            }
-
             if (IsCodeSnippet(content))
             {
                 return new ProcessingResult(AppConstants.ClipTypes.CodeSnippet, content, hadLeadingWhitespace);
             }
 
             return new ProcessingResult(AppConstants.ClipTypes.Text, content, hadLeadingWhitespace);
-        }
-
-        private static string? ParseUrlFile(string filePath)
-        {
-            try
-            {
-                var lines = File.ReadAllLines(filePath);
-                foreach (var line in lines)
-                {
-                    if (line.Trim().StartsWith("URL=", StringComparison.OrdinalIgnoreCase))
-                    {
-                        return line.Substring(line.IndexOf('=', StringComparison.Ordinal) + 1).Trim();
-                    }
-                }
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
-            {
-                LogManager.Log(ex, $"Failed to parse .url file: {filePath}");
-            }
-            return null;
         }
 
         private static bool IsColor(string input)

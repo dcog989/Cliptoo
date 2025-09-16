@@ -191,6 +191,34 @@ namespace Cliptoo.Core
                 await _thumbnailService.GetThumbnailAsync(imagePath, null).ConfigureAwait(false);
                 result = new ProcessingResult(AppConstants.ClipTypes.Image, imagePath);
             }
+            else if (e.ContentType == ClipboardContentType.FileDrop)
+            {
+                var content = (string)e.Content;
+                var paths = content.Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries);
+
+                if (paths.Length == 1)
+                {
+                    var path = paths[0].Trim();
+                    if (path.EndsWith(".url", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var extractedUrl = ParseUrlFile(path);
+                        if (!string.IsNullOrEmpty(extractedUrl))
+                        {
+                            result = new ProcessingResult(AppConstants.ClipTypes.Link, extractedUrl, false, Path.GetFileName(path));
+                        }
+                    }
+                    if (result == null) // If not a .url file or parsing failed
+                    {
+                        var fileType = _fileTypeClassifier.Classify(path);
+                        result = new ProcessingResult(fileType, content);
+                    }
+                }
+                else if (paths.Length > 1)
+                {
+                    result = _contentProcessor.Process(content);
+                }
+            }
+
 
             if (result != null)
             {
@@ -220,6 +248,26 @@ namespace Cliptoo.Core
             var truncatedText = text.Substring(0, charsUsed);
             LogManager.Log($"{logContext} truncated to {maxBytes} bytes.");
             return (truncatedText, true);
+        }
+
+        private static string? ParseUrlFile(string filePath)
+        {
+            try
+            {
+                var lines = File.ReadAllLines(filePath);
+                foreach (var line in lines)
+                {
+                    if (line.Trim().StartsWith("URL=", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return line.Substring(line.IndexOf('=', StringComparison.Ordinal) + 1).Trim();
+                    }
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+            {
+                LogManager.Log(ex, $"Failed to parse .url file: {filePath}");
+            }
+            return null;
         }
 
         public void Dispose()

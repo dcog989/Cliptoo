@@ -5,7 +5,8 @@ namespace Cliptoo.Core.Native.Models
     public enum ClipboardContentType
     {
         Text,
-        Image
+        Image,
+        FileDrop
     }
 
     public class ClipboardChangedEventArgs : EventArgs

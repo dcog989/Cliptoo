@@ -160,9 +160,13 @@ namespace Cliptoo.Core.Native
             {
                 eventArgs = new ClipboardChangedEventArgs(bestCandidate.content, ClipboardContentType.Text, sourceApp, true);
             }
-            else if (bestCandidate.formatKey == "FileDrop" || bestCandidate.formatKey == DataFormats.UnicodeText)
+            else if (bestCandidate.formatKey == DataFormats.UnicodeText)
             {
                 eventArgs = new ClipboardChangedEventArgs(bestCandidate.content, ClipboardContentType.Text, sourceApp, false);
+            }
+            else if (bestCandidate.formatKey == "FileDrop")
+            {
+                eventArgs = new ClipboardChangedEventArgs(bestCandidate.content, ClipboardContentType.FileDrop, sourceApp);
             }
             else if (bestCandidate.formatKey == "Image")
             {
