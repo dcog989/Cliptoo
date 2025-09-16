@@ -36,6 +36,10 @@ namespace Cliptoo.UI.ViewModels
         private bool _isFilterPopupOpen;
         private bool _isQuickPasteModeActive;
         private bool _isWindowVisible;
+        private System.Windows.Controls.Primitives.PlacementMode _previewPlacementMode = System.Windows.Controls.Primitives.PlacementMode.Mouse;
+        public System.Windows.Controls.Primitives.PlacementMode PreviewPlacementMode { get => _previewPlacementMode; set => SetProperty(ref _previewPlacementMode, value); }
+        private UIElement? _previewPlacementTarget;
+        public UIElement? PreviewPlacementTarget { get => _previewPlacementTarget; set => SetProperty(ref _previewPlacementTarget, value); }
         private bool _needsRefreshOnShow = true;
         public bool IsWindowVisible { get => _isWindowVisible; set => SetProperty(ref _isWindowVisible, value); }
         private FontFamily _mainFont;

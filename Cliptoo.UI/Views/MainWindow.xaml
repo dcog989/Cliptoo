@@ -507,7 +507,8 @@
                 IsOpen="{Binding IsPreviewOpen, Mode=TwoWay}"
                 MouseEnter="PreviewPopup_MouseEnter"
                 MouseLeave="PreviewPopup_MouseLeave"
-                Placement="Mouse"
+                Placement="{Binding PreviewPlacementMode}"
+                PlacementTarget="{Binding PreviewPlacementTarget}"
                 PopupAnimation="Fade">
                 <Border
                     MaxWidth="{Binding DataContext.CurrentSettings.PreviewTooltipMaxWidth, ElementName=ClipListView}"

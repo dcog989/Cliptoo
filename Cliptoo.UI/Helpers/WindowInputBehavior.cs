@@ -148,7 +148,8 @@ namespace Cliptoo.UI.Helpers
             var (previewKey, previewModifiers) = ParseHotkey(viewModel.CurrentSettings.PreviewHotkey);
             if (Keyboard.Modifiers == previewModifiers && e.Key == previewKey)
             {
-                viewModel.TogglePreviewForSelection();
+                var selectedItemContainer = clipListView.ItemContainerGenerator.ContainerFromItem(clipListView.SelectedItem) as UIElement;
+                viewModel.TogglePreviewForSelection(selectedItemContainer);
                 e.Handled = true;
                 return;
             }

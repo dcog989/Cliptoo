@@ -1,3 +1,4 @@
+using System.Windows;
 using System.Windows.Threading;
 using Cliptoo.UI.Helpers;
 
@@ -37,6 +38,11 @@ namespace Cliptoo.UI.ViewModels
             {
                 return;
             }
+
+            PreviewPlacementMode = System.Windows.Controls.Primitives.PlacementMode.Mouse;
+            PreviewPlacementTarget = null;
+            OnPropertyChanged(nameof(PreviewPlacementMode));
+            OnPropertyChanged(nameof(PreviewPlacementTarget));
 
             _previewClipRef = new WeakReference<ClipViewModel>(clipVm);
             _showPreviewTimer.Interval = TimeSpan.FromMilliseconds(CurrentSettings.HoverPreviewDelay);
@@ -96,10 +102,12 @@ namespace Cliptoo.UI.ViewModels
                 PreviewClip?.ClearTooltipContent();
                 _previewClipRef = null;
                 OnPropertyChanged(nameof(PreviewClip));
+                PreviewPlacementTarget = null;
+                OnPropertyChanged(nameof(PreviewPlacementTarget));
             }
         }
 
-        public void TogglePreviewForSelection()
+        public void TogglePreviewForSelection(UIElement? placementTarget)
         {
             var listView = (System.Windows.Application.Current.MainWindow as Views.MainWindow)?.ClipListView;
             if (listView?.SelectedItem is not ClipViewModel selectedVm) return;
@@ -113,6 +121,12 @@ namespace Cliptoo.UI.ViewModels
                 // Stop any pending timers and immediately show the preview
                 _showPreviewTimer.Stop();
                 _hidePreviewTimer.Stop();
+
+                PreviewPlacementMode = System.Windows.Controls.Primitives.PlacementMode.Right;
+                PreviewPlacementTarget = placementTarget;
+                OnPropertyChanged(nameof(PreviewPlacementMode));
+                OnPropertyChanged(nameof(PreviewPlacementTarget));
+
                 _previewClipRef = new WeakReference<ClipViewModel>(selectedVm);
                 OnShowPreviewTimerTick(null, EventArgs.Empty);
             }
