@@ -27,7 +27,7 @@ namespace Cliptoo.UI.Services
 
         public async Task PasteClipAsync(Clip clip, bool? forcePlainText = null)
         {
-            await SetClipboardContentAsync(clip, forcePlainText);
+            await SetClipboardContentAsync(clip, forcePlainText).ConfigureAwait(false);
             await InputSimulator.SendPasteAsync().ConfigureAwait(false);
         }
 
@@ -115,9 +115,9 @@ namespace Cliptoo.UI.Services
             {
                 var text = dataObject.GetData(DataFormats.UnicodeText) as string ?? "";
                 hashesToSuppress.Add(HashingUtils.ComputeHash(Encoding.UTF8.GetBytes(text)));
-                var textWithLf = text.Replace("\r\n", "\n");
+                var textWithLf = text.Replace("\r\n", "\n", StringComparison.Ordinal);
                 hashesToSuppress.Add(HashingUtils.ComputeHash(Encoding.UTF8.GetBytes(textWithLf)));
-                var textWithCrLf = textWithLf.Replace("\n", "\r\n");
+                var textWithCrLf = textWithLf.Replace("\n", "\r\n", StringComparison.Ordinal);
                 hashesToSuppress.Add(HashingUtils.ComputeHash(Encoding.UTF8.GetBytes(textWithCrLf)));
             }
             else if (dataObject.GetDataPresent(DataFormats.Bitmap))
@@ -144,9 +144,9 @@ namespace Cliptoo.UI.Services
         {
             var hashesToSuppress = new HashSet<ulong>();
             hashesToSuppress.Add(HashingUtils.ComputeHash(Encoding.UTF8.GetBytes(text)));
-            var textWithLf = text.Replace("\r\n", "\n");
+            var textWithLf = text.Replace("\r\n", "\n", StringComparison.Ordinal);
             hashesToSuppress.Add(HashingUtils.ComputeHash(Encoding.UTF8.GetBytes(textWithLf)));
-            var textWithCrLf = textWithLf.Replace("\n", "\r\n");
+            var textWithCrLf = textWithLf.Replace("\n", "\r\n", StringComparison.Ordinal);
             hashesToSuppress.Add(HashingUtils.ComputeHash(Encoding.UTF8.GetBytes(textWithCrLf)));
 
             _clipboardMonitor.SuppressNextClip(hashesToSuppress.ToArray());
