@@ -26,9 +26,24 @@ namespace Cliptoo.UI
 
         public App()
         {
-            var roamingPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            // Logging must be initialized before anything else.
+            // It first tries to determine the mode (portable or standard) to set the correct log path.
+            var exePath = System.AppContext.BaseDirectory;
+            var portableMarkerPath = Path.Combine(exePath, "cliptoo.portable");
+            bool isPortable = File.Exists(portableMarkerPath);
+            string roamingPath;
+            if (isPortable)
+            {
+                roamingPath = Path.Combine(exePath, "Data");
+                Directory.CreateDirectory(roamingPath);
+            }
+            else
+            {
+                roamingPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            }
+
             LogManager.Initialize(roamingPath);
-            LogManager.LogDebug("App constructor started.");
+            LogManager.LogDebug($"App constructor started. Portable mode: {isPortable}");
 
             try
             {
@@ -63,8 +78,25 @@ namespace Cliptoo.UI
                 _host = Host.CreateDefaultBuilder()
                     .ConfigureServices((context, services) =>
                     {
-                        var appDataRoamingPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-                        var appDataLocalPath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                        var exePath = System.AppContext.BaseDirectory;
+                        var portableMarkerPath = Path.Combine(exePath, "cliptoo.portable");
+                        bool isPortable = File.Exists(portableMarkerPath);
+
+                        string appDataRoamingPath;
+                        string appDataLocalPath;
+
+                        if (isPortable)
+                        {
+                            appDataRoamingPath = Path.Combine(exePath, "Data");
+                            appDataLocalPath = Path.Combine(exePath, "Data-Local");
+                            Directory.CreateDirectory(appDataRoamingPath);
+                            Directory.CreateDirectory(appDataLocalPath);
+                        }
+                        else
+                        {
+                            appDataRoamingPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                            appDataLocalPath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                        }
 
                         var dbFolder = Path.Combine(appDataRoamingPath, "Cliptoo", "Database");
                         Directory.CreateDirectory(dbFolder);
@@ -80,7 +112,17 @@ namespace Cliptoo.UI
                         services.AddSingleton<ISettingsService, SettingsService>();
                         services.AddSingleton<IClipDataService, ClipDataService>();
                         services.AddSingleton<IClipboardService, ClipboardService>();
-                        services.AddSingleton<IDatabaseService, DatabaseService>();
+
+                        services.AddSingleton<IDatabaseService>(sp => new DatabaseService(
+                           sp.GetRequiredService<IDbManager>(),
+                           sp.GetRequiredService<IThumbnailService>(),
+                           sp.GetRequiredService<IWebMetadataService>(),
+                           sp.GetRequiredService<Core.Services.IIconCacheManager>(),
+                           sp.GetRequiredService<IFileTypeClassifier>(),
+                           sp.GetRequiredService<ISettingsService>(),
+                           appDataLocalPath
+                       ));
+
                         services.AddSingleton<IAppInteractionService, AppInteractionService>();
                         services.AddSingleton<CliptooController>();
 

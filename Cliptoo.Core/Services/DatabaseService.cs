@@ -30,7 +30,8 @@ namespace Cliptoo.Core.Services
             IWebMetadataService webMetadataService,
             IIconCacheManager iconCacheManager,
             IFileTypeClassifier fileTypeClassifier,
-            ISettingsService settingsService)
+            ISettingsService settingsService,
+            string appDataLocalPath)
         {
             _dbManager = dbManager;
             _thumbnailService = thumbnailService;
@@ -39,7 +40,6 @@ namespace Cliptoo.Core.Services
             _fileTypeClassifier = fileTypeClassifier;
             _settingsService = settingsService;
 
-            var appDataLocalPath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
             _clipboardImageCachePath = Path.Combine(appDataLocalPath, "Cliptoo", "ClipboardImageCache");
             _tempPath = Path.Combine(Path.GetTempPath(), "Cliptoo");
         }
