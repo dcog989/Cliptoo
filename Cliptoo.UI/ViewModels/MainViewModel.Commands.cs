@@ -178,7 +178,13 @@ namespace Cliptoo.UI.ViewModels
         {
             if (parameter is not ClipViewModel clipVM) return;
             await _clipDataService.MoveClipToTopAsync(clipVM.Id);
+            var clip = await _clipDataService.GetClipByIdAsync(clipVM.Id);
+            if (clip != null)
+            {
+                await _pastingService.SetClipboardContentAsync(clip, forcePlainText: null);
+            }
             await LoadClipsAsync(true);
+            HideWindow();
         }
 
         private async Task ExecuteOpen(object? parameter)

@@ -27,24 +27,30 @@ namespace Cliptoo.UI.Services
 
         public async Task PasteClipAsync(Clip clip, bool? forcePlainText = null)
         {
+            await SetClipboardContentAsync(clip, forcePlainText);
+            await InputSimulator.SendPasteAsync().ConfigureAwait(false);
+        }
+
+        public async Task SetClipboardContentAsync(Clip clip, bool? forcePlainText = null)
+        {
             ArgumentNullException.ThrowIfNull(clip);
 
             var settings = _settingsService.Settings;
             bool pasteAsPlainText = forcePlainText ?? settings.PasteAsPlainText;
-            LogManager.Log($"Pasting clip: ID={clip.Id}, AsPlainText={pasteAsPlainText}.");
+            LogManager.Log($"Setting clipboard content: ID={clip.Id}, AsPlainText={pasteAsPlainText}.");
             bool isFileOperation = !pasteAsPlainText && (clip.ClipType.StartsWith("file_", StringComparison.Ordinal) || clip.ClipType == AppConstants.ClipTypes.Folder);
 
             if (isFileOperation)
             {
-                await HandleFilePasteAsync(clip).ConfigureAwait(false);
+                await HandleFileSetAsync(clip).ConfigureAwait(false);
             }
             else
             {
-                await HandleDataObjectPasteAsync(clip, pasteAsPlainText).ConfigureAwait(false);
+                await HandleDataSetAsync(clip, pasteAsPlainText).ConfigureAwait(false);
             }
         }
 
-        private async Task HandleFilePasteAsync(Clip clip)
+        private async Task HandleFileSetAsync(Clip clip)
         {
             if (clip.Content == null) return;
 
@@ -59,14 +65,11 @@ namespace Cliptoo.UI.Services
                 var hash2 = HashingUtils.ComputeHash(Encoding.UTF8.GetBytes(allFilesText.Replace("\r\n", "\n", StringComparison.Ordinal)));
                 _clipboardMonitor.SuppressNextClip(new[] { hash1, hash2 });
 
-                if (await ClipboardUtils.SafeSet(() => NativeClipboardHelper.SetFileDropList(fileDropList)).ConfigureAwait(false))
-                {
-                    await InputSimulator.SendPasteAsync().ConfigureAwait(false);
-                }
+                await ClipboardUtils.SafeSet(() => NativeClipboardHelper.SetFileDropList(fileDropList)).ConfigureAwait(false);
             }
         }
 
-        private async Task HandleDataObjectPasteAsync(Clip clip, bool pasteAsPlainText)
+        private async Task HandleDataSetAsync(Clip clip, bool pasteAsPlainText)
         {
             var dataObject = new DataObject();
             if (pasteAsPlainText)
@@ -134,10 +137,7 @@ namespace Cliptoo.UI.Services
                 _clipboardMonitor.SuppressNextClip(hashesToSuppress.ToArray());
             }
 
-            if (await ClipboardUtils.SafeSet(() => Clipboard.SetDataObject(dataObject, true)).ConfigureAwait(false))
-            {
-                await InputSimulator.SendPasteAsync().ConfigureAwait(false);
-            }
+            await ClipboardUtils.SafeSet(() => Clipboard.SetDataObject(dataObject, true)).ConfigureAwait(false);
         }
 
         public async Task PasteTextAsync(string text)
