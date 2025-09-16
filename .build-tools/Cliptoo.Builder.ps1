@@ -376,7 +376,7 @@ try {
         Write-Host "C) Clean Solution"
         Write-Host "CL) Clean Build Logs"
         Write-Host "Q) Quit"
-        Write-Host "* add 'c' suffix to clean before building,  e.g. '1c'"
+        Write-Host "* prefix with 'c' to clean before building,  e.g. 'c1'"
         Write-Host "--------------------------------------------------------"
         Write-Host "Cliptoo version = v$projectVersion"
         Write-Host " "
@@ -387,9 +387,9 @@ try {
         $choice = $rawChoice.Trim().ToLower()
         $cleanFirst = $false
 
-        if ($choice.EndsWith('c') -and $choice.Length -gt 1) {
+        if ($choice.StartsWith('c') -and $choice.Length -gt 1) {
             $cleanFirst = $true
-            $choice = $choice.TrimEnd('c')
+            $choice = $choice.TrimStart('c')
         }
         
         if ($cleanFirst) {
