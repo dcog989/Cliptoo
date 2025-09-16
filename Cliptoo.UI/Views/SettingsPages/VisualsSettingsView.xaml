@@ -127,7 +127,7 @@
             <StackPanel Margin="20,15,0,0" Orientation="Horizontal">
                 <CheckBox
                     VerticalAlignment="Center"
-                    Content="Show clip preview on hover after"
+                    Content="Show preview tooltip on hover after delay of"
                     IsChecked="{Binding ShowHoverPreview}" />
                 <ui:NumberBox
                     Width="120"
@@ -140,23 +140,9 @@
                     Style="{StaticResource SettingsNumberBoxStyle}"
                     Value="{Binding HoverPreviewDelay, UpdateSourceTrigger=PropertyChanged}" />
                 <TextBlock
-                    Margin="5,0,5,0"
-                    VerticalAlignment="Center"
-                    Text="ms at" />
-                <ui:NumberBox
-                    Width="120"
                     Margin="5,0,0,0"
                     VerticalAlignment="Center"
-                    ClearButtonEnabled="False"
-                    IsEnabled="{Binding ShowHoverPreview}"
-                    Minimum="200"
-                    SmallChange="10"
-                    Style="{StaticResource SettingsNumberBoxStyle}"
-                    Value="{Binding Settings.PreviewTooltipMaxWidth, UpdateSourceTrigger=PropertyChanged}" />
-                <TextBlock
-                    Margin="5,0,0,0"
-                    VerticalAlignment="Center"
-                    Text="px maximum width" />
+                    Text="ms" />
             </StackPanel>
 
             <StackPanel Margin="20,15,0,0" Orientation="Horizontal">
@@ -181,7 +167,6 @@
                     Width="100"
                     VerticalAlignment="Center"
                     ClearButtonEnabled="False"
-                    IsEnabled="{Binding ShowHoverPreview}"
                     Maximum="24"
                     Minimum="10"
                     SmallChange="1"
@@ -195,13 +180,30 @@
             </StackPanel>
 
             <StackPanel Margin="20,15,0,0" Orientation="Horizontal">
-                <TextBlock VerticalAlignment="Center" Text="Image preview maximum width or height" />
+                <TextBlock VerticalAlignment="Center" Text="Text preview max width" />
                 <ui:NumberBox
                     Width="120"
                     Margin="5,0,0,0"
                     VerticalAlignment="Center"
                     ClearButtonEnabled="False"
-                    IsEnabled="{Binding ShowHoverPreview}"
+                    Minimum="200"
+                    SmallChange="10"
+                    Style="{StaticResource SettingsNumberBoxStyle}"
+                    Value="{Binding Settings.PreviewTooltipMaxWidth, UpdateSourceTrigger=PropertyChanged}" />
+                <TextBlock
+                    Margin="5,0,40,0"
+                    VerticalAlignment="Center"
+                    Text="px" />
+
+                <TextBlock
+                    VerticalAlignment="Center"
+                    Style="{StaticResource SettingLabel}"
+                    Text="Image preview max width / height" />
+                <ui:NumberBox
+                    Width="120"
+                    Margin="5,0,0,0"
+                    VerticalAlignment="Center"
+                    ClearButtonEnabled="False"
                     Minimum="100"
                     SmallChange="10"
                     Style="{StaticResource SettingsNumberBoxStyle}"
