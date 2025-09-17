@@ -110,41 +110,51 @@ function Invoke-DotNetPublish {
     $success = $false
     while ($true) {
         $csprojPath = Join-Path $solutionRoot 'Cliptoo.UI\Cliptoo.UI.csproj'
-        $command = "dotnet publish `"$csprojPath`" $Arguments"
-
-        $scriptBlock = {
-            param($cmd)
-            # Redirect ALL streams (*>&1) to ensure progress messages are captured and not printed live.
-            $output = Invoke-Expression -Command $cmd *>&1 | Out-String
-            return [pscustomobject]@{
-                Output   = $output
-                ExitCode = $LASTEXITCODE
-            }
-        }
-
-        $job = Start-Job -ScriptBlock $scriptBlock -ArgumentList $command
         
+        # Use the .NET Process class for direct and reliable output stream capture.
+        # This correctly signals a non-interactive session to the dotnet CLI, which
+        # disables the animated progress bar that was causing console corruption.
+        $pinfo = New-Object System.Diagnostics.ProcessStartInfo
+        $pinfo.FileName = "dotnet"
+        $pinfo.Arguments = "publish `"$csprojPath`" $Arguments"
+        $pinfo.RedirectStandardError = $true
+        $pinfo.RedirectStandardOutput = $true
+        $pinfo.UseShellExecute = $false
+        $pinfo.CreateNoWindow = $true
+
+        $p = New-Object System.Diagnostics.Process
+        $p.StartInfo = $pinfo
+        $p.Start() | Out-Null
+        
+        # Asynchronously read the output streams to prevent potential deadlocks
+        $outputTask = $p.StandardOutput.ReadToEndAsync()
+        $errorTask = $p.StandardError.ReadToEndAsync()
+
+        # Re-introduce the progress indicator while the process runs.
         [System.Console]::Write("Build in progress")
-        while ($job.State -eq 'Running') {
+        while (-not $p.HasExited) {
             [System.Console]::Write(".")
             Start-Sleep -Seconds 1
         }
         [System.Console]::WriteLine()
 
-        $result = Receive-Job $job
-        Remove-Job $job
+        # The process has exited, so we can now safely get the results of the async reads.
+        $output = $outputTask.Result
+        $errorOutput = $errorTask.Result
         
-        # Filter out the interactive "Removed..." and speed indicator lines from the output before printing.
-        # This prevents console corruption artifacts while still logging warnings and errors.
-        $filteredOutput = $result.Output.Split([System.Environment]::NewLine) | Where-Object {
-            $_.Trim() -notmatch '(\d+(\.\d+)? (K|M)B/s)' -and $_.Trim() -notmatch '^\s*Removed \d+ of \d+ files'
-        }
-        Write-Host ($filteredOutput -join [System.Environment]::NewLine)
-
-        if ($result.ExitCode -eq 0) {
+        if ($p.ExitCode -eq 0) {
+            Write-Host $output.Trim()
+            if ($errorOutput) {
+                # Build warnings are often written to the standard error stream
+                Write-Warning $errorOutput.Trim()
+            }
             $success = $true
             break
         }
+        
+        # On failure, print both streams for full diagnostic information
+        Write-Host $output.Trim()
+        Write-Host $errorOutput.Trim() -ForegroundColor Red
         
         Write-Host "PUBLISH FAILED. Please review the errors in the log file." -ForegroundColor Red
         $response = Read-Host "Do you want to try again? (y/n)"
