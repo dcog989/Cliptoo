@@ -54,7 +54,7 @@ namespace Cliptoo.Core
 
             _cleanupTimer = new System.Timers.Timer();
             _cleanupTimer.Elapsed += OnCleanupTimerElapsed;
-            _cleanupTimer.Interval = TimeSpan.FromHours(2).TotalMilliseconds;
+            _cleanupTimer.Interval = TimeSpan.FromHours(1).TotalMilliseconds;
         }
 
         public Task InitializeAsync()
@@ -103,9 +103,9 @@ namespace Cliptoo.Core
             {
                 try
                 {
-                    if (_appInteractionService.IsUiInteractive || (DateTime.UtcNow - _appInteractionService.LastActivityTimestamp) < TimeSpan.FromMinutes(5))
+                    if (_appInteractionService.IsUiInteractive)
                     {
-                        LogManager.LogDebug("Cleanup skipped due to recent activity or visible UI.");
+                        LogManager.LogDebug("Cleanup skipped: UI is currently interactive.");
                         return;
                     }
 
@@ -114,12 +114,12 @@ namespace Cliptoo.Core
 
                     if ((DateTime.UtcNow - lastCleanup) > TimeSpan.FromDays(1))
                     {
-                        LogManager.LogInfo("Idle timer check: Last heavy maintenance was over 24 hours ago. Triggering routine.");
+                        LogManager.LogInfo("Periodic timer check: Last heavy maintenance was over 24 hours ago. Triggering routine.");
                         await _databaseService.RunHeavyMaintenanceNowAsync().ConfigureAwait(false);
                     }
                     else
                     {
-                        LogManager.LogDebug("Idle timer check: Heavy maintenance not due yet.");
+                        LogManager.LogDebug("Periodic timer check: Heavy maintenance not due yet.");
                     }
                 }
                 catch (Exception ex) when (ex is IOException or SqliteException)
@@ -230,6 +230,20 @@ namespace Cliptoo.Core
                     result.ClipType,
                     sourceApp,
                     finalWasTrimmed).ConfigureAwait(false);
+
+                if (settings.MaxClipsTotal > 0)
+                {
+                    var stats = await _databaseService.GetStatsAsync().ConfigureAwait(false);
+                    var unpinnedCount = stats.TotalClips - stats.PinnedClips;
+                    var threshold = (uint)(settings.MaxClipsTotal * 1.2);
+
+                    if (unpinnedCount > threshold)
+                    {
+                        LogManager.LogInfo($"Proactive maintenance triggered: Clip count ({unpinnedCount}) exceeds threshold ({threshold}).");
+                        _ = Task.Run(() => _databaseService.RunHeavyMaintenanceNowAsync());
+                    }
+                }
+
                 _appInteractionService.NotifyUiActivity();
             }
             stopwatch.Stop();

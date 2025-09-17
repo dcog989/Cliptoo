@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Cliptoo.Core.Database;
 using Cliptoo.Core.Database.Models;
@@ -20,6 +21,7 @@ namespace Cliptoo.Core.Services
         private readonly ISettingsService _settingsService;
         private readonly string _clipboardImageCachePath;
         private readonly string _tempPath;
+        private readonly SemaphoreSlim _maintenanceLock = new(1, 1);
 
         public event EventHandler? CachesCleared;
         public event EventHandler? HistoryCleared;
@@ -71,8 +73,22 @@ namespace Cliptoo.Core.Services
 
         public async Task<MaintenanceResult> RunHeavyMaintenanceNowAsync()
         {
-            LogManager.LogInfo("User triggered heavy maintenance routine.");
-            return await RunHeavyMaintenanceAsync().ConfigureAwait(false);
+            if (_maintenanceLock.CurrentCount == 0)
+            {
+                LogManager.LogDebug("Maintenance task skipped because another one is already in progress.");
+                return new MaintenanceResult(0, 0, 0, 0, 0, 0, 0, 0.0);
+            }
+
+            await _maintenanceLock.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                LogManager.LogInfo("User or schedule triggered heavy maintenance routine.");
+                return await RunHeavyMaintenanceAsync().ConfigureAwait(false);
+            }
+            finally
+            {
+                _maintenanceLock.Release();
+            }
         }
 
         public async Task<int> RemoveDeadheadClipsAsync()
