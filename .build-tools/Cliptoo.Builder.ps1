@@ -62,6 +62,9 @@ function Assert-NoRunningIDEs {
 
 function Invoke-Clean {
     Write-Host "--- Starting Clean Operation ---" -ForegroundColor Cyan
+    # Temporarily suppress progress bars from cmdlets like Remove-Item
+    $oldProgressPreference = $ProgressPreference
+    $ProgressPreference = 'SilentlyContinue'
     try {
         Assert-NoRunningIDEs
         
@@ -101,6 +104,10 @@ function Invoke-Clean {
     catch {
         Write-Error "An error occurred during cleanup: $($_.Exception.Message)"
     }
+    finally {
+        # Restore the original preference
+        $ProgressPreference = $oldProgressPreference
+    }
 }
 
 function Invoke-DotNetPublish {
@@ -110,51 +117,40 @@ function Invoke-DotNetPublish {
     $success = $false
     while ($true) {
         $csprojPath = Join-Path $solutionRoot 'Cliptoo.UI\Cliptoo.UI.csproj'
-        
-        # Use the .NET Process class for direct and reliable output stream capture.
-        # This correctly signals a non-interactive session to the dotnet CLI, which
-        # disables the animated progress bar that was causing console corruption.
-        $pinfo = New-Object System.Diagnostics.ProcessStartInfo
-        $pinfo.FileName = "dotnet"
-        $pinfo.Arguments = "publish `"$csprojPath`" $Arguments"
-        $pinfo.RedirectStandardError = $true
-        $pinfo.RedirectStandardOutput = $true
-        $pinfo.UseShellExecute = $false
-        $pinfo.CreateNoWindow = $true
+        $command = "dotnet publish `"$csprojPath`" $Arguments"
 
-        $p = New-Object System.Diagnostics.Process
-        $p.StartInfo = $pinfo
-        $p.Start() | Out-Null
-        
-        # Asynchronously read the output streams to prevent potential deadlocks
-        $outputTask = $p.StandardOutput.ReadToEndAsync()
-        $errorTask = $p.StandardError.ReadToEndAsync()
+        $scriptBlock = {
+            param($cmd)
+            # This is the correct, official way to disable the interactive progress logger
+            # that corrupts the console output when captured by a script.
+            $env:DOTNET_NOPROGRESS = 'true'
+            
+            # Redirect ALL streams (*>&1) to capture the full, clean output.
+            $output = Invoke-Expression -Command $cmd *>&1 | Out-String
+            return [pscustomobject]@{
+                Output   = $output
+                ExitCode = $LASTEXITCODE
+            }
+        }
 
-        # Re-introduce the progress indicator while the process runs.
+        $job = Start-Job -ScriptBlock $scriptBlock -ArgumentList $command
+        
         [System.Console]::Write("Build in progress")
-        while (-not $p.HasExited) {
+        while ($job.State -eq 'Running') {
             [System.Console]::Write(".")
             Start-Sleep -Seconds 1
         }
         [System.Console]::WriteLine()
 
-        # The process has exited, so we can now safely get the results of the async reads.
-        $output = $outputTask.Result
-        $errorOutput = $errorTask.Result
+        $result = Receive-Job $job
+        Remove-Job $job
         
-        if ($p.ExitCode -eq 0) {
-            Write-Host $output.Trim()
-            if ($errorOutput) {
-                # Build warnings are often written to the standard error stream
-                Write-Warning $errorOutput.Trim()
-            }
+        Write-Host $result.Output.Trim()
+
+        if ($result.ExitCode -eq 0) {
             $success = $true
             break
         }
-        
-        # On failure, print both streams for full diagnostic information
-        Write-Host $output.Trim()
-        Write-Host $errorOutput.Trim() -ForegroundColor Red
         
         Write-Host "PUBLISH FAILED. Please review the errors in the log file." -ForegroundColor Red
         $response = Read-Host "Do you want to try again? (y/n)"
@@ -392,8 +388,6 @@ try {
         Write-Host " "
         
         $rawChoice = Read-Host -Prompt "Select an option"
-        # Echo the user's choice to the host so it gets captured by the transcript log.
-        Write-Host "User selection: '$rawChoice'"
         $choice = $rawChoice.Trim().ToLower()
         $cleanFirst = $false
 
