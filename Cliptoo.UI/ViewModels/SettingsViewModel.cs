@@ -192,7 +192,7 @@ namespace Cliptoo.UI.ViewModels
             {
                 case nameof(Settings.StartWithWindows):
                     _startupManagerService.SetStartup(Settings.StartWithWindows);
-                    LogManager.LogInfo($"Setting 'Start with Windows' changed to: {Settings.StartWithWindows}");
+                    LogManager.LogDebug($"Setting 'Start with Windows' changed to: {Settings.StartWithWindows}");
                     break;
                 case nameof(Settings.AccentChromaLevel):
                     _themeService.ApplyAccentColor(_accentHue);
@@ -200,7 +200,7 @@ namespace Cliptoo.UI.ViewModels
                     AccentBrush = (SolidColorBrush)Application.Current.Resources["AccentBrush"];
                     break;
                 case nameof(Settings.Theme):
-                    LogManager.LogInfo($"Setting 'Theme' changed to: {Settings.Theme}");
+                    LogManager.LogDebug($"Setting 'Theme' changed to: {Settings.Theme}");
                     _themeService.ApplyThemeFromSettings();
                     UpdateOklchHueBrush();
                     AccentBrush = (SolidColorBrush)Application.Current.Resources["AccentBrush"];

@@ -280,7 +280,7 @@ namespace Cliptoo.Core
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
             {
-                LogManager.LogCritical(ex, $"Failed to parse .url file: {filePath}");
+                LogManager.LogError($"Failed to parse .url file: {filePath}. Error: {ex.Message}");
             }
             return null;
         }

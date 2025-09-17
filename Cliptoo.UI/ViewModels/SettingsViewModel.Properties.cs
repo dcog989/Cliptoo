@@ -36,7 +36,7 @@ namespace Cliptoo.UI.ViewModels
                 if (Settings.Hotkey != value)
                 {
                     Settings.Hotkey = value;
-                    LogManager.LogInfo($"Setting 'Main hotkey' changed to: {value}");
+                    LogManager.LogDebug($"Setting 'Main hotkey' changed to: {value}");
                     _settingsService.SaveSettings();
                 }
             }

@@ -78,7 +78,7 @@ namespace Cliptoo.UI.ViewModels
             }
             catch (Exception ex)
             {
-                LogManager.LogCritical(ex, "Paste action failed.");
+                LogManager.LogError($"Paste action failed. Error: {ex.Message}");
                 _notificationService.Show("Paste Failed", "Could not paste the selected item. The clipboard may be in use by another application.", ControlAppearance.Danger, SymbolRegular.ErrorCircle24);
             }
             finally
@@ -201,7 +201,7 @@ namespace Cliptoo.UI.ViewModels
             }
             catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or ObjectDisposedException or FileNotFoundException)
             {
-                LogManager.LogCritical(ex, $"Failed to open path: {fullClip.Content}");
+                LogManager.LogError($"Failed to open path: {fullClip.Content}. Error: {ex.Message}");
                 _notificationService.Show("Error", $"Could not open path: {ex.Message}", ControlAppearance.Danger, SymbolRegular.ErrorCircle24);
             }
         }
@@ -262,7 +262,7 @@ namespace Cliptoo.UI.ViewModels
             }
             catch (Exception ex) when (ex is IOException or System.ComponentModel.Win32Exception or UnauthorizedAccessException or PlatformNotSupportedException)
             {
-                LogManager.LogCritical(ex, $"Failed to send to path: {target.Path} with content {contentPath}");
+                LogManager.LogError($"Failed to send to path: {target.Path} with content {contentPath}. Error: {ex.Message}");
                 _notificationService.Show("Error", $"Could not send to '{target.Name}'.", ControlAppearance.Danger, SymbolRegular.ErrorCircle24);
             }
         }

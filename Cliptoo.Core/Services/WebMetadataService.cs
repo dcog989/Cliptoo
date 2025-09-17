@@ -88,7 +88,7 @@ namespace Cliptoo.Core.Services
                     }
                     catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                     {
-                        LogManager.LogWarning($"Failed to read failure cache file for {urlString}. Error: {ex.Message}");
+                        LogManager.LogDebug($"Failed to read failure cache file for {urlString}. Error: {ex.Message}");
                     }
                 }
 
@@ -148,7 +148,7 @@ namespace Cliptoo.Core.Services
                 {
                     await File.WriteAllTextAsync(failureCachePath, DateTime.UtcNow.ToString("o")).ConfigureAwait(false);
                 }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { LogManager.LogWarning($"Failed to create/update failure cache file for {urlString}. Error: {ex.Message}"); }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { LogManager.LogDebug($"Failed to create/update failure cache file for {urlString}. Error: {ex.Message}"); }
 
                 stopwatch.Stop();
                 LogManager.LogDebug($"PERF_DIAG: Favicon discovery for '{urlString}' took {stopwatch.ElapsedMilliseconds}ms.");
@@ -159,7 +159,6 @@ namespace Cliptoo.Core.Services
                 _ongoingFetches.TryRemove(urlString, out _);
             }
         }
-
 
         private async Task<(string? Title, List<FaviconCandidate> Candidates)> FetchAndParseHtmlHeadAsync(Uri pageUri)
         {
@@ -500,7 +499,7 @@ namespace Cliptoo.Core.Services
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                LogManager.LogCritical(ex, "Failed to clear web caches.");
+                LogManager.LogError($"Failed to clear web caches. Error: {ex.Message}");
             }
         }
 
@@ -558,7 +557,7 @@ namespace Cliptoo.Core.Services
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or DirectoryNotFoundException)
             {
-                LogManager.LogCritical(ex, $"Failed to enumerate files for pruning in {_faviconCacheDir}");
+                LogManager.LogError($"Failed to enumerate files for pruning in {_faviconCacheDir}. Error: {ex.Message}");
                 return 0;
             }
 

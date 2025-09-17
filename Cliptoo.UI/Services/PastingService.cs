@@ -37,7 +37,7 @@ namespace Cliptoo.UI.Services
 
             var settings = _settingsService.Settings;
             bool pasteAsPlainText = forcePlainText ?? settings.PasteAsPlainText;
-            LogManager.LogInfo($"Setting clipboard content: ID={clip.Id}, AsPlainText={pasteAsPlainText}.");
+            LogManager.LogDebug($"Setting clipboard content: ID={clip.Id}, AsPlainText={pasteAsPlainText}.");
             bool isFileOperation = !pasteAsPlainText && (clip.ClipType.StartsWith("file_", StringComparison.Ordinal) || clip.ClipType == AppConstants.ClipTypes.Folder);
 
             if (isFileOperation)
@@ -151,7 +151,7 @@ namespace Cliptoo.UI.Services
 
             _clipboardMonitor.SuppressNextClip(hashesToSuppress.ToArray());
 
-            LogManager.LogInfo($"Pasting transformed text. Length: {text.Length}.");
+            LogManager.LogDebug($"Pasting transformed text. Length: {text.Length}.");
             if (await ClipboardUtils.SafeSet(() => Clipboard.SetText(text, TextDataFormat.UnicodeText)).ConfigureAwait(false))
             {
                 await InputSimulator.SendPasteAsync().ConfigureAwait(false);
