@@ -29,9 +29,7 @@ namespace Cliptoo.Core.Services
 
             _pngEncoder = new PngEncoder
             {
-                CompressionLevel = PngCompressionLevel.Level6,
-                ColorType = PngColorType.Palette,
-                Quantizer = new OctreeQuantizer(new QuantizerOptions { MaxColors = 255, Dither = KnownDitherings.FloydSteinberg })
+                CompressionLevel = PngCompressionLevel.Level6
             };
             _jpegEncoder = new JpegEncoder { Quality = 65 };
             _imageDecoder = imageDecoder;
@@ -101,7 +99,8 @@ namespace Cliptoo.Core.Services
                     image.Mutate(x => x.Resize(new ResizeOptions
                     {
                         Size = new SixLabors.ImageSharp.Size(size, size),
-                        Mode = ResizeMode.Max
+                        Mode = ResizeMode.Max,
+                        Sampler = KnownResamplers.Lanczos3
                     }));
 
                     using var ms = new MemoryStream();

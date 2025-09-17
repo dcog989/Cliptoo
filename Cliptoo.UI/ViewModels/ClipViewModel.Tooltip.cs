@@ -254,7 +254,10 @@ namespace Cliptoo.UI.ViewModels
             FileTypeInfo = null;
             FileTypeInfoIcon = null;
 
-            var (properties, typeInfo, isMissing) = await _clipDetailsLoader.GetFilePropertiesAsync(this, token).ConfigureAwait(false);
+            // This entire block must resume on the UI thread because it is followed
+            // by updates to UI-bound properties and UI resources (icons).
+#pragma warning disable CA2007 // Consider calling ConfigureAwait on the awaited task
+            var (properties, typeInfo, isMissing) = await _clipDetailsLoader.GetFilePropertiesAsync(this, token);
 
             if (!token.IsCancellationRequested)
             {
@@ -265,9 +268,10 @@ namespace Cliptoo.UI.ViewModels
 
                 if (!isMissing && !string.IsNullOrEmpty(ClipType))
                 {
-                    FileTypeInfoIcon = await _iconProvider.GetIconAsync(this.ClipType, 16).ConfigureAwait(false);
+                    FileTypeInfoIcon = await _iconProvider.GetIconAsync(this.ClipType, 16);
                 }
             }
+#pragma warning restore CA2007
         }
     }
 }

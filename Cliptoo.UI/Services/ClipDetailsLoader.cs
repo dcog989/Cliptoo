@@ -8,6 +8,7 @@ using Cliptoo.Core.Services;
 using Cliptoo.UI.Helpers;
 using Cliptoo.UI.ViewModels;
 using SixLabors.ImageSharp;
+using Svg.Skia;
 
 namespace Cliptoo.UI.Services
 {
@@ -142,7 +143,15 @@ namespace Cliptoo.UI.Services
                                 var extension = Path.GetExtension(path).ToUpperInvariant();
                                 using var stream = File.OpenRead(path);
 
-                                if (extension == ".JXL")
+                                if (extension == ".SVG")
+                                {
+                                    using var skSvg = new SKSvg();
+                                    if (skSvg.Load(stream) is { } picture)
+                                    {
+                                        sb.AppendLine(CultureInfo.InvariantCulture, $"Dimensions: {(int)picture.CullRect.Width} x {(int)picture.CullRect.Height}");
+                                    }
+                                }
+                                else if (extension == ".JXL")
                                 {
                                     using var image = await _imageDecoder.DecodeAsync(stream, extension).ConfigureAwait(false);
                                     if (image != null)
@@ -159,7 +168,7 @@ namespace Cliptoo.UI.Services
                                     }
                                 }
                             }
-                            catch (Exception ex) when (ex is IOException or NotSupportedException) { /* Ignore */ }
+                            catch (Exception ex) when (ex is IOException or NotSupportedException or ArgumentException) { /* Ignore parsing errors */ }
                         }
                     }
                     else

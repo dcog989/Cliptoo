@@ -102,9 +102,7 @@ namespace Cliptoo.Core.Services
                 using var ms = new MemoryStream();
                 var pngEncoder = new SixLabors.ImageSharp.Formats.Png.PngEncoder
                 {
-                    CompressionLevel = SixLabors.ImageSharp.Formats.Png.PngCompressionLevel.Level6,
-                    ColorType = SixLabors.ImageSharp.Formats.Png.PngColorType.Palette,
-                    Quantizer = new OctreeQuantizer(new QuantizerOptions { MaxColors = 255, Dither = KnownDitherings.FloydSteinberg })
+                    CompressionLevel = SixLabors.ImageSharp.Formats.Png.PngCompressionLevel.Level6
                 };
                 await imageSharpImage.SaveAsync(ms, pngEncoder).ConfigureAwait(false);
                 return ms.ToArray();
