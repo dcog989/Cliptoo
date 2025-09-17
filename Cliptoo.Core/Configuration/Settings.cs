@@ -228,7 +228,9 @@ namespace Cliptoo.Core.Configuration
         [DefaultValue(true)]
         public bool MoveClipToTopOnPaste { get => _moveClipToTopOnPaste; set => SetProperty(ref _moveClipToTopOnPaste, value); }
 
-        public ObservableCollection<SendToTarget> SendToTargets { get; } = new();
+#pragma warning disable CA2227 // Collection properties should be read only
+        public ObservableCollection<SendToTarget> SendToTargets { get; set; } = new();
+#pragma warning restore CA2227 // Collection properties should be read only
         #endregion
 
         #region Diagnostics
