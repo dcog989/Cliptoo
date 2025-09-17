@@ -134,10 +134,10 @@ function Invoke-DotNetPublish {
         $result = Receive-Job $job
         Remove-Job $job
         
-        # Filter out the interactive "Removed..." lines from the output before printing.
+        # Filter out the interactive "Removed..." and speed indicator lines from the output before printing.
         # This prevents console corruption artifacts while still logging warnings and errors.
         $filteredOutput = $result.Output.Split([System.Environment]::NewLine) | Where-Object {
-            $_.Trim() -notmatch '^\s*Removed \d+ of \d+ files'
+            $_.Trim() -notmatch '(\d+(\.\d+)? (K|M)B/s)' -and $_.Trim() -notmatch '^\s*Removed \d+ of \d+ files'
         }
         Write-Host ($filteredOutput -join [System.Environment]::NewLine)
 
