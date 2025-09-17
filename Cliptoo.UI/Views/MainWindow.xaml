@@ -544,7 +544,7 @@
                 </Border>
             </Popup>
 
-            <ui:SnackbarPresenter x:Name="SnackbarPresenter" Grid.RowSpan="2" />
+            <ui:SnackbarPresenter x:Name="RootSnackbarPresenter" Grid.RowSpan="2" />
             <ContentPresenter Grid.RowSpan="2" Content="{Binding CurrentModalViewModel}" />
         </Grid>
 

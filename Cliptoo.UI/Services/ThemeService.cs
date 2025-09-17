@@ -1,7 +1,7 @@
 using System.Windows;
 using System.Windows.Media;
-using Cliptoo.Core.Configuration;
 using Cliptoo.Core.Interfaces;
+using Cliptoo.Core.Logging;
 using Cliptoo.Core.Services;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
@@ -126,7 +126,7 @@ namespace Cliptoo.UI.Services
             }
             catch (FormatException ex)
             {
-                LogManager.Log(ex, $"Invalid accent color format in settings: {settings.AccentColor}");
+                LogManager.LogCritical(ex, $"Invalid accent color format in settings: {settings.AccentColor}");
             }
         }
     }

@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
-using Cliptoo.Core.Configuration;
+using Cliptoo.Core.Logging;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Jpeg;
 using SixLabors.ImageSharp.Formats.Png;
@@ -128,7 +128,7 @@ namespace Cliptoo.Core.Services
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or ImageFormatException)
             {
-                LogManager.Log(ex, $"Image processing failed for {imagePath}");
+                LogManager.LogCritical(ex, $"Image processing failed for {imagePath}");
             }
             finally
             {
@@ -149,11 +149,11 @@ namespace Cliptoo.Core.Services
             {
                 ServiceUtils.DeleteDirectoryContents(_cacheDir);
                 ServiceUtils.DeleteDirectoryContents(_previewCacheDir);
-                LogManager.Log("Thumbnail and preview caches cleared successfully.");
+                LogManager.LogInfo("Thumbnail and preview caches cleared successfully.");
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                LogManager.Log(ex, "Failed to clear caches.");
+                LogManager.LogCritical(ex, "Failed to clear caches.");
             }
         }
 

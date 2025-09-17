@@ -5,6 +5,7 @@ using System.Windows.Input;
 using Cliptoo.Core;
 using Cliptoo.Core.Configuration;
 using Cliptoo.Core.Database.Models;
+using Cliptoo.Core.Logging;
 using Cliptoo.Core.Services;
 using Cliptoo.UI.Helpers;
 using Cliptoo.UI.Views;
@@ -77,7 +78,7 @@ namespace Cliptoo.UI.ViewModels
             }
             catch (Exception ex)
             {
-                LogManager.Log(ex, "Paste action failed.");
+                LogManager.LogCritical(ex, "Paste action failed.");
                 _notificationService.Show("Paste Failed", "Could not paste the selected item. The clipboard may be in use by another application.", ControlAppearance.Danger, SymbolRegular.ErrorCircle24);
             }
             finally
@@ -121,7 +122,7 @@ namespace Cliptoo.UI.ViewModels
         {
             if (parameter is not ClipViewModel clipVM) return;
             clipVM.IsPinned = !clipVM.IsPinned;
-            LogManager.Log($"Toggling pin for clip: ID={clipVM.Id}, NewState={(clipVM.IsPinned ? "Pinned" : "Unpinned")}.");
+            LogManager.LogInfo($"Toggling pin for clip: ID={clipVM.Id}, NewState={(clipVM.IsPinned ? "Pinned" : "Unpinned")}.");
             await _clipDataService.TogglePinAsync(clipVM.Id, clipVM.IsPinned).ConfigureAwait(false);
 
             if (SelectedFilter.Key == AppConstants.FilterKeys.Pinned && !clipVM.IsPinned)
@@ -133,7 +134,7 @@ namespace Cliptoo.UI.ViewModels
         private async Task ExecuteDeleteClip(object? parameter)
         {
             if (parameter is not ClipViewModel clipVM) return;
-            LogManager.Log($"Deleting clip: ID={clipVM.Id}.");
+            LogManager.LogInfo($"Deleting clip: ID={clipVM.Id}.");
             var fullClip = await clipVM.GetFullClipAsync().ConfigureAwait(false);
             await _clipDataService.DeleteClipAsync(fullClip ?? clipVM._clip).ConfigureAwait(false);
             Application.Current.Dispatcher.Invoke(() => Clips.Remove(clipVM));
@@ -200,7 +201,7 @@ namespace Cliptoo.UI.ViewModels
             }
             catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or ObjectDisposedException or FileNotFoundException)
             {
-                LogManager.Log(ex, $"Failed to open path: {fullClip.Content}");
+                LogManager.LogCritical(ex, $"Failed to open path: {fullClip.Content}");
                 _notificationService.Show("Error", $"Could not open path: {ex.Message}", ControlAppearance.Danger, SymbolRegular.ErrorCircle24);
             }
         }
@@ -261,7 +262,7 @@ namespace Cliptoo.UI.ViewModels
             }
             catch (Exception ex) when (ex is IOException or System.ComponentModel.Win32Exception or UnauthorizedAccessException or PlatformNotSupportedException)
             {
-                LogManager.Log(ex, $"Failed to send to path: {target.Path} with content {contentPath}");
+                LogManager.LogCritical(ex, $"Failed to send to path: {target.Path} with content {contentPath}");
                 _notificationService.Show("Error", $"Could not send to '{target.Name}'.", ControlAppearance.Danger, SymbolRegular.ErrorCircle24);
             }
         }

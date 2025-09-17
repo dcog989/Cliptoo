@@ -8,7 +8,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using Cliptoo.Core.Configuration;
+using Cliptoo.Core.Logging;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Png;
 using SixLabors.ImageSharp.Processing;
@@ -32,7 +32,6 @@ namespace Cliptoo.Core.Services
         private readonly ConcurrentDictionary<string, Task<string?>> _ongoingFetches = new();
         private bool _disposedValue;
         private readonly IImageDecoder _imageDecoder;
-        private static readonly char[] _spaceSeparator = [' '];
 
         public WebMetadataService(string appCachePath, IImageDecoder imageDecoder)
         {
@@ -89,7 +88,7 @@ namespace Cliptoo.Core.Services
                     }
                     catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                     {
-                        LogManager.Log(ex, $"Failed to read failure cache file for {urlString}");
+                        LogManager.LogWarning($"Failed to read failure cache file for {urlString}. Error: {ex.Message}");
                     }
                 }
 
@@ -107,17 +106,17 @@ namespace Cliptoo.Core.Services
                 await Task.WhenAll(htmlParseTask, icoTask).ConfigureAwait(false);
 
                 // If favicon.ico was found, we are done
-                if (await icoTask)
+                if (await icoTask.ConfigureAwait(false))
                 {
                     LogManager.LogDebug($"FAVICON_DISCOVERY_DIAG: Success with direct fetch of /favicon.ico for {urlString}");
                     return successCachePath;
                 }
 
-                var (pageTitle, htmlCandidates) = await htmlParseTask;
+                var (pageTitle, htmlCandidates) = await htmlParseTask.ConfigureAwait(false);
                 if (pageTitle != null) _titleCache.Add(url.ToString(), pageTitle);
 
                 // If HTML parsing yielded candidates, try fetching them
-                if (htmlCandidates.Any())
+                if (htmlCandidates.Count > 0)
                 {
                     var orderedCandidates = htmlCandidates.OrderByDescending(c => c.Score).Select(c => c.Url).Distinct();
                     foreach (var candidateUrl in orderedCandidates)
@@ -149,7 +148,7 @@ namespace Cliptoo.Core.Services
                 {
                     await File.WriteAllTextAsync(failureCachePath, DateTime.UtcNow.ToString("o")).ConfigureAwait(false);
                 }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { LogManager.Log(ex, $"Failed to create/update failure cache file for {urlString}"); }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { LogManager.LogWarning($"Failed to create/update failure cache file for {urlString}. Error: {ex.Message}"); }
 
                 stopwatch.Stop();
                 LogManager.LogDebug($"PERF_DIAG: Favicon discovery for '{urlString}' took {stopwatch.ElapsedMilliseconds}ms.");
@@ -272,26 +271,24 @@ namespace Cliptoo.Core.Services
         {
             const int maxBytesToRead = 777 * 1024;
             using var memoryStream = new MemoryStream();
-
-            // Simple copy loop to reliably read up to maxBytesToRead
-            var buffer = new byte[8192];
+            Memory<byte> buffer = new byte[8192];
             long totalBytesRead = 0;
+
             while (totalBytesRead < maxBytesToRead)
             {
-                int bytesToRead = (int)Math.Min(buffer.Length, maxBytesToRead - totalBytesRead);
-                int bytesRead = await stream.ReadAsync(buffer, 0, bytesToRead).ConfigureAwait(false);
+                var bytesToRead = (int)Math.Min(buffer.Length, maxBytesToRead - totalBytesRead);
+                var bytesRead = await stream.ReadAsync(buffer.Slice(0, bytesToRead)).ConfigureAwait(false);
                 if (bytesRead == 0)
                 {
                     break;
                 }
-                await memoryStream.WriteAsync(buffer, 0, bytesRead).ConfigureAwait(false);
+                await memoryStream.WriteAsync(buffer.Slice(0, bytesRead)).ConfigureAwait(false);
                 totalBytesRead += bytesRead;
             }
 
             memoryStream.Position = 0;
             if (memoryStream.Length == 0) return null;
 
-            // Now process the captured stream
             using var reader = new StreamReader(memoryStream, Encoding.UTF8, true);
             var content = await reader.ReadToEndAsync().ConfigureAwait(false);
 
@@ -336,7 +333,7 @@ namespace Cliptoo.Core.Services
             }
             catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException)
             {
-                LogManager.Log(ex, $"Failed to fetch page title for {url}");
+                LogManager.LogDebug($"Failed to fetch page title for {url}: {ex.Message}");
                 _titleCache.Add(urlString, string.Empty);
                 return null;
             }
@@ -499,11 +496,11 @@ namespace Cliptoo.Core.Services
                 ServiceUtils.DeleteDirectoryContents(_faviconCacheDir);
                 _titleCache.Clear();
                 _failedFaviconUrls.Clear();
-                LogManager.Log("Web metadata caches cleared successfully.");
+                LogManager.LogInfo("Web metadata caches cleared successfully.");
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                LogManager.Log(ex, "Failed to clear web caches.");
+                LogManager.LogCritical(ex, "Failed to clear web caches.");
             }
         }
 
@@ -536,7 +533,7 @@ namespace Cliptoo.Core.Services
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                LogManager.Log(ex, $"Failed to clear cache for URL: {urlString}");
+                LogManager.LogWarning($"Failed to clear cache for URL: {urlString}. Error: {ex.Message}");
             }
         }
 
@@ -561,7 +558,7 @@ namespace Cliptoo.Core.Services
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or DirectoryNotFoundException)
             {
-                LogManager.Log(ex, $"Failed to enumerate files for pruning in {_faviconCacheDir}");
+                LogManager.LogCritical(ex, $"Failed to enumerate files for pruning in {_faviconCacheDir}");
                 return 0;
             }
 
@@ -574,7 +571,7 @@ namespace Cliptoo.Core.Services
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
-                    LogManager.Log(ex, $"Could not delete orphaned cache file: {file}");
+                    LogManager.LogWarning($"Could not delete orphaned cache file: {file}. Error: {ex.Message}");
                 }
             }
             return count;

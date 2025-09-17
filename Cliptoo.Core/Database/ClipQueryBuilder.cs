@@ -1,10 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
-using Cliptoo.Core.Configuration;
+using Cliptoo.Core.Logging;
 using Microsoft.Data.Sqlite;
 
 namespace Cliptoo.Core.Database
@@ -15,6 +16,7 @@ namespace Cliptoo.Core.Database
         private const string columns = "c.Id, c.Timestamp, c.ClipType, c.SourceApp, c.IsPinned, c.WasTrimmed, c.SizeInBytes, c.PreviewContent";
         private static readonly Regex FtsSpecialCharsRegex = new("[^a-zA-Z0-9_]");
 
+        [SuppressMessage("Microsoft.Security", "CA2100:Review SQL queries for security vulnerabilities", Justification = "OrderBy clause is constructed from hardcoded, non-user-input strings.")]
         public static void BuildGetClipsQuery(SqliteCommand command, uint limit, uint offset, string searchTerm, string filterType)
         {
             var queryBuilder = new StringBuilder();
@@ -84,12 +86,12 @@ namespace Cliptoo.Core.Database
                 ? "ORDER BY c.IsPinned DESC, Rank ASC, c.Timestamp DESC"
                 : "ORDER BY c.Timestamp DESC";
 
-            queryBuilder.Append($" {orderBy} LIMIT @Limit OFFSET @Offset");
+            queryBuilder.Append(CultureInfo.InvariantCulture, $" {orderBy} LIMIT @Limit OFFSET @Offset");
             command.Parameters.AddWithValue("@Limit", limit);
             command.Parameters.AddWithValue("@Offset", offset);
             command.CommandText = queryBuilder.ToString();
 
-            if (LogManager.LoggingLevel == "Debug")
+            if (LogManager.LoggingLevel == LogLevel.Debug)
             {
                 LogManager.LogDebug($"SQL_QUERY_DIAG: Generated query: {command.CommandText}");
                 var paramLog = new StringBuilder("SQL_QUERY_DIAG: Parameters: ");

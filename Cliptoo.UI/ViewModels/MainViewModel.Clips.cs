@@ -1,6 +1,6 @@
 using System.Windows;
 using Cliptoo.Core;
-using Cliptoo.Core.Configuration;
+using Cliptoo.Core.Logging;
 
 namespace Cliptoo.UI.ViewModels
 {
@@ -175,5 +175,6 @@ namespace Cliptoo.UI.ViewModels
                 await LoadClipsAsync(true);
             });
         }
+
     }
 }

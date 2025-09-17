@@ -1,7 +1,9 @@
+using System.Globalization;
 using System.IO;
+using System.Net.Http;
 using System.Text;
 using Cliptoo.Core;
-using Cliptoo.Core.Configuration;
+using Cliptoo.Core.Logging;
 using Cliptoo.Core.Services;
 using Cliptoo.UI.Helpers;
 using Cliptoo.UI.ViewModels;
@@ -9,7 +11,7 @@ using SixLabors.ImageSharp;
 
 namespace Cliptoo.UI.Services
 {
-    public class ClipDetailsLoader : IClipDetailsLoader
+    internal class ClipDetailsLoader : IClipDetailsLoader
     {
         private readonly IImageDecoder _imageDecoder;
 
@@ -20,11 +22,15 @@ namespace Cliptoo.UI.Services
 
         public async Task<string?> GetThumbnailAsync(ClipViewModel vm, IThumbnailService thumbnailService, IWebMetadataService webMetadataService, string theme)
         {
-            var extension = Path.GetExtension(vm.Content)?.ToLowerInvariant() ?? string.Empty;
+            ArgumentNullException.ThrowIfNull(vm);
+            ArgumentNullException.ThrowIfNull(thumbnailService);
+            ArgumentNullException.ThrowIfNull(webMetadataService);
+
+            var extension = Path.GetExtension(vm.Content)?.ToUpperInvariant() ?? string.Empty;
 
             if (vm.ClipType == AppConstants.ClipTypes.Image)
             {
-                return await thumbnailService.GetThumbnailAsync(vm.Content, extension == ".svg" ? theme : null).ConfigureAwait(false);
+                return await thumbnailService.GetThumbnailAsync(vm.Content, extension == ".SVG" ? theme : null).ConfigureAwait(false);
             }
             if (vm.ClipType == AppConstants.ClipTypes.Link && Uri.TryCreate(vm.Content, UriKind.Absolute, out var uri))
             {
@@ -35,14 +41,20 @@ namespace Cliptoo.UI.Services
 
         public async Task<string?> GetImagePreviewAsync(ClipViewModel vm, IThumbnailService thumbnailService, uint size, string theme)
         {
+            ArgumentNullException.ThrowIfNull(vm);
+            ArgumentNullException.ThrowIfNull(thumbnailService);
+
             if (!vm.IsImage) return null;
 
-            var extension = Path.GetExtension(vm.Content)?.ToLowerInvariant() ?? string.Empty;
-            return await thumbnailService.GetImagePreviewAsync(vm.Content, size, extension == ".svg" ? theme : null);
+            var extension = Path.GetExtension(vm.Content)?.ToUpperInvariant() ?? string.Empty;
+            return await thumbnailService.GetImagePreviewAsync(vm.Content, size, extension == ".SVG" ? theme : null).ConfigureAwait(false);
         }
 
         public async Task<string?> GetPageTitleAsync(ClipViewModel vm, IWebMetadataService webMetadataService, CancellationToken token)
         {
+            ArgumentNullException.ThrowIfNull(vm);
+            ArgumentNullException.ThrowIfNull(webMetadataService);
+
             if (!vm.IsLinkToolTip || string.IsNullOrEmpty(vm.Content) || !Uri.TryCreate(vm.Content, UriKind.Absolute, out var uri)) return null;
 
             try
@@ -53,11 +65,11 @@ namespace Cliptoo.UI.Services
                     return string.IsNullOrWhiteSpace(title) ? vm.DisplayContent : title;
                 }
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
             {
                 if (!token.IsCancellationRequested)
                 {
-                    LogManager.Log(ex, "Failed to load page title.");
+                    LogManager.LogWarning($"Failed to load page title. Error: {ex.Message}");
                     return vm.DisplayContent;
                 }
             }
@@ -67,6 +79,8 @@ namespace Cliptoo.UI.Services
 
         public async Task<(string? properties, string? typeInfo, bool isMissing)> GetFilePropertiesAsync(ClipViewModel vm, CancellationToken token)
         {
+            ArgumentNullException.ThrowIfNull(vm);
+
             if (!vm.IsFileBased || string.IsNullOrEmpty(vm.Content))
             {
                 return (null, null, false);
@@ -92,22 +106,22 @@ namespace Cliptoo.UI.Services
                         DebugUtils.LogMemoryUsage("GetFilePropertiesAsync - Directory.Exists passed");
                         var dirInfo = new DirectoryInfo(path);
                         DebugUtils.LogMemoryUsage("GetFilePropertiesAsync - After new DirectoryInfo()");
-                        sb.AppendLine($"Modified: {dirInfo.LastWriteTime:yyyy-MM-dd HH:mm}");
+                        sb.AppendLine(CultureInfo.InvariantCulture, $"Modified: {dirInfo.LastWriteTime:yyyy-MM-dd HH:mm}");
                         fileTypeInfo = FormatUtils.GetFriendlyClipTypeName(vm.ClipType);
                         try
                         {
                             DebugUtils.LogMemoryUsage("GetFilePropertiesAsync - Before CalculateDirectorySize");
-                            var dirSize = await Task.Run(() => CalculateDirectorySize(dirInfo, token), token);
+                            var dirSize = await Task.Run(() => CalculateDirectorySize(dirInfo, token), token).ConfigureAwait(false);
                             DebugUtils.LogMemoryUsage("GetFilePropertiesAsync - After CalculateDirectorySize");
                             if (token.IsCancellationRequested) return;
-                            sb.AppendLine($"Size: {FormatUtils.FormatBytes(dirSize.Size)}");
-                            sb.AppendLine($"Contains: {dirSize.FileCount} files, {dirSize.FolderCount} folders");
+                            sb.AppendLine(CultureInfo.InvariantCulture, $"Size: {FormatUtils.FormatBytes(dirSize.Size)}");
+                            sb.AppendLine(CultureInfo.InvariantCulture, $"Contains: {dirSize.FileCount} files, {dirSize.FolderCount} folders");
                         }
                         catch (OperationCanceledException)
                         {
                             return;
                         }
-                        catch (Exception)
+                        catch (UnauthorizedAccessException)
                         {
                             sb.AppendLine("Size: (access denied)");
                         }
@@ -117,35 +131,35 @@ namespace Cliptoo.UI.Services
                         DebugUtils.LogMemoryUsage("GetFilePropertiesAsync - File.Exists passed");
                         var fileInfo = new FileInfo(path);
                         DebugUtils.LogMemoryUsage("GetFilePropertiesAsync - After new FileInfo()");
-                        sb.AppendLine($"Size: {FormatUtils.FormatBytes(fileInfo.Length)}");
-                        sb.AppendLine($"Modified: {fileInfo.LastWriteTime:yyyy-MM-dd HH:mm}");
-                        fileTypeInfo = $"{fileInfo.Extension.ToLower()} ({FormatUtils.GetFriendlyClipTypeName(vm.ClipType)})";
+                        sb.AppendLine(CultureInfo.InvariantCulture, $"Size: {FormatUtils.FormatBytes(fileInfo.Length)}");
+                        sb.AppendLine(CultureInfo.InvariantCulture, $"Modified: {fileInfo.LastWriteTime:yyyy-MM-dd HH:mm}");
+                        fileTypeInfo = $"{fileInfo.Extension.ToUpperInvariant()} ({FormatUtils.GetFriendlyClipTypeName(vm.ClipType)})";
 
                         if (vm.IsImage)
                         {
                             try
                             {
-                                var extension = Path.GetExtension(path).ToLowerInvariant();
+                                var extension = Path.GetExtension(path).ToUpperInvariant();
                                 using var stream = File.OpenRead(path);
 
-                                if (extension == ".jxl")
+                                if (extension == ".JXL")
                                 {
-                                    using var image = await _imageDecoder.DecodeAsync(stream, extension);
+                                    using var image = await _imageDecoder.DecodeAsync(stream, extension).ConfigureAwait(false);
                                     if (image != null)
                                     {
-                                        sb.AppendLine($"Dimensions: {image.Width} x {image.Height}");
+                                        sb.AppendLine(CultureInfo.InvariantCulture, $"Dimensions: {image.Width} x {image.Height}");
                                     }
                                 }
                                 else
                                 {
-                                    var imageInfo = await Image.IdentifyAsync(stream, token);
+                                    var imageInfo = await Image.IdentifyAsync(stream, token).ConfigureAwait(false);
                                     if (imageInfo != null)
                                     {
-                                        sb.AppendLine($"Dimensions: {imageInfo.Width} x {imageInfo.Height}");
+                                        sb.AppendLine(CultureInfo.InvariantCulture, $"Dimensions: {imageInfo.Width} x {imageInfo.Height}");
                                     }
                                 }
                             }
-                            catch { /* Ignore */ }
+                            catch (Exception ex) when (ex is IOException or NotSupportedException) { /* Ignore */ }
                         }
                     }
                     else
@@ -157,21 +171,21 @@ namespace Cliptoo.UI.Services
                     {
                         fileProperties = sb.ToString().Trim();
                     }
-                }, token);
+                }, token).ConfigureAwait(false);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 if (!token.IsCancellationRequested)
                 {
                     fileProperties = "Error reading properties.";
                 }
-                LogManager.Log(ex, "Failed to load file properties.");
+                LogManager.LogCritical(ex, "Failed to load file properties.");
             }
 
             return (fileProperties, fileTypeInfo, isMissing);
         }
 
-        private (long Size, int FileCount, int FolderCount) CalculateDirectorySize(DirectoryInfo dirInfo, CancellationToken token)
+        private static (long Size, int FileCount, int FolderCount) CalculateDirectorySize(DirectoryInfo dirInfo, CancellationToken token)
         {
             long size = 0;
             int fileCount = 0;

@@ -2,8 +2,8 @@ using System;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
-using Cliptoo.Core.Configuration;
 using Cliptoo.Core.Interfaces;
+using Cliptoo.Core.Logging;
 using Cliptoo.Core.Native;
 using Cliptoo.Core.Native.Models;
 using Cliptoo.Core.Services;
@@ -60,7 +60,8 @@ namespace Cliptoo.Core
         public Task InitializeAsync()
         {
             LogManager.LogDebug("Controller initializing...");
-            LogManager.LoggingLevel = _settingsService.Settings.LoggingLevel;
+            var settings = _settingsService.Settings;
+            LogManager.Configure(settings.LoggingLevel, settings.LogRetentionDays);
             _databaseService.CleanupTempFiles();
 
             ClipboardMonitor.ClipboardChanged += OnClipboardChangedAsync;
@@ -85,13 +86,13 @@ namespace Cliptoo.Core
             {
                 try
                 {
-                    LogManager.Log("File type definitions changed, starting re-classification of existing clips.");
+                    LogManager.LogInfo("File type definitions changed, starting re-classification of existing clips.");
                     int count = await _databaseService.ReclassifyAllClipsAsync().ConfigureAwait(false);
-                    LogManager.Log($"Re-classification complete. {count} clips updated.");
+                    LogManager.LogInfo($"Re-classification complete. {count} clips updated.");
                 }
                 catch (Exception ex) when (ex is IOException or SqliteException)
                 {
-                    LogManager.Log(ex, "Error during background re-classification.");
+                    LogManager.LogCritical(ex, "Error during background re-classification.");
                 }
             });
         }
@@ -113,7 +114,7 @@ namespace Cliptoo.Core
 
                     if ((DateTime.UtcNow - lastCleanup) > TimeSpan.FromDays(1))
                     {
-                        LogManager.Log("Idle timer check: Last heavy maintenance was over 24 hours ago. Triggering routine.");
+                        LogManager.LogInfo("Idle timer check: Last heavy maintenance was over 24 hours ago. Triggering routine.");
                         await _databaseService.RunHeavyMaintenanceNowAsync().ConfigureAwait(false);
                     }
                     else
@@ -123,7 +124,7 @@ namespace Cliptoo.Core
                 }
                 catch (Exception ex) when (ex is IOException or SqliteException)
                 {
-                    LogManager.Log(ex, "Error during scheduled cleanup.");
+                    LogManager.LogCritical(ex, "Error during scheduled cleanup.");
                 }
             });
         }
@@ -138,7 +139,7 @@ namespace Cliptoo.Core
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or UnknownImageFormatException or ImageFormatException or SqliteException)
                 {
-                    LogManager.Log(ex, "Error in ProcessClipboardChange. The operation will be skipped, but the application will continue.");
+                    LogManager.LogCritical(ex, "Error in ProcessClipboardChange. The operation will be skipped, but the application will continue.");
                     ProcessingFailed?.Invoke(this, new ProcessingFailedEventArgs("Failed to Save Clip", "Could not process and save the latest clipboard item. See logs for details."));
                 }
             });
@@ -176,7 +177,7 @@ namespace Cliptoo.Core
                 var imageBytes = (byte[])e.Content;
                 if (imageBytes.Length > maxBytes)
                 {
-                    LogManager.Log($"Image clip of size {imageBytes.Length} bytes exceeds limit of {maxBytes} bytes. Clip will be ignored.");
+                    LogManager.LogWarning($"Image clip of size {imageBytes.Length} bytes exceeds limit of {maxBytes} bytes. Clip will be ignored.");
                     return;
                 }
 
@@ -246,7 +247,7 @@ namespace Cliptoo.Core
             var bytes = new byte[maxBytes];
             encoder.Convert(text.AsSpan(), bytes, true, out int charsUsed, out _, out _);
             var truncatedText = text.Substring(0, charsUsed);
-            LogManager.Log($"{logContext} truncated to {maxBytes} bytes.");
+            LogManager.LogWarning($"{logContext} truncated to {maxBytes} bytes.");
             return (truncatedText, true);
         }
 
@@ -265,7 +266,7 @@ namespace Cliptoo.Core
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
             {
-                LogManager.Log(ex, $"Failed to parse .url file: {filePath}");
+                LogManager.LogCritical(ex, $"Failed to parse .url file: {filePath}");
             }
             return null;
         }
@@ -280,7 +281,7 @@ namespace Cliptoo.Core
         {
             if (disposing)
             {
-                LogManager.Log("Cliptoo shutting down.");
+                LogManager.LogInfo("Cliptoo shutting down.");
                 _cleanupTimer.Stop();
                 _cleanupTimer.Dispose();
                 _clipDataService.ClipDeleted -= OnClipDeleted;

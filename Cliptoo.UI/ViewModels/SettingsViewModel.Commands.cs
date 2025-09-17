@@ -80,7 +80,7 @@ namespace Cliptoo.UI.ViewModels
                 }
                 if (viewModel.DeleteLogs)
                 {
-                    await Task.Run(() => Core.Configuration.LogManager.ClearLogs()).ConfigureAwait(false);
+                    await Task.Run(() => Cliptoo.Core.Logging.LogManager.ClearLogs()).ConfigureAwait(false);
                 }
                 await InitializeAsync();
             }

@@ -2,6 +2,8 @@ using System;
 using System.IO;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using Cliptoo.Core.Logging;
 
 namespace Cliptoo.Core.Configuration
 {
@@ -18,7 +20,8 @@ namespace Cliptoo.Core.Configuration
             _options = new JsonSerializerOptions
             {
                 WriteIndented = true,
-                Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+                Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+                Converters = { new JsonStringEnumConverter() }
             };
         }
 
@@ -32,20 +35,20 @@ namespace Cliptoo.Core.Configuration
             try
             {
                 var json = File.ReadAllText(_settingsPath);
-                return JsonSerializer.Deserialize<Settings>(json) ?? new Settings();
+                return JsonSerializer.Deserialize<Settings>(json, _options) ?? new Settings();
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException or JsonException or NotSupportedException)
             {
-                LogManager.Log(ex, "Failed to load settings due to corruption or read error. Backing up and using defaults.");
+                LogManager.LogCritical(ex, "Failed to load settings due to corruption or read error. Backing up and using defaults.");
                 try
                 {
                     var backupPath = Path.ChangeExtension(_settingsPath, $".json.bak.{DateTime.Now:yyyyMMddHHmmss}");
                     File.Move(_settingsPath, backupPath);
-                    LogManager.Log($"Corrupt settings file backed up to: {backupPath}");
+                    LogManager.LogInfo($"Corrupt settings file backed up to: {backupPath}");
                 }
                 catch (Exception backupEx) when (backupEx is IOException or UnauthorizedAccessException or System.Security.SecurityException)
                 {
-                    LogManager.Log(backupEx, "Failed to back up corrupt settings file.");
+                    LogManager.LogCritical(backupEx, "Failed to back up corrupt settings file.");
                 }
                 return new Settings();
             }
@@ -60,7 +63,7 @@ namespace Cliptoo.Core.Configuration
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException or NotSupportedException)
             {
-                LogManager.Log(ex, "Failed to save settings.");
+                LogManager.LogCritical(ex, "Failed to save settings.");
             }
         }
     }

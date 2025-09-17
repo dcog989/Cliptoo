@@ -2,10 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Cliptoo.Core.Configuration;
 using Cliptoo.Core.Database;
 using Cliptoo.Core.Database.Models;
 using Cliptoo.Core.Interfaces;
+using Cliptoo.Core.Logging;
 
 namespace Cliptoo.Core.Services
 {

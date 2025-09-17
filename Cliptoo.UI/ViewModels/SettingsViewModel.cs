@@ -9,6 +9,7 @@ using Cliptoo.Core;
 using Cliptoo.Core.Configuration;
 using Cliptoo.Core.Database.Models;
 using Cliptoo.Core.Interfaces;
+using Cliptoo.Core.Logging;
 using Cliptoo.Core.Services;
 using Cliptoo.UI.Services;
 using Cliptoo.UI.ViewModels.Base;
@@ -191,7 +192,7 @@ namespace Cliptoo.UI.ViewModels
             {
                 case nameof(Settings.StartWithWindows):
                     _startupManagerService.SetStartup(Settings.StartWithWindows);
-                    LogManager.Log($"Setting 'Start with Windows' changed to: {Settings.StartWithWindows}");
+                    LogManager.LogInfo($"Setting 'Start with Windows' changed to: {Settings.StartWithWindows}");
                     break;
                 case nameof(Settings.AccentChromaLevel):
                     _themeService.ApplyAccentColor(_accentHue);
@@ -199,7 +200,7 @@ namespace Cliptoo.UI.ViewModels
                     AccentBrush = (SolidColorBrush)Application.Current.Resources["AccentBrush"];
                     break;
                 case nameof(Settings.Theme):
-                    LogManager.Log($"Setting 'Theme' changed to: {Settings.Theme}");
+                    LogManager.LogInfo($"Setting 'Theme' changed to: {Settings.Theme}");
                     _themeService.ApplyThemeFromSettings();
                     UpdateOklchHueBrush();
                     AccentBrush = (SolidColorBrush)Application.Current.Resources["AccentBrush"];
@@ -250,7 +251,7 @@ namespace Cliptoo.UI.ViewModels
             }
             catch (SqliteException ex)
             {
-                LogManager.Log(ex, "Failed to load database stats.");
+                LogManager.LogCritical(ex, "Failed to load database stats.");
                 Stats = new DbStats();
             }
         }
@@ -329,7 +330,7 @@ namespace Cliptoo.UI.ViewModels
             }
             catch (Exception ex)
             {
-                LogManager.Log(ex, "Failed to populate system fonts. Using fallbacks.");
+                LogManager.LogCritical(ex, "Failed to populate system fonts. Using fallbacks.");
                 if (SystemFonts.Count == 0)
                 {
                     SystemFonts.Add("Source Code Pro");

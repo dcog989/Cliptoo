@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
-using Cliptoo.Core.Configuration;
+using Cliptoo.Core.Logging;
 
 namespace Cliptoo.Core.Native
 {
@@ -156,7 +156,7 @@ namespace Cliptoo.Core.Native
                 if (releaseResult == 0)
                 {
                     int errorCode = Marshal.GetLastWin32Error();
-                    LogManager.LogDebug($"PASTE_DIAG: ERROR - InputSimulator: Modifier key release SendInput failed with Win32 error code: {errorCode}");
+                    LogManager.LogError($"PASTE_DIAG: ERROR - InputSimulator: Modifier key release SendInput failed with Win32 error code: {errorCode}");
                 }
                 await Task.Delay(30).ConfigureAwait(false); // Give a moment for the OS to process the key-up events
             }
@@ -174,7 +174,7 @@ namespace Cliptoo.Core.Native
             if (result == 0)
             {
                 int errorCode = Marshal.GetLastWin32Error();
-                LogManager.LogDebug($"PASTE_DIAG: ERROR - InputSimulator: SendInput failed with Win32 error code: {errorCode}");
+                LogManager.LogError($"PASTE_DIAG: ERROR - InputSimulator: SendInput failed with Win32 error code: {errorCode}");
             }
             else
             {

@@ -3,9 +3,9 @@ using System.Text;
 using System.Windows;
 using System.Windows.Media.Imaging;
 using Cliptoo.Core;
-using Cliptoo.Core.Configuration;
 using Cliptoo.Core.Database.Models;
 using Cliptoo.Core.Interfaces;
+using Cliptoo.Core.Logging;
 using Cliptoo.Core.Native;
 using Cliptoo.Core.Services;
 using Cliptoo.UI.Helpers;
@@ -37,7 +37,7 @@ namespace Cliptoo.UI.Services
 
             var settings = _settingsService.Settings;
             bool pasteAsPlainText = forcePlainText ?? settings.PasteAsPlainText;
-            LogManager.Log($"Setting clipboard content: ID={clip.Id}, AsPlainText={pasteAsPlainText}.");
+            LogManager.LogInfo($"Setting clipboard content: ID={clip.Id}, AsPlainText={pasteAsPlainText}.");
             bool isFileOperation = !pasteAsPlainText && (clip.ClipType.StartsWith("file_", StringComparison.Ordinal) || clip.ClipType == AppConstants.ClipTypes.Folder);
 
             if (isFileOperation)
@@ -151,7 +151,7 @@ namespace Cliptoo.UI.Services
 
             _clipboardMonitor.SuppressNextClip(hashesToSuppress.ToArray());
 
-            LogManager.Log($"Pasting transformed text. Length: {text.Length}.");
+            LogManager.LogInfo($"Pasting transformed text. Length: {text.Length}.");
             if (await ClipboardUtils.SafeSet(() => Clipboard.SetText(text, TextDataFormat.UnicodeText)).ConfigureAwait(false))
             {
                 await InputSimulator.SendPasteAsync().ConfigureAwait(false);

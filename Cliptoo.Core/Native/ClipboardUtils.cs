@@ -2,7 +2,7 @@ using System;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
-using Cliptoo.Core.Configuration;
+using Cliptoo.Core.Logging;
 
 namespace Cliptoo.Core.Native
 {
@@ -27,11 +27,11 @@ namespace Cliptoo.Core.Native
                 }
                 catch (Exception ex) when (ex is NullReferenceException or InvalidOperationException)
                 {
-                    LogManager.Log(ex, "An unexpected error occurred while getting clipboard data.");
+                    LogManager.LogCritical(ex, "An unexpected error occurred while getting clipboard data.");
                     return default;
                 }
             }
-            LogManager.Log($"Failed to get clipboard data after {MaxRetries} retries.");
+            LogManager.LogWarning($"Failed to get clipboard data after {MaxRetries} retries.");
             return default;
         }
 
@@ -52,11 +52,11 @@ namespace Cliptoo.Core.Native
                 }
                 catch (Exception ex) when (ex is NullReferenceException or InvalidOperationException)
                 {
-                    LogManager.Log(ex, "An unexpected error occurred while setting clipboard data.");
+                    LogManager.LogCritical(ex, "An unexpected error occurred while setting clipboard data.");
                     return false;
                 }
             }
-            LogManager.Log($"Failed to set clipboard data after {MaxRetries} retries.");
+            LogManager.LogWarning($"Failed to set clipboard data after {MaxRetries} retries.");
             return false;
         }
 

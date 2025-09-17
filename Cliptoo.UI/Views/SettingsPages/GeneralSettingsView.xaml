@@ -4,6 +4,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:helpers="clr-namespace:Cliptoo.UI.Helpers"
+    xmlns:logging="clr-namespace:Cliptoo.Core.Logging;assembly=Cliptoo.Core"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:sys="clr-namespace:System;assembly=mscorlib"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
@@ -11,11 +12,14 @@
     d:DesignWidth="800"
     mc:Ignorable="d">
     <UserControl.Resources>
-        <x:Array x:Key="LoggingLevelOptions" Type="sys:String">
-            <sys:String>None</sys:String>
-            <sys:String>Info</sys:String>
-            <sys:String>Debug</sys:String>
-        </x:Array>
+        <ObjectDataProvider
+            x:Key="LogLevelEnumValues"
+            MethodName="GetValues"
+            ObjectType="{x:Type sys:Enum}">
+            <ObjectDataProvider.MethodParameters>
+                <x:Type TypeName="logging:LogLevel" />
+            </ObjectDataProvider.MethodParameters>
+        </ObjectDataProvider>
     </UserControl.Resources>
     <ScrollViewer Padding="15,20,15,15" VerticalScrollBarVisibility="Auto">
         <StackPanel>
@@ -32,7 +36,7 @@
                     Text="with logging level" />
                 <ComboBox
                     MinWidth="100"
-                    ItemsSource="{StaticResource LoggingLevelOptions}"
+                    ItemsSource="{Binding Source={StaticResource LogLevelEnumValues}}"
                     SelectedItem="{Binding LoggingLevel}"
                     Style="{StaticResource SettingsComboBoxStyle}" />
             </StackPanel>

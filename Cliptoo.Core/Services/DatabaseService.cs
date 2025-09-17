@@ -3,10 +3,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Cliptoo.Core.Configuration;
 using Cliptoo.Core.Database;
 using Cliptoo.Core.Database.Models;
 using Cliptoo.Core.Interfaces;
+using Cliptoo.Core.Logging;
 
 namespace Cliptoo.Core.Services
 {
@@ -60,7 +60,7 @@ namespace Cliptoo.Core.Services
 
         public void ClearCaches()
         {
-            LogManager.Log("Clearing thumbnail and temp file caches.");
+            LogManager.LogInfo("Clearing thumbnail and temp file caches.");
             _thumbnailService.ClearCache();
             _webMetadataService.ClearCache();
             _iconCacheManager.ClearCache();
@@ -71,7 +71,7 @@ namespace Cliptoo.Core.Services
 
         public async Task<MaintenanceResult> RunHeavyMaintenanceNowAsync()
         {
-            LogManager.Log("User triggered heavy maintenance routine.");
+            LogManager.LogInfo("User triggered heavy maintenance routine.");
             return await RunHeavyMaintenanceAsync().ConfigureAwait(false);
         }
 
@@ -127,7 +127,7 @@ namespace Cliptoo.Core.Services
 
         private async Task<MaintenanceResult> RunHeavyMaintenanceAsync()
         {
-            LogManager.Log("Starting heavy maintenance routine...");
+            LogManager.LogInfo("Starting heavy maintenance routine...");
             var settings = _settingsService.Settings;
             var initialStats = await _dbManager.GetStatsAsync().ConfigureAwait(false);
 
@@ -136,20 +136,20 @@ namespace Cliptoo.Core.Services
             int cleaned = await _dbManager.PerformCleanupAsync(settings.CleanupAgeDays, settings.MaxClipsTotal, true).ConfigureAwait(false);
             if (cleaned > 0)
             {
-                LogManager.Log($"Database cleanup complete. Removed {cleaned} items.");
+                LogManager.LogInfo($"Database cleanup complete. Removed {cleaned} items.");
             }
 
             var validImagePathsStream = _dbManager.GetAllImageClipPathsAsync();
             int prunedImageCount = await _thumbnailService.PruneCacheAsync(validImagePathsStream, settings.HoverImagePreviewSize).ConfigureAwait(false);
             if (prunedImageCount > 0)
             {
-                LogManager.Log($"Image cache cleanup complete. Removed {prunedImageCount} orphaned files.");
+                LogManager.LogInfo($"Image cache cleanup complete. Removed {prunedImageCount} orphaned files.");
             }
 
             int prunedFaviconCount = await _webMetadataService.PruneCacheAsync().ConfigureAwait(false);
             if (prunedFaviconCount > 0)
             {
-                LogManager.Log($"Favicon cache cleanup complete. Removed {prunedFaviconCount} orphaned files.");
+                LogManager.LogInfo($"Favicon cache cleanup complete. Removed {prunedFaviconCount} orphaned files.");
             }
 
             int iconCacheCleaned = _iconCacheManager.CleanupIconCache();
@@ -162,13 +162,13 @@ namespace Cliptoo.Core.Services
             int prunedClipboardImageCount = await ServiceUtils.PruneDirectoryAsync(_clipboardImageCachePath, validClipboardImages).ConfigureAwait(false);
             if (prunedClipboardImageCount > 0)
             {
-                LogManager.Log($"Clipboard Image Cache cleanup complete. Removed {prunedClipboardImageCount} orphaned files.");
+                LogManager.LogInfo($"Clipboard Image Cache cleanup complete. Removed {prunedClipboardImageCount} orphaned files.");
             }
 
             int reclassifiedCount = await ReclassifyAllClipsAsync().ConfigureAwait(false);
             if (reclassifiedCount > 0)
             {
-                LogManager.Log($"File re-classification complete. Updated {reclassifiedCount} clips.");
+                LogManager.LogInfo($"File re-classification complete. Updated {reclassifiedCount} clips.");
             }
 
             await _dbManager.UpdateLastCleanupTimestampAsync().ConfigureAwait(false);
@@ -194,7 +194,7 @@ namespace Cliptoo.Core.Services
             {
                 summary = "Maintenance complete. No items required cleaning.";
             }
-            LogManager.Log(summary);
+            LogManager.LogInfo(summary);
 
             LogManager.LogDebug("Heavy maintenance routine finished.");
             LogManager.LogDebug($"Maintenance result: {cleaned} clips cleaned, {prunedImageCount} images pruned, {prunedFaviconCount} favicons pruned, {reclassifiedCount} reclassified, {tempFilesCleaned} temp files cleaned, {iconCacheCleaned} icons pruned, {prunedClipboardImageCount} clipboard images pruned. DB size change: {sizeChange:F2} MB.");
@@ -233,18 +233,18 @@ namespace Cliptoo.Core.Services
                     }
                     catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                     {
-                        LogManager.Log(ex, $"Could not delete old temp file: {file}");
+                        LogManager.LogWarning($"Could not delete old temp file: {file}. Error: {ex.Message}");
                     }
                 }
                 if (filesDeleted > 0)
                 {
-                    LogManager.Log($"Cleaned up {filesDeleted} old temporary files.");
+                    LogManager.LogInfo($"Cleaned up {filesDeleted} old temporary files.");
                 }
                 return filesDeleted;
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                LogManager.Log(ex, "Failed to perform temp file cleanup.");
+                LogManager.LogCritical(ex, "Failed to perform temp file cleanup.");
                 return 0;
             }
         }

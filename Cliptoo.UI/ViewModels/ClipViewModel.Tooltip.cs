@@ -1,8 +1,9 @@
+using System.Globalization;
 using System.IO;
 using System.Text;
 using Cliptoo.Core;
 using Cliptoo.Core.Database.Models;
-using Cliptoo.Core.Configuration;
+using Cliptoo.Core.Logging;
 using Cliptoo.UI.Helpers;
 using System.Windows.Media.Imaging;
 
@@ -48,14 +49,14 @@ namespace Cliptoo.UI.ViewModels
                     {
                         using var reader = new StreamReader(Content, true);
                         var buffer = new char[4096];
-                        int charsRead = await reader.ReadAsync(buffer, 0, buffer.Length);
+                        int charsRead = await reader.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false);
                         textFileContent = new string(buffer, 0, charsRead);
                     }
                 }
-                catch (Exception ex)
+                catch (IOException ex)
                 {
-                    LogManager.Log(ex, "Failed to read text file for tooltip preview.");
-                    if (ex is IOException && (uint)ex.HResult == 0x80070020)
+                    LogManager.LogWarning($"Failed to read text file for tooltip preview. Error: {ex.Message}");
+                    if ((uint)ex.HResult == 0x80070020)
                     {
                         textFileContent = "Error: File is in use.";
                     }
@@ -66,17 +67,13 @@ namespace Cliptoo.UI.ViewModels
                 }
             }
 
-            var loadTasks = new List<Task>();
-            if (IsFileBased)
+            var loadTasks = new List<Task>
             {
-                loadTasks.Add(LoadFilePropertiesAsync());
-            }
-            if (IsLinkToolTip)
-            {
-                loadTasks.Add(LoadPageTitleAsync());
-            }
+                LoadFilePropertiesAsync(),
+                LoadPageTitleAsync()
+            };
 
-            await Task.WhenAll(loadTasks);
+            await Task.WhenAll(loadTasks).ConfigureAwait(false);
 
             GenerateTooltipProperties(clipForTooltip, textFileContent);
             _isTooltipContentLoaded = true;
@@ -87,8 +84,13 @@ namespace Cliptoo.UI.ViewModels
         {
             if (!_isTooltipContentLoaded) return;
 
+            // Using Cancel() is acceptable here as no callbacks are registered on the tokens,
+            // preventing any blocking behavior that CA1849 warns against. The cost of
+            // converting the entire call chain to async outweighs the benefit for this specific use case.
+#pragma warning disable CA1849 // Use CancelAsync when available
             _pageTitleCts?.Cancel();
             _filePropertiesCts?.Cancel();
+#pragma warning restore CA1849
 
             // Clear all data loaded specifically for the tooltip
             TooltipTextContent = null;
@@ -139,7 +141,7 @@ namespace Cliptoo.UI.ViewModels
                     }
                 }
 
-                if (totalLines == 0 && contentForTooltip.Length > 0 && !contentForTooltip.Contains('\n'))
+                if (totalLines == 0 && contentForTooltip.Length > 0 && !contentForTooltip.Contains('\n', StringComparison.Ordinal))
                 {
                     totalLines = 1;
                 }
@@ -147,11 +149,11 @@ namespace Cliptoo.UI.ViewModels
                 // Now format the output with correct padding
                 var finalSb = new StringBuilder();
                 var lines = sb.ToString().Split(new[] { Environment.NewLine }, StringSplitOptions.None);
-                int numberPadding = totalLines.ToString().Length;
+                int numberPadding = totalLines.ToString(CultureInfo.InvariantCulture).Length;
 
                 for (int i = 0; i < linesProcessed; i++)
                 {
-                    finalSb.AppendLine($"{(i + 1).ToString().PadLeft(numberPadding)} | {lines[i]}");
+                    finalSb.AppendLine(CultureInfo.InvariantCulture, $"{(i + 1).ToString(CultureInfo.InvariantCulture).PadLeft(numberPadding)} | {lines[i]}");
                 }
 
                 if (!IsFileBased)
@@ -167,7 +169,7 @@ namespace Cliptoo.UI.ViewModels
 
                 if (totalLines > MaxTooltipLines)
                 {
-                    finalSb.AppendLine($"\n... (truncated - {totalLines - MaxTooltipLines} more lines)");
+                    finalSb.AppendLine(CultureInfo.InvariantCulture, $"\n... (truncated - {totalLines - MaxTooltipLines} more lines)");
                 }
 
                 TooltipTextContent = finalSb.ToString();
@@ -193,7 +195,7 @@ namespace Cliptoo.UI.ViewModels
                 return;
             }
 
-            var imagePreviewPath = await _clipDetailsLoader.GetImagePreviewAsync(this, _thumbnailService, largestDimension, _theme);
+            var imagePreviewPath = await _clipDetailsLoader.GetImagePreviewAsync(this, _thumbnailService, largestDimension, _theme).ConfigureAwait(false);
 
             if (!string.IsNullOrEmpty(imagePreviewPath))
             {
@@ -210,9 +212,9 @@ namespace Cliptoo.UI.ViewModels
                     bitmapImage.Freeze();
                     ImagePreviewSource = bitmapImage;
                 }
-                catch (Exception ex)
+                catch (IOException ex)
                 {
-                    LogManager.Log(ex, $"Failed to load image preview from path: {imagePreviewPath}");
+                    LogManager.LogWarning($"Failed to load image preview from path: {imagePreviewPath}. Error: {ex.Message}");
                     ImagePreviewSource = null;
                 }
             }
@@ -224,14 +226,14 @@ namespace Cliptoo.UI.ViewModels
 
         public async Task LoadPageTitleAsync()
         {
-            _pageTitleCts?.Cancel();
+            if (_pageTitleCts is not null) await _pageTitleCts.CancelAsync().ConfigureAwait(false);
             _pageTitleCts = new CancellationTokenSource();
             var token = _pageTitleCts.Token;
 
             if (IsPageTitleLoading || !string.IsNullOrEmpty(PageTitle)) return;
             IsPageTitleLoading = true;
 
-            PageTitle = await _clipDetailsLoader.GetPageTitleAsync(this, _webMetadataService, token);
+            PageTitle = await _clipDetailsLoader.GetPageTitleAsync(this, _webMetadataService, token).ConfigureAwait(false);
 
             if (!token.IsCancellationRequested)
             {
@@ -241,7 +243,7 @@ namespace Cliptoo.UI.ViewModels
 
         public async Task LoadFilePropertiesAsync()
         {
-            _filePropertiesCts?.Cancel();
+            if (_filePropertiesCts is not null) await _filePropertiesCts.CancelAsync().ConfigureAwait(false);
             _filePropertiesCts = new CancellationTokenSource();
             var token = _filePropertiesCts.Token;
 
@@ -252,7 +254,7 @@ namespace Cliptoo.UI.ViewModels
             FileTypeInfo = null;
             FileTypeInfoIcon = null;
 
-            var (properties, typeInfo, isMissing) = await _clipDetailsLoader.GetFilePropertiesAsync(this, token);
+            var (properties, typeInfo, isMissing) = await _clipDetailsLoader.GetFilePropertiesAsync(this, token).ConfigureAwait(false);
 
             if (!token.IsCancellationRequested)
             {
@@ -263,7 +265,7 @@ namespace Cliptoo.UI.ViewModels
 
                 if (!isMissing && !string.IsNullOrEmpty(ClipType))
                 {
-                    FileTypeInfoIcon = await _iconProvider.GetIconAsync(this.ClipType, 16);
+                    FileTypeInfoIcon = await _iconProvider.GetIconAsync(this.ClipType, 16).ConfigureAwait(false);
                 }
             }
         }

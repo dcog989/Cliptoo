@@ -5,6 +5,7 @@ using Cliptoo.Core;
 using Cliptoo.Core.Configuration;
 using Cliptoo.Core.Database;
 using Cliptoo.Core.Interfaces;
+using Cliptoo.Core.Logging;
 using Cliptoo.Core.Native;
 using Cliptoo.Core.Services;
 using Cliptoo.UI.Native;
@@ -18,9 +19,10 @@ using Wpf.Ui.Tray;
 
 namespace Cliptoo.UI
 {
-    public partial class App : Application
+    public partial class App : Application, IDisposable
     {
         private IHost? _host; private Mutex? _mutex;
+        private bool _disposedValue;
 
         public static IServiceProvider Services { get; private set; } = null!;
 
@@ -50,11 +52,11 @@ namespace Cliptoo.UI
                 InitializeComponent();
                 LogManager.LogDebug("InitializeComponent() completed successfully.");
             }
-            catch (Exception ex)
+            catch (IOException ex)
             {
-                LogManager.Log(ex, "A fatal error occurred during application startup (InitializeComponent).");
+                LogManager.LogCritical(ex, "A fatal file access error occurred during application startup (InitializeComponent).");
                 var logFolder = Path.Combine(roamingPath, "Cliptoo", "Logs");
-                MessageBox.Show($"A fatal error occurred during application startup. Please check the log files in '{logFolder}'.", "Cliptoo Startup Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"A fatal file access error occurred during application startup. Please check the log files in '{logFolder}'.", "Cliptoo Startup Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 Environment.Exit(1);
             }
 
@@ -188,12 +190,12 @@ namespace Cliptoo.UI
                 Services = _host.Services;
                 LogManager.LogDebug("Host built and services configured.");
 
-                await _host.StartAsync();
+                await _host.StartAsync().ConfigureAwait(false);
                 LogManager.LogDebug("Host started.");
             }
             catch (Exception ex)
             {
-                LogManager.Log(ex, "A fatal error occurred during application startup.");
+                LogManager.LogCritical(ex, "A fatal error occurred during application startup.");
                 MessageBox.Show($"A fatal error occurred during application startup and has been logged. The application will now exit.\n\nError: {ex.Message}", "Cliptoo Startup Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 Application.Current.Shutdown();
             }
@@ -201,27 +203,30 @@ namespace Cliptoo.UI
 
         protected override async void OnExit(ExitEventArgs e)
         {
-            _mutex?.ReleaseMutex();
-            _mutex?.Dispose();
             LogManager.LogDebug("App.OnExit called.");
             if (_host != null)
             {
-                await _host.StopAsync();
+                await _host.StopAsync().ConfigureAwait(false);
             }
-            LogManager.Log("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-            LogManager.Log($"Application shutdown complete on {DateTime.Now:yyyyMMdd}.");
-            LogManager.Log("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n");
+            LogManager.LogInfo("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+            LogManager.LogInfo($"Application shutdown complete on {DateTime.Now:yyyyMMdd}.");
+            LogManager.LogInfo("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n");
+            LogManager.Shutdown();
+            Dispose();
         }
 
         private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
         {
             try
             {
-                LogManager.Log(e.Exception, "An unhandled UI exception occurred, which caused the application to crash.");
+                LogManager.LogCritical(e.Exception, "An unhandled UI exception occurred, which caused the application to crash.");
             }
-            catch (Exception logEx)
+            // This catch is intentionally broad. Its purpose is to handle a catastrophic failure
+            // where the logging system itself throws an exception. In this last-resort scenario,
+            // we must inform the user directly, as logging is no longer an option.
+            catch (Exception)
             {
-                MessageBox.Show($"A fatal UI error occurred, and the logging system also failed.\n\nOriginal Error:\n{e.Exception.Message}\n\nLogging Error:\n{logEx.Message}", "Cliptoo Critical Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"A fatal UI error occurred, and the logging system also failed.\n\nOriginal Error:\n{e.Exception.Message}", "Cliptoo Critical Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 Application.Current.Shutdown();
                 return;
             }
@@ -235,5 +240,26 @@ namespace Cliptoo.UI
             MessageBox.Show(message, "Cliptoo Error", MessageBoxButton.OK, MessageBoxImage.Error);
             Application.Current.Shutdown();
         }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!_disposedValue)
+            {
+                if (disposing)
+                {
+                    _mutex?.ReleaseMutex();
+                    _mutex?.Dispose();
+                }
+
+                _disposedValue = true;
+            }
+        }
+
+        public void Dispose()
+        {
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
+        }
+
     }
 }

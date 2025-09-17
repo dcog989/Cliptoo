@@ -25,6 +25,8 @@ namespace Cliptoo.UI.Views
             _viewModel.ListScrolledToTopRequest += OnListScrolledToTopRequest;
         }
 
+        public SnackbarPresenter SnackbarPresenter => RootSnackbarPresenter;
+
         private void OnListScrolledToTopRequest(object? sender, EventArgs e)
         {
             Dispatcher.BeginInvoke(DispatcherPriority.ContextIdle, new Action(() =>
@@ -110,9 +112,9 @@ namespace Cliptoo.UI.Views
             }
         }
 
-        private async void MainWindow_Deactivated(object? sender, EventArgs e)
+        private void MainWindow_Deactivated(object? sender, EventArgs e)
         {
-            await _viewModel.HandleWindowDeactivated();
+            _viewModel.HandleWindowDeactivated();
         }
 
         protected override void OnClosed(EventArgs e)

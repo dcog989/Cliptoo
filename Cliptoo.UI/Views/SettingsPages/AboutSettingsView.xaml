@@ -60,13 +60,13 @@
                 <Run Text="{Binding ExePathFile, Mode=OneWay}" />
             </TextBlock>
             <TextBlock Margin="0,5,0,0" TextBlock.TextAlignment="Center">
-                <Run Text="Settings + data stored at " />
+                <Run Text="Settings, data, and logs stored at " />
                 <Hyperlink Command="{Binding OpenSettingsFolderCommand}">
                     <Run Text="{Binding SettingsFolderPath, Mode=OneWay}" />
                 </Hyperlink>
             </TextBlock>
             <TextBlock Margin="0,5,0,0" TextBlock.TextAlignment="Center">
-                <Run Text="Cached images stored at " />
+                <Run Text="Temporary caches stored at " />
                 <Hyperlink Command="{Binding OpenTempDataFolderCommand}">
                     <Run Text="{Binding TempDataPath, Mode=OneWay}" />
                 </Hyperlink>

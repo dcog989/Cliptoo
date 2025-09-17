@@ -8,6 +8,7 @@ using Cliptoo.Core;
 using Cliptoo.Core.Configuration;
 using Cliptoo.Core.Database.Models;
 using Cliptoo.Core.Interfaces;
+using Cliptoo.Core.Logging;
 using Cliptoo.Core.Services;
 using Cliptoo.UI.Helpers;
 using Cliptoo.UI.Services;
@@ -16,7 +17,7 @@ using Cliptoo.UI.ViewModels.Base;
 namespace Cliptoo.UI.ViewModels
 {
 
-    public partial class ClipViewModel : ViewModelBase
+    public partial class ClipViewModel : ViewModelBase, IDisposable
     {
         internal Clip _clip;
         private readonly IClipDetailsLoader _clipDetailsLoader;
@@ -62,6 +63,9 @@ namespace Cliptoo.UI.ViewModels
         private ImageSource? _clipTypeIcon;
         private ImageSource? _quickPasteIcon;
         private ImageSource? _fileTypeInfoIcon;
+        private bool _disposedValue;
+        private static readonly char[] _spaceSeparator = [' '];
+
         public ImageSource? ClipTypeIcon { get => _clipTypeIcon; private set => SetProperty(ref _clipTypeIcon, value); }
         public ImageSource? QuickPasteIcon { get => _quickPasteIcon; private set => SetProperty(ref _quickPasteIcon, value); }
         public ImageSource? FileTypeInfoIcon { get => _fileTypeInfoIcon; private set => SetProperty(ref _fileTypeInfoIcon, value); }
@@ -240,7 +244,7 @@ namespace Cliptoo.UI.ViewModels
                         return !Directory.Exists(path);
                     }
                     return !File.Exists(path);
-                });
+                }).ConfigureAwait(false);
             }
             IsSourceMissing = isMissing;
         }
@@ -265,7 +269,7 @@ namespace Cliptoo.UI.ViewModels
         private void UpdatePreviewText()
         {
             string basePreview;
-            bool isFtsMatch = !string.IsNullOrWhiteSpace(_clip.MatchContext) && _clip.MatchContext.Contains("[HL]");
+            bool isFtsMatch = !string.IsNullOrWhiteSpace(_clip.MatchContext) && _clip.MatchContext.Contains("[HL]", StringComparison.Ordinal);
 
             if (isFtsMatch)
             {
@@ -302,7 +306,7 @@ namespace Cliptoo.UI.ViewModels
                 var searchTerm = MainViewModel.SearchTerm;
                 if (!isFtsMatch && !string.IsNullOrEmpty(searchTerm))
                 {
-                    var terms = searchTerm.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                    var terms = searchTerm.Split(_spaceSeparator, StringSplitOptions.RemoveEmptyEntries);
                     var tempPreview = basePreview;
                     foreach (var term in terms)
                     {
@@ -375,7 +379,7 @@ namespace Cliptoo.UI.ViewModels
                     }
                     catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
                     {
-                        LogManager.Log(ex, $"Failed to load thumbnail image source from path: {newThumbnailPath}");
+                        LogManager.LogWarning($"Failed to load thumbnail image source from path: {newThumbnailPath}. Error: {ex.Message}");
                     }
                 }
 
@@ -397,5 +401,23 @@ namespace Cliptoo.UI.ViewModels
             OnPropertyChanged(nameof(CanPasteAsRtf));
         }
 
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!_disposedValue)
+            {
+                if (disposing)
+                {
+                    _filePropertiesCts?.Dispose();
+                    _pageTitleCts?.Dispose();
+                }
+                _disposedValue = true;
+            }
+        }
+
+        public void Dispose()
+        {
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
+        }
     }
 }

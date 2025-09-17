@@ -2,7 +2,7 @@ using System;
 using System.ComponentModel;
 using System.IO;
 using System.Runtime.InteropServices;
-using Cliptoo.Core.Configuration;
+using Cliptoo.Core.Logging;
 
 namespace Cliptoo.Core.Native
 {
@@ -64,7 +64,7 @@ namespace Cliptoo.Core.Native
             }
             catch (Exception ex) when (ex is Win32Exception or NotSupportedException)
             {
-                LogManager.Log(ex, "Could not get foreground window process name. This might be due to permissions.");
+                LogManager.LogWarning($"Could not get foreground window process name. This might be due to permissions. Error: {ex.Message}");
             }
             return null;
         }

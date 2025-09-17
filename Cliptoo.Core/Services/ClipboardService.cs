@@ -1,9 +1,9 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
-using Cliptoo.Core.Configuration;
 using Cliptoo.Core.Database;
 using Cliptoo.Core.Interfaces;
+using Cliptoo.Core.Logging;
 
 namespace Cliptoo.Core.Services
 {
@@ -95,7 +95,7 @@ namespace Cliptoo.Core.Services
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception or ObjectDisposedException or FileNotFoundException)
             {
-                LogManager.Log(ex, "Failed to execute clip comparison.");
+                LogManager.LogCritical(ex, "Failed to execute clip comparison.");
                 return (false, "An error occurred while launching the comparison tool.");
             }
         }

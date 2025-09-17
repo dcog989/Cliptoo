@@ -1,15 +1,17 @@
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Media.Imaging;
 using Cliptoo.Core;
-using Cliptoo.Core.Configuration;
 using Cliptoo.Core.Database;
 using Cliptoo.Core.Interfaces;
+using Cliptoo.Core.Logging;
 using Cliptoo.Core.Native;
 using Cliptoo.Core.Services.Models;
 using Cliptoo.UI.ViewModels;
 using Cliptoo.UI.Views;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Wpf.Ui;
@@ -39,7 +41,7 @@ namespace Cliptoo.UI.Services
         private readonly IThemeService _themeService;
         private MainWindow? _mainWindow;
         private MainViewModel? _mainViewModel;
-        private IGlobalHotkey? _globalHotkey;
+        private GlobalHotkey? _globalHotkey;
         private HwndSource? _hwndSource;
 
         private System.Windows.Controls.MenuItem? _alwaysOnTopMenuItem;
@@ -75,13 +77,13 @@ namespace Cliptoo.UI.Services
         public async Task StartAsync(CancellationToken cancellationToken)
         {
             var appVersion = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "0.0.0";
-            LogManager.Log($"Cliptoo v{appVersion} starting up...");
+            LogManager.LogInfo($"Cliptoo v{appVersion} starting up...");
             LogManager.LogDebug("ApplicationHostService starting...");
             try
             {
-                await _dbManager.InitializeAsync();
+                await _dbManager.InitializeAsync().ConfigureAwait(false);
                 LogManager.LogDebug("Database initialized successfully.");
-                await _controller.InitializeAsync();
+                await _controller.InitializeAsync().ConfigureAwait(false);
                 await Application.Current.Dispatcher.InvokeAsync(async () =>
                 {
                     try
@@ -98,7 +100,11 @@ namespace Cliptoo.UI.Services
                         _mainViewModel = _serviceProvider.GetRequiredService<MainWindow>().DataContext as MainViewModel;
                         if (_mainViewModel != null)
                         {
+                            // This await must resume on the UI thread because the subsequent
+                            // lines access UI-bound properties.
+#pragma warning disable CA2007 // Consider calling ConfigureAwait on the awaited task
                             await _mainViewModel.InitializeAsync();
+#pragma warning restore CA2007
                             _mainViewModel.IsAlwaysOnTop = settings.IsAlwaysOnTop;
                             _mainViewModel.InitializeFirstFilter();
                         }
@@ -123,7 +129,7 @@ namespace Cliptoo.UI.Services
                         if (!_globalHotkey.Register(_currentHotkey))
                         {
                             var message = $"Failed to register the global hotkey '{_currentHotkey}'. It may be in use by another application. You can set a new one in Settings via the tray icon.";
-                            LogManager.Log(message);
+                            LogManager.LogWarning(message);
                             System.Windows.MessageBox.Show(message, "Cliptoo Warning", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
                         }
                         else
@@ -153,20 +159,20 @@ namespace Cliptoo.UI.Services
                         {
                             _mainViewModel.IsInitializing = false;
                             _ = _mainViewModel.LoadClipsAsync();
-                            LogManager.Log("Initialization COMPLETE.");
+                            LogManager.LogInfo("Initialization COMPLETE.");
                         }
                     }
-                    catch (Exception ex)
+                    catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
                     {
-                        LogManager.Log(ex, "FATAL: Unhandled exception during Dispatcher.InvokeAsync in ApplicationHostService.StartAsync.");
+                        LogManager.LogCritical(ex, "FATAL: Unhandled exception during Dispatcher.InvokeAsync in ApplicationHostService.StartAsync.");
                         System.Windows.MessageBox.Show($"A critical error occurred during startup and has been logged. The application will now exit.\n\nError: {ex.Message}", "Cliptoo Startup Error", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
                         Application.Current.Shutdown();
                     }
                 });
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is IOException or SqliteException)
             {
-                LogManager.Log(ex, "FATAL: Unhandled exception in ApplicationHostService.StartAsync before dispatcher invocation.");
+                LogManager.LogCritical(ex, "FATAL: Unhandled exception in ApplicationHostService.StartAsync before dispatcher invocation.");
                 System.Windows.MessageBox.Show($"A critical error occurred before the UI could be initialized. Please check the logs.\n\nError: {ex.Message}", "Cliptoo Startup Error", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
                 Application.Current.Shutdown();
             }
@@ -202,11 +208,12 @@ namespace Cliptoo.UI.Services
         private void OnSettingsChanged(object? sender, EventArgs e)
         {
             var settings = _settingsService.Settings;
+            LogManager.Configure(settings.LoggingLevel, settings.LogRetentionDays);
             if (_globalHotkey != null && _currentHotkey != settings.Hotkey)
             {
                 _currentHotkey = settings.Hotkey;
                 _globalHotkey.Register(_currentHotkey);
-                LogManager.Log($"Global hotkey re-registered to: {_currentHotkey}");
+                LogManager.LogInfo($"Global hotkey re-registered to: {_currentHotkey}");
             }
 
             Application.Current.Dispatcher.Invoke(() =>
@@ -280,7 +287,7 @@ namespace Cliptoo.UI.Services
             _notifyIconService.Register();
 
             if (_mainViewModel != null) _mainViewModel.IsAlwaysOnTop = _settingsService.Settings.IsAlwaysOnTop;
-            if (_alwaysOnTopMenuItem != null) _alwaysOnTopMenuItem.IsChecked = _settingsService.Settings.IsAlwaysOnTop;
+            _alwaysOnTopMenuItem.IsChecked = _settingsService.Settings.IsAlwaysOnTop;
         }
 
         private IntPtr HwndHook(IntPtr hwnd, int msg, IntPtr wparam, IntPtr lparam, ref bool handled)
@@ -314,11 +321,11 @@ namespace Cliptoo.UI.Services
             }
         }
 
-        private void OnViewModelAlwaysOnTopChanged(object? sender, bool isChecked)
+        private void OnViewModelAlwaysOnTopChanged(object? sender, BoolEventArgs e)
         {
             if (_alwaysOnTopMenuItem != null)
             {
-                _alwaysOnTopMenuItem.IsChecked = isChecked;
+                _alwaysOnTopMenuItem.IsChecked = e.Value;
             }
         }
 

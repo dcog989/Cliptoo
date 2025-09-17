@@ -6,6 +6,7 @@ using System.Windows.Threading;
 using Cliptoo.Core;
 using Cliptoo.Core.Configuration;
 using Cliptoo.Core.Interfaces;
+using Cliptoo.Core.Logging;
 using Cliptoo.UI.Services;
 using Cliptoo.UI.ViewModels.Base;
 using Wpf.Ui.Appearance;
@@ -13,6 +14,12 @@ using Wpf.Ui.Appearance;
 namespace Cliptoo.UI.ViewModels
 {
     public record FilterOption(string Name, string Key, ImageSource? Icon);
+
+    public class BoolEventArgs : EventArgs
+    {
+        public bool Value { get; }
+        public BoolEventArgs(bool value) { Value = value; }
+    }
 
     public partial class MainViewModel : ViewModelBase
     {
@@ -64,7 +71,7 @@ namespace Cliptoo.UI.ViewModels
         public ImageSource? PinIcon16 { get => _pinIcon16; private set => SetProperty(ref _pinIcon16, value); }
         private ImageSource? _errorIcon;
         public ImageSource? ErrorIcon { get => _errorIcon; private set => SetProperty(ref _errorIcon, value); }
-        public event EventHandler<bool>? AlwaysOnTopChanged;
+        public event EventHandler<BoolEventArgs>? AlwaysOnTopChanged;
         public event EventHandler? ListScrolledToTopRequest;
         public ObservableCollection<ClipViewModel> Clips { get; }
         public ObservableCollection<FilterOption> FilterOptions { get; }
@@ -137,7 +144,7 @@ namespace Cliptoo.UI.ViewModels
                     {
                         Application.Current.MainWindow.Topmost = value;
                     }
-                    AlwaysOnTopChanged?.Invoke(this, value);
+                    AlwaysOnTopChanged?.Invoke(this, new BoolEventArgs(value));
                     CurrentSettings.IsAlwaysOnTop = value;
                     _settingsService.SaveSettings();
                 }
@@ -272,8 +279,8 @@ namespace Cliptoo.UI.ViewModels
 
         public async Task InitializeAsync()
         {
-            await InitializeFilterOptionsAsync();
-            await LoadStaticIconsAsync();
+            await InitializeFilterOptionsAsync().ConfigureAwait(true);
+            await LoadStaticIconsAsync().ConfigureAwait(true);
         }
 
         public void InitializeFirstFilter()
@@ -285,13 +292,13 @@ namespace Cliptoo.UI.ViewModels
 
         private async Task LoadStaticIconsAsync()
         {
-            LogoIcon = await _iconProvider.GetIconAsync(AppConstants.IconKeys.Logo, 24);
-            MenuIcon = await _iconProvider.GetIconAsync(AppConstants.IconKeys.List, 28);
-            WasTrimmedIcon = await _iconProvider.GetIconAsync(AppConstants.IconKeys.WasTrimmed, 20);
-            MultiLineIcon = await _iconProvider.GetIconAsync(AppConstants.IconKeys.Multiline, 20);
-            PinIcon = await _iconProvider.GetIconAsync(AppConstants.IconKeys.Pin, 20);
-            PinIcon16 = await _iconProvider.GetIconAsync(AppConstants.IconKeys.Pin, 16);
-            ErrorIcon = await _iconProvider.GetIconAsync(AppConstants.IconKeys.Error, 32);
+            LogoIcon = await _iconProvider.GetIconAsync(AppConstants.IconKeys.Logo, 24).ConfigureAwait(true);
+            MenuIcon = await _iconProvider.GetIconAsync(AppConstants.IconKeys.List, 28).ConfigureAwait(true);
+            WasTrimmedIcon = await _iconProvider.GetIconAsync(AppConstants.IconKeys.WasTrimmed, 20).ConfigureAwait(true);
+            MultiLineIcon = await _iconProvider.GetIconAsync(AppConstants.IconKeys.Multiline, 20).ConfigureAwait(true);
+            PinIcon = await _iconProvider.GetIconAsync(AppConstants.IconKeys.Pin, 20).ConfigureAwait(true);
+            PinIcon16 = await _iconProvider.GetIconAsync(AppConstants.IconKeys.Pin, 16).ConfigureAwait(true);
+            ErrorIcon = await _iconProvider.GetIconAsync(AppConstants.IconKeys.Error, 32).ConfigureAwait(true);
         }
 
         private async void OnSettingsChanged(object? sender, EventArgs e)
@@ -387,7 +394,7 @@ namespace Cliptoo.UI.ViewModels
             FilterOptions.Clear();
             foreach (var key in orderedFilterKeys)
             {
-                var icon = await _iconProvider.GetIconAsync(key, 20);
+                var icon = await _iconProvider.GetIconAsync(key, 20).ConfigureAwait(true);
                 FilterOptions.Add(new FilterOption(filterDisplayNames[key], key, icon));
             }
         }
@@ -405,7 +412,7 @@ namespace Cliptoo.UI.ViewModels
         private async void OnDebounceTimerElapsed(object? sender, EventArgs e)
         {
             _debounceTimer.Stop();
-            await LoadClipsAsync(true);
+            await LoadClipsAsync(true).ConfigureAwait(false);
         }
 
         private void OnClearClipsTimerElapsed(object? sender, EventArgs e)
@@ -413,7 +420,7 @@ namespace Cliptoo.UI.ViewModels
             _clearClipsTimer.Stop();
             if (!IsWindowVisible && Clips.Count > 0)
             {
-                LogManager.Log("Delayed timer elapsed. Clearing clips collection to conserve memory.");
+                LogManager.LogInfo("Delayed timer elapsed. Clearing clips collection to conserve memory.");
                 Clips.Clear();
                 _currentOffset = 0;
             }
@@ -476,7 +483,7 @@ namespace Cliptoo.UI.ViewModels
             {
                 Application.Current.Dispatcher.InvokeAsync(async () =>
                 {
-                    await LoadClipsAsync(true);
+                    await LoadClipsAsync(true).ConfigureAwait(false);
                 });
                 _needsRefreshOnShow = false;
             }
@@ -530,39 +537,42 @@ namespace Cliptoo.UI.ViewModels
             }
         }
 
-        public async Task HandleWindowDeactivated()
+        public void HandleWindowDeactivated()
         {
-            await Task.Delay(50);
-
-            if (IsFilterPopupOpen)
+            Application.Current.Dispatcher.InvokeAsync(async () =>
             {
-                IsFilterPopupOpen = false;
-            }
+                await Task.Delay(50);
 
-            if (IsPreviewOpen)
-            {
-                RequestHidePreview();
-            }
+                if (IsFilterPopupOpen)
+                {
+                    IsFilterPopupOpen = false;
+                }
 
-            if (IsHidingExplicitly)
-            {
-                return;
-            }
+                if (IsPreviewOpen)
+                {
+                    RequestHidePreview();
+                }
 
-            if (Application.Current.Windows.OfType<Window>().Any(x => x != Application.Current.MainWindow && x.IsActive))
-            {
-                return;
-            }
+                if (IsHidingExplicitly)
+                {
+                    return;
+                }
 
-            if (Application.Current.MainWindow is not { IsVisible: true })
-            {
-                return;
-            }
+                if (Application.Current.Windows.OfType<Window>().Any(x => x != Application.Current.MainWindow && x.IsActive))
+                {
+                    return;
+                }
 
-            if (!IsAlwaysOnTop)
-            {
-                HideWindow();
-            }
+                if (Application.Current.MainWindow is not { IsVisible: true })
+                {
+                    return;
+                }
+
+                if (!IsAlwaysOnTop)
+                {
+                    HideWindow();
+                }
+            });
         }
 
         public void UpdateQuickPasteIndices()

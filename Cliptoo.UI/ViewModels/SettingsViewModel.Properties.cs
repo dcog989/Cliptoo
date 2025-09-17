@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Media;
 using Cliptoo.Core.Configuration;
 using Cliptoo.Core.Database.Models;
+using Cliptoo.Core.Logging;
 
 namespace Cliptoo.UI.ViewModels
 {
@@ -35,7 +36,7 @@ namespace Cliptoo.UI.ViewModels
                 if (Settings.Hotkey != value)
                 {
                     Settings.Hotkey = value;
-                    LogManager.Log($"Setting 'Main hotkey' changed to: {value}");
+                    LogManager.LogInfo($"Setting 'Main hotkey' changed to: {value}");
                     _settingsService.SaveSettings();
                 }
             }
@@ -75,7 +76,7 @@ namespace Cliptoo.UI.ViewModels
                 if (Settings.PreviewHotkey != value)
                 {
                     Settings.PreviewHotkey = value;
-                    LogManager.Log($"Setting 'Preview hotkey' changed to: {value}");
+                    LogManager.LogInfo($"Setting 'Preview hotkey' changed to: {value}");
                     _settingsService.SaveSettings();
                 }
             }
@@ -89,7 +90,7 @@ namespace Cliptoo.UI.ViewModels
                 if (Settings.QuickPasteHotkey != value)
                 {
                     Settings.QuickPasteHotkey = value;
-                    LogManager.Log($"Setting 'Quick Paste hotkey' changed to: {value}");
+                    LogManager.LogInfo($"Setting 'Quick Paste hotkey' changed to: {value}");
                     _settingsService.SaveSettings();
                 }
             }
@@ -192,7 +193,7 @@ namespace Cliptoo.UI.ViewModels
             set => Settings.PasteAsPlainText = value;
         }
 
-        public string LoggingLevel
+        public LogLevel LoggingLevel
         {
             get => Settings.LoggingLevel;
             set => Settings.LoggingLevel = value;

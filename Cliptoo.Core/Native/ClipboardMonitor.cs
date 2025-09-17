@@ -6,9 +6,9 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Windows;
+using Cliptoo.Core.Logging;
 using Cliptoo.Core.Native.Models;
 using Cliptoo.Core.Services;
-using Cliptoo.Core.Configuration;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Png;
 using SixLabors.ImageSharp.Processing;
@@ -100,7 +100,7 @@ namespace Cliptoo.Core.Native
                     return;
                 }
 
-                LogManager.LogDebug("A different clip was detected during the suppression window. Processing it.");
+                LogManager.LogInfo("A different clip was detected during the suppression window. Processing it.");
                 _suppressionResetTimer.Stop();
                 _hashesToSuppress.Clear();
                 _suppressionActive.Reset();

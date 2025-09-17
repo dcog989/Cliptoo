@@ -22,7 +22,6 @@ namespace Cliptoo.Core.Services
         public void SaveSettings()
         {
             _settingsManager.Save(_settings);
-            LogManager.LoggingLevel = _settings.LoggingLevel;
             SettingsChanged?.Invoke(this, EventArgs.Empty);
         }
     }

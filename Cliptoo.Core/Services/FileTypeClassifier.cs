@@ -5,7 +5,7 @@ using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Timers;
-using Cliptoo.Core.Configuration;
+using Cliptoo.Core.Logging;
 
 namespace Cliptoo.Core.Services
 {
@@ -90,7 +90,7 @@ namespace Cliptoo.Core.Services
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException or JsonException or NotSupportedException)
                 {
-                    LogManager.Log(ex, $"Failed to read or parse '{_configPath}'. Will use/create default.");
+                    LogManager.LogCritical(ex, $"Failed to read or parse '{_configPath}'. Will use/create default.");
                 }
             }
 
@@ -105,7 +105,7 @@ namespace Cliptoo.Core.Services
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException or NotSupportedException)
                 {
-                    LogManager.Log(ex, $"Failed to write default filetypes.json to '{_configPath}'. Will use in-memory default.");
+                    LogManager.LogCritical(ex, $"Failed to write default filetypes.json to '{_configPath}'. Will use in-memory default.");
                 }
             }
 

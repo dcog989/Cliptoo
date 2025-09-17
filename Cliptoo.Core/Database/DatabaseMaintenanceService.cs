@@ -5,7 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
-using Cliptoo.Core.Configuration;
+using Cliptoo.Core.Logging;
 
 namespace Cliptoo.Core.Database
 {
@@ -87,7 +87,7 @@ namespace Cliptoo.Core.Database
                 {
                     if (i == maxRetries - 1)
                     {
-                        LogManager.Log(ex, $"DB_LOCK_DIAG: Database compaction failed after {maxRetries} attempts. The database remained locked.");
+                        LogManager.LogCritical(ex, $"DB_LOCK_DIAG: Database compaction failed after {maxRetries} attempts. The database remained locked.");
                         break;
                     }
 

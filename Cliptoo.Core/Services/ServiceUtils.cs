@@ -5,7 +5,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
-using Cliptoo.Core.Configuration;
+using Cliptoo.Core.Logging;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
@@ -44,7 +44,7 @@ namespace Cliptoo.Core.Services
             }
             catch (Exception ex)
             {
-                LogManager.Log(ex, "SkiaSharp SVG rendering failed.");
+                LogManager.LogCritical(ex, "SkiaSharp SVG rendering failed.");
                 return null;
             }
         }
@@ -69,7 +69,7 @@ namespace Cliptoo.Core.Services
                 }
                 catch (IOException ex)
                 {
-                    LogManager.Log(ex, $"Failed to delete cached file: {file.FullName}");
+                    LogManager.LogWarning($"Failed to delete cached file: {file.FullName}. Error: {ex.Message}");
                 }
             }
             foreach (var dir in directory.EnumerateDirectories())
@@ -80,7 +80,7 @@ namespace Cliptoo.Core.Services
                 }
                 catch (IOException ex)
                 {
-                    LogManager.Log(ex, $"Failed to delete cached directory: {dir.FullName}");
+                    LogManager.LogWarning($"Failed to delete cached directory: {dir.FullName}. Error: {ex.Message}");
                 }
             }
         }
@@ -112,7 +112,7 @@ namespace Cliptoo.Core.Services
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or XmlException)
             {
                 var previewContent = isContentString ? (svgSource.Length > 500 ? svgSource.Substring(0, 500) : svgSource) : $"File: {svgSource}";
-                LogManager.Log(ex, $"SVG preview generation failed for {previewContent}");
+                LogManager.LogCritical(ex, $"SVG preview generation failed for {previewContent}");
                 return null;
             }
         }
@@ -136,7 +136,7 @@ namespace Cliptoo.Core.Services
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or DirectoryNotFoundException)
             {
-                LogManager.Log(ex, $"Failed to enumerate files for pruning in {directoryPath}");
+                LogManager.LogCritical(ex, $"Failed to enumerate files for pruning in {directoryPath}");
                 return 0;
             }
 
@@ -149,7 +149,7 @@ namespace Cliptoo.Core.Services
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
-                    LogManager.Log(ex, $"Could not delete orphaned cache file: {file}");
+                    LogManager.LogWarning($"Could not delete orphaned cache file: {file}. Error: {ex.Message}");
                 }
             }
             return count;

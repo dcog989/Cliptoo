@@ -3,8 +3,8 @@ using System.IO;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using Cliptoo.Core.Configuration;
 using Cliptoo.Core.Interfaces;
+using Cliptoo.Core.Logging;
 using Cliptoo.Core.Services;
 using SixLabors.ImageSharp;
 
@@ -53,7 +53,7 @@ namespace Cliptoo.UI.Services
                 }
                 catch (Exception ex)
                 {
-                    LogManager.Log(ex, $"Failed to read cached icon file: {cacheFilePath}");
+                    LogManager.LogWarning($"Failed to read cached icon file: {cacheFilePath}. Error: {ex.Message}");
                 }
             }
             else
@@ -68,7 +68,7 @@ namespace Cliptoo.UI.Services
                     }
                     catch (Exception ex)
                     {
-                        LogManager.Log(ex, $"Failed to save icon to cache: {cacheFilePath}");
+                        LogManager.LogWarning($"Failed to save icon to cache: {cacheFilePath}. Error: {ex.Message}");
                     }
                 }
             }
@@ -133,7 +133,7 @@ namespace Cliptoo.UI.Services
             }
             catch (Exception ex)
             {
-                LogManager.Log(ex, $"Failed to load icon for key: {key}");
+                LogManager.LogCritical(ex, $"Failed to load icon for key: {key}");
                 return null;
             }
         }
@@ -203,18 +203,18 @@ namespace Cliptoo.UI.Services
                     }
                     catch (Exception ex)
                     {
-                        LogManager.Log(ex, $"Could not delete old icon cache file: {file}");
+                        LogManager.LogWarning($"Could not delete old icon cache file: {file}. Error: {ex.Message}");
                     }
                 }
                 if (filesDeleted > 0)
                 {
-                    LogManager.Log($"Cleaned up {filesDeleted} old icon cache files.");
+                    LogManager.LogInfo($"Cleaned up {filesDeleted} old icon cache files.");
                 }
                 return filesDeleted;
             }
             catch (Exception ex)
             {
-                LogManager.Log(ex, "Failed to perform icon cache cleanup.");
+                LogManager.LogCritical(ex, "Failed to perform icon cache cleanup.");
                 return 0;
             }
         }
@@ -225,15 +225,13 @@ namespace Cliptoo.UI.Services
             {
                 ServiceUtils.DeleteDirectoryContents(_iconCachePath);
                 _cache.Clear();
-                LogManager.Log("Icon cache cleared successfully.");
+                LogManager.LogInfo("Icon cache cleared successfully.");
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                LogManager.Log(ex, "Failed to clear icon cache.");
+                LogManager.LogCritical(ex, "Failed to clear icon cache.");
             }
         }
+
     }
-
-
-
 }

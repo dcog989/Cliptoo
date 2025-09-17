@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using Cliptoo.Core.Logging;
 
 namespace Cliptoo.Core.Configuration
 {
@@ -227,13 +228,17 @@ namespace Cliptoo.Core.Configuration
         [DefaultValue(true)]
         public bool MoveClipToTopOnPaste { get => _moveClipToTopOnPaste; set => SetProperty(ref _moveClipToTopOnPaste, value); }
 
-        public ObservableCollection<SendToTarget> SendToTargets { get; set; } = new();
+        public ObservableCollection<SendToTarget> SendToTargets { get; } = new();
         #endregion
 
         #region Diagnostics
-        private string _loggingLevel = "None";
-        [DefaultValue("None")]
-        public string LoggingLevel { get => _loggingLevel; set => SetProperty(ref _loggingLevel, value); }
+        private LogLevel _loggingLevel = LogLevel.Warning;
+        [DefaultValue(LogLevel.Warning)]
+        public LogLevel LoggingLevel { get => _loggingLevel; set => SetProperty(ref _loggingLevel, value); }
+
+        private int _logRetentionDays = 10;
+        [DefaultValue(10)]
+        public int LogRetentionDays { get => _logRetentionDays; set => SetProperty(ref _logRetentionDays, value); }
         #endregion
     }
 }
