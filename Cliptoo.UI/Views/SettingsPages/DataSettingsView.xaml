@@ -11,27 +11,24 @@
     <ScrollViewer Padding="15,20,15,15" VerticalScrollBarVisibility="Auto">
         <StackPanel>
             <StackPanel Orientation="Horizontal">
-                <TextBlock Style="{StaticResource SettingLabel}" Text="Keep a maximum of" />
+                <TextBlock Style="{StaticResource SettingLabel}" Text="Maximum total clips" />
                 <ui:NumberBox
-                    Width="120"
+                    Width="110"
                     ClearButtonEnabled="False"
                     Style="{StaticResource SettingsNumberBoxStyle}"
                     Value="{Binding MaxClipsTotal, UpdateSourceTrigger=PropertyChanged}" />
                 <TextBlock
-                    Margin="5,0,0,0"
+                    Margin="10,0,0,0"
                     Style="{StaticResource SettingLabel}"
-                    Text="clips for" />
+                    Text="Maximum days to keep" />
                 <ui:NumberBox
-                    Width="120"
+                    Width="100"
                     Margin="5,0,0,0"
                     ClearButtonEnabled="False"
                     Style="{StaticResource SettingsNumberBoxStyle}"
                     Value="{Binding CleanupAgeDays, UpdateSourceTrigger=PropertyChanged}" />
                 <TextBlock
                     Margin="5,0,10,0"
-                    Style="{StaticResource SettingLabel}"
-                    Text="days." />
-                <TextBlock
                     Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                     Style="{StaticResource SettingLabel}"
                     Text="(0 = unlimited)" />
@@ -40,7 +37,7 @@
             <StackPanel Margin="0,15,0,0" Orientation="Horizontal">
                 <TextBlock Style="{StaticResource SettingLabel}" Text="Maximum clip size" />
                 <ui:NumberBox
-                    Width="120"
+                    Width="110"
                     Margin="5,0,0,0"
                     ClearButtonEnabled="False"
                     Minimum="1"

@@ -24,16 +24,16 @@
     <ScrollViewer Padding="15,20,15,15" VerticalScrollBarVisibility="Auto">
         <StackPanel>
             <StackPanel Margin="0,0,10,0" Orientation="Horizontal">
-                <TextBlock Style="{StaticResource SettingLabel}" Text="Launch at" />
+                <TextBlock Style="{StaticResource SettingLabel}" Text="Launch position" />
                 <ComboBox
                     HorizontalAlignment="Left"
                     ItemsSource="{StaticResource LaunchPositionOptions}"
                     SelectedItem="{Binding LaunchPosition}"
                     Style="{StaticResource SettingsComboBoxStyle}" />
                 <TextBlock
-                    Margin="10,0,10,0"
+                    Margin="40,0,10,0"
                     Style="{StaticResource SettingLabel}"
-                    Text="with logging level" />
+                    Text="Logging level" />
                 <ComboBox
                     MinWidth="100"
                     ItemsSource="{Binding Source={StaticResource LogLevelEnumValues}}"
