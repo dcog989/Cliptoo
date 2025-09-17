@@ -184,8 +184,7 @@ namespace Cliptoo.UI.ViewModels
             {
                 await _pastingService.SetClipboardContentAsync(clip, forcePlainText: null);
             }
-            await LoadClipsAsync(true);
-            HideWindow();
+            await LoadClipsAsync(false);
         }
 
         private async Task ExecuteOpen(object? parameter)
