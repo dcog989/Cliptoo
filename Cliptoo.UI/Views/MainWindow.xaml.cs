@@ -13,6 +13,7 @@ namespace Cliptoo.UI.Views
     {
         private readonly MainViewModel _viewModel;
         private readonly ISettingsService _settingsService;
+        private readonly DispatcherTimer _saveStateDebounceTimer;
 
         public MainWindow(MainViewModel viewModel, ISettingsService settingsService)
         {
@@ -23,9 +24,37 @@ namespace Cliptoo.UI.Views
 
             _viewModel.IsWindowVisible = IsVisible;
             _viewModel.ListScrolledToTopRequest += OnListScrolledToTopRequest;
+
+            _saveStateDebounceTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(500)
+            };
+            _saveStateDebounceTimer.Tick += SaveWindowState_Tick;
+            SizeChanged += OnWindowResizedOrMoved;
+            LocationChanged += OnWindowResizedOrMoved;
         }
 
         public SnackbarPresenter SnackbarPresenter => RootSnackbarPresenter;
+
+        private void OnWindowResizedOrMoved(object? sender, EventArgs e)
+        {
+            _saveStateDebounceTimer.Stop();
+            _saveStateDebounceTimer.Start();
+        }
+
+        private void SaveWindowState_Tick(object? sender, EventArgs e)
+        {
+            _saveStateDebounceTimer.Stop();
+            if (this.WindowState == WindowState.Normal)
+            {
+                var settings = _settingsService.Settings;
+                settings.WindowWidth = Math.Round(this.Width);
+                settings.WindowHeight = Math.Round(this.Height);
+                settings.FixedX = (int)Math.Round(this.Left);
+                settings.FixedY = (int)Math.Round(this.Top);
+                _settingsService.SaveSettings();
+            }
+        }
 
         private void OnListScrolledToTopRequest(object? sender, EventArgs e)
         {
@@ -119,14 +148,17 @@ namespace Cliptoo.UI.Views
 
         protected override void OnClosed(EventArgs e)
         {
-            _viewModel.ListScrolledToTopRequest -= OnListScrolledToTopRequest;
-            if (_settingsService != null)
+            SizeChanged -= OnWindowResizedOrMoved;
+            LocationChanged -= OnWindowResizedOrMoved;
+            if (_saveStateDebounceTimer != null)
             {
-                var settings = _settingsService.Settings;
-                settings.WindowWidth = Math.Round(this.Width);
-                settings.WindowHeight = Math.Round(this.Height);
-                _settingsService.SaveSettings();
+                _saveStateDebounceTimer.Tick -= SaveWindowState_Tick;
             }
+
+            _viewModel.ListScrolledToTopRequest -= OnListScrolledToTopRequest;
+
+            // Save final state on graceful close, in case a change was made within the debounce interval.
+            SaveWindowState_Tick(null, EventArgs.Empty);
 
             base.OnClosed(e);
             if (Application.Current != null)
