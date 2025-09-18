@@ -32,8 +32,7 @@ namespace Cliptoo.UI.ViewModels
         {
             if (_isTooltipContentLoaded) return;
             DebugUtils.LogMemoryUsage($"LoadTooltipContentAsync START (ID: {Id})");
-
-            var clipForTooltip = await GetFullClipAsync().ConfigureAwait(false);
+            var clipForTooltip = await GetFullClipAsync();
 
             if (clipForTooltip is null)
             {
@@ -49,7 +48,7 @@ namespace Cliptoo.UI.ViewModels
                     {
                         using var reader = new StreamReader(Content, true);
                         var buffer = new char[4096];
-                        int charsRead = await reader.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false);
+                        int charsRead = await reader.ReadAsync(buffer, 0, buffer.Length);
                         textFileContent = new string(buffer, 0, charsRead);
                     }
                 }
@@ -68,12 +67,12 @@ namespace Cliptoo.UI.ViewModels
             }
 
             var loadTasks = new List<Task>
-            {
-                LoadFilePropertiesAsync(),
-                LoadPageTitleAsync()
-            };
+        {
+            LoadFilePropertiesAsync(),
+            LoadPageTitleAsync()
+        };
 
-            await Task.WhenAll(loadTasks).ConfigureAwait(false);
+            await Task.WhenAll(loadTasks);
 
             GenerateTooltipProperties(clipForTooltip, textFileContent);
             _isTooltipContentLoaded = true;
