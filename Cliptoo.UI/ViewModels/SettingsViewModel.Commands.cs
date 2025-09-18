@@ -27,6 +27,8 @@ namespace Cliptoo.UI.ViewModels
         public ICommand BrowseCompareToolCommand { get; }
         public ICommand AddSendToTargetCommand { get; }
         public ICommand RemoveSendToTargetCommand { get; }
+        public ICommand MoveSendToTargetUpCommand { get; }
+        public ICommand MoveSendToTargetDownCommand { get; }
 
         private void ExecuteBrowseCompareTool()
         {
@@ -187,5 +189,47 @@ namespace Cliptoo.UI.ViewModels
             }
         }
 
+        private bool CanExecuteMoveSendToTargetUp(object? parameter)
+        {
+            if (parameter is SendToTarget target)
+            {
+                return SendToTargets.IndexOf(target) > 0;
+            }
+            return false;
+        }
+
+        private void ExecuteMoveSendToTargetUp(object? parameter)
+        {
+            if (parameter is SendToTarget target)
+            {
+                int index = SendToTargets.IndexOf(target);
+                if (index > 0)
+                {
+                    SendToTargets.Move(index, index - 1);
+                }
+            }
+        }
+
+        private bool CanExecuteMoveSendToTargetDown(object? parameter)
+        {
+            if (parameter is SendToTarget target)
+            {
+                int index = SendToTargets.IndexOf(target);
+                return index < SendToTargets.Count - 1 && index > -1;
+            }
+            return false;
+        }
+
+        private void ExecuteMoveSendToTargetDown(object? parameter)
+        {
+            if (parameter is SendToTarget target)
+            {
+                int index = SendToTargets.IndexOf(target);
+                if (index < SendToTargets.Count - 1 && index > -1)
+                {
+                    SendToTargets.Move(index, index + 1);
+                }
+            }
+        }
     }
 }

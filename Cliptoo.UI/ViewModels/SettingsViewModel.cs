@@ -154,6 +154,8 @@ namespace Cliptoo.UI.ViewModels
             BrowseCompareToolCommand = new RelayCommand(_ => ExecuteBrowseCompareTool());
             AddSendToTargetCommand = new RelayCommand(_ => ExecuteAddSendToTarget());
             RemoveSendToTargetCommand = new RelayCommand(param => ExecuteRemoveSendToTarget(param as SendToTarget));
+            MoveSendToTargetUpCommand = new RelayCommand(ExecuteMoveSendToTargetUp, CanExecuteMoveSendToTargetUp);
+            MoveSendToTargetDownCommand = new RelayCommand(ExecuteMoveSendToTargetDown, CanExecuteMoveSendToTargetDown);
 
             SystemFonts = new ObservableCollection<string>();
             _ = PopulateFontsAsync();

@@ -20,6 +20,12 @@
                 <x:Type TypeName="logging:LogLevel" />
             </ObjectDataProvider.MethodParameters>
         </ObjectDataProvider>
+        <Style
+            x:Key="SettingsIconButtonStyle"
+            BasedOn="{StaticResource {x:Type ui:Button}}"
+            TargetType="ui:Button">
+            <Setter Property="Padding" Value="6" />
+        </Style>
     </UserControl.Resources>
     <ScrollViewer Padding="16,24,16,16" VerticalScrollBarVisibility="Auto">
         <StackPanel>
@@ -130,6 +136,7 @@
                 Background="Transparent"
                 BorderThickness="0"
                 ItemsSource="{Binding SendToTargets}"
+                ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                 ScrollViewer.VerticalScrollBarVisibility="Auto">
                 <ListView.ItemContainerStyle>
                     <Style TargetType="ListViewItem">
@@ -148,11 +155,12 @@
                 </ListView.ItemContainerStyle>
                 <ListView.ItemTemplate>
                     <DataTemplate>
-                        <Grid Margin="0,5">
+                        <Grid Margin="0,6">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="150" />
-                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" MinWidth="100" />
                                 <ColumnDefinition Width="150" />
+                                <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <ui:TextBox
@@ -162,13 +170,22 @@
                                 PlaceholderText="Display Name"
                                 Style="{StaticResource SettingsTextBoxStyle}"
                                 Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" />
-                            <ui:TextBox
+                            <Border
                                 Grid.Column="1"
                                 Margin="0,0,12,0"
+                                Padding="8,6"
                                 VerticalAlignment="Center"
-                                IsReadOnly="True"
-                                Style="{StaticResource SettingsTextBoxStyle}"
-                                Text="{Binding Path}" />
+                                Background="{DynamicResource ControlFillColorDefaultBrush}"
+                                BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="4">
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                                    Text="{Binding Path}"
+                                    TextTrimming="CharacterEllipsis"
+                                    ToolTip="{Binding Path}" />
+                            </Border>
                             <ui:TextBox
                                 Grid.Column="2"
                                 Margin="0,0,12,0"
@@ -176,8 +193,25 @@
                                 PlaceholderText="Optional. Use {0} for path."
                                 Style="{StaticResource SettingsTextBoxStyle}"
                                 Text="{Binding Arguments, UpdateSourceTrigger=PropertyChanged}" />
+
+                            <StackPanel Grid.Column="3" Orientation="Horizontal">
+                                <ui:Button
+                                    Command="{Binding DataContext.MoveSendToTargetUpCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
+                                    CommandParameter="{Binding}"
+                                    Style="{StaticResource SettingsIconButtonStyle}">
+                                    <ui:SymbolIcon FontSize="16" Symbol="ArrowUp24" />
+                                </ui:Button>
+                                <ui:Button
+                                    Margin="6,0,0,0"
+                                    Command="{Binding DataContext.MoveSendToTargetDownCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
+                                    CommandParameter="{Binding}"
+                                    Style="{StaticResource SettingsIconButtonStyle}">
+                                    <ui:SymbolIcon FontSize="16" Symbol="ArrowDown24" />
+                                </ui:Button>
+                            </StackPanel>
                             <ui:Button
-                                Grid.Column="3"
+                                Grid.Column="4"
+                                Margin="12,0,0,0"
                                 VerticalAlignment="Center"
                                 Appearance="Secondary"
                                 Command="{Binding DataContext.RemoveSendToTargetCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
