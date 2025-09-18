@@ -17,19 +17,19 @@
             <sys:String>Dark</sys:String>
         </x:Array>
     </UserControl.Resources>
-    <ScrollViewer Padding="15,20,15,15" VerticalScrollBarVisibility="Auto">
+    <ScrollViewer Padding="16,24,16,16" VerticalScrollBarVisibility="Auto">
         <StackPanel>
             <TextBlock
                 FontSize="16"
                 FontWeight="SemiBold"
                 Text="Main Window" />
-            <StackPanel Margin="20,15,0,0" Orientation="Horizontal">
+            <StackPanel Margin="24,16,0,0" Orientation="Horizontal">
                 <TextBlock
                     VerticalAlignment="Center"
                     Style="{StaticResource SettingLabel}"
                     Text="Font family" />
                 <ComboBox
-                    Margin="0,0,10,0"
+                    Margin="0,0,12,0"
                     HorizontalAlignment="Left"
                     VerticalAlignment="Center"
                     IsEnabled="{Binding IsFontsLoading, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=inverse}"
@@ -37,7 +37,7 @@
                     SelectedItem="{Binding SelectedFontFamily}"
                     Style="{StaticResource SettingsComboBoxStyle}" />
                 <TextBlock
-                    Margin="4,0,10,0"
+                    Margin="24,0,12,0"
                     VerticalAlignment="Center"
                     Style="{StaticResource SettingLabel}"
                     Text="Font size" />
@@ -51,12 +51,12 @@
                     Style="{StaticResource SettingsNumberBoxStyle}"
                     Value="{Binding FontSize, UpdateSourceTrigger=PropertyChanged}" />
                 <TextBlock
-                    Margin="4,0,40,0"
+                    Margin="6,0,12,0"
                     VerticalAlignment="Center"
                     Style="{StaticResource SettingLabel}"
                     Text="px" />
                 <TextBlock
-                    Margin="4,0,10,0"
+                    Margin="24,0,12,0"
                     VerticalAlignment="Center"
                     Style="{StaticResource SettingLabel}"
                     Text="Line padding" />
@@ -68,7 +68,7 @@
                     Style="{StaticResource SettingsComboBoxStyle}" />
             </StackPanel>
 
-            <Grid Margin="20,15,0,0">
+            <Grid Margin="24,16,0,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
@@ -84,19 +84,19 @@
                     Text="Theme" />
                 <ComboBox
                     Grid.Column="1"
-                    Margin="0,0,10,0"
+                    Margin="0,0,12,0"
                     ItemsSource="{StaticResource ThemeOptions}"
                     SelectedItem="{Binding Theme}"
                     Style="{StaticResource SettingsComboBoxStyle}" />
                 <TextBlock
                     Grid.Column="2"
-                    Margin="10,0,10,0"
+                    Margin="24,0,12,0"
                     Style="{StaticResource SettingLabel}"
                     Text="Accent" />
                 <ComboBox
                     Grid.Column="3"
                     MinWidth="100"
-                    Margin="0,0,10,0"
+                    Margin="0,0,12,0"
                     VerticalAlignment="Center"
                     SelectedValue="{Binding AccentChromaLevel}"
                     SelectedValuePath="Tag"
@@ -116,18 +116,18 @@
             </Grid>
 
             <TextBlock
-                Margin="0,20,0,0"
+                Margin="0,24,0,0"
                 FontSize="16"
                 FontWeight="SemiBold"
                 Text="Preview Tooltip" />
-            <StackPanel Margin="20,15,0,0" Orientation="Horizontal">
+            <StackPanel Margin="24,16,0,0" Orientation="Horizontal">
                 <CheckBox
                     VerticalAlignment="Center"
                     Content="Show preview tooltip on hover after delay of"
                     IsChecked="{Binding ShowHoverPreview}" />
                 <ui:NumberBox
                     Width="110"
-                    Margin="5,0,0,0"
+                    Margin="6,0,0,0"
                     VerticalAlignment="Center"
                     ClearButtonEnabled="False"
                     IsEnabled="{Binding ShowHoverPreview}"
@@ -136,18 +136,18 @@
                     Style="{StaticResource SettingsNumberBoxStyle}"
                     Value="{Binding HoverPreviewDelay, UpdateSourceTrigger=PropertyChanged}" />
                 <TextBlock
-                    Margin="5,0,0,0"
+                    Margin="6,0,0,0"
                     VerticalAlignment="Center"
                     Text="ms" />
             </StackPanel>
 
-            <StackPanel Margin="20,15,0,0" Orientation="Horizontal">
+            <StackPanel Margin="24,16,0,0" Orientation="Horizontal">
                 <TextBlock
                     VerticalAlignment="Center"
                     Style="{StaticResource SettingLabel}"
                     Text="Font family" />
                 <ComboBox
-                    Margin="0,0,10,0"
+                    Margin="0,0,12,0"
                     HorizontalAlignment="Left"
                     VerticalAlignment="Center"
                     IsEnabled="{Binding IsFontsLoading, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=inverse}"
@@ -155,7 +155,7 @@
                     SelectedItem="{Binding SelectedPreviewFontFamily}"
                     Style="{StaticResource SettingsComboBoxStyle}" />
                 <TextBlock
-                    Margin="4,0,10,0"
+                    Margin="6,0,12,0"
                     VerticalAlignment="Center"
                     Style="{StaticResource SettingLabel}"
                     Text="Font size" />
@@ -169,17 +169,17 @@
                     Style="{StaticResource SettingsNumberBoxStyle}"
                     Value="{Binding PreviewFontSize, UpdateSourceTrigger=PropertyChanged}" />
                 <TextBlock
-                    Margin="4,0,0,0"
+                    Margin="6,0,0,0"
                     VerticalAlignment="Center"
                     Style="{StaticResource SettingLabel}"
                     Text="px" />
             </StackPanel>
 
-            <StackPanel Margin="20,15,0,0" Orientation="Horizontal">
+            <StackPanel Margin="24,16,0,0" Orientation="Horizontal">
                 <TextBlock VerticalAlignment="Center" Text="Text preview max width" />
                 <ui:NumberBox
                     Width="110"
-                    Margin="5,0,0,0"
+                    Margin="6,0,0,0"
                     VerticalAlignment="Center"
                     ClearButtonEnabled="False"
                     Minimum="200"
@@ -187,7 +187,7 @@
                     Style="{StaticResource SettingsNumberBoxStyle}"
                     Value="{Binding Settings.PreviewTooltipMaxWidth, UpdateSourceTrigger=PropertyChanged}" />
                 <TextBlock
-                    Margin="5,0,40,0"
+                    Margin="6,0,32,0"
                     VerticalAlignment="Center"
                     Text="px" />
 
@@ -197,7 +197,7 @@
                     Text="Image preview max width / height" />
                 <ui:NumberBox
                     Width="110"
-                    Margin="5,0,0,0"
+                    Margin="6,0,0,0"
                     VerticalAlignment="Center"
                     ClearButtonEnabled="False"
                     Minimum="100"
@@ -205,7 +205,7 @@
                     Style="{StaticResource SettingsNumberBoxStyle}"
                     Value="{Binding Settings.HoverImagePreviewSize, UpdateSourceTrigger=PropertyChanged}" />
                 <TextBlock
-                    Margin="5,0,0,0"
+                    Margin="6,0,0,0"
                     VerticalAlignment="Center"
                     Text="px" />
             </StackPanel>

@@ -9,7 +9,7 @@
     d:DesignHeight="450"
     d:DesignWidth="800"
     mc:Ignorable="d">
-    <ScrollViewer Padding="15,20,15,15">
+    <ScrollViewer Padding="16,24,16,16">
         <Grid Grid.IsSharedSizeScope="True">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
@@ -38,14 +38,14 @@
             <TextBlock
                 Grid.Row="1"
                 Grid.Column="0"
-                Margin="0,15,10,0"
+                Margin="0,16,12,0"
                 Style="{StaticResource SettingLabel}"
                 Text="Display preview tooltip" />
             <ui:TextBox
                 Grid.Row="1"
                 Grid.Column="1"
                 Width="130"
-                Margin="0,15,0,0"
+                Margin="0,16,0,0"
                 helpers:HotkeyInputBehavior.HotkeyTarget="Preview"
                 helpers:HotkeyInputBehavior.IsEnabled="True"
                 Style="{StaticResource CaptureHotkeyStyle}"
@@ -54,14 +54,14 @@
             <TextBlock
                 Grid.Row="2"
                 Grid.Column="0"
-                Margin="0,15,10,0"
+                Margin="0,16,12,0"
                 Style="{StaticResource SettingLabel}"
                 Text="Activate quick paste (1 to 9)" />
             <ui:TextBox
                 Grid.Row="2"
                 Grid.Column="1"
                 Width="130"
-                Margin="0,15,0,0"
+                Margin="0,16,0,0"
                 helpers:HotkeyInputBehavior.HotkeyTarget="QuickPaste"
                 helpers:HotkeyInputBehavior.IsEnabled="True"
                 Style="{StaticResource CaptureHotkeyStyle}"

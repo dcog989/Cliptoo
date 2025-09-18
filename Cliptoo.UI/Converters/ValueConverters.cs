@@ -160,7 +160,7 @@ namespace Cliptoo.UI.Converters
         {
             if (value is not string paddingString)
             {
-                return new Thickness(4, 6, 4, 6); // default to standard
+                return new Thickness(4, 4, 4, 4); // default to standard
             }
 
             return paddingString.ToLowerInvariant() switch

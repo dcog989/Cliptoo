@@ -14,48 +14,49 @@
                 <TextBlock Style="{StaticResource SettingLabel}" Text="Maximum total clips" />
                 <ui:NumberBox
                     Width="110"
+                    Margin="6,0,12,0"
                     ClearButtonEnabled="False"
                     Style="{StaticResource SettingsNumberBoxStyle}"
                     Value="{Binding MaxClipsTotal, UpdateSourceTrigger=PropertyChanged}" />
                 <TextBlock
-                    Margin="10,0,0,0"
+                    Margin="24,0,0,0"
                     Style="{StaticResource SettingLabel}"
                     Text="Maximum days to keep" />
                 <ui:NumberBox
                     Width="100"
-                    Margin="5,0,0,0"
+                    Margin="6,0,0,0"
                     ClearButtonEnabled="False"
                     Style="{StaticResource SettingsNumberBoxStyle}"
                     Value="{Binding CleanupAgeDays, UpdateSourceTrigger=PropertyChanged}" />
                 <TextBlock
-                    Margin="5,0,10,0"
+                    Margin="6,0,12,0"
                     Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                     Style="{StaticResource SettingLabel}"
                     Text="(0 = unlimited)" />
             </StackPanel>
 
-            <StackPanel Margin="0,15,0,0" Orientation="Horizontal">
+            <StackPanel Margin="0,16,0,0" Orientation="Horizontal">
                 <TextBlock Style="{StaticResource SettingLabel}" Text="Maximum clip size" />
                 <ui:NumberBox
                     Width="110"
-                    Margin="5,0,0,0"
+                    Margin="6,0,0,0"
                     ClearButtonEnabled="False"
                     Minimum="1"
                     Style="{StaticResource SettingsNumberBoxStyle}"
                     Value="{Binding MaxClipSizeMb, UpdateSourceTrigger=PropertyChanged}" />
                 <TextBlock
-                    Margin="5,0,10,0"
+                    Margin="6,0,12,0"
                     Style="{StaticResource SettingLabel}"
-                    Text="MB." />
+                    Text="MB" />
             </StackPanel>
 
             <TextBlock
-                Margin="0,20,0,12"
+                Margin="0,24,0,12"
                 FontSize="16"
                 FontWeight="SemiBold"
                 Text="Data Management" />
             <StackPanel
-                Margin="20,0,0,0"
+                Margin="24,0,0,0"
                 IsEnabled="{Binding !IsBusy}"
                 Orientation="Horizontal">
                 <ui:Button
@@ -64,36 +65,36 @@
                     Content="Clear History..."
                     ToolTip="Delete all non-pinned clips from the database." />
                 <ui:Button
-                    Margin="10,0,0,0"
+                    Margin="12,0,0,0"
                     Appearance="Secondary"
                     Command="{Binding ClearOversizedCommand}"
                     Content="Clear Oversized..."
                     ToolTip="Delete clips larger than a specified size." />
                 <ui:Button
-                    Margin="10,0,0,0"
+                    Margin="12,0,0,0"
                     Appearance="Secondary"
                     Command="{Binding ClearCachesCommand}"
                     Content="Clear Caches"
                     ToolTip="Delete all cached thumbnails and temporary image files." />
                 <ui:Button
-                    Margin="10,0,0,0"
+                    Margin="12,0,0,0"
                     Appearance="Secondary"
                     Command="{Binding RemoveDeadheadClipsCommand}"
                     Content="Deadhead"
                     ToolTip="Remove clips for files or folders that no longer exist." />
                 <ui:Button
-                    Margin="10,0,0,0"
+                    Margin="12,0,0,0"
                     Appearance="Secondary"
                     Command="{Binding RunHeavyMaintenanceCommand}"
                     Content="Run Maintenance"
                     ToolTip="Run the full daily maintenance routine now (database cleanup, cache pruning, etc)." />
             </StackPanel>
 
-            <Separator Margin="0,20,0,15" />
+            <Separator Margin="0,24,0,16" />
 
             <TextBlock Text="{Binding StatsSummary}" TextBlock.TextAlignment="Center" />
             <StackPanel
-                Margin="0,5,0,0"
+                Margin="0,6,0,0"
                 HorizontalAlignment="Center"
                 Orientation="Horizontal">
                 <TextBlock>
