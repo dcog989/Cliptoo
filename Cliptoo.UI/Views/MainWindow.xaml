@@ -132,6 +132,10 @@
                                 </Style>
                             </ContextMenu.Resources>
                             <MenuItem
+                                Command="{Binding TogglePreviewCommand}"
+                                CommandParameter="{Binding PlacementTarget, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type ContextMenu}}}"
+                                Header="Preview" />
+                            <MenuItem
                                 Command="{Binding EditClipCommand}"
                                 Header="Edit"
                                 Visibility="{Binding IsEditable, Converter={StaticResource BooleanToVisibilityConverter}}" />

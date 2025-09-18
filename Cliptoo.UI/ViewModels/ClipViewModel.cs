@@ -161,6 +161,7 @@ namespace Cliptoo.UI.ViewModels
         public ICommand SelectForCompareLeftCommand { get; }
         public ICommand CompareWithSelectedRightCommand { get; }
         public ICommand SendToCommand { get; }
+        public ICommand TogglePreviewCommand { get; }
         public ClipViewModel(Clip clip, MainViewModel mainViewModel, IClipDetailsLoader clipDetailsLoader, IIconProvider iconProvider, IClipDataService clipDataService, IThumbnailService thumbnailService, IWebMetadataService webMetadataService)
         {
             ArgumentNullException.ThrowIfNull(clip);
@@ -184,6 +185,15 @@ namespace Cliptoo.UI.ViewModels
             SelectForCompareLeftCommand = new RelayCommand(_ => MainViewModel.SelectForCompareLeftCommand.Execute(this));
             CompareWithSelectedRightCommand = new RelayCommand(_ => MainViewModel.CompareWithSelectedRightCommand.Execute(this));
             SendToCommand = new RelayCommand(p => MainViewModel.SendToCommand.Execute(new object[] { this, p as SendToTarget ?? null! }));
+            TogglePreviewCommand = new RelayCommand(p => ExecuteTogglePreview(p));
+        }
+
+        private void ExecuteTogglePreview(object? parameter)
+        {
+            if (parameter is UIElement placementTarget)
+            {
+                MainViewModel.TogglePreviewForSelection(placementTarget);
+            }
         }
 
         internal async Task<Clip?> GetFullClipAsync()
