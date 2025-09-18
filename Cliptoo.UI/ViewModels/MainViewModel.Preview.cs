@@ -34,7 +34,7 @@ namespace Cliptoo.UI.ViewModels
                 return;
             }
 
-            if (!CurrentSettings.ShowHoverPreview)
+            if (CurrentSettings.HoverPreviewDelay == 0)
             {
                 return;
             }

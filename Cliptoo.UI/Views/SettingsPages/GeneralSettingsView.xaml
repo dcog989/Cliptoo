@@ -21,9 +21,9 @@
             </ObjectDataProvider.MethodParameters>
         </ObjectDataProvider>
     </UserControl.Resources>
-    <ScrollViewer Padding="15,20,15,15" VerticalScrollBarVisibility="Auto">
+    <ScrollViewer Padding="16,24,16,16" VerticalScrollBarVisibility="Auto">
         <StackPanel>
-            <StackPanel Margin="0,0,10,0" Orientation="Horizontal">
+            <StackPanel Margin="0,0,12,0" Orientation="Horizontal">
                 <TextBlock Style="{StaticResource SettingLabel}" Text="Launch position" />
                 <ComboBox
                     HorizontalAlignment="Left"
@@ -31,7 +31,7 @@
                     SelectedItem="{Binding LaunchPosition}"
                     Style="{StaticResource SettingsComboBoxStyle}" />
                 <TextBlock
-                    Margin="40,0,10,0"
+                    Margin="32,0,12,0"
                     Style="{StaticResource SettingLabel}"
                     Text="Logging level" />
                 <ComboBox
@@ -41,9 +41,9 @@
                     Style="{StaticResource SettingsComboBoxStyle}" />
             </StackPanel>
 
-            <StackPanel Margin="20,10,0,0" Visibility="{Binding LaunchPosition, Converter={StaticResource EqualityToVisibilityConverter}, ConverterParameter=fixed}">
+            <StackPanel Margin="24,12,0,0" Visibility="{Binding LaunchPosition, Converter={StaticResource EqualityToVisibilityConverter}, ConverterParameter=fixed}">
                 <TextBlock Style="{StaticResource SettingLabel}" Text="Fixed Position (X, Y):" />
-                <StackPanel Margin="0,5,0,0" Orientation="Horizontal">
+                <StackPanel Margin="0,6,0,0" Orientation="Horizontal">
                     <ui:NumberBox
                         Width="100"
                         ClearButtonEnabled="False"
@@ -51,47 +51,47 @@
                         Value="{Binding Settings.FixedX}" />
                     <ui:NumberBox
                         Width="100"
-                        Margin="10,0,0,0"
+                        Margin="12,0,0,0"
                         ClearButtonEnabled="False"
                         Style="{StaticResource SettingsNumberBoxStyle}"
                         Value="{Binding Settings.FixedY}" />
                 </StackPanel>
             </StackPanel>
 
-            <UniformGrid Margin="0,15,0,0" Columns="3">
+            <UniformGrid Margin="0,16,0,0" Columns="3">
                 <CheckBox
-                    Margin="0,0,10,15"
+                    Margin="0,0,12,16"
                     Content="Start with Windows"
                     IsChecked="{Binding StartWithWindows}" />
                 <CheckBox
-                    Margin="0,0,10,15"
+                    Margin="0,0,12,16"
                     Content="Display logo"
                     IsChecked="{Binding DisplayLogo}" />
                 <CheckBox
-                    Margin="0,0,10,15"
+                    Margin="0,0,12,16"
                     Content="Always paste as plain text"
                     IsChecked="{Binding PasteAsPlainText}"
                     ToolTip="Strips formatting from clips like RTF or images before pasting." />
                 <CheckBox
-                    Margin="0,0,10,0"
+                    Margin="0,0,12,0"
                     Content="Remember search input"
                     IsChecked="{Binding Settings.RememberSearchInput}"
                     ToolTip="Keep the search term in the search box when the window is reopened." />
                 <CheckBox
-                    Margin="0,0,10,0"
+                    Margin="0,0,12,0"
                     Content="Remember filter selection"
                     IsChecked="{Binding Settings.RememberFilterSelection}"
                     ToolTip="Keep the last used filter active when the window is reopened." />
                 <CheckBox
-                    Margin="0,0,10,0"
+                    Margin="0,0,12,0"
                     Content="Move clips to top on paste"
                     IsChecked="{Binding Settings.MoveClipToTopOnPaste}"
                     ToolTip="When using a clip, move it to the top of the list." />
             </UniformGrid>
 
-            <Separator Margin="0,10,0,10" />
+            <Separator Margin="0,12,0,12" />
 
-            <Grid Margin="0,5,0,10">
+            <Grid Margin="0,6,0,12">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
@@ -107,7 +107,7 @@
                     Text="{Binding CompareToolPath, UpdateSourceTrigger=PropertyChanged}" />
                 <ui:Button
                     Grid.Column="2"
-                    Margin="10,0,0,0"
+                    Margin="12,0,0,0"
                     Command="{Binding BrowseCompareToolCommand}"
                     Content="Browse..."
                     Style="{StaticResource SettingsButtonStyle}" />
@@ -120,7 +120,7 @@
                 Text="Send To Apps" />
 
             <TextBlock
-                Margin="0,5,0,10"
+                Margin="0,6,0,12"
                 Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                 Text="Configure apps for the 'Send To' context menu. &quot;{0}&quot; is used as a placeholder for the file path."
                 TextWrapping="Wrap" />
@@ -157,21 +157,21 @@
                             </Grid.ColumnDefinitions>
                             <ui:TextBox
                                 Grid.Column="0"
-                                Margin="0,0,10,0"
+                                Margin="0,0,12,0"
                                 VerticalAlignment="Center"
                                 PlaceholderText="Display Name"
                                 Style="{StaticResource SettingsTextBoxStyle}"
                                 Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" />
                             <ui:TextBox
                                 Grid.Column="1"
-                                Margin="0,0,10,0"
+                                Margin="0,0,12,0"
                                 VerticalAlignment="Center"
                                 IsReadOnly="True"
                                 Style="{StaticResource SettingsTextBoxStyle}"
                                 Text="{Binding Path}" />
                             <ui:TextBox
                                 Grid.Column="2"
-                                Margin="0,0,10,0"
+                                Margin="0,0,12,0"
                                 VerticalAlignment="Center"
                                 PlaceholderText="Optional. Use {0} for path."
                                 Style="{StaticResource SettingsTextBoxStyle}"
@@ -189,7 +189,7 @@
                 </ListView.ItemTemplate>
             </ListView>
             <ui:Button
-                Margin="0,10,0,0"
+                Margin="0,12,0,0"
                 HorizontalAlignment="Left"
                 Appearance="Secondary"
                 Command="{Binding AddSendToTargetCommand}"

@@ -126,12 +126,6 @@ namespace Cliptoo.UI.ViewModels
             set => Settings.DisplayLogo = value;
         }
 
-        public bool ShowHoverPreview
-        {
-            get => Settings.ShowHoverPreview;
-            set => Settings.ShowHoverPreview = value;
-        }
-
         public uint HoverPreviewDelay
         {
             get => Settings.HoverPreviewDelay;

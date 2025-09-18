@@ -164,10 +164,6 @@ namespace Cliptoo.Core.Configuration
         #endregion
 
         #region Preview & Tooltip
-        private bool _showHoverPreview = true;
-        [DefaultValue(true)]
-        public bool ShowHoverPreview { get => _showHoverPreview; set => SetProperty(ref _showHoverPreview, value); }
-
         private uint _hoverPreviewDelay = 1250;
         [DefaultValue(1250)]
         public uint HoverPreviewDelay { get => _hoverPreviewDelay; set => SetProperty(ref _hoverPreviewDelay, value); }

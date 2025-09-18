@@ -120,25 +120,22 @@
                 FontSize="16"
                 FontWeight="SemiBold"
                 Text="Preview Tooltip" />
-            <StackPanel Margin="24,16,0,0" Orientation="Horizontal">
-                <CheckBox
-                    VerticalAlignment="Center"
-                    Content="Show preview tooltip on hover after delay of"
-                    IsChecked="{Binding ShowHoverPreview}" />
+            <StackPanel Margin="24,18,0,0" Orientation="Horizontal">
+                <TextBlock VerticalAlignment="Center" Text="Preview tooltip delay" />
                 <ui:NumberBox
                     Width="110"
                     Margin="6,0,0,0"
                     VerticalAlignment="Center"
                     ClearButtonEnabled="False"
-                    IsEnabled="{Binding ShowHoverPreview}"
-                    Minimum="100"
-                    SmallChange="10"
+                    Minimum="0"
+                    SmallChange="50"
                     Style="{StaticResource SettingsNumberBoxStyle}"
                     Value="{Binding HoverPreviewDelay, UpdateSourceTrigger=PropertyChanged}" />
                 <TextBlock
                     Margin="6,0,0,0"
                     VerticalAlignment="Center"
-                    Text="ms" />
+                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                    Text="ms (0 to disable, hotkey still works)" />
             </StackPanel>
 
             <StackPanel Margin="24,16,0,0" Orientation="Horizontal">
@@ -155,7 +152,7 @@
                     SelectedItem="{Binding SelectedPreviewFontFamily}"
                     Style="{StaticResource SettingsComboBoxStyle}" />
                 <TextBlock
-                    Margin="6,0,12,0"
+                    Margin="24,0,12,0"
                     VerticalAlignment="Center"
                     Style="{StaticResource SettingLabel}"
                     Text="Font size" />
