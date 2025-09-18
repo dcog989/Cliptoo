@@ -11,7 +11,6 @@ namespace Cliptoo.Core.Database.Models
         public string ClipType { get; set; } = string.Empty;
         public string? SourceApp { get; set; }
         public bool IsPinned { get; set; }
-        public string? ThumbnailPath { get; set; }
         public bool WasTrimmed { get; set; }
         public string? MatchContext { get; set; }
         public long SizeInBytes { get; set; }
