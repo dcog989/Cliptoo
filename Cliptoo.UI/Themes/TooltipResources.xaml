@@ -1,7 +1,27 @@
 <ResourceDictionary
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:tooltips="clr-namespace:Cliptoo.UI.Controls.Tooltips">
+    xmlns:tooltips="clr-namespace:Cliptoo.UI.Controls.Tooltips"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
+
+    <DataTemplate x:Key="FileNotFoundErrorTemplate">
+        <StackPanel
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center"
+            Orientation="Horizontal">
+            <ui:ImageIcon
+                Width="24"
+                Height="24"
+                Margin="0,0,8,0"
+                Source="{Binding MainViewModel.ErrorIcon}" />
+            <TextBlock
+                VerticalAlignment="Center"
+                FontStyle="Italic"
+                FontWeight="Bold"
+                Foreground="{DynamicResource SystemFillColorCriticalBrush}"
+                Text="File not found - moved or deleted?" />
+        </StackPanel>
+    </DataTemplate>
 
     <DataTemplate x:Key="ColorTooltipTemplate">
         <tooltips:ColorPreviewTooltip />

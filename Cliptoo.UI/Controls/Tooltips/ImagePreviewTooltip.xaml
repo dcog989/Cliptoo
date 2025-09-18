@@ -21,23 +21,12 @@
                 Source="{Binding ImagePreviewSource}"
                 Stretch="Uniform"
                 Visibility="{Binding IsSourceMissing, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=inverse}" />
-            <StackPanel
+            <ContentControl
                 HorizontalAlignment="Center"
                 VerticalAlignment="Center"
-                Orientation="Horizontal"
-                Visibility="{Binding IsSourceMissing, Converter={StaticResource BooleanToVisibilityConverter}}">
-                <ui:ImageIcon
-                    Width="24"
-                    Height="24"
-                    Margin="0,0,8,0"
-                    Source="{Binding MainViewModel.ErrorIcon}" />
-                <TextBlock
-                    VerticalAlignment="Center"
-                    FontStyle="Italic"
-                    FontWeight="Bold"
-                    Foreground="{DynamicResource SystemFillColorCriticalBrush}"
-                    Text="File not found - moved or deleted?" />
-            </StackPanel>
+                Content="{Binding}"
+                ContentTemplate="{StaticResource FileNotFoundErrorTemplate}"
+                Visibility="{Binding IsSourceMissing, Converter={StaticResource BooleanToVisibilityConverter}}" />
         </Grid>
 
         <TextBlock
