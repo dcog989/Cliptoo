@@ -1,3 +1,22 @@
+# List outdated NuGet packages and updates
+function Get-OutdatedPackages {
+    Write-Host "Ensuring packages are restored first..."
+    if (-not (Invoke-DotnetCommand -Command "restore" -Arguments "`"$global:solutionFile`"")) {
+        Write-Host "ERROR! Package restore failed." -ForegroundColor Red
+        Invoke-Item (Get-LogFile)
+        return
+    }
+
+    Write-Host "Checking for outdated NuGet packages..."
+    if (Invoke-DotnetCommand -Command "list" -Arguments "`"$global:solutionFile`" package --outdated") {
+        Write-Host "Check complete. See log." -ForegroundColor Green
+        Invoke-Item (Get-LogFile)
+    }
+    else {
+        Write-Host "ERROR! Packages check has failed. See log." -ForegroundColor Red
+        Invoke-Item (Get-LogFile)
+    }
+}
 # .NET Builder Toolbox for Cliptoo
 # Clean, build, and manage the Cliptoo solution.
 # -----------------------------------------------
@@ -33,9 +52,9 @@ $global:menuItems = @{
     "2" = "Build & Run (Release)"; "B" = "Open Solution in IDE"
     "3" = "Watch & Run (Hot Reload)"; "C" = "Clean Solution"
     "4" = "Publish Portable Package"; "D" = "Clean Logs"
-    "5" = "Publish Production Package (Soon)"; "E" = "Change Version Number"
-    "6" = "Restore NuGet Packages"; "F" = "Open LICENSE File"
-    "7" = "Open User Data Folder"; "G" = "Open Log File"
+    "5" = "Publish Production Package"; "E" = "Change Version Number"
+    "6" = "Restore NuGet Packages"; "F" = "Open User Data Folder"
+    "7" = "List Packages + Updates"; "G" = "Open Log File"    
     "Q" = "Quit"
 }
 $global:logFile = $null
@@ -335,7 +354,7 @@ function Start-BuildAndRun {
     }
 
     Write-Host "Build successful. Starting application..."
-    $exePath = Join-Path $solutionRoot "Cliptoo.UI\bin\$Configuration\net9.0-windows\$($global:publishRuntimeId)\$($global:appName).exe"
+    $exePath = Join-Path $solutionRoot "Cliptoo.UI\bin\x64\$Configuration\net9.0-windows\$($global:publishRuntimeId)\$($global:appName).exe"
     if (Test-Path $exePath) {
         Start-Process $exePath
         Write-Host "Application started." -ForegroundColor Green
@@ -415,8 +434,83 @@ function Publish-Portable {
 }
 
 
+# Publish a full release: standard, portable, and changelog
 function Build-ProductionPackage {
-    Write-Host "Velopack integration is coming soon!" -ForegroundColor Yellow
+    $releaseDir = Join-Path $global:solutionRoot "release"
+    if (Test-Path $releaseDir) {
+        Remove-Item -Recurse -Force $releaseDir
+    }
+    New-Item -ItemType Directory -Path $releaseDir | Out-Null
+
+    $buildOutputDir = Join-Path $global:solutionRoot "bin\x64"
+
+    # Build Standard Release
+    $stdPublishDir = Join-Path $buildOutputDir "standard"
+    if (Test-Path $stdPublishDir) { Remove-Item -Recurse -Force $stdPublishDir }
+    $publishArgs = "`"$global:mainProjectFile`" -c Release -o `"$stdPublishDir`" --self-contained true -p:PublishSingleFile=true -p:PublishReadyToRun=true"
+    if (-not (Invoke-DotnetCommand -Command "publish" -Arguments $publishArgs)) {
+        Write-Host "Standard release build failed." -ForegroundColor Red
+        return
+    }
+    Get-ChildItem -Path $stdPublishDir -Filter "*.pdb" -Recurse | Remove-Item -Force
+
+    # Archive Standard Release
+    $version = Get-BuildVersion
+    $stdArchiveName = "Cliptoo-Windows-x64-v$version.7z"
+    $stdArchivePath = Join-Path $buildOutputDir $stdArchiveName
+    $sevenZipPath = Join-Path $PSScriptRoot "7z/7za.exe"
+    if (Test-Path $sevenZipPath) {
+        & $sevenZipPath a -t7z -mx=3 "$stdArchivePath" "$stdPublishDir\*" | Out-Null
+    }
+    else {
+        Compress-Archive -Path "$stdPublishDir\*" -DestinationPath $stdArchivePath -Force
+    }
+
+    # Build Portable Release
+    $portablePublishDir = Join-Path $buildOutputDir "portable"
+    if (Test-Path $portablePublishDir) { Remove-Item -Recurse -Force $portablePublishDir }
+    $publishArgs = "`"$global:mainProjectFile`" -c Release -o `"$portablePublishDir`" --self-contained true -p:PublishSingleFile=true -p:PublishReadyToRun=true"
+    if (-not (Invoke-DotnetCommand -Command "publish" -Arguments $publishArgs)) {
+        Write-Host "Portable release build failed." -ForegroundColor Red
+        return
+    }
+    Get-ChildItem -Path $portablePublishDir -Filter "*.pdb" -Recurse | Remove-Item -Force
+    $portableMarkerPath = Join-Path $portablePublishDir "cliptoo.portable"
+    Set-Content -Path $portableMarkerPath -Value "This is a critical file. Do not delete."
+
+    # Archive Portable Release
+    $portableArchiveName = "Cliptoo-Windows-x64-Portable-v$version.7z"
+    $portableArchivePath = Join-Path $buildOutputDir $portableArchiveName
+    if (Test-Path $sevenZipPath) {
+        & $sevenZipPath a -t7z -mx=3 "$portableArchivePath" "$portablePublishDir\*" | Out-Null
+    }
+    else {
+        Compress-Archive -Path "$portablePublishDir\*" -DestinationPath $portableArchivePath -Force
+    }
+
+    # Copy archives to release dir
+    Get-ChildItem -Path $buildOutputDir -File | Where-Object { $_.Extension -in ".zip", ".7z" } | Copy-Item -Destination $releaseDir
+
+    # Generate Changelog
+    if (Get-Command git -ErrorAction SilentlyContinue) {
+        Write-Host "Generating CHANGELOG.md from git history..."
+        $changelogOutputPath = Join-Path $releaseDir "CHANGELOG.md"
+        try {
+            $latestTag = git -C $global:solutionRoot describe --tags --abbrev=0 2>$null
+            $gitLogCommand = if ($latestTag) { "git -C $global:solutionRoot log $latestTag..HEAD --pretty=format:'- %s (%h)'" } else { "git -C $global:solutionRoot log --pretty=format:'- %s (%h)'" }
+            $logEntries = Invoke-Expression $gitLogCommand
+            $changelogHeader = "# Cliptoo Changelog`n`n"
+            $changelogContent = if ($logEntries) { $changelogHeader + ($logEntries -join "`n") } else { $changelogHeader + "No new changes since the last version." }
+            Set-Content -Path $changelogOutputPath -Value $changelogContent
+            Write-Host "CHANGELOG.md generated successfully." -ForegroundColor Green
+        }
+        catch {
+            Write-Host "Failed to generate changelog from git history." -ForegroundColor Red
+        }
+    }
+
+    Write-Host "Full release package created successfully at: $releaseDir" -ForegroundColor Green
+    Invoke-Item $releaseDir
 }
 
 
@@ -446,7 +540,7 @@ function Update-VersionNumber {
     $currentVersion = Get-BuildVersion
     Write-Host "Current version: $currentVersion" -ForegroundColor Yellow
 
-    $newVersion = Read-Host "Enter new version (e.g., 1.2.3), or 'X' to cancel"
+    $newVersion = Read-Host "Enter new version, or 'X' to cancel"
     if ([string]::IsNullOrWhiteSpace($newVersion) -or $newVersion.ToLower() -eq 'x') {
         Write-Host "Operation cancelled."; return
     }
@@ -475,7 +569,7 @@ function Update-VersionNumber {
         "Version updated from '$currentVersion' to '$newVersion' in $($global:mainProjectFile)." | Out-File -FilePath (Get-LogFile) -Append
     }
     catch {
-        Write-Host "ERROR! Invalid version or failed to update project file. Use format Major.Minor.Patch (e.g., 1.2.4)." -ForegroundColor Red
+        Write-Host "ERROR! Invalid version. Use Semantic Versioning - Major.Minor.Patch - e.g., `1.2.4`." -ForegroundColor Red
     }
 }
 
@@ -611,14 +705,14 @@ try {
             "4" { Publish-Portable; Read-Host "ENTER to continue..." }
             "5" { Build-ProductionPackage; Read-Host "ENTER to continue..." }
             "6" { Restore-NuGetPackages; Start-Sleep -Seconds 2 }
-            "7" { Open-UserDataFolder }
-            
+            "7" { Get-OutdatedPackages; Read-Host "ENTER to continue..." }
+
             "a" { Invoke-ItemSafely -Path (Join-Path $solutionRoot "Cliptoo.UI/bin") -ItemType "Output folder" }
             "b" { Invoke-ItemSafely -Path $solutionFile -ItemType "Solution file" }
             "c" { Remove-BuildOutput; Start-Sleep -Seconds 2 }
             "d" { Clear-Logs; Start-Sleep -Seconds 2 }
             "e" { Update-VersionNumber; Start-Sleep -Seconds 2 }
-            "f" { Invoke-ItemSafely -Path (Join-Path $global:solutionRoot "LICENSE") -ItemType "LICENSE file" }
+            "f" { Open-UserDataFolder }
             "g" { Open-LatestLogFile }
 
             "q" { $exit = $true }
