@@ -138,11 +138,10 @@ namespace Cliptoo.Core.Native
                 return;
             }
 
-            if (stopwatch.ElapsedMilliseconds < 50)
-            {
-                await Task.Delay(50).ConfigureAwait(false);
-                LogManager.LogDebug("PASTE_DIAG: Added 50ms post-focus delay for responsiveness.");
-            }
+            // A consistent, small delay is more reliable to ensure the target application's
+            // message queue is ready for input after regaining focus, preventing a race condition.
+            await Task.Delay(50).ConfigureAwait(false);
+            LogManager.LogDebug("PASTE_DIAG: Added 50ms post-focus delay for responsiveness.");
 
             // Temporarily release any modifier keys the user is holding for Quick Paste
             var modifierReleaseInputs = new List<INPUT>();
