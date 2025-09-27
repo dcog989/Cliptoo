@@ -455,8 +455,8 @@ namespace Cliptoo.UI.ViewModels
 
             Application.Current.MainWindow?.Hide();
 
-            GCSettings.LatencyMode = GCLatencyMode.Batch;
-            LogManager.LogDebug("GC mode set to Batch.");
+            GCSettings.LatencyMode = GCLatencyMode.SustainedLowLatency;
+            LogManager.LogDebug("GC mode set to SustainedLowLatency.");
         }
 
         public void HandleWindowShown()
