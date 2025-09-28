@@ -1,19 +1,19 @@
 # .NET Builder Toolbox
 # Clean, build, and manage .NET solutions.
-# version: 1.12.5
+# version: 1.12.9
 # ---------------------------------------------------------------------
 
 # --- Global Variables ---
 
 # --- Core Project Configuration (EDIT THESE FOR YOUR PROJECT) ---
-$Script:PackageTitle = "Cliptoo"                 # The user-facing name of the application.
-$Script:MainProjectName = "Cliptoo.UI"               # The name of the main .csproj file (without the extension).
-$Script:SolutionFileName = "Cliptoo.sln"              # The name of the .sln file.
-$Script:PackageAuthors = "dcog989"                 # The author's name.
-$Script:RequiredDotNetVersion = "9"                  # Major version number.
-$Script:TargetFramework = "net9.0-windows"           # From project `.csproj` file.
-$Script:BuildPlatform = "x64"                        # The target build platform (e.g., x64, AnyCPU).
-$Script:PublishRuntimeId = "win-x64"                 # The target runtime for publishing.
+$Script:PackageTitle = "Cliptoo"                    # The user-facing name of the application.
+$Script:MainProjectName = "Cliptoo.UI"              # The name of the main .csproj file (without the extension).
+$Script:SolutionFileName = "Cliptoo.sln"            # The name of the .sln file.
+$Script:PackageAuthors = "dcog989"                  # The author's name.
+$Script:RequiredDotNetVersion = "9"                 # Major version number.
+$Script:TargetFramework = "net9.0-windows"          # From project `.csproj` file.
+$Script:BuildPlatform = "x64"                       # The target build platform (e.g., x64, AnyCPU).
+$Script:PublishRuntimeId = "win-x64"                # The target runtime for publishing.
 
 # ---------------------------------------------------------------------
 # You probably do not need to edit anything past this point. 
@@ -390,11 +390,9 @@ function Invoke-ExternalCommand {
     finally {
         if ($stdOutEvent) { 
             $stdOutEvent | Unregister-Event -Force -ErrorAction SilentlyContinue
-            $stdOutEvent.Dispose()
         }
         if ($stdErrEvent) { 
             $stdErrEvent | Unregister-Event -Force -ErrorAction SilentlyContinue
-            $stdErrEvent.Dispose()
         }
         if ($process) { 
             if (!$process.HasExited) { 
@@ -406,6 +404,41 @@ function Invoke-ExternalCommand {
 }
 
 # --- Helpers ---
+function Confirm-IdeShutdown {
+    [CmdletBinding()]
+    param([string]$Action)
+
+    $ideProcesses = @{
+        "devenv" = "Visual Studio";
+        "Code"   = "Visual Studio Code"
+    }
+
+    $runningIdes = [System.Collections.Generic.List[string]]::new()
+    foreach ($procName in $ideProcesses.Keys) {
+        if (Get-Process -Name $procName -ErrorAction SilentlyContinue) {
+            $runningIdes.Add($ideProcesses[$procName])
+        }
+    }
+
+    if ($runningIdes.Count -eq 0) {
+        return $true
+    }
+
+    $ideList = $runningIdes -join ', '
+    $prompt = "The following IDE(s) are running: $ideList. Continuing may cause file lock errors. Continue anyway? (y/n)"
+    Write-Log "IDE(s) running: $ideList. This may cause the '$Action' operation to fail." "WARN"
+    
+    $choice = Read-Host -Prompt $prompt
+    
+    if ($choice.ToLower() -eq 'y') {
+        Write-Log "User chose to proceed despite running IDEs."
+        return $true
+    }
+    
+    Write-Log "$Action aborted by user due to running IDEs." "ERROR"
+    return $false
+}
+
 function Get-BuildVersion {
     if (-not (Test-Path $Script:MainProjectFile)) {
         return [CommandResult]::Fail("Main project file not found at '$Script:MainProjectFile'")
@@ -531,14 +564,18 @@ function Invoke-ItemSafely {
     
     if (-not (Test-Path $Path)) {
         Write-Log "Could not find $ItemType at '$Path'." "ERROR"
-        Read-Host "ENTER to continue"
+        Write-Host "Could not find $ItemType at '$Path'." -ForegroundColor Red
+        return $false
     }
     else {
         try {
             Invoke-Item $Path
+            return $true
         }
         catch {
             Write-Log "Failed to open $ItemType at '$Path': $_" "ERROR"
+            Write-Host "Failed to open $ItemType at '$Path'." -ForegroundColor Red
+            return $false
         }
     }
 }
@@ -666,13 +703,70 @@ function Get-OutdatedPackages {
     }
 
     Write-Log "Checking for outdated NuGet packages..." "CONSOLE"
-    $result = Invoke-DotnetCommand -Command "list" -Arguments "`"$Script:SolutionFile`" package --outdated"
     
-    if ($result.Success) {
-        Write-Log "Package check successful." "SUCCESS"
+    $process = $null
+    try {
+        $logFile = Get-LogFile
+        $arguments = "list `"$($Script:SolutionFile)`" package --outdated"
+        
+        Write-Log "Executing: dotnet $arguments"
+
+        # Use synchronous process execution to avoid race conditions with log file writing.
+        $processInfo = New-Object System.Diagnostics.ProcessStartInfo
+        $processInfo.FileName = "dotnet"
+        $processInfo.Arguments = "$arguments --verbosity normal"
+        $processInfo.RedirectStandardOutput = $true
+        $processInfo.RedirectStandardError = $true
+        $processInfo.UseShellExecute = $false
+        $processInfo.CreateNoWindow = $true
+
+        $process = [System.Diagnostics.Process]::Start($processInfo)
+        $output = $process.StandardOutput.ReadToEnd()
+        $stdError = $process.StandardError.ReadToEnd()
+        $process.WaitForExit()
+        
+        if (-not [string]::IsNullOrWhiteSpace($output)) {
+            Add-Content -Path $logFile -Value $output
+        }
+        if (-not [string]::IsNullOrWhiteSpace($stdError)) {
+            Add-Content -Path $logFile -Value "ERROR: $($stdError)"
+        }
+        
+        # Display a filtered summary to the user for immediate feedback
+        if (-not [string]::IsNullOrWhiteSpace($output)) {
+            $outputLines = $output.Split([Environment]::NewLine)
+            $startIndex = -1
+            for ($i = 0; $i -lt $outputLines.Length; $i++) {
+                if ($outputLines[$i] -match 'has (no updates|the following updates)') {
+                    $startIndex = $i
+                    break
+                }
+            }
+
+            if ($startIndex -ge 0) {
+                $summary = $outputLines[$startIndex..($outputLines.Length - 1)] -join [Environment]::NewLine
+                Write-Host $summary.Trim()
+            }
+            else {
+                Write-Log "Could not find package update summary in the output. See log for details." "WARN"
+            }
+        }
+        if (-not [string]::IsNullOrWhiteSpace($stdError)) {
+            Write-Host $stdError -ForegroundColor Red
+        }
+
+        if ($process.ExitCode -eq 0) {
+            Write-Log "Package check successful." "SUCCESS"
+        }
+        else {
+            Write-Log "Package check failed. Exit code: $($process.ExitCode)" "ERROR"
+        }
     }
-    else {
-        Write-Log "Package check failed: $($result.Message)" "ERROR"
+    catch {
+        Write-Log "Failed to execute package check: $_" "ERROR"
+    }
+    finally {
+        if ($process) { $process.Dispose() }
     }
 }
 
@@ -714,6 +808,8 @@ function Watch-And-Run {
 }
 
 function Restore-NuGetPackages {
+    if (-not (Confirm-IdeShutdown -Action "Restore NuGet Packages")) { return }
+    
     Write-Log "Restoring NuGet packages..." "CONSOLE"
     
     $result = Invoke-DotnetCommand -Command "restore" -Arguments "`"$Script:SolutionFile`""
@@ -729,6 +825,7 @@ function Restore-NuGetPackages {
 }
 
 function Publish-Portable {
+    if (-not (Confirm-IdeShutdown -Action "Publish Portable Package")) { return }
     if (-not (Confirm-ProcessTermination -Action "Publish")) { return }
 
     $mainProjectDir = Split-Path -Path $Script:MainProjectFile -Parent
@@ -796,6 +893,7 @@ function Publish-Portable {
 }
 
 function Build-ProductionPackage {
+    if (-not (Confirm-IdeShutdown -Action "Production Build")) { return }
     if (-not (Confirm-ProcessTermination -Action "Production Build")) { return }
 
     # Define standard .NET output paths
@@ -863,8 +961,9 @@ function Build-ProductionPackage {
 function Remove-BuildOutput {
     param([switch]$NoConfirm)
     
-    if (-not $NoConfirm -and -not (Confirm-ProcessTermination -Action "Clean")) {
-        return
+    if (-not $NoConfirm) {
+        if (-not (Confirm-IdeShutdown -Action "Clean Solution")) { return }
+        if (-not (Confirm-ProcessTermination -Action "Clean")) { return }
     }
 
     Write-Log "Cleaning build files..." "CONSOLE"
@@ -880,6 +979,8 @@ function Remove-BuildOutput {
 }
 
 function Update-VersionNumber {
+    if (-not (Confirm-IdeShutdown -Action "Change Version Number")) { return }
+
     if (-not (Test-Path $Script:MainProjectFile)) {
         Write-Log "Project file not found at: $($Script:MainProjectFile)" "ERROR"
         return
@@ -920,7 +1021,7 @@ function Update-VersionNumber {
         Write-Log "Version updated to $newVersion in $($Script:MainProjectFile)" "SUCCESS"
     }
     catch {
-        Write-Log "ERROR! Invalid version. Use Semantic Versioning (e.g., 1.2.3 or 1.2.3-beta1)." "ERROR"
+        Write-Log "Failed to update version: $_" "ERROR"
     }
 }
 
@@ -933,14 +1034,19 @@ function Open-LatestLogFile {
         Select-Object -First 1
         
         if ($latestLog) {
-            Invoke-ItemSafely -Path $latestLog.FullName -ItemType "Log file"
+            $success = Invoke-ItemSafely -Path $latestLog.FullName -ItemType "Log file"
+            if (-not $success) {
+                return
+            }
         }
         else {
             Write-Log "No logs found to open." "WARN"
+            Write-Host "No logs found to open." -ForegroundColor Yellow
         }
     }
     else {
         Write-Log "Log directory not found." "WARN"
+        Write-Host "Log directory not found." -ForegroundColor Yellow
     }
 }
 
@@ -956,17 +1062,26 @@ function Open-UserDataFolder {
         Join-Path $env:APPDATA $Script:AppDataFolderName
     }
     
-    Invoke-ItemSafely -Path $userDataPath -ItemType "User data folder"
+    $success = Invoke-ItemSafely -Path $userDataPath -ItemType "User data folder"
+    if (-not $success) {
+        return
+    }
 }
 
 function Open-OutputFolder {
     $mainProjectDir = Split-Path -Path $Script:MainProjectFile -Parent
     $outputPath = Join-Path $mainProjectDir "bin"
-    Invoke-ItemSafely -Path $outputPath -ItemType "Output folder"
+    $success = Invoke-ItemSafely -Path $outputPath -ItemType "Output folder"
+    if (-not $success) {
+        return
+    }
 }
 
 function Open-SolutionInIDE {
-    Invoke-ItemSafely -Path $Script:SolutionFile -ItemType "Solution file"
+    $success = Invoke-ItemSafely -Path $Script:SolutionFile -ItemType "Solution file"
+    if (-not $success) {
+        return
+    }
 }
 
 function Invoke-UnitTests {
@@ -1069,7 +1184,7 @@ function Invoke-MenuResponse {
             Read-Host "ENTER to continue"
         }
         "PauseBriefly" {
-            Write-Host "Operation successful. Returning to menu..." -ForegroundColor Green
+            Write-Host "Returning to menu..." -ForegroundColor DarkGray
             Start-Sleep -Seconds 3
         }
         "NoPause" {
