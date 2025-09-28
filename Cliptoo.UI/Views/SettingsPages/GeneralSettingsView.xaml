@@ -216,8 +216,13 @@
                                 Appearance="Secondary"
                                 Command="{Binding DataContext.RemoveSendToTargetCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
                                 CommandParameter="{Binding}"
-                                Content="Remove"
-                                Style="{StaticResource SettingsButtonStyle}" />
+                                Style="{StaticResource SettingsIconButtonStyle}"
+                                ToolTip="Remove this target">
+                                <ui:ImageIcon
+                                    Width="16"
+                                    Height="16"
+                                    Source="{Binding DataContext.TrashIcon, RelativeSource={RelativeSource AncestorType=ListView}}" />
+                            </ui:Button>
                         </Grid>
                     </DataTemplate>
                 </ListView.ItemTemplate>

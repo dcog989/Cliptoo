@@ -11,6 +11,7 @@ namespace Cliptoo.UI.ViewModels
     {
         private bool _isBusy;
         private ImageSource? _logoIcon;
+        private ImageSource? _trashIcon;
         private bool _isFontsLoading = true;
 
         public Settings Settings { get => _settings; set => SetProperty(ref _settings, value); }
@@ -20,6 +21,7 @@ namespace Cliptoo.UI.ViewModels
         public string CurrentPage { get => _currentPage; set => SetProperty(ref _currentPage, value); }
         public bool IsBusy { get => _isBusy; set => SetProperty(ref _isBusy, value); }
         public ImageSource? LogoIcon { get => _logoIcon; private set => SetProperty(ref _logoIcon, value); }
+        public ImageSource? TrashIcon { get => _trashIcon; private set => SetProperty(ref _trashIcon, value); }
         public bool IsFontsLoading { get => _isFontsLoading; set => SetProperty(ref _isFontsLoading, value); }
 
         public string CompareToolPath

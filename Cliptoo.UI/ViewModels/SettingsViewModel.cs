@@ -287,6 +287,7 @@ namespace Cliptoo.UI.ViewModels
         private async Task LoadIconsAsync()
         {
             LogoIcon = await _iconProvider.GetIconAsync(AppConstants.IconKeys.Logo, 138).ConfigureAwait(true);
+            TrashIcon = await _iconProvider.GetIconAsync(AppConstants.IconKeys.Trash, 16).ConfigureAwait(true);
         }
 
         private void OnDebounceTimerElapsed(object? sender, System.Timers.ElapsedEventArgs e)

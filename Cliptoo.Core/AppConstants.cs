@@ -43,6 +43,7 @@ namespace Cliptoo.Core
             public const string Logo = "logo";
             public const string List = "list";
             public const string Error = "error";
+            public const string Trash = "trash";
         }
 
         internal static class TransformTypes

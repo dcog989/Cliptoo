@@ -173,6 +173,7 @@ namespace Cliptoo.UI.Services
                 Core.AppConstants.IconKeys.Multiline => "text-wrap.svg",
                 Core.AppConstants.IconKeys.Pin => "pin-angle.svg",
                 Core.AppConstants.IconKeys.WasTrimmed => "backspace.svg",
+                Core.AppConstants.IconKeys.Trash => "trash.svg",
                 _ => "file.svg"
             };
         }
