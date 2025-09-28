@@ -1000,7 +1000,8 @@ function Update-VersionNumber {
             throw "Invalid version format. Use Semantic Versioning (e.g., 1.2.3 or 1.2.3-beta1)."
         }
         
-        $csproj = [xml](Get-Content $Script:MainProjectFile -Raw)
+        $csprojContent = Get-Content $Script:MainProjectFile -Raw
+        $csproj = [xml]$csprojContent
         $propertyGroup = $csproj.SelectSingleNode("//PropertyGroup[Version]")
         
         if ($null -eq $propertyGroup) {
@@ -1016,7 +1017,33 @@ function Update-VersionNumber {
             $propertyGroup.AppendChild($versionElement) | Out-Null
         }
         
-        $csproj.Save($Script:MainProjectFile)
+        # Detect existing indentation to preserve file formatting.
+        $indentChars = "    " # Default to 4 spaces
+        $match = $csprojContent | Select-String -Pattern '(?m)^(\s+)<PropertyGroup>'
+        if ($null -ne $match) {
+            $indentChars = $match.Matches[0].Groups[1].Value
+        }
+        else {
+            Write-Log "Could not detect project file indentation. Defaulting to 4 spaces." "WARN"
+        }
+
+        # Use a custom XmlWriter to preserve indentation.
+        $writerSettings = New-Object System.Xml.XmlWriterSettings
+        $writerSettings.Indent = $true
+        $writerSettings.IndentChars = $indentChars
+        $writerSettings.Encoding = [System.Text.UTF8Encoding]::new($false) # UTF-8 without BOM
+        
+        $xmlWriter = $null
+        try {
+            $xmlWriter = [System.Xml.XmlWriter]::Create($Script:MainProjectFile, $writerSettings)
+            $csproj.Save($xmlWriter)
+        }
+        finally {
+            if ($null -ne $xmlWriter) {
+                $xmlWriter.Close()
+            }
+        }
+        
         $Script:BuildVersion = $newVersion
         Write-Log "Version updated to $newVersion in $($Script:MainProjectFile)" "SUCCESS"
     }
