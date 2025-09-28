@@ -41,6 +41,7 @@ namespace Cliptoo.Core.Database
                 WasTrimmed = reader.GetOrdinal("WasTrimmed"),
                 SizeInBytes = reader.GetOrdinal("SizeInBytes"),
                 PreviewContent = reader.GetOrdinal("PreviewContent"),
+                PasteCount = reader.GetOrdinal("PasteCount"),
                 MatchContext = HasColumn(reader, "MatchContext") ? reader.GetOrdinal("MatchContext") : -1
             };
 
@@ -54,6 +55,7 @@ namespace Cliptoo.Core.Database
                 WasTrimmed = reader.GetInt64(ordinals.WasTrimmed) == 1,
                 SizeInBytes = reader.GetInt64(ordinals.SizeInBytes),
                 PreviewContent = reader.IsDBNull(ordinals.PreviewContent) ? null : reader.GetString(ordinals.PreviewContent),
+                PasteCount = reader.GetInt32(ordinals.PasteCount),
                 MatchContext = ordinals.MatchContext != -1 && !reader.IsDBNull(ordinals.MatchContext) ? reader.GetString(ordinals.MatchContext) : null
             };
         }
@@ -277,7 +279,8 @@ namespace Cliptoo.Core.Database
                 SourceApp = reader.IsDBNull(reader.GetOrdinal("SourceApp")) ? null : reader.GetString(reader.GetOrdinal("SourceApp")),
                 IsPinned = reader.GetInt64(reader.GetOrdinal("IsPinned")) == 1,
                 WasTrimmed = reader.GetInt64(reader.GetOrdinal("WasTrimmed")) == 1,
-                SizeInBytes = reader.GetInt64(reader.GetOrdinal("SizeInBytes"))
+                SizeInBytes = reader.GetInt64(reader.GetOrdinal("SizeInBytes")),
+                PasteCount = reader.GetInt32(reader.GetOrdinal("PasteCount"))
             };
         }
 
@@ -337,6 +340,13 @@ namespace Cliptoo.Core.Database
                     }
                 }
             });
+        }
+
+        public Task IncrementPasteCountAsync(int clipId)
+        {
+            var sql = "UPDATE clips SET PasteCount = COALESCE(PasteCount, 0) + 1 WHERE Id = @Id";
+            var param = new SqliteParameter("@Id", clipId);
+            return ExecuteNonQueryAsync(sql, param);
         }
     }
 }

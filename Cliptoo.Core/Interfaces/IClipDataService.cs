@@ -16,6 +16,7 @@ namespace Cliptoo.Core.Interfaces
         Task TogglePinAsync(int id, bool isPinned);
         Task MoveClipToTopAsync(int id);
         void ClearCache();
+        Task IncrementPasteCountAsync(int clipId);
         event EventHandler? NewClipAdded;
         event EventHandler? ClipDeleted;
     }

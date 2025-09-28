@@ -13,7 +13,7 @@ namespace Cliptoo.Core.Database
     internal static class ClipQueryBuilder
     {
         private static readonly char[] _spaceSeparator = [' '];
-        private const string columns = "c.Id, c.Timestamp, c.ClipType, c.SourceApp, c.IsPinned, c.WasTrimmed, c.SizeInBytes, c.PreviewContent";
+        private const string columns = "c.Id, c.Timestamp, c.ClipType, c.SourceApp, c.IsPinned, c.WasTrimmed, c.SizeInBytes, c.PreviewContent, c.PasteCount";
         private static readonly Regex FtsSpecialCharsRegex = new("[^a-zA-Z0-9_]");
 
         [SuppressMessage("Microsoft.Security", "CA2100:Review SQL queries for security vulnerabilities", Justification = "OrderBy clause is constructed from hardcoded, non-user-input strings.")]
@@ -49,7 +49,8 @@ namespace Cliptoo.Core.Database
                 command.Parameters.AddWithValue("@FtsSearchTerm", ftsQuery);
 
                 queryBuilder.AppendFormat(CultureInfo.InvariantCulture,
-                    "SELECT {0}, snippet(clips_fts, 0, '[HL]', '[/HL]', '...', 60) as MatchContext ",
+                    "SELECT {0}, snippet(clips_fts, 0, '[HL]', '[/HL]', '...', 60) as MatchContext, " +
+                    "(c.PasteCount + 1.0) / (MAX(0.0, (julianday('now') - julianday(c.Timestamp)) * 24.0) + 2.0) AS Hotness ",
                     columns);
 
                 queryBuilder.Append("FROM clips c JOIN clips_fts ON c.Id = clips_fts.rowid ");
@@ -58,7 +59,11 @@ namespace Cliptoo.Core.Database
             }
             else
             {
-                queryBuilder.AppendFormat(CultureInfo.InvariantCulture, "SELECT {0} FROM clips c ", columns);
+                // For the default view, we don't need the Hotness score for sorting,
+                // but we select it to keep the result schema consistent with the search query.
+                queryBuilder.AppendFormat(CultureInfo.InvariantCulture, "SELECT {0}, " +
+                    "0 AS Hotness " +
+                    "FROM clips c ", columns);
             }
 
             if (filterType == AppConstants.FilterKeys.Pinned)
@@ -83,7 +88,7 @@ namespace Cliptoo.Core.Database
             }
 
             string orderBy = sanitizedTerms.Count > 0
-                ? "ORDER BY c.IsPinned DESC, Rank ASC, c.Timestamp DESC"
+                ? "ORDER BY (rank - Hotness * 5.0) ASC, c.Timestamp DESC"
                 : "ORDER BY c.Timestamp DESC";
 
             queryBuilder.Append(CultureInfo.InvariantCulture, $" {orderBy} LIMIT @Limit OFFSET @Offset");

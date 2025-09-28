@@ -88,5 +88,11 @@ namespace Cliptoo.Core.Services
         }
 
         public void ClearCache() => _clipCache.Clear();
+
+        public Task IncrementPasteCountAsync(int clipId)
+        {
+            _clipCache.Remove(clipId);
+            return _dbManager.IncrementPasteCountAsync(clipId);
+        }
     }
 }

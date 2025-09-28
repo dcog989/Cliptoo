@@ -14,5 +14,6 @@ namespace Cliptoo.Core.Database.Models
         public bool WasTrimmed { get; set; }
         public string? MatchContext { get; set; }
         public long SizeInBytes { get; set; }
+        public int PasteCount { get; set; }
     }
 }

@@ -28,5 +28,6 @@ namespace Cliptoo.Core.Database
         IAsyncEnumerable<string> GetAllImageClipPathsAsync();
         IAsyncEnumerable<string> GetAllLinkClipUrlsAsync();
         Task UpdateLastCleanupTimestampAsync();
+        Task IncrementPasteCountAsync(int clipId);
     }
 }

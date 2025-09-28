@@ -18,5 +18,6 @@ namespace Cliptoo.Core.Database
         Task UpdateClipTypesAsync(Dictionary<int, string> updates);
         IAsyncEnumerable<string> GetAllImageClipPathsAsync();
         IAsyncEnumerable<string> GetAllLinkClipUrlsAsync();
+        Task IncrementPasteCountAsync(int clipId);
     }
 }

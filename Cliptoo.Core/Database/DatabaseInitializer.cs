@@ -7,7 +7,7 @@ namespace Cliptoo.Core.Database
 {
     public class DatabaseInitializer : RepositoryBase, IDatabaseInitializer
     {
-        private const int CurrentDbVersion = 3;
+        private const int CurrentDbVersion = 4;
 
         public DatabaseInitializer(string dbPath) : base(dbPath) { }
 
@@ -39,7 +39,8 @@ namespace Cliptoo.Core.Database
                             SourceApp TEXT,
                             IsPinned INTEGER NOT NULL DEFAULT 0,
                             WasTrimmed INTEGER NOT NULL DEFAULT 0,
-                            SizeInBytes INTEGER NOT NULL DEFAULT 0
+                            SizeInBytes INTEGER NOT NULL DEFAULT 0,
+                            PasteCount INTEGER NOT NULL DEFAULT 0
                         );
                         CREATE INDEX idx_clips_timestamp ON clips(Timestamp);
                         CREATE TABLE stats (
@@ -169,6 +170,21 @@ namespace Cliptoo.Core.Database
                         {
                             if (cmd != null) { await cmd.DisposeAsync().ConfigureAwait(false); }
                         }
+                    }
+                }
+                if (fromVersion < 4)
+                {
+                    SqliteCommand? alterCmd = null;
+                    try
+                    {
+                        alterCmd = connection.CreateCommand();
+                        alterCmd.Transaction = transaction;
+                        alterCmd.CommandText = "ALTER TABLE clips ADD COLUMN PasteCount INTEGER NOT NULL DEFAULT 0;";
+                        await alterCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        if (alterCmd != null) { await alterCmd.DisposeAsync().ConfigureAwait(false); }
                     }
                 }
 

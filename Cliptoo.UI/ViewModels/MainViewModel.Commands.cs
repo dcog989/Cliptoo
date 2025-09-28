@@ -61,6 +61,7 @@ namespace Cliptoo.UI.ViewModels
                 }
 
                 await pasteAction(clip);
+                await _clipDataService.IncrementPasteCountAsync(clip.Id).ConfigureAwait(false);
                 await _clipboardService.UpdatePasteCountAsync().ConfigureAwait(false);
 
                 await LoadClipsAsync(true);
