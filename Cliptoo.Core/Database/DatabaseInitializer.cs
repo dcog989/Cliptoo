@@ -172,19 +172,40 @@ namespace Cliptoo.Core.Database
                         }
                     }
                 }
+
                 if (fromVersion < 4)
                 {
-                    SqliteCommand? alterCmd = null;
-                    try
+                    // Check if the PasteCount column already exists before trying to add it.
+                    bool columnExists = false;
+                    var pragmaCmd = connection.CreateCommand();
+                    pragmaCmd.Transaction = transaction;
+                    pragmaCmd.CommandText = "PRAGMA table_info('clips');";
+                    using (var reader = await pragmaCmd.ExecuteReaderAsync().ConfigureAwait(false))
                     {
-                        alterCmd = connection.CreateCommand();
-                        alterCmd.Transaction = transaction;
-                        alterCmd.CommandText = "ALTER TABLE clips ADD COLUMN PasteCount INTEGER NOT NULL DEFAULT 0;";
-                        await alterCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+                        while (await reader.ReadAsync().ConfigureAwait(false))
+                        {
+                            if (reader.GetString(reader.GetOrdinal("name")).Equals("PasteCount", StringComparison.OrdinalIgnoreCase))
+                            {
+                                columnExists = true;
+                                break;
+                            }
+                        }
                     }
-                    finally
+
+                    if (!columnExists)
                     {
-                        if (alterCmd != null) { await alterCmd.DisposeAsync().ConfigureAwait(false); }
+                        SqliteCommand? alterCmd = null;
+                        try
+                        {
+                            alterCmd = connection.CreateCommand();
+                            alterCmd.Transaction = transaction;
+                            alterCmd.CommandText = "ALTER TABLE clips ADD COLUMN PasteCount INTEGER NOT NULL DEFAULT 0;";
+                            await alterCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            if (alterCmd != null) { await alterCmd.DisposeAsync().ConfigureAwait(false); }
+                        }
                     }
                 }
 
