@@ -279,19 +279,62 @@ namespace Cliptoo.UI.ViewModels
         private void UpdatePreviewText()
         {
             string basePreview;
-            bool isFtsMatch = !string.IsNullOrWhiteSpace(_clip.MatchContext) && _clip.MatchContext.Contains("[HL]", StringComparison.Ordinal);
+            var searchTerm = MainViewModel.SearchTerm;
+            bool isSearching = !string.IsNullOrEmpty(searchTerm);
+            const string startTag = "[HL]";
+            const string endTag = "[/HL]";
 
-            if (isFtsMatch)
+            if (isSearching && !string.IsNullOrWhiteSpace(_clip.MatchContext) && _clip.MatchContext.Contains(startTag, StringComparison.Ordinal))
             {
-                basePreview = _clip.MatchContext!;
+                string context = _clip.MatchContext.ReplaceLineEndings(" ");
+                int highlightStart = context.IndexOf(startTag, StringComparison.Ordinal);
+                int highlightEnd = context.IndexOf(endTag, highlightStart, StringComparison.Ordinal);
+
+                if (highlightStart != -1 && highlightEnd != -1)
+                {
+                    const int contextBefore = 10; // Show 10 chars before the highlight
+                    const int contextAfter = 60;  // Show 60 chars after the highlight starts
+                    int actualHighlightStart = highlightStart + startTag.Length;
+                    int actualHighlightEnd = highlightEnd;
+                    string contextWithoutTags = context.Remove(highlightEnd, endTag.Length).Remove(highlightStart, startTag.Length);
+                    int adjustedHighlightStart = highlightStart;
+                    int adjustedHighlightEnd = highlightEnd - startTag.Length;
+                    int visibleStart = Math.Max(0, adjustedHighlightStart - contextBefore);
+                    int visibleEnd = Math.Min(contextWithoutTags.Length, adjustedHighlightStart + contextAfter);
+
+                    if (adjustedHighlightEnd > visibleEnd)
+                    {
+                        visibleEnd = Math.Min(contextWithoutTags.Length, adjustedHighlightEnd);
+                    }
+
+                    basePreview = contextWithoutTags.Substring(visibleStart, visibleEnd - visibleStart);
+                    int previewHighlightStart = adjustedHighlightStart - visibleStart;
+                    int previewHighlightEnd = adjustedHighlightEnd - visibleStart;
+
+                    if (previewHighlightStart >= 0 && previewHighlightEnd <= basePreview.Length && previewHighlightStart < previewHighlightEnd)
+                    {
+                        string highlightedText = basePreview.Substring(previewHighlightStart, previewHighlightEnd - previewHighlightStart);
+                        basePreview = basePreview.Remove(previewHighlightStart, highlightedText.Length);
+                        basePreview = basePreview.Insert(previewHighlightStart, $"{startTag}{highlightedText}{endTag}");
+                    }
+
+                    if (visibleStart > 0)
+                    {
+                        basePreview = "..." + basePreview;
+                    }
+                    if (visibleEnd < contextWithoutTags.Length)
+                    {
+                        basePreview += "...";
+                    }
+                }
+                else
+                {
+                    basePreview = _clip.MatchContext;
+                }
             }
             else
             {
-                if (!string.IsNullOrWhiteSpace(_clip.MatchContext))
-                {
-                    basePreview = _clip.MatchContext!;
-                }
-                else if (_clip.ClipType == AppConstants.ClipTypes.Rtf)
+                if (_clip.ClipType == AppConstants.ClipTypes.Rtf)
                 {
                     basePreview = RtfUtils.ToPlainText(Content);
                 }
@@ -313,24 +356,21 @@ namespace Cliptoo.UI.ViewModels
                     }
                 }
 
-                var searchTerm = MainViewModel.SearchTerm;
-                if (!isFtsMatch && !string.IsNullOrEmpty(searchTerm))
+                if (isSearching)
                 {
                     var terms = searchTerm.Split(_spaceSeparator, StringSplitOptions.RemoveEmptyEntries);
-                    var tempPreview = basePreview;
                     foreach (var term in terms)
                     {
                         try
                         {
-                            tempPreview = System.Text.RegularExpressions.Regex.Replace(tempPreview, System.Text.RegularExpressions.Regex.Escape(term), "[HL]$0[/HL]", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                            basePreview = System.Text.RegularExpressions.Regex.Replace(basePreview, System.Text.RegularExpressions.Regex.Escape(term), "[HL]$0[/HL]", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
                         }
-                        catch (ArgumentException) { /* Invalid regex from search term, skip highlighting */ }
+                        catch (ArgumentException) { }
                     }
-                    basePreview = tempPreview;
                 }
             }
 
-            Preview = basePreview.ReplaceLineEndings(" ").Trim();
+            Preview = basePreview.Trim();
             OnPropertyChanged(nameof(Preview));
         }
 
