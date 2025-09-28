@@ -97,6 +97,11 @@
 
             <Separator Margin="0,12,0,12" />
 
+            <TextBlock
+                FontSize="16"
+                FontWeight="SemiBold"
+                Text="External Apps" />
+
             <Grid Margin="0,6,0,12">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
@@ -106,7 +111,7 @@
                 <TextBlock
                     Grid.Column="0"
                     Style="{StaticResource SettingLabel}"
-                    Text="Path to compare program" />
+                    Text="Compare program" />
                 <ui:TextBox
                     Grid.Column="1"
                     Style="{StaticResource SettingsTextBoxStyle}"
@@ -119,16 +124,10 @@
                     Style="{StaticResource SettingsButtonStyle}" />
             </Grid>
 
-
-            <TextBlock
-                FontSize="16"
-                FontWeight="SemiBold"
-                Text="Send To Apps" />
-
             <TextBlock
                 Margin="0,6,0,12"
                 Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                Text="Configure apps for the 'Send To' context menu. &quot;{0}&quot; is used as a placeholder for the file path."
+                Text="Configure apps for the 'Send To' and 'Compare' context menu actions. &quot;{0}&quot; is a placeholder for the clip's file path."
                 TextWrapping="Wrap" />
 
             <ListView
@@ -233,7 +232,6 @@
                 Appearance="Secondary"
                 Command="{Binding AddSendToTargetCommand}"
                 Content="Add Application..." />
-
         </StackPanel>
     </ScrollViewer>
 </UserControl>
