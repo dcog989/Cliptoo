@@ -58,17 +58,18 @@ $Script:MenuItems = [ordered]@{
     "1" = @{ Description = "Build & Run (Debug)"; Action = { Start-BuildAndRun -Configuration "Debug" }; Response = "WaitForEnter" }
     "2" = @{ Description = "Build & Run (Release)"; Action = { Start-BuildAndRun -Configuration "Release" }; Response = "WaitForEnter" }
     "3" = @{ Description = "Watch & Run (Hot Reload)"; Action = { Watch-And-Run }; Response = "WaitForEnter" }
-    "4" = @{ Description = "Publish Portable Package"; Action = { Publish-Portable }; Response = "WaitForEnter" }
-    "5" = @{ Description = "Publish Production Package"; Action = { Build-ProductionPackage }; Response = "WaitForEnter" }
-    "6" = @{ Description = "Restore NuGet Packages"; Action = { Restore-NuGetPackages }; Response = "WaitForEnter" }
-    "7" = @{ Description = "List Packages + Updates"; Action = { Get-OutdatedPackages; Invoke-Item (Get-LogFile) }; Response = "WaitForEnter" }
-    "8" = @{ Description = "Run Unit Tests"; Action = { Invoke-UnitTests }; Response = "WaitForEnter" }
+    "4" = @{ Description = "Restore NuGet Packages"; Action = { Restore-NuGetPackages }; Response = "WaitForEnter" }
+    "5" = @{ Description = "List Packages + Updates"; Action = { Get-OutdatedPackages; Invoke-Item (Get-LogFile) }; Response = "WaitForEnter" }
+    "6" = @{ Description = "Run Unit Tests"; Action = { Invoke-UnitTests }; Response = "WaitForEnter" }
+    "7" = @{ Description = "Produce Changelog"; Action = { New-ChangelogFromGit }; Response = "WaitForEnter" }
+    "8" = @{ Description = "Publish Portable Package"; Action = { Publish-Portable }; Response = "WaitForEnter" }
+    "9" = @{ Description = "Publish Production Package"; Action = { Build-ProductionPackage }; Response = "WaitForEnter" }
     
-    "A" = @{ Description = "Open Output Folder"; Action = { Open-OutputFolder }; Response = "PauseBriefly" }
+    "A" = @{ Description = "Change Version Number"; Action = { Update-VersionNumber }; Response = "WaitForEnter" }
     "B" = @{ Description = "Open Solution in IDE"; Action = { Open-SolutionInIDE }; Response = "PauseBriefly" }
     "C" = @{ Description = "Clean Solution"; Action = { Remove-BuildOutput }; Response = "PauseBriefly" }
     "D" = @{ Description = "Clean Logs"; Action = { Clear-Logs }; Response = "PauseBriefly" }
-    "E" = @{ Description = "Change Version Number"; Action = { Update-VersionNumber }; Response = "WaitForEnter" }
+    "E" = @{ Description = "Open Output Folder"; Action = { Open-OutputFolder }; Response = "PauseBriefly" }
     "F" = @{ Description = "Open User Data Folder"; Action = { Open-UserDataFolder }; Response = "PauseBriefly" }
     "G" = @{ Description = "Open Log File"; Action = { Open-LatestLogFile }; Response = "PauseBriefly" }
 }
@@ -201,6 +202,31 @@ function Invoke-WithStandardErrorHandling {
         if ($LogError) { Write-Log "$FailureMessage : $($result.Message)" "ERROR" }
         return $null
     }
+}
+
+function Clear-ScreenRobust {
+    try {
+        Clear-Host
+    }
+    catch {
+        try {
+            [System.Console]::Clear()
+        }
+        catch {
+            Write-Host "`n" * 3
+        }
+    }
+
+    try {
+        Write-Progress -Activity " " -Status " " -Completed
+    }
+    catch {
+        # Ignore errors when clearing progress
+    }
+    
+    [System.Console]::Out.Flush()
+    [System.Console]::Error.Flush()
+    Start-Sleep -Milliseconds 50
 }
 
 # --- Logging ---
@@ -582,13 +608,18 @@ function Invoke-ItemSafely {
 }
 
 function New-ChangelogFromGit {
-    param([string]$OutputDir)
-    
     Write-Log "Generating changelog from Git history..." "CONSOLE"
     
     if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
         Write-Log "git.exe not found. Skipping changelog generation." "WARN"
         return
+    }
+
+    # Define output directory
+    $changelogDir = Join-Path $PSScriptRoot "Changelogs"
+    if (-not (Test-Path $changelogDir)) {
+        New-Item -ItemType Directory -Path $changelogDir -Force | Out-Null
+        Write-Log "Created changelog directory: $changelogDir"
     }
 
     try {
@@ -637,9 +668,16 @@ function New-ChangelogFromGit {
         }
 
         $fullContent = $changelogContent -join "`n"
-        $outputPath = Join-Path $OutputDir "Changelog.md"
+        
+        # Create timestamped filename
+        $timestamp = (Get-Date).ToString('yyyyMMdd-HHmmss')
+        $outputPath = Join-Path $changelogDir "Changelog-$timestamp.md"
         Set-Content -Path $outputPath -Value $fullContent -Encoding UTF8
-        Write-Log "Changelog.md created with $($commitLines.Count) entries." "SUCCESS"
+        
+        Write-Log "Changelog created: $outputPath with $($commitLines.Count) entries." "SUCCESS"
+        
+        # Open the changelog file
+        Invoke-ItemSafely -Path $outputPath -ItemType "Changelog file"
     }
     catch {
         Write-Log "Failed to generate changelog from Git history: $_" "WARN"
@@ -991,7 +1029,14 @@ function Remove-BuildOutput {
     
     $buildDirs = Get-ChildItem -Path $Script:SolutionRoot -Include "bin", "obj" -Recurse -Directory -ErrorAction SilentlyContinue
     if ($buildDirs) {
-        $buildDirs | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+        $counter = 0
+        $total = $buildDirs.Count
+        foreach ($dir in $buildDirs) {
+            $counter++
+            Write-Progress -Activity "Cleaning build directories" -Status "Removing $($dir.Name)" -PercentComplete (($counter / $total) * 100)
+            Remove-Item -Path $dir.FullName -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        Write-Progress -Activity "Cleaning build directories" -Completed
         Write-Log "Removed $($buildDirs.Count) build directories"
     }
 
@@ -1292,7 +1337,7 @@ function Main {
         
         while (-not $exit) {
             if (-not $firstRun) {
-                Clear-Host
+                Clear-ScreenRobust
             }
             $firstRun = $false
             
