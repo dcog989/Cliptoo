@@ -604,22 +604,42 @@ function New-ChangelogFromGit {
     catch {
         Write-Log "No Git tags found. Generating changelog for all commits." "WARN"
         $commitRange = "HEAD"
-        $header = "## Full Project Changelog"
+        $header = "## All Changes"
     }
 
     try {
-        $gitLogCommand = @("log", $commitRange, "--pretty=format:* %h - %s (%an)")
-        $changelogContent = git -C $Script:SolutionRoot $gitLogCommand 2>$null
+        # Get commits with hash, subject, and author - oldest first
+        $gitLogCommand = @("log", $commitRange, "--pretty=format:%h|%s|%an", "--reverse")
+        $commitData = git -C $Script:SolutionRoot $gitLogCommand 2>$null
 
-        if ([string]::IsNullOrWhiteSpace($changelogContent)) {
-            Write-Log "No new commits to add to changelog. File not created." "WARN"
+        if ([string]::IsNullOrWhiteSpace($commitData)) {
+            Write-Log "No commits to add to changelog. File not created." "WARN"
             return
         }
 
-        $fullContent = "$header`n`n$changelogContent"
+        # Build changelog content
+        $changelogContent = @()
+        $changelogContent += "# $($Script:PackageTitle) Changelog"
+        $changelogContent += ""
+        $changelogContent += $header
+        $changelogContent += ""
+
+        # Process each commit and format as bullet points
+        $commitLines = $commitData -split "`n"
+        foreach ($line in $commitLines) {
+            $parts = $line -split "\|", 3
+            if ($parts.Count -eq 3) {
+                $hash = $parts[0].Trim()
+                $subject = $parts[1].Trim()
+                $author = $parts[2].Trim()
+                $changelogContent += "- $subject by $author ($hash)"
+            }
+        }
+
+        $fullContent = $changelogContent -join "`n"
         $outputPath = Join-Path $OutputDir "Changelog.md"
-        Set-Content -Path $outputPath -Value $fullContent
-        Write-Log "Changelog.md created." "SUCCESS"
+        Set-Content -Path $outputPath -Value $fullContent -Encoding UTF8
+        Write-Log "Changelog.md created with $($commitLines.Count) entries." "SUCCESS"
     }
     catch {
         Write-Log "Failed to generate changelog from Git history: $_" "WARN"
