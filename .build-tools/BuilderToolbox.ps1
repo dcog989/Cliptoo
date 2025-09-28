@@ -608,6 +608,8 @@ function Invoke-ItemSafely {
 }
 
 function New-ChangelogFromGit {
+    param([string]$OutputDir = $null)
+    
     Write-Log "Generating changelog from Git history..." "CONSOLE"
     
     if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
@@ -615,8 +617,14 @@ function New-ChangelogFromGit {
         return
     }
 
-    # Define output directory
-    $changelogDir = Join-Path $PSScriptRoot "Changelogs"
+    # Define output directory - use parameter if provided, otherwise default
+    if ([string]::IsNullOrEmpty($OutputDir)) {
+        $changelogDir = Join-Path $PSScriptRoot "Changelogs"
+    }
+    else {
+        $changelogDir = $OutputDir
+    }
+    
     if (-not (Test-Path $changelogDir)) {
         New-Item -ItemType Directory -Path $changelogDir -Force | Out-Null
         Write-Log "Created changelog directory: $changelogDir"
@@ -676,8 +684,10 @@ function New-ChangelogFromGit {
         
         Write-Log "Changelog created: $outputPath with $($commitLines.Count) entries." "SUCCESS"
         
-        # Open the changelog file
-        Invoke-ItemSafely -Path $outputPath -ItemType "Changelog file"
+        # Only open the changelog file if it's in the default location (not release dir)
+        if ([string]::IsNullOrEmpty($OutputDir)) {
+            Invoke-ItemSafely -Path $outputPath -ItemType "Changelog file"
+        }
     }
     catch {
         Write-Log "Failed to generate changelog from Git history: $_" "WARN"
