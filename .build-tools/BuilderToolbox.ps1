@@ -189,7 +189,7 @@ function Invoke-WithStandardErrorHandling {
         [scriptblock]$Action,
         [string]$SuccessMessage,
         [string]$FailureMessage,
-        [switch]$LogError = $true
+        [bool]$LogError = $true
     )
     
     $result = & $Action
@@ -301,10 +301,11 @@ function Invoke-DotnetCommand {
         [string]$Command,
         [Parameter(Mandatory = $true)]
         [string]$Arguments,
+        [string]$Verbosity = "normal",
         [switch]$IgnoreErrors
     )
     
-    $fullArgs = "$Command $Arguments --verbosity normal"
+    $fullArgs = "$Command $Arguments --verbosity $Verbosity"
     $result = Invoke-ExternalCommand -ExecutablePath "dotnet" -Arguments $fullArgs -IgnoreErrors:$IgnoreErrors
     
     if ($result.Success -or $IgnoreErrors) {
@@ -409,8 +410,9 @@ function Confirm-IdeShutdown {
     param([string]$Action)
 
     $ideProcesses = @{
-        "devenv" = "Visual Studio";
-        "Code"   = "Visual Studio Code"
+        "devenv"  = "Visual Studio";
+        "Code"    = "Visual Studio Code";
+        "rider64" = "JetBrains Rider"
     }
 
     $runningIdes = [System.Collections.Generic.List[string]]::new()
@@ -512,12 +514,11 @@ function Stop-ProcessGracefully {
     return Stop-ProcessForcefully -ProcessName $ProcessName -TimeoutSeconds $ForcefulTimeoutSeconds
 }
 
-
 function Confirm-ProcessTermination {
     param(
         [string]$Action = "Build",
         [int]$TerminationTimeoutSeconds = 10,
-        [switch]$UseGracefulTermination = $true
+        [bool]$UseGracefulTermination = $true
     )
 
     $processes = Get-Process -Name $Script:ProcessNameForTermination -ErrorAction SilentlyContinue
@@ -1079,11 +1080,13 @@ function Open-LatestLogFile {
 
 function Open-UserDataFolder {
     $mainProjectDir = Split-Path -Path $Script:MainProjectFile -Parent
-    $exePath = Join-Path $mainProjectDir "bin\$($Script:BuildPlatform)\Release\$($Script:TargetFramework)"
-    $portableMarkerPath = Join-Path $exePath $Script:PortableMarkerFile
+    
+    # The portable version is staged in the 'publish' subdirectory during a portable build.
+    $publishPath = Join-Path $mainProjectDir "bin\$($Script:BuildPlatform)\Release\$($Script:TargetFramework)\$($Script:PublishRuntimeId)\publish"
+    $portableMarkerPath = Join-Path $publishPath $Script:PortableMarkerFile
     
     $userDataPath = if (Test-Path $portableMarkerPath) {
-        Join-Path $exePath "Data"
+        Join-Path $publishPath "Data"
     }
     else {
         Join-Path $env:APPDATA $Script:AppDataFolderName
