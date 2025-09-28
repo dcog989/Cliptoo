@@ -38,7 +38,6 @@ $Script:PortableArchiveFormat = "{0}-Windows-x64-Portable-v{1}.7z" # Param 0: Pa
 $Script:LogFileFormat = "{0}.build.{1}.log"                       # Param 0: PackageTitle, Param 1: Timestamp
 
 # Post-build customization
-$Script:RunPostBuildCleanup = $false # Remove build artifacts after build
 $Script:RemoveCreateDump = $true # Remove createdump.exe from deps.json
 $Script:RemoveXmlFiles = $true # Remove *.xml doc files from output
 
@@ -54,23 +53,24 @@ $Script:GitCommit = ""
 $Script:GitInfoCache = $null
 
 # Menu item definitions for layout and logging
+# Menu item definitions for layout and logging
 $Script:MenuItems = [ordered]@{
-    "1" = @{ Description = "Build & Run (Debug)"; Action = { Start-BuildAndRun -Configuration "Debug" } }
-    "2" = @{ Description = "Build & Run (Release)"; Action = { Start-BuildAndRun -Configuration "Release" } }
-    "3" = @{ Description = "Watch & Run (Hot Reload)"; Action = { Watch-And-Run } }
-    "4" = @{ Description = "Publish Portable Package"; Action = { Publish-Portable } }
-    "5" = @{ Description = "Publish Production Package"; Action = { Build-ProductionPackage } }
-    "6" = @{ Description = "Restore NuGet Packages"; Action = { Restore-NuGetPackages } }
-    "7" = @{ Description = "List Packages + Updates"; Action = { Get-OutdatedPackages; Invoke-Item (Get-LogFile) } }
-    "8" = @{ Description = "Run Unit Tests"; Action = { Invoke-UnitTests } }
+    "1" = @{ Description = "Build & Run (Debug)"; Action = { Start-BuildAndRun -Configuration "Debug" }; Response = "WaitForEnter" }
+    "2" = @{ Description = "Build & Run (Release)"; Action = { Start-BuildAndRun -Configuration "Release" }; Response = "WaitForEnter" }
+    "3" = @{ Description = "Watch & Run (Hot Reload)"; Action = { Watch-And-Run }; Response = "WaitForEnter" }
+    "4" = @{ Description = "Publish Portable Package"; Action = { Publish-Portable }; Response = "WaitForEnter" }
+    "5" = @{ Description = "Publish Production Package"; Action = { Build-ProductionPackage }; Response = "WaitForEnter" }
+    "6" = @{ Description = "Restore NuGet Packages"; Action = { Restore-NuGetPackages }; Response = "WaitForEnter" }
+    "7" = @{ Description = "List Packages + Updates"; Action = { Get-OutdatedPackages; Invoke-Item (Get-LogFile) }; Response = "WaitForEnter" }
+    "8" = @{ Description = "Run Unit Tests"; Action = { Invoke-UnitTests }; Response = "WaitForEnter" }
     
-    "A" = @{ Description = "Open Output Folder"; Action = { Open-OutputFolder } }
-    "B" = @{ Description = "Open Solution in IDE"; Action = { Open-SolutionInIDE } }
-    "C" = @{ Description = "Clean Solution"; Action = { Remove-BuildOutput } }
-    "D" = @{ Description = "Clean Logs"; Action = { Clear-Logs } }
-    "E" = @{ Description = "Change Version Number"; Action = { Update-VersionNumber } }
-    "F" = @{ Description = "Open User Data Folder"; Action = { Open-UserDataFolder } }
-    "G" = @{ Description = "Open Log File"; Action = { Open-LatestLogFile } }
+    "A" = @{ Description = "Open Output Folder"; Action = { Open-OutputFolder }; Response = "PauseBriefly" }
+    "B" = @{ Description = "Open Solution in IDE"; Action = { Open-SolutionInIDE }; Response = "PauseBriefly" }
+    "C" = @{ Description = "Clean Solution"; Action = { Remove-BuildOutput }; Response = "PauseBriefly" }
+    "D" = @{ Description = "Clean Logs"; Action = { Clear-Logs }; Response = "PauseBriefly" }
+    "E" = @{ Description = "Change Version Number"; Action = { Update-VersionNumber }; Response = "WaitForEnter" }
+    "F" = @{ Description = "Open User Data Folder"; Action = { Open-UserDataFolder }; Response = "PauseBriefly" }
+    "G" = @{ Description = "Open Log File"; Action = { Open-LatestLogFile }; Response = "PauseBriefly" }
 }
 
 # --- Standardized Result Class ---
@@ -121,9 +121,19 @@ function Get-CachedBuildVersion {
         $versionResult = Get-BuildVersion
         if ($versionResult.Success) {
             $Script:BuildVersion = $versionResult.Data
+            Write-Log "Build version cached: $Script:BuildVersion" "DEBUG"
+        }
+        else {
+            Write-Log "Failed to get build version: $($versionResult.Message)" "ERROR"
+            return $null
         }
     }
     return $Script:BuildVersion
+}
+
+function Clear-BuildVersionCache {
+    $Script:BuildVersion = $null
+    Write-Log "Build version cache cleared" "DEBUG"
 }
 
 function Get-GitInfo {
@@ -254,7 +264,7 @@ function Clear-Logs {
         if ($oldLogs.Count -gt 0) {
             Write-Log "Removing $($oldLogs.Count) old log files from $logDir"
             $oldLogs | Remove-Item -Force -ErrorAction SilentlyContinue
-            Write-Log "Log cleanup complete." "SUCCESS"
+            Write-Log "Log cleanup successful." "SUCCESS"
         }
         else {
             Write-Log "No old log files to clean."
@@ -269,17 +279,17 @@ function Clear-Logs {
 function Test-DotNetVersion {
     if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
         $msg = "'dotnet.exe' not found. Ensure .NET $($Script:RequiredDotNetVersion) SDK is installed and in your PATH."
-        return [PSCustomObject]@{ Success = $false; Message = $msg }
+        return [CommandResult]::Fail($msg)
     }
 
     $versionOutput = (dotnet --version 2>$null).Trim()
     if ($versionOutput -match "^$($Script:RequiredDotNetVersion)\.") {
         $Script:SdkVersion = $versionOutput
-        return [PSCustomObject]@{ Success = $true; Message = "Found version $versionOutput." }
+        return [CommandResult]::Ok("Found version $versionOutput", $versionOutput)
     }
     else {
         $msg = "Required version $($Script:RequiredDotNetVersion).*, but found $versionOutput. Please install the correct SDK."
-        return [PSCustomObject]@{ Success = $false; Message = $msg }
+        return [CommandResult]::Fail($msg)
     }
 }
 
@@ -298,7 +308,7 @@ function Invoke-DotnetCommand {
     $result = Invoke-ExternalCommand -ExecutablePath "dotnet" -Arguments $fullArgs -IgnoreErrors:$IgnoreErrors
     
     if ($result.Success -or $IgnoreErrors) {
-        return [CommandResult]::Ok("Dotnet command completed successfully", $result)
+        return [CommandResult]::Ok("Dotnet command successful", $result)
     }
     else {
         return [CommandResult]::Fail("Dotnet command failed: $($result.Error)", $result.ExitCode)
@@ -365,10 +375,10 @@ function Invoke-ExternalCommand {
         
         # Adding a brief delay to ensure async stream readers have time to process final events 
         # before they are unregistered in the finally block.
-        Start-Sleep -Milliseconds 100
+        Start-Sleep -Milliseconds 250
 
         if ($process.ExitCode -eq 0 -or $IgnoreErrors) {
-            return [CommandResult]::Ok("External command completed", @{ ExitCode = $process.ExitCode })
+            return [CommandResult]::Ok("External command successful", @{ ExitCode = $process.ExitCode })
         }
         else {
             return [CommandResult]::Fail("Process exited with code $($process.ExitCode)", $process.ExitCode)
@@ -416,6 +426,60 @@ function Get-BuildVersion {
     }
 }
 
+function Stop-ProcessForcefully {
+    param(
+        [string]$ProcessName,
+        [int]$TimeoutSeconds = 10
+    )
+    
+    $processes = Get-Process -Name $ProcessName -ErrorAction SilentlyContinue
+    if ($processes.Count -eq 0) { return $true }
+
+    Write-Log "Forcefully terminating $ProcessName..."
+    $processes | Stop-Process -Force -ErrorAction SilentlyContinue
+    return Wait-ProcessTermination -ProcessName $ProcessName -TimeoutSeconds $TimeoutSeconds
+}
+
+function Stop-ProcessGracefully {
+    param(
+        [string]$ProcessName,
+        [int]$GracefulTimeoutSeconds = 3,
+        [int]$ForcefulTimeoutSeconds = 7
+    )
+    
+    $processes = Get-Process -Name $ProcessName -ErrorAction SilentlyContinue
+    if ($processes.Count -eq 0) {
+        return $true
+    }
+    
+    Write-Log "Attempting graceful termination of $ProcessName..."
+    
+    # Try graceful close first
+    foreach ($process in $processes) {
+        try {
+            $process.CloseMainWindow() | Out-Null
+        }
+        catch {
+            Write-Log "Could not send close signal to PID $($process.Id): $_" "DEBUG"
+        }
+    }
+    
+    $gracefulStart = Get-Date
+    while (((Get-Date) - $gracefulStart).TotalSeconds -lt $GracefulTimeoutSeconds) {
+        $remaining = Get-Process -Name $ProcessName -ErrorAction SilentlyContinue
+        if ($remaining.Count -eq 0) {
+            Write-Log "$ProcessName terminated gracefully" "SUCCESS"
+            return $true
+        }
+        Start-Sleep -Milliseconds 250
+    }
+    
+    # Fall back to forceful termination
+    Write-Log "Graceful termination failed, using force..." "WARN"
+    return Stop-ProcessForcefully -ProcessName $ProcessName -TimeoutSeconds $ForcefulTimeoutSeconds
+}
+
+
 function Confirm-ProcessTermination {
     param(
         [string]$Action = "Build",
@@ -443,11 +507,12 @@ function Confirm-ProcessTermination {
         }
 
         if ($terminated) {
-            Write-Log "$Script:ProcessNameForTermination terminated successfully." "SUCCESS"
+            Write-Log "$Script:ProcessNameForTermination terminated." "SUCCESS"
             return $true
         }
         else {
-            # ... rest of error handling remains the same
+            Write-Log "Failed to terminate $Script:ProcessNameForTermination after multiple attempts." "ERROR"
+            return $false
         }
     }
     else {
@@ -466,7 +531,7 @@ function Invoke-ItemSafely {
     
     if (-not (Test-Path $Path)) {
         Write-Log "Could not find $ItemType at '$Path'." "ERROR"
-        Read-Host "Press ENTER to continue..."
+        Read-Host "ENTER to continue"
     }
     else {
         try {
@@ -516,7 +581,7 @@ function New-ChangelogFromGit {
         $fullContent = "$header`n`n$changelogContent"
         $outputPath = Join-Path $OutputDir "Changelog.md"
         Set-Content -Path $outputPath -Value $fullContent
-        Write-Log "Changelog.md created successfully." "SUCCESS"
+        Write-Log "Changelog.md created." "SUCCESS"
     }
     catch {
         Write-Log "Failed to generate changelog from Git history: $_" "WARN"
@@ -553,7 +618,7 @@ function Compress-With7Zip {
     $result = Invoke-ExternalCommand -ExecutablePath $Script:SevenZipPath -Arguments $sevenZipArgs
     
     if ($result.Success) {
-        return [CommandResult]::Ok("7-Zip archive created successfully", $ArchivePath)
+        return [CommandResult]::Ok("7-Zip archive created at", $ArchivePath)
     }
     else {
         return [CommandResult]::Fail("7-Zip archiving failed: $($result.Message)")
@@ -604,7 +669,7 @@ function Get-OutdatedPackages {
     $result = Invoke-DotnetCommand -Command "list" -Arguments "`"$Script:SolutionFile`" package --outdated"
     
     if ($result.Success) {
-        Write-Log "Package check complete." "SUCCESS"
+        Write-Log "Package check successful." "SUCCESS"
     }
     else {
         Write-Log "Package check failed: $($result.Message)" "ERROR"
@@ -652,22 +717,24 @@ function Restore-NuGetPackages {
     Write-Log "Restoring NuGet packages..." "CONSOLE"
     
     $result = Invoke-DotnetCommand -Command "restore" -Arguments "`"$Script:SolutionFile`""
+
+    Clear-BuildVersionCache
+    
     if ($result.Success) {
-        Write-Log "NuGet packages restored successfully." "SUCCESS"
+        Write-Log "NuGet packages restored." "SUCCESS"
     }
     else {
         Write-Log "NuGet packages restore failed: $($result.Message)" "ERROR"
     }
 }
 
-
 function Publish-Portable {
     if (-not (Confirm-ProcessTermination -Action "Publish")) { return }
 
     $mainProjectDir = Split-Path -Path $Script:MainProjectFile -Parent
     $baseOutputDir = Join-Path $mainProjectDir "bin\Release\$($Script:TargetFramework)\$($Script:PublishRuntimeId)"
-    $publishDir = Join-Path $baseOutputDir "publish" # Standard dotnet publish output folder
-    $packageDir = Join-Path $baseOutputDir "packages" # New location for final archives
+    $publishDir = Join-Path $baseOutputDir "publish"
+    $packageDir = Join-Path $baseOutputDir "packages"
 
     Remove-BuildOutput -NoConfirm
     
@@ -675,7 +742,6 @@ function Publish-Portable {
         Remove-Item $publishDir -Recurse -Force -ErrorAction SilentlyContinue
     }
     
-    # Use default output path by not specifying -o
     $arguments = "`"$Script:MainProjectFile`" -c Release -r $Script:PublishRuntimeId --self-contained true"
     $result = Invoke-DotnetCommand -Command "publish" -Arguments $arguments
     
@@ -692,7 +758,7 @@ function Publish-Portable {
     
     if ($Script:RemoveXmlFiles) {
         $removedCount = Remove-FilesByPattern -Path $publishDir -Patterns @("*.xml")
-        Write-Log "Removed $removedCount documentation files (*.xml)..."
+        Write-Log "Removed $removedCount documentation files (*.xml)."
     }
 
     Write-Log "Adding portable mode marker..."
@@ -700,7 +766,7 @@ function Publish-Portable {
     Set-Content -Path $portableMarkerPath -Value "This file enables portable mode. Do not delete."
 
     $removedPdbCount = Remove-FilesByPattern -Path $publishDir -Patterns @("*.pdb")
-    Write-Log "Removed $removedPdbCount debug symbols (*.pdb)..."
+    Write-Log "Removed $removedPdbCount debug symbols (*.pdb)."
 
     Write-Log "Archiving portable package..." "CONSOLE"
     
@@ -728,7 +794,6 @@ function Publish-Portable {
     Write-Log "Portable archive created: $destinationArchive" "SUCCESS"
     Invoke-ItemSafely -Path $packageDir -ItemType "Output directory"
 }
-
 
 function Build-ProductionPackage {
     if (-not (Confirm-ProcessTermination -Action "Production Build")) { return }
@@ -791,10 +856,9 @@ function Build-ProductionPackage {
         Remove-Item -Recurse -Force $stagingDir -ErrorAction SilentlyContinue
     }
 
-    Write-Log "Full release package created successfully at: $releaseDir" "SUCCESS"
+    Write-Log "Full release package created at: $releaseDir" "SUCCESS"
     Invoke-ItemSafely -Path $releaseDir -ItemType "Release directory"
 }
-
 
 function Remove-BuildOutput {
     param([switch]$NoConfirm)
@@ -810,8 +874,9 @@ function Remove-BuildOutput {
         $buildDirs | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
         Write-Log "Removed $($buildDirs.Count) build directories"
     }
-    
-    Write-Log "Cleanup complete." "SUCCESS"
+
+    Clear-BuildVersionCache
+    Write-Log "Cleanup successful." "SUCCESS"
 }
 
 function Update-VersionNumber {
@@ -910,7 +975,7 @@ function Invoke-UnitTests {
     $result = Invoke-DotnetCommand -Command "test" -Arguments "`"$Script:SolutionFile`""
     
     if ($result.Success) {
-        Write-Log "Test run completed. Check log for details (e.g., if no tests were found)." "SUCCESS"
+        Write-Log "Test run successful. Check log for details (e.g., if no tests were found)." "SUCCESS"
     }
     else {
         Write-Log "One or more tests failed. Check the log file for details." "ERROR"
@@ -920,7 +985,7 @@ function Invoke-UnitTests {
 
 # --- Menu Display ---
 function Show-Menu {
-    $appVersion = Get-CachedBuildVersion
+    $appVersion = Get-CachedBuildVersion  # Use cached version
     if ([string]::IsNullOrEmpty($appVersion)) { 
         $appVersion = "N/A (check $($Script:MainProjectFile))" 
     }
@@ -929,7 +994,7 @@ function Show-Menu {
         Split-Path $Script:LogFile -Leaf 
     }
     else { 
-        "Not yet created." 
+        "Not created yet."
     }
     
     Write-Host "-----------------------------------------------------------------------" -ForegroundColor Green
@@ -981,17 +1046,38 @@ function Invoke-MenuChoice {
     
     if ($choiceKey -eq 'Q') {
         $ExitRef.Value = $true
-        return
+        return "NoPause"
     }
 
     if ($Script:MenuItems.Contains($choiceKey)) {
         $menuItem = $Script:MenuItems[$choiceKey]
         Write-Log "User selected option: '$Choice' ($($menuItem.Description))"
         & $menuItem.Action
+        return $menuItem.Response
     }
     else {
         Write-Log "User selected invalid option: '$Choice'" "WARN"
-        Start-Sleep -Seconds 2
+        return "PauseBriefly"
+    }
+}
+
+function Invoke-MenuResponse {
+    param([string]$ResponseType)
+    
+    switch ($ResponseType) {
+        "WaitForEnter" {
+            Read-Host "ENTER to continue"
+        }
+        "PauseBriefly" {
+            Write-Host "Operation successful. Returning to menu..." -ForegroundColor Green
+            Start-Sleep -Seconds 3
+        }
+        "NoPause" {
+            # No action needed
+        }
+        default {
+            Read-Host "ENTER to continue"
+        }
     }
 }
 
@@ -1009,7 +1095,7 @@ function Wait-ProcessTermination {
     while ($true) {
         $processes = Get-Process -Name $ProcessName -ErrorAction SilentlyContinue
         if ($processes.Count -eq 0) {
-            Write-Log "$ProcessName terminated successfully after $attempt attempts"
+            Write-Log "$ProcessName terminated after $attempt attempts"
             return $true
         }
         
@@ -1026,60 +1112,6 @@ function Wait-ProcessTermination {
     }
 }
 
-function Stop-ProcessForcefully {
-    param(
-        [string]$ProcessName,
-        [int]$TimeoutSeconds = 10
-    )
-    
-    $processes = Get-Process -Name $ProcessName -ErrorAction SilentlyContinue
-    if ($processes.Count -eq 0) { return $true }
-
-    Write-Log "Forcefully terminating $ProcessName..."
-    $processes | Stop-Process -Force -ErrorAction SilentlyContinue
-    return Wait-ProcessTermination -ProcessName $ProcessName -TimeoutSeconds $TimeoutSeconds
-}
-
-function Stop-ProcessGracefully {
-    param(
-        [string]$ProcessName,
-        [int]$GracefulTimeoutSeconds = 3,
-        [int]$ForcefulTimeoutSeconds = 7
-    )
-    
-    $processes = Get-Process -Name $ProcessName -ErrorAction SilentlyContinue
-    if ($processes.Count -eq 0) {
-        return $true
-    }
-    
-    Write-Log "Attempting graceful termination of $ProcessName..."
-    
-    # Try graceful close first
-    foreach ($process in $processes) {
-        try {
-            $process.CloseMainWindow() | Out-Null
-        }
-        catch {
-            Write-Log "Could not send close signal to PID $($process.Id): $_" "DEBUG"
-        }
-    }
-    
-    $gracefulStart = Get-Date
-    while (((Get-Date) - $gracefulStart).TotalSeconds -lt $GracefulTimeoutSeconds) {
-        $remaining = Get-Process -Name $ProcessName -ErrorAction SilentlyContinue
-        if ($remaining.Count -eq 0) {
-            Write-Log "$ProcessName terminated gracefully" "SUCCESS"
-            return $true
-        }
-        Start-Sleep -Milliseconds 250
-    }
-    
-    # Fall back to forceful termination
-    Write-Log "Graceful termination failed, using force..." "WARN"
-    return Stop-ProcessForcefully -ProcessName $ProcessName -TimeoutSeconds $ForcefulTimeoutSeconds
-}
-
-
 #----------------------------------------------------------------------
 # --- Main Execution Logic ---
 function Main {
@@ -1091,35 +1123,29 @@ function Main {
         $Script:GitCommit = $gitInfo.Commit
 
         $exit = $false
+        $firstRun = $true
+        
         while (-not $exit) {
-            [System.Console]::Clear()
-            try { 
-                [System.Console]::SetCursorPosition(0, 0) 
-            } 
-            catch { 
-                # Ignore console positioning errors
+            if (-not $firstRun) {
+                Clear-Host
             }
+            $firstRun = $false
             
             Show-Menu
             Write-Host "Run option: " -ForegroundColor Cyan -NoNewline
             $choice = Read-Host
             Write-Host "=============" -ForegroundColor Cyan
-            Invoke-MenuChoice -Choice $choice -ExitRef ([ref]$exit)
+            
+            $responseType = Invoke-MenuChoice -Choice $choice -ExitRef ([ref]$exit)
 
-            $nonPausingChoices = @('q')
-            if ($choice.StartsWith('c')) {
-                $nonPausingChoices += $choice
-            }
-
-            if (-not $exit -and -not ($nonPausingChoices -contains $choice.ToLower())) {
-                Write-Host
-                Read-Host "Press ENTER to continue..."
+            if (-not $exit) {
+                Invoke-MenuResponse -ResponseType $responseType
             }
         }
     }
     catch {
-        Write-Log "A script-terminating error occurred: $($_.Exception.Message)" "ERROR"
-        Read-Host "`nENTER to exit..."
+        Write-Log "Script terminating with error: $($_.Exception.Message)" "ERROR"
+        Read-Host "`nPress ENTER to exit"
     }
     finally {
         Write-Log "Exiting script."
