@@ -88,7 +88,7 @@ namespace Cliptoo.Core.Database
             }
 
             string orderBy = sanitizedTerms.Count > 0
-                ? "ORDER BY (rank - Hotness * 5.0) ASC, c.Timestamp DESC"
+                ? "ORDER BY c.IsPinned DESC, (rank - Hotness * 5.0) ASC, c.Timestamp DESC"
                 : "ORDER BY c.Timestamp DESC";
 
             queryBuilder.Append(CultureInfo.InvariantCulture, $" {orderBy} LIMIT @Limit OFFSET @Offset");
