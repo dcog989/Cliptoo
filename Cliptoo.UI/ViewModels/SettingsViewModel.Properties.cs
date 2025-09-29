@@ -116,6 +116,12 @@ namespace Cliptoo.UI.ViewModels
             set => Settings.StartWithWindows = value;
         }
 
+        public bool AutoUpdate
+        {
+            get => Settings.AutoUpdate;
+            set => Settings.AutoUpdate = value;
+        }
+
         public string ClipItemPadding
         {
             get => Settings.ClipItemPadding;
