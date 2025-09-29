@@ -20,9 +20,8 @@ namespace Cliptoo.UI.Helpers
                 {
                     range.Load(stream, DataFormats.Rtf);
                 }
-                catch (System.Exception)
+                catch (ArgumentException)
                 {
-                    // Fallback for invalid RTF
                     return string.Empty;
                 }
             }
