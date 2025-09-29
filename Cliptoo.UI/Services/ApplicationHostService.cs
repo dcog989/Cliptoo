@@ -14,6 +14,7 @@ using Cliptoo.UI.Views;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Velopack;
 using Wpf.Ui;
 using Wpf.Ui.Controls;
 using Wpf.Ui.Tray;
@@ -79,6 +80,40 @@ namespace Cliptoo.UI.Services
             var appVersion = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "0.0.0";
             LogManager.LogInfo($"Cliptoo v{appVersion} starting up...");
             LogManager.LogDebug("ApplicationHostService starting...");
+
+            if (_settingsService.Settings.AutoUpdate)
+            {
+                LogManager.LogInfo("Auto-update is enabled. Checking for updates...");
+                try
+                {
+                    var um = new UpdateManager("https://github.com/dcog989/cliptoo");
+                    var updateInfo = await um.CheckForUpdatesAsync();
+                    if (cancellationToken.IsCancellationRequested) return;
+                    if (updateInfo != null)
+                    {
+                        LogManager.LogInfo($"Update found: {updateInfo.TargetFullRelease.Version}. Downloading...");
+                        await um.DownloadUpdatesAsync(updateInfo, cancelToken: cancellationToken);
+                        if (cancellationToken.IsCancellationRequested) return;
+                        LogManager.LogInfo("Update downloaded. Applying and restarting...");
+                        um.ApplyUpdatesAndRestart(updateInfo);
+                        return; // App will restart, so we can exit the startup process.
+                    }
+                    else
+                    {
+                        LogManager.LogInfo("No updates found.");
+                    }
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    LogManager.LogWarning($"Velopack update check failed: {ex.Message}");
+                    // Don't rethrow, just log and continue launching the current version.
+                }
+            }
+            else
+            {
+                LogManager.LogInfo("Auto-update is disabled by user setting.");
+            }
+
             try
             {
                 await _dbManager.InitializeAsync().ConfigureAwait(false);

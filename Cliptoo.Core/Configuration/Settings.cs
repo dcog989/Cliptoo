@@ -208,6 +208,10 @@ namespace Cliptoo.Core.Configuration
         [DefaultValue(false)]
         public bool StartWithWindows { get => _startWithWindows; set => SetProperty(ref _startWithWindows, value); }
 
+        private bool _autoUpdate = true;
+        [DefaultValue(true)]
+        public bool AutoUpdate { get => _autoUpdate; set => SetProperty(ref _autoUpdate, value); }
+
         private bool _rememberSearchInput;
         [DefaultValue(false)]
         public bool RememberSearchInput { get => _rememberSearchInput; set => SetProperty(ref _rememberSearchInput, value); }

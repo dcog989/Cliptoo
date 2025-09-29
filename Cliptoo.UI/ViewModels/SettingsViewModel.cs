@@ -143,8 +143,8 @@ namespace Cliptoo.UI.ViewModels
             ChangePageCommand = new RelayCommand(p => CurrentPage = p as string ?? "General");
             BrowseCompareToolCommand = new RelayCommand(_ => ExecuteBrowseCompareTool());
 
-            SettingsFolderPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Cliptoo");
-            TempDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Cliptoo");
+            SettingsFolderPath = Path.Combine(App.AppDataRoamingPath, "Cliptoo");
+            TempDataPath = Path.Combine(App.AppDataLocalPath, "Cliptoo");
 
             OpenGitHubUrlCommand = new RelayCommand(_ => Process.Start(new ProcessStartInfo(GitHubUrl.AbsoluteUri) { UseShellExecute = true }));
             OpenSettingsFolderCommand = new RelayCommand(_ => Process.Start(new ProcessStartInfo(SettingsFolderPath) { UseShellExecute = true }));

@@ -1,0 +1,20 @@
+# The unique identifier for your application. This MUST match the file name of your main executable.
+# For example, if your main executable is 'Cliptoo.UI.exe', the id must be 'Cliptoo.UI'.
+id: Cliptoo.UI
+
+# The user-friendly title of your application, which will be displayed in the installer.
+title: Cliptoo
+
+# The authors of the application, which will be stored in the package metadata.
+authors: dcog989
+
+# A path to a .ico file to use for the installer and shortcuts.
+# This is relative to the location of this yml file.
+icon: Cliptoo.UI/Assets/Icons/cliptoo.ico
+# A path to a markdown file containing release notes for the current version.
+# If this is not provided, Velopack will look for a RELEASENOTES.md or similar file.
+# releaseNotes: RELEASENOTES.md
+
+# The version is not required here because it is provided by the build script
+# via the '--packVersion' argument, which reads it from your .csproj file.
+# version: 1.6.2

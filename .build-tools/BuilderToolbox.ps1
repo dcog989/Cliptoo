@@ -1,6 +1,6 @@
 # .NET Builder Toolbox
 # Clean, build, and manage .NET solutions.
-# version: 1.12.9
+# version: 1.13.0
 # ---------------------------------------------------------------------
 
 # --- Global Variables ---
@@ -26,7 +26,7 @@ $Script:AppName = $Script:MainProjectName
 $Script:ProcessNameForTermination = $Script:MainProjectName
 
 # Velopack settings
-$Script:PackageId = $Script:PackageTitle
+$Script:PackageId = $Script:MainProjectName
 $Script:PackageIconPath = Join-Path $Script:SolutionRoot $Script:MainProjectName "Assets/Icons/$($Script:PackageTitle.ToLower()).ico"
 $Script:MainExeName = "$($Script:MainProjectName).exe"
 $Script:AppDataFolderName = $Script:PackageTitle
@@ -114,6 +114,15 @@ function Test-Prerequisites {
     $dotNetCheck = Test-DotNetVersion
     if (-not $dotNetCheck.Success) {
         throw $dotNetCheck.Message
+    }
+
+    if (-not (Get-Command vpk -ErrorAction SilentlyContinue)) {
+        Write-Log "Velopack tool 'vpk' not found. Attempting to install it globally..." "WARN"
+        $installResult = Invoke-DotnetCommand -Command "tool" -Arguments "install -g vpk"
+        if (-not $installResult.Success) {
+            throw "Failed to install Velopack tool 'vpk'. Please install it manually with: dotnet tool install -g vpk"
+        }
+        Write-Log "Velopack tool 'vpk' installed successfully." "SUCCESS"
     }
 }
 
@@ -205,28 +214,38 @@ function Invoke-WithStandardErrorHandling {
 }
 
 function Clear-ScreenRobust {
+    # Force clear all progress bars by completing them
     try {
-        Clear-Host
+        Write-Progress -Completed
+        Write-Progress -Activity " " -Status " " -Completed
+        # Add a small delay to ensure progress bars are cleared
+        Start-Sleep -Milliseconds 50
+    }
+    catch { }
+
+    # Clear the screen using the most reliable method
+    try {
+        # This is the most reliable way to clear the screen in PowerShell
+        $Host.UI.RawUI.Clear()
     }
     catch {
         try {
-            [System.Console]::Clear()
+            Clear-Host
         }
         catch {
-            Write-Host "`n" * 3
+            try {
+                [System.Console]::Clear()
+            }
+            catch {
+                # Nuclear option - write enough blank lines to push everything out
+                Write-Host ("`n" * 50)
+            }
         }
     }
 
-    try {
-        Write-Progress -Activity " " -Status " " -Completed
-    }
-    catch {
-        # Ignore errors when clearing progress
-    }
-    
+    # Ensure output is flushed
     [System.Console]::Out.Flush()
     [System.Console]::Error.Flush()
-    Start-Sleep -Milliseconds 50
 }
 
 # --- Logging ---
@@ -369,58 +388,40 @@ function Invoke-ExternalCommand {
     }
 
     $process = $null
-    $stdOutEvent = $null
-    $stdErrEvent = $null
 
     try {
-        $process = New-Object System.Diagnostics.Process
-        $process.StartInfo = $processInfo
+        $process = [System.Diagnostics.Process]::Start($processInfo)
         
-        $stdOutHandler = { 
-            if (-not [string]::IsNullOrEmpty($EventArgs.Data)) { 
-                Add-Content -Path $logFile -Value $EventArgs.Data 
-            } 
-        }
-        $stdErrHandler = { 
-            if (-not [string]::IsNullOrEmpty($EventArgs.Data)) { 
-                Add-Content -Path $logFile -Value "ERROR: $($EventArgs.Data)" 
-            } 
-        }
-        
-        $stdOutEvent = Register-ObjectEvent -InputObject $process -EventName "OutputDataReceived" -Action $stdOutHandler
-        $stdErrEvent = Register-ObjectEvent -InputObject $process -EventName "ErrorDataReceived" -Action $stdErrHandler
-
-        $process.Start() | Out-Null
-        $process.BeginOutputReadLine()
-        $process.BeginErrorReadLine()
-
-        while (-not $process.HasExited) {
-            Start-Sleep -Seconds 1
-        }
+        # Synchronously read all output after the process completes. This is more reliable than async events.
+        $output = $process.StandardOutput.ReadToEnd()
+        $errors = $process.StandardError.ReadToEnd()
         
         $process.WaitForExit()
-        
-        # Adding a brief delay to ensure async stream readers have time to process final events 
-        # before they are unregistered in the finally block.
-        Start-Sleep -Milliseconds 250
+
+        # Log the full output
+        if (-not [string]::IsNullOrWhiteSpace($output)) {
+            Add-Content -Path $logFile -Value $output
+        }
+        if (-not [string]::IsNullOrWhiteSpace($errors)) {
+            Add-Content -Path $logFile -Value "ERROR: $errors"
+        }
 
         if ($process.ExitCode -eq 0 -or $IgnoreErrors) {
             return [CommandResult]::Ok("External command successful", @{ ExitCode = $process.ExitCode })
         }
         else {
-            return [CommandResult]::Fail("Process exited with code $($process.ExitCode)", $process.ExitCode)
+            $errorMessage = "Process exited with code $($process.ExitCode)."
+            # Use the captured error text directly in the failure message.
+            if (-not [string]::IsNullOrWhiteSpace($errors)) {
+                $errorMessage += " Details: $($errors.Trim())"
+            }
+            return [CommandResult]::Fail($errorMessage, $process.ExitCode)
         }
     }
     catch {
         return [CommandResult]::Fail("Error starting process: $($_.Exception.Message)")
     }
     finally {
-        if ($stdOutEvent) { 
-            $stdOutEvent | Unregister-Event -Force -ErrorAction SilentlyContinue
-        }
-        if ($stdErrEvent) { 
-            $stdErrEvent | Unregister-Event -Force -ErrorAction SilentlyContinue
-        }
         if ($process) { 
             if (!$process.HasExited) { 
                 $process.Kill() 
@@ -617,12 +618,12 @@ function New-ChangelogFromGit {
         return
     }
 
-    # Define output directory - use parameter if provided, otherwise default
-    if ([string]::IsNullOrEmpty($OutputDir)) {
-        $changelogDir = Join-Path $PSScriptRoot "Changelogs"
+    # Define output directory
+    $changelogDir = if ([string]::IsNullOrEmpty($OutputDir)) {
+        Join-Path $PSScriptRoot "Changelogs"
     }
     else {
-        $changelogDir = $OutputDir
+        $OutputDir
     }
     
     if (-not (Test-Path $changelogDir)) {
@@ -651,11 +652,6 @@ function New-ChangelogFromGit {
         $gitLogCommand = @("log", $commitRange, "--pretty=format:%h|%s|%an", "--reverse")
         $commitData = git -C $Script:SolutionRoot $gitLogCommand 2>$null
 
-        if ([string]::IsNullOrWhiteSpace($commitData)) {
-            Write-Log "No commits to add to changelog. File not created." "WARN"
-            return
-        }
-
         # Build changelog content
         $changelogContent = @()
         $changelogContent += "# $($Script:PackageTitle) Changelog"
@@ -663,26 +659,40 @@ function New-ChangelogFromGit {
         $changelogContent += $header
         $changelogContent += ""
 
-        # Process each commit and format as bullet points
-        $commitLines = $commitData -split "`n"
-        foreach ($line in $commitLines) {
-            $parts = $line -split "\|", 3
-            if ($parts.Count -eq 3) {
-                $hash = $parts[0].Trim()
-                $subject = $parts[1].Trim()
-                $author = $parts[2].Trim()
-                $changelogContent += "- $subject by $author ($hash)"
+        if ([string]::IsNullOrWhiteSpace($commitData)) {
+            Write-Log "No new commits to add to changelog." "WARN"
+            $changelogContent += "- No changes since the last version."
+        }
+        else {
+            # Process each commit and format as bullet points
+            $commitLines = $commitData -split "`n"
+            foreach ($line in $commitLines) {
+                $parts = $line -split "\|", 3
+                if ($parts.Count -eq 3) {
+                    $hash = $parts[0].Trim()
+                    $subject = $parts[1].Trim()
+                    $author = $parts[2].Trim()
+                    $changelogContent += "- $subject by $author ($hash)"
+                }
             }
         }
 
         $fullContent = $changelogContent -join "`n"
         
-        # Create timestamped filename
-        $timestamp = (Get-Date).ToString('yyyyMMdd-HHmmss')
-        $outputPath = Join-Path $changelogDir "Changelog-$timestamp.md"
+        # Determine filename based on whether an output directory was specified.
+        $outputPath = if ([string]::IsNullOrEmpty($OutputDir)) {
+            # Create timestamped filename for local generation
+            $timestamp = (Get-Date).ToString('yyyyMMdd-HHmmss')
+            Join-Path $changelogDir "Changelog-$timestamp.md"
+        }
+        else {
+            # Create standard filename for releases
+            Join-Path $changelogDir "changelog.md"
+        }
+        
         Set-Content -Path $outputPath -Value $fullContent -Encoding UTF8
         
-        Write-Log "Changelog created: $outputPath with $($commitLines.Count) entries." "SUCCESS"
+        Write-Log "Changelog created: $outputPath" "SUCCESS"
         
         # Only open the changelog file if it's in the default location (not release dir)
         if ([string]::IsNullOrEmpty($OutputDir)) {
@@ -927,10 +937,6 @@ function Publish-Portable {
         Write-Log "Removed $removedCount documentation files (*.xml)."
     }
 
-    Write-Log "Adding portable mode marker..."
-    $portableMarkerPath = Join-Path $publishDir $Script:PortableMarkerFile
-    Set-Content -Path $portableMarkerPath -Value "This file enables portable mode. Do not delete."
-
     $removedPdbCount = Remove-FilesByPattern -Path $publishDir -Patterns @("*.pdb")
     Write-Log "Removed $removedPdbCount debug symbols (*.pdb)."
 
@@ -965,65 +971,65 @@ function Build-ProductionPackage {
     if (-not (Confirm-IdeShutdown -Action "Production Build")) { return }
     if (-not (Confirm-ProcessTermination -Action "Production Build")) { return }
 
-    # Define standard .NET output paths
     $mainProjectDir = Split-Path -Path $Script:MainProjectFile -Parent
     $baseOutputDir = Join-Path $mainProjectDir "bin\Release\$($Script:TargetFramework)\$($Script:PublishRuntimeId)"
-    $releaseDir = Join-Path $baseOutputDir "release_packages"
-    $stagingDir = Join-Path $baseOutputDir "production_staging"
-    
-    # Clean previous output
-    if (Test-Path $releaseDir) { Remove-Item -Recurse -Force $releaseDir -ErrorAction SilentlyContinue }
-    if (Test-Path $stagingDir) { Remove-Item -Recurse -Force $stagingDir -ErrorAction SilentlyContinue }
-    New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
-    New-Item -ItemType Directory -Path $stagingDir -Force | Out-Null
+    $publishDir = Join-Path $baseOutputDir "publish"
+    $releaseDir = Join-Path $Script:SolutionRoot "Releases"
 
-    # Publish once to staging directory
-    Write-Log "Building release package..." "CONSOLE"
-    $publishArgs = "`"$Script:MainProjectFile`" -c Release -o `"$stagingDir`" --self-contained true -p:PublishSingleFile=true -p:PublishReadyToRun=true"
+    # Clean previous output
+    if (Test-Path $publishDir) { Remove-Item -Recurse -Force $publishDir -ErrorAction SilentlyContinue }
+    if (Test-Path $releaseDir) { Remove-Item -Recurse -Force $releaseDir -ErrorAction SilentlyContinue }
+    New-Item -ItemType Directory -Path $publishDir -Force | Out-Null
+    
+    # Publish the application (Velopack works best with self-contained apps)
+    Write-Log "Publishing self-contained application for Velopack..." "CONSOLE"
+    $publishArgs = "`"$Script:MainProjectFile`" -c Release -r $Script:PublishRuntimeId --self-contained true -o `"$publishDir`""
     $buildResult = Invoke-DotnetCommand -Command "publish" -Arguments $publishArgs
     if (-not $buildResult.Success) {
-        Write-Log "Release build failed: $($buildResult.Message)" "ERROR"
+        Write-Log "Release publish failed: $($buildResult.Message)" "ERROR"
         return
     }
-    
-    # Post-build cleanup
-    $removedPdbCount = Remove-FilesByPattern -Path $stagingDir -Patterns @("*.pdb")
-    Write-Log "Removed $removedPdbCount debug symbols"
 
     $version = Get-CachedBuildVersion
-    if ([string]::IsNullOrEmpty($version)) { $version = "1.0.0" }
-    
-    # Create standard package
-    Write-Log "Archiving standard package..." "CONSOLE"
-    $stdArchiveName = [string]::Format($Script:StandardArchiveFormat, $Script:PackageTitle, $version)
-    $stdArchivePath = Join-Path $releaseDir $stdArchiveName
-    $archiveResult = Compress-With7Zip -SourceDir $stagingDir -ArchivePath $stdArchivePath
-    if (-not $archiveResult.Success) {
-        Write-Log "Standard release archiving failed: $($archiveResult.Message)" "ERROR"
+    if ([string]::IsNullOrEmpty($version)) {
+        Write-Log "Could not determine package version from csproj." "ERROR"
         return
     }
 
-    # Create portable package
-    Write-Log "Archiving portable package..." "CONSOLE"
-    $portableMarkerPath = Join-Path $stagingDir $Script:PortableMarkerFile
-    Set-Content -Path $portableMarkerPath -Value "This file enables portable mode. Do not delete."
-    
-    $portableArchiveName = [string]::Format($Script:PortableArchiveFormat, $Script:PackageTitle, $version)
-    $portableArchivePath = Join-Path $releaseDir $portableArchiveName
-    $portableArchiveResult = Compress-With7Zip -SourceDir $stagingDir -ArchivePath $portableArchivePath
-    if (-not $portableArchiveResult.Success) {
-        Write-Log "Portable release archiving failed: $($portableArchiveResult.Message)" "ERROR"
+    # Package with Velopack. This single command creates the installer, portable, and update packages.
+    Write-Log "Packaging with Velopack..." "CONSOLE"
+    $velopackArgs = "pack --packId `"$($Script:PackageId)`" --packVersion $version --packDir `"$publishDir`" -o `"$releaseDir`" --icon `"$($Script:PackageIconPath)`" --verbose"
+    $packResult = Invoke-ExternalCommand -ExecutablePath "vpk" -Arguments $velopackArgs
+    if (-not $packResult.Success) {
+        Write-Log "Velopack packaging failed: $($packResult.Message)" "ERROR"
         return
+    }
+
+    # Rename the output files to the desired format.
+    Write-Log "Renaming release artifacts..."
+    try {
+        $setupFile = Get-ChildItem -Path $releaseDir -Filter "*Setup.exe" | Select-Object -First 1
+        $portableFile = Get-ChildItem -Path $releaseDir -Filter "*-portable.zip" | Select-Object -First 1
+        
+        if ($setupFile) {
+            $newSetupName = "Cliptoo-Windows-x64-Setup-v$($version).exe"
+            Rename-Item -Path $setupFile.FullName -NewName $newSetupName
+            Write-Log "Renamed installer to $newSetupName"
+        }
+
+        if ($portableFile) {
+            $newPortableName = "Cliptoo-Windows-x64-Portable-v$($version).zip"
+            Rename-Item -Path $portableFile.FullName -NewName $newPortableName
+            Write-Log "Renamed portable package to $newPortableName"
+        }
+    }
+    catch {
+        Write-Log "Could not rename output files: $_" "WARN"
     }
 
     New-ChangelogFromGit -OutputDir $releaseDir
     
-    # Cleanup staging
-    if (Test-Path $stagingDir) {
-        Remove-Item -Recurse -Force $stagingDir -ErrorAction SilentlyContinue
-    }
-
-    Write-Log "Full release package created at: $releaseDir" "SUCCESS"
+    Write-Log "Velopack release created successfully in: $releaseDir" "SUCCESS"
     Invoke-ItemSafely -Path $releaseDir -ItemType "Release directory"
 }
 
@@ -1046,8 +1052,18 @@ function Remove-BuildOutput {
             Write-Progress -Activity "Cleaning build directories" -Status "Removing $($dir.Name)" -PercentComplete (($counter / $total) * 100)
             Remove-Item -Path $dir.FullName -Recurse -Force -ErrorAction SilentlyContinue
         }
+        # Ensure progress bar is completed AND cleared from display
         Write-Progress -Activity "Cleaning build directories" -Completed
+        # Small delay to let PowerShell process the completion
+        Start-Sleep -Milliseconds 50
         Write-Log "Removed $($buildDirs.Count) build directories"
+    }
+
+    $releaseDir = Join-Path $Script:SolutionRoot "Releases"
+    if (Test-Path $releaseDir) {
+        Write-Log "Removing Velopack releases directory..."
+        Remove-Item -Path $releaseDir -Recurse -Force -ErrorAction SilentlyContinue
+        Write-Log "Removed Velopack releases directory."
     }
 
     Clear-BuildVersionCache
