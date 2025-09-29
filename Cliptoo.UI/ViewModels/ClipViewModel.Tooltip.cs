@@ -119,6 +119,14 @@ namespace Cliptoo.UI.ViewModels
                 ? RtfUtils.ToPlainText(clipToDisplay.Content ?? "")
                 : clipToDisplay.Content ?? "");
 
+            bool wasTruncatedByCharLimit = false;
+            const int MaxTooltipChars = 16 * 1024;
+            if (contentForTooltip.Length > MaxTooltipChars)
+            {
+                contentForTooltip = contentForTooltip.Substring(0, MaxTooltipChars);
+                wasTruncatedByCharLimit = true;
+            }
+
             if (ShowTextualTooltip && !string.IsNullOrEmpty(contentForTooltip))
             {
                 var sb = new StringBuilder();
@@ -166,9 +174,12 @@ namespace Cliptoo.UI.ViewModels
                     LineCountInfo = null;
                 }
 
-                if (totalLines > MaxTooltipLines)
+                if (totalLines > MaxTooltipLines || wasTruncatedByCharLimit)
                 {
-                    finalSb.AppendLine(CultureInfo.InvariantCulture, $"\n... (truncated - {totalLines - MaxTooltipLines} more lines)");
+                    var reason = totalLines > MaxTooltipLines
+                        ? $"{totalLines - MaxTooltipLines} more lines"
+                        : "content too large";
+                    finalSb.AppendLine(CultureInfo.InvariantCulture, $"\n... (truncated - {reason})");
                 }
 
                 TooltipTextContent = finalSb.ToString();
