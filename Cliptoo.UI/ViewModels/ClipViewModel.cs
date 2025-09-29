@@ -276,6 +276,7 @@ namespace Cliptoo.UI.ViewModels
             }
         }
 
+
         private void UpdatePreviewText()
         {
             string basePreview;
@@ -287,49 +288,53 @@ namespace Cliptoo.UI.ViewModels
             if (isSearching && !string.IsNullOrWhiteSpace(_clip.MatchContext) && _clip.MatchContext.Contains(startTag, StringComparison.Ordinal))
             {
                 string context = _clip.MatchContext.ReplaceLineEndings(" ");
-                int highlightStart = context.IndexOf(startTag, StringComparison.Ordinal);
-                int highlightEnd = context.IndexOf(endTag, highlightStart, StringComparison.Ordinal);
 
-                if (highlightStart != -1 && highlightEnd != -1)
+                // Clean the context of all highlight tags to measure and substring it.
+                string contextWithoutTags = context.Replace(startTag, "").Replace(endTag, "");
+
+                // The position of the start of the first match is the same in the tagged and untagged string.
+                int firstHighlightStart = context.IndexOf(startTag, StringComparison.Ordinal);
+
+                // Dynamically calculate how many characters can fit in the preview.
+                double windowWidth = MainViewModel.CurrentSettings.WindowWidth;
+                double fontSize = MainViewModel.CurrentSettings.FontSize;
+                double fixedWidth = 100; // Estimated non-text horizontal space (icons, margins, etc.)
+                double avgCharWidthFactor = MainViewModel.CurrentSettings.FontFamily == "Source Code Pro" ? 0.6 : 0.55;
+                int maxPreviewLength = (int)((windowWidth - fixedWidth) / (fontSize * avgCharWidthFactor));
+                if (maxPreviewLength < 40) maxPreviewLength = 40;
+
+                // Calculate the ideal preview window to center the first match.
+                int idealStart = firstHighlightStart - (maxPreviewLength / 3); // Bias to show more context after the match
+                int idealEnd = idealStart + maxPreviewLength;
+
+                // Adjust the window if it goes out of bounds, sliding it to maximize content.
+                if (idealStart < 0)
                 {
-                    const int contextBefore = 10; // Show 10 chars before the highlight
-                    const int contextAfter = 60;  // Show 60 chars after the highlight starts
-                    int actualHighlightStart = highlightStart + startTag.Length;
-                    int actualHighlightEnd = highlightEnd;
-                    string contextWithoutTags = context.Remove(highlightEnd, endTag.Length).Remove(highlightStart, startTag.Length);
-                    int adjustedHighlightStart = highlightStart;
-                    int adjustedHighlightEnd = highlightEnd - startTag.Length;
-                    int visibleStart = Math.Max(0, adjustedHighlightStart - contextBefore);
-                    int visibleEnd = Math.Min(contextWithoutTags.Length, adjustedHighlightStart + contextAfter);
-
-                    if (adjustedHighlightEnd > visibleEnd)
-                    {
-                        visibleEnd = Math.Min(contextWithoutTags.Length, adjustedHighlightEnd);
-                    }
-
-                    basePreview = contextWithoutTags.Substring(visibleStart, visibleEnd - visibleStart);
-                    int previewHighlightStart = adjustedHighlightStart - visibleStart;
-                    int previewHighlightEnd = adjustedHighlightEnd - visibleStart;
-
-                    if (previewHighlightStart >= 0 && previewHighlightEnd <= basePreview.Length && previewHighlightStart < previewHighlightEnd)
-                    {
-                        string highlightedText = basePreview.Substring(previewHighlightStart, previewHighlightEnd - previewHighlightStart);
-                        basePreview = basePreview.Remove(previewHighlightStart, highlightedText.Length);
-                        basePreview = basePreview.Insert(previewHighlightStart, $"{startTag}{highlightedText}{endTag}");
-                    }
-
-                    if (visibleStart > 0)
-                    {
-                        basePreview = "..." + basePreview;
-                    }
-                    if (visibleEnd < contextWithoutTags.Length)
-                    {
-                        basePreview += "...";
-                    }
+                    idealEnd += -idealStart;
+                    idealStart = 0;
                 }
-                else
+                if (idealEnd > contextWithoutTags.Length)
                 {
-                    basePreview = _clip.MatchContext;
+                    idealStart -= (idealEnd - contextWithoutTags.Length);
+                    idealEnd = contextWithoutTags.Length;
+                }
+
+                // Final clamp and substring to create the base preview.
+                int visibleStart = Math.Max(0, idealStart);
+                int visibleEnd = Math.Min(contextWithoutTags.Length, idealEnd);
+                int visibleLength = Math.Max(0, visibleEnd - visibleStart);
+                basePreview = contextWithoutTags.Substring(visibleStart, visibleLength);
+
+                // Re-highlight all search terms in the final preview string. This is safer
+                // than manipulating substrings with tags and fixes multi-highlight issues.
+                var terms = searchTerm.Split(_spaceSeparator, StringSplitOptions.RemoveEmptyEntries);
+                foreach (var term in terms)
+                {
+                    try
+                    {
+                        basePreview = System.Text.RegularExpressions.Regex.Replace(basePreview, System.Text.RegularExpressions.Regex.Escape(term), "[HL]$0[/HL]", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                    }
+                    catch (ArgumentException) { }
                 }
             }
             else
