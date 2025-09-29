@@ -14,6 +14,7 @@ using Cliptoo.UI.ViewModels;
 using Cliptoo.UI.Views;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Velopack;
 using Wpf.Ui;
 using Wpf.Ui.Tray;
 
@@ -21,46 +22,69 @@ namespace Cliptoo.UI
 {
     public partial class App : Application, IDisposable
     {
-        private IHost? _host; private Mutex? _mutex;
+        private IHost? _host;
+        private Mutex? _mutex;
         private bool _disposedValue;
 
         public static IServiceProvider Services { get; private set; } = null!;
+        public static string AppDataRoamingPath { get; private set; } = string.Empty;
+        public static string AppDataLocalPath { get; private set; } = string.Empty;
 
         public App()
         {
-            // Logging must be initialized before anything else.
-            // It first tries to determine the mode (portable or standard) to set the correct log path.
-            var exePath = System.AppContext.BaseDirectory;
-            var portableMarkerPath = Path.Combine(exePath, "cliptoo.portable");
-            bool isPortable = File.Exists(portableMarkerPath);
-            string roamingPath;
-            if (isPortable)
-            {
-                roamingPath = Path.Combine(exePath, "Data");
-                Directory.CreateDirectory(roamingPath);
-            }
-            else
-            {
-                roamingPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            }
+            // Logging initialization is now in Main() to ensure it runs after Velopack.
+            this.DispatcherUnhandledException += OnDispatcherUnhandledException;
+        }
 
-            LogManager.Initialize(roamingPath);
-            LogManager.LogDebug($"App constructor started. Portable mode: {isPortable}");
-
+        [STAThread]
+        private static void Main(string[] args)
+        {
             try
             {
-                InitializeComponent();
-                LogManager.LogDebug("InitializeComponent() completed successfully.");
+                // It's important to Run() as early as possible in app startup.
+                VelopackApp.Build().Run();
             }
-            catch (IOException ex)
+            catch (Exception ex)
             {
-                LogManager.LogCritical(ex, "A fatal file access error occurred during application startup (InitializeComponent).");
-                var logFolder = Path.Combine(roamingPath, "Cliptoo", "Logs");
-                MessageBox.Show($"A fatal file access error occurred during application startup. Please check the log files in '{logFolder}'.", "Cliptoo Startup Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"A critical error occurred with the application updater. Please report this issue.\n\nError: {ex.Message}", "Cliptoo Update Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 Environment.Exit(1);
             }
 
-            this.DispatcherUnhandledException += OnDispatcherUnhandledException;
+            // Use Velopack's built-in portable check. The UpdateManager needs a valid (even if non-functional)
+            // URL to be instantiated correctly without crashing.
+            var um = new UpdateManager("https://github.com/dcog989/cliptoo");
+            bool isPortable = um.IsPortable;
+
+            var exePath = System.AppContext.BaseDirectory;
+            if (isPortable)
+            {
+                AppDataRoamingPath = Path.Combine(exePath, "Data");
+                AppDataLocalPath = Path.Combine(exePath, "Data-Local");
+                Directory.CreateDirectory(AppDataRoamingPath);
+                Directory.CreateDirectory(AppDataLocalPath);
+            }
+            else
+            {
+                AppDataRoamingPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                AppDataLocalPath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            }
+
+            LogManager.Initialize(AppDataRoamingPath);
+            LogManager.LogDebug($"App Main() started. Portable mode: {isPortable}");
+
+            try
+            {
+                var app = new App();
+                app.InitializeComponent();
+                app.Run();
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogCritical(ex, "A fatal error occurred during application startup after Velopack initialization.");
+                var logFolder = Path.Combine(AppDataRoamingPath, "Cliptoo", "Logs");
+                MessageBox.Show($"A fatal file access error occurred during application startup. Please check the log files in '{logFolder}'.", "Cliptoo Startup Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                Environment.Exit(1);
+            }
         }
 
         protected override async void OnStartup(StartupEventArgs e)
@@ -80,27 +104,7 @@ namespace Cliptoo.UI
                 _host = Host.CreateDefaultBuilder()
                     .ConfigureServices((context, services) =>
                     {
-                        var exePath = System.AppContext.BaseDirectory;
-                        var portableMarkerPath = Path.Combine(exePath, "cliptoo.portable");
-                        bool isPortable = File.Exists(portableMarkerPath);
-
-                        string appDataRoamingPath;
-                        string appDataLocalPath;
-
-                        if (isPortable)
-                        {
-                            appDataRoamingPath = Path.Combine(exePath, "Data");
-                            appDataLocalPath = Path.Combine(exePath, "Data-Local");
-                            Directory.CreateDirectory(appDataRoamingPath);
-                            Directory.CreateDirectory(appDataLocalPath);
-                        }
-                        else
-                        {
-                            appDataRoamingPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-                            appDataLocalPath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-                        }
-
-                        var dbFolder = Path.Combine(appDataRoamingPath, "Cliptoo", "Database");
+                        var dbFolder = Path.Combine(AppDataRoamingPath, "Cliptoo", "Database");
                         Directory.CreateDirectory(dbFolder);
                         var dbPath = Path.Combine(dbFolder, "cliptoo_history.db");
 
@@ -110,7 +114,7 @@ namespace Cliptoo.UI
                         services.AddSingleton<IDatabaseStatsService>(new DatabaseStatsService(dbPath));
                         services.AddSingleton<IDbManager, DbManager>();
 
-                        services.AddSingleton<ISettingsManager>(new SettingsManager(appDataRoamingPath));
+                        services.AddSingleton<ISettingsManager>(new SettingsManager(AppDataRoamingPath));
                         services.AddSingleton<ISettingsService, SettingsService>();
                         services.AddSingleton<IClipDataService, ClipDataService>();
                         services.AddSingleton<IClipboardService, ClipboardService>();
@@ -122,23 +126,23 @@ namespace Cliptoo.UI
                            sp.GetRequiredService<Core.Services.IIconCacheManager>(),
                            sp.GetRequiredService<IFileTypeClassifier>(),
                            sp.GetRequiredService<ISettingsService>(),
-                           appDataLocalPath
+                           AppDataLocalPath
                        ));
 
                         services.AddSingleton<IAppInteractionService, AppInteractionService>();
                         services.AddSingleton<CliptooController>();
 
-                        services.AddSingleton<IFileTypeClassifier>(new FileTypeClassifier(appDataRoamingPath));
+                        services.AddSingleton<IFileTypeClassifier>(new FileTypeClassifier(AppDataRoamingPath));
                         services.AddSingleton<IContentProcessor, ContentProcessor>();
                         services.AddSingleton<ImageSharpDecoder>();
                         services.AddSingleton<IImageDecoder, WpfImageDecoder>();
-                        services.AddSingleton<IThumbnailService>(sp => new ThumbnailService(appDataLocalPath, sp.GetRequiredService<IImageDecoder>()));
-                        services.AddSingleton<IWebMetadataService>(sp => new WebMetadataService(appDataLocalPath, sp.GetRequiredService<IImageDecoder>()));
+                        services.AddSingleton<IThumbnailService>(sp => new ThumbnailService(AppDataLocalPath, sp.GetRequiredService<IImageDecoder>()));
+                        services.AddSingleton<IWebMetadataService>(sp => new WebMetadataService(AppDataLocalPath, sp.GetRequiredService<IImageDecoder>()));
                         services.AddSingleton<ISyntaxHighlighter, SyntaxHighlighter>();
                         services.AddSingleton<IClipboardMonitor, ClipboardMonitor>();
                         services.AddSingleton<ITextTransformer, TextTransformer>();
                         services.AddSingleton<ICompareToolService, CompareToolService>();
-                        services.AddSingleton<IconProvider>(sp => new IconProvider(sp.GetRequiredService<ISettingsService>(), appDataLocalPath));
+                        services.AddSingleton<IconProvider>(sp => new IconProvider(sp.GetRequiredService<ISettingsService>(), AppDataLocalPath));
                         services.AddSingleton<IIconProvider>(sp => sp.GetRequiredService<IconProvider>());
                         services.AddSingleton<Core.Services.IIconCacheManager>(sp => sp.GetRequiredService<IconProvider>());
 
