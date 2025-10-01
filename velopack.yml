@@ -1,6 +1,6 @@
 # The unique identifier for your application. This MUST match the file name of your main executable.
-# For example, if your main executable is 'Cliptoo.UI.exe', the id must be 'Cliptoo.UI'.
-id: Cliptoo.UI
+# For example, if your main executable is 'Cliptoo.exe', the id must be 'Cliptoo'.
+id: Cliptoo
 
 # The user-friendly title of your application, which will be displayed in the installer.
 title: Cliptoo

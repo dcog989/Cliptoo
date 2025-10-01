@@ -8,8 +8,6 @@ using System.Xml;
 using Cliptoo.Core.Logging;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp.Processing;
-using SixLabors.ImageSharp.Processing.Processors.Quantization;
 using SkiaSharp;
 using Svg.Skia;
 
@@ -17,7 +15,7 @@ namespace Cliptoo.Core.Services
 {
     public static class ServiceUtils
     {
-        internal static Image<Bgra32>? RenderSvgToImageSharp(string svgContent, int size)
+        public static Image<Bgra32>? RenderSvgToImageSharp(string svgContent, int size)
         {
             try
             {
@@ -42,7 +40,7 @@ namespace Cliptoo.Core.Services
                 var pixelBytes = skPixmap.GetPixelSpan().ToArray();
                 return Image.LoadPixelData<Bgra32>(pixelBytes, size, size);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is XmlException or NullReferenceException)
             {
                 LogManager.LogCritical(ex, "SkiaSharp SVG rendering failed.");
                 return null;
@@ -87,6 +85,7 @@ namespace Cliptoo.Core.Services
 
         public static async Task<byte[]?> GenerateSvgPreviewAsync(string svgSource, int size, string? theme, bool isContentString = false)
         {
+            ArgumentNullException.ThrowIfNull(svgSource);
             try
             {
                 string svgContent = isContentString ? svgSource : await File.ReadAllTextAsync(svgSource).ConfigureAwait(false);

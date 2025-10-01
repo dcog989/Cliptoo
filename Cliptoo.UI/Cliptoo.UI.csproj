@@ -11,6 +11,7 @@
         <Platforms>x64</Platforms>
         <RuntimeIdentifier>win-x64</RuntimeIdentifier>
         <StartupObject>Cliptoo.UI.App</StartupObject>
+        <AssemblyName>Cliptoo</AssemblyName>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
         <AnalysisLevel>latest-All</AnalysisLevel>

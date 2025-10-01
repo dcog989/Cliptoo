@@ -4,7 +4,7 @@ using System.Text;
 
 namespace Cliptoo.Core.Native
 {
-    internal static class NativeClipboardHelper
+    public static class NativeClipboardHelper
     {
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
         private struct DROPFILES

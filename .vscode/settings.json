@@ -1,7 +1,10 @@
 {
   "cSpell.words": [
     "clin",
+    "DROPFILES",
+    "GMEM",
     "HARDWAREINPUT",
+    "HDROP",
     "Initialise",
     "Initialising",
     "Inlines",
@@ -12,7 +15,8 @@
     "Stringcursor",
     "Stringfixed",
     "xsize",
-    "ysize"
+    "ysize",
+    "ZEROINIT"
   ],
   "editor.formatOnSave": true,
   "editor.formatOnPaste": true

@@ -1,8 +1,10 @@
+#pragma warning disable CA1034
+
 namespace Cliptoo.Core
 {
     public static class AppConstants
     {
-        internal static class ClipTypes
+        public static class ClipTypes
         {
             public const string Text = "text";
             public const string Link = "link";
@@ -25,7 +27,7 @@ namespace Cliptoo.Core
             public const string System = "file_system";
         }
 
-        internal static class FilterKeys
+        public static class FilterKeys
         {
             public const string All = "all";
             public const string Pinned = "pinned";
@@ -35,7 +37,7 @@ namespace Cliptoo.Core
             public const string Color = "color";
         }
 
-        internal static class IconKeys
+        public static class IconKeys
         {
             public const string Pin = "pin";
             public const string Multiline = "multiline";
@@ -46,7 +48,7 @@ namespace Cliptoo.Core
             public const string Trash = "trash";
         }
 
-        internal static class TransformTypes
+        public static class TransformTypes
         {
             public const string Upper = "upper";
             public const string Lower = "lower";
@@ -64,21 +66,21 @@ namespace Cliptoo.Core
             public const string Timestamp = "timestamp";
         }
 
-        internal static class UITags
+        public static class UITags
         {
             public const string AlwaysOnTop = "always_on_top";
             public const string ShowHide = "show_hide";
             public const string Quit = "quit";
         }
 
-        internal static class HotkeyTargets
+        public static class HotkeyTargets
         {
             public const string Main = "Main";
             public const string Preview = "Preview";
             public const string QuickPaste = "QuickPaste";
         }
 
-        internal static class ThemeNames
+        public static class ThemeNames
         {
             public const string System = "System";
             public const string Light = "Light";
@@ -86,3 +88,5 @@ namespace Cliptoo.Core
         }
     }
 }
+
+#pragma warning restore CA1034

@@ -22,13 +22,13 @@ $Script:PublishRuntimeId = "win-x64"                # The target runtime for pub
 $Script:SolutionRoot = (Get-Item $PSScriptRoot).Parent.FullName
 $Script:SolutionFile = Join-Path $Script:SolutionRoot $Script:SolutionFileName
 $Script:MainProjectFile = Join-Path $Script:SolutionRoot $Script:MainProjectName "$($Script:MainProjectName).csproj"
-$Script:AppName = $Script:MainProjectName
-$Script:ProcessNameForTermination = $Script:MainProjectName
+$Script:AppName = $Script:PackageTitle
+$Script:ProcessNameForTermination = $Script:PackageTitle
 
 # Velopack settings
-$Script:PackageId = $Script:MainProjectName
+$Script:PackageId = $Script:PackageTitle
 $Script:PackageIconPath = Join-Path $Script:SolutionRoot $Script:MainProjectName "Assets/Icons/$($Script:PackageTitle.ToLower()).ico"
-$Script:MainExeName = "$($Script:MainProjectName).exe"
+$Script:MainExeName = "$($Script:PackageTitle).exe"
 $Script:AppDataFolderName = $Script:PackageTitle
 
 # Package naming and markers

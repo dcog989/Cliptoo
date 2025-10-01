@@ -96,7 +96,6 @@ namespace Cliptoo.Core.Native
                 u = new InputUnion { ki = new KEYBDINPUT { wVk = virtualKeyCode, dwFlags = flags } }
             };
         }
-
         public static async Task SendPasteAsync()
         {
             LogManager.LogDebug("PASTE_DIAG: Polling for focus change...");
@@ -104,7 +103,7 @@ namespace Cliptoo.Core.Native
             while (stopwatch.ElapsedMilliseconds < 500)
             {
                 var foregroundProcessName = ProcessUtils.GetForegroundWindowProcessName();
-                if (foregroundProcessName != "Cliptoo.UI.exe")
+                if (foregroundProcessName != "Cliptoo.exe")
                 {
                     break;
                 }
@@ -180,5 +179,6 @@ namespace Cliptoo.Core.Native
                 LogManager.LogDebug("InputSimulator: SendInput call successful.");
             }
         }
+
     }
 }
