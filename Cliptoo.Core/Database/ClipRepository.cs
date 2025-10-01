@@ -207,21 +207,36 @@ namespace Cliptoo.Core.Database
             }
         }
 
-        public Task UpdateClipContentAsync(int id, string content)
+        public async Task UpdateClipContentAsync(int id, string content)
         {
             ArgumentNullException.ThrowIfNull(content);
-            var previewContent = CreatePreview(content);
-            var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(content)));
-            var sql = "UPDATE clips SET Content = @Content, ContentHash = @ContentHash, PreviewContent = @PreviewContent, SizeInBytes = @SizeInBytes WHERE Id = @Id";
-            var parameters = new[]
+            var newHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(content)));
+
+            // Check if another clip with the same content already exists.
+            var existingClip = await GetClipByHashAsync(newHash).ConfigureAwait(false);
+
+            if (existingClip != null && existingClip.Id != id)
             {
-                new SqliteParameter("@Content", content),
-                new SqliteParameter("@ContentHash", hash),
-                new SqliteParameter("@PreviewContent", previewContent),
-                new SqliteParameter("@SizeInBytes", (long)System.Text.Encoding.UTF8.GetByteCount(content)),
-                new SqliteParameter("@Id", id)
-            };
-            return ExecuteNonQueryAsync(sql, parameters);
+                // A different clip with this content already exists.
+                // Delete the clip being edited and update the timestamp of the existing one.
+                await DeleteClipAsync(id).ConfigureAwait(false);
+                await UpdateTimestampAsync(existingClip.Id).ConfigureAwait(false);
+            }
+            else
+            {
+                // No conflict. Just update the current clip.
+                var previewContent = CreatePreview(content);
+                var sql = "UPDATE clips SET Content = @Content, ContentHash = @ContentHash, PreviewContent = @PreviewContent, SizeInBytes = @SizeInBytes WHERE Id = @Id";
+                var parameters = new[]
+                {
+                    new SqliteParameter("@Content", content),
+                    new SqliteParameter("@ContentHash", newHash),
+                    new SqliteParameter("@PreviewContent", previewContent),
+                    new SqliteParameter("@SizeInBytes", (long)System.Text.Encoding.UTF8.GetByteCount(content)),
+                    new SqliteParameter("@Id", id)
+                };
+                await ExecuteNonQueryAsync(sql, parameters).ConfigureAwait(false);
+            }
         }
 
         public IAsyncEnumerable<string> GetAllImageClipPathsAsync()
@@ -265,6 +280,14 @@ namespace Cliptoo.Core.Database
                 new SqliteParameter("@Id", id)
             };
             return ExecuteNonQueryAsync(sql, parameters);
+        }
+
+        private async Task<Clip?> GetClipByHashAsync(string hash)
+        {
+            var sql = "SELECT * FROM clips WHERE ContentHash = @ContentHash";
+            var param = new SqliteParameter("@ContentHash", hash);
+
+            return await QuerySingleOrDefaultAsync(sql, MapFullClipFromReader, default, param).ConfigureAwait(false);
         }
 
         private static Clip MapFullClipFromReader(SqliteDataReader reader)
