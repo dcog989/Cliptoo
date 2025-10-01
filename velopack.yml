@@ -17,4 +17,4 @@ icon: Cliptoo.UI/Assets/Icons/cliptoo.ico
 
 # The version is not required here because it is provided by the build script
 # via the '--packVersion' argument, which reads it from your .csproj file.
-# version: 1.6.2
+# version: 9.9.9
