@@ -77,7 +77,7 @@ namespace Cliptoo.UI.ViewModels
 
             if (currentPreviewClip.IsImage)
             {
-                loadTasks.Add(currentPreviewClip.LoadImagePreviewAsync(currentPreviewClip.HoverImagePreviewSize));
+                loadTasks.Add(currentPreviewClip.LoadImagePreviewAsync(CurrentSettings.HoverImagePreviewSize));
             }
 
             await Task.WhenAll(loadTasks);

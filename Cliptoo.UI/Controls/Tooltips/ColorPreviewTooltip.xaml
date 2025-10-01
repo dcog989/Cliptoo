@@ -37,8 +37,8 @@
         <TextBlock
             Margin="0,5,0,0"
             HorizontalAlignment="Center"
-            FontFamily="{Binding PreviewFont}"
-            FontSize="{Binding PreviewFontSize}"
+            FontFamily="{Binding MainViewModel.PreviewFont}"
+            FontSize="{Binding MainViewModel.CurrentSettings.PreviewFontSize}"
             Text="{Binding Content}" />
     </StackPanel>
 </UserControl>

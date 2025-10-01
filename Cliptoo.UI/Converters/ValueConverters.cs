@@ -12,7 +12,6 @@ namespace Cliptoo.UI.Converters
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
             if (value is not string colorString || colorString.Length > 50) return Brushes.Transparent;
-
             if (ColorParser.TryParseColor(colorString.Trim(), out var colorData) && colorData != null)
             {
                 var color = Color.FromArgb(colorData.A, colorData.R, colorData.G, colorData.B);
@@ -156,18 +155,22 @@ namespace Cliptoo.UI.Converters
     // UPDATE
     internal class PaddingSizeToThicknessConverter : IValueConverter
     {
+        private static readonly Thickness Compact = new(2);
+        private static readonly Thickness Standard = new(4);
+        private static readonly Thickness Luxury = new(8);
+
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
             if (value is not string paddingString)
             {
-                return new Thickness(4, 4, 4, 4); // default to standard
+                return Standard;
             }
 
-            return paddingString.ToLowerInvariant() switch
+            return paddingString.ToUpperInvariant() switch
             {
-                "compact" => new Thickness(2, 2, 2, 2),
-                "luxury" => new Thickness(8, 8, 8, 8),
-                _ => new Thickness(4, 4, 4, 4), // standard
+                "COMPACT" => Compact,
+                "LUXURY" => Luxury,
+                _ => Standard,
             };
         }
 

@@ -16,7 +16,7 @@
             Text="Loading title..."
             Visibility="{Binding IsPageTitleLoading, Converter={StaticResource BooleanToVisibilityConverter}}" />
         <TextBlock
-            FontSize="{Binding PreviewFontSize}"
+            FontSize="{Binding MainViewModel.CurrentSettings.PreviewFontSize}"
             FontWeight="Bold"
             Foreground="{DynamicResource TextFillColorPrimaryBrush}"
             Text="{Binding PageTitle}"
@@ -24,8 +24,8 @@
             Visibility="{Binding IsPageTitleLoading, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=inverse}" />
         <TextBlock
             Margin="0,4,0,0"
-            FontFamily="{Binding PreviewFont}"
-            FontSize="{Binding PreviewFontSize}"
+            FontFamily="{Binding MainViewModel.PreviewFont}"
+            FontSize="{Binding MainViewModel.CurrentSettings.PreviewFontSize}"
             Foreground="{DynamicResource TextFillColorSecondaryBrush}"
             Text="{Binding Content}"
             TextTrimming="CharacterEllipsis" />

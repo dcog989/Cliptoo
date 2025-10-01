@@ -28,9 +28,6 @@ namespace Cliptoo.UI.ViewModels
         private ImageSource? _thumbnailSource;
         private bool _isThumbnailLoading;
         private bool _isPinned;
-        private FontFamily _currentFontFamily = new("Segoe UI");
-        private double _currentFontSize = 14;
-        private string _paddingSize;
         private int _index;
         private ImageSource? _imagePreviewSource;
         private int _currentThumbnailLoadId;
@@ -56,8 +53,6 @@ namespace Cliptoo.UI.ViewModels
         private string? _pageTitle;
         private bool _isPageTitleLoading;
         private CancellationTokenSource? _pageTitleCts;
-        private FontFamily _previewFont = new("Segoe UI");
-        private double _previewFontSize = 14;
         private string _compareLeftHeader = "Compare Left";
         private bool _showCompareRightOption;
         private ImageSource? _clipTypeIcon;
@@ -116,10 +111,6 @@ namespace Cliptoo.UI.ViewModels
         public ImageSource? ImagePreviewSource { get => _imagePreviewSource; private set => SetProperty(ref _imagePreviewSource, value); }
         public bool HasThumbnail { get => _hasThumbnail; private set => SetProperty(ref _hasThumbnail, value); }
 
-        public FontFamily PreviewFont { get => _previewFont; set => SetProperty(ref _previewFont, value); }
-        public double PreviewFontSize { get => _previewFontSize; set => SetProperty(ref _previewFontSize, value); }
-        public uint HoverImagePreviewSize { get; set; }
-
         public bool IsComparable => ClipType is AppConstants.ClipTypes.Text or AppConstants.ClipTypes.CodeSnippet or AppConstants.ClipTypes.Rtf or AppConstants.ClipTypes.Dev or AppConstants.ClipTypes.FileText;
         public string? FileName => IsFileBased ? Path.GetFileName(Content.Trim()) : null;
         public string CompareLeftHeader { get => _compareLeftHeader; set => SetProperty(ref _compareLeftHeader, value); }
@@ -148,11 +139,8 @@ namespace Cliptoo.UI.ViewModels
             private set => SetProperty(ref _thumbnailSource, value);
         }
 
-        public string PaddingSize { get => _paddingSize; set => SetProperty(ref _paddingSize, value); }
         public string Preview { get; private set; } = string.Empty;
 
-        public FontFamily CurrentFontFamily { get => _currentFontFamily; set => SetProperty(ref _currentFontFamily, value); }
-        public double CurrentFontSize { get => _currentFontSize; set => SetProperty(ref _currentFontSize, value); }
         public ICommand TogglePinCommand { get; }
         public ICommand DeleteCommand { get; }
         public ICommand EditClipCommand { get; }
@@ -170,7 +158,6 @@ namespace Cliptoo.UI.ViewModels
             _clip = clip;
             _clipDetailsLoader = clipDetailsLoader;
             _isPinned = clip.IsPinned;
-            _paddingSize = mainViewModel.CurrentSettings.ClipItemPadding;
             MainViewModel = mainViewModel;
             _iconProvider = iconProvider;
             _clipDataService = clipDataService;

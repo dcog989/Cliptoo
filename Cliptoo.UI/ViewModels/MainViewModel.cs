@@ -226,6 +226,7 @@ namespace Cliptoo.UI.ViewModels
             SendToCommand = new RelayCommand(async p => await ExecuteSendTo(p));
 
             _clipDataService.NewClipAdded += OnNewClipAdded;
+            Clips.CollectionChanged += Clips_CollectionChanged;
             _databaseService.HistoryCleared += OnHistoryCleared;
             _settingsService.SettingsChanged += OnSettingsChanged;
             _databaseService.CachesCleared += OnCachesCleared;
@@ -244,29 +245,29 @@ namespace Cliptoo.UI.ViewModels
             IsCompareToolAvailable = _clipboardService.IsCompareToolAvailable();
         }
 
+        private void Clips_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+        {
+            if (e.OldItems != null)
+            {
+                foreach (var item in e.OldItems)
+                {
+                    if (item is IDisposable disposable)
+                    {
+                        disposable.Dispose();
+                    }
+                }
+            }
+        }
+
         private void CurrentSettings_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
         {
             switch (e.PropertyName)
             {
                 case nameof(Settings.FontFamily):
                     MainFont = _fontProvider.GetFont(CurrentSettings.FontFamily);
-                    foreach (var clipVM in Clips) clipVM.CurrentFontFamily = MainFont;
-                    break;
-                case nameof(Settings.FontSize):
-                    foreach (var clipVM in Clips) clipVM.CurrentFontSize = CurrentSettings.FontSize;
-                    break;
-                case nameof(Settings.ClipItemPadding):
-                    foreach (var clipVM in Clips) clipVM.PaddingSize = CurrentSettings.ClipItemPadding;
                     break;
                 case nameof(Settings.PreviewFontFamily):
                     PreviewFont = _fontProvider.GetFont(CurrentSettings.PreviewFontFamily);
-                    foreach (var clipVM in Clips) clipVM.PreviewFont = PreviewFont;
-                    break;
-                case nameof(Settings.PreviewFontSize):
-                    foreach (var clipVM in Clips) clipVM.PreviewFontSize = CurrentSettings.PreviewFontSize;
-                    break;
-                case nameof(Settings.HoverImagePreviewSize):
-                    foreach (var clipVM in Clips) clipVM.HoverImagePreviewSize = CurrentSettings.HoverImagePreviewSize;
                     break;
                 case nameof(Settings.DisplayLogo):
                     OnPropertyChanged(nameof(DisplayLogo));
@@ -401,12 +402,6 @@ namespace Cliptoo.UI.ViewModels
 
         private void ApplyAppearanceToViewModel(ClipViewModel clipVM)
         {
-            clipVM.CurrentFontFamily = MainFont;
-            clipVM.CurrentFontSize = CurrentSettings.FontSize;
-            clipVM.PaddingSize = CurrentSettings.ClipItemPadding;
-            clipVM.PreviewFont = PreviewFont;
-            clipVM.PreviewFontSize = CurrentSettings.PreviewFontSize;
-            clipVM.HoverImagePreviewSize = CurrentSettings.HoverImagePreviewSize;
         }
 
         private async void OnDebounceTimerElapsed(object? sender, EventArgs e)
@@ -498,6 +493,12 @@ namespace Cliptoo.UI.ViewModels
             _databaseService.CachesCleared -= OnCachesCleared;
             _debounceTimer.Tick -= OnDebounceTimerElapsed;
             _clearClipsTimer.Tick -= OnClearClipsTimerElapsed;
+            Clips.CollectionChanged -= Clips_CollectionChanged;
+            foreach (var clip in Clips)
+            {
+                clip.Dispose();
+            }
+            Clips.Clear();
         }
 
         private void OnNewClipAdded(object? sender, EventArgs e) => OnNewClipAdded();

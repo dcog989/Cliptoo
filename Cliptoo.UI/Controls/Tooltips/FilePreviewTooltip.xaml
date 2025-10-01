@@ -25,16 +25,16 @@
 
             <StackPanel Visibility="{Binding IsSourceMissing, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=inverse}">
                 <TextBlock
-                    FontFamily="{Binding PreviewFont}"
-                    FontSize="{Binding PreviewFontSize}"
+                    FontFamily="{Binding MainViewModel.PreviewFont}"
+                    FontSize="{Binding MainViewModel.CurrentSettings.PreviewFontSize}"
                     FontWeight="Bold"
                     Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                     Text="{Binding FileName}"
                     TextWrapping="Wrap"
                     Visibility="{Binding FileName, Converter={StaticResource NullToVisibilityConverter}}" />
                 <TextBlock
-                    FontFamily="{Binding PreviewFont}"
-                    FontSize="{Binding PreviewFontSize}"
+                    FontFamily="{Binding MainViewModel.PreviewFont}"
+                    FontSize="{Binding MainViewModel.CurrentSettings.PreviewFontSize}"
                     Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                     Text="{Binding FileProperties}" />
                 <StackPanel
@@ -49,8 +49,8 @@
                         Source="{Binding FileTypeInfoIcon}" />
                     <TextBlock
                         VerticalAlignment="Center"
-                        FontFamily="{Binding PreviewFont}"
-                        FontSize="{Binding PreviewFontSize}"
+                        FontFamily="{Binding MainViewModel.PreviewFont}"
+                        FontSize="{Binding MainViewModel.CurrentSettings.PreviewFontSize}"
                         Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                         Text="{Binding FileTypeInfo}" />
                 </StackPanel>

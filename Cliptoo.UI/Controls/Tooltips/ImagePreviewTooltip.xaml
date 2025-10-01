@@ -13,8 +13,8 @@
     <StackPanel Margin="10">
         <Grid>
             <ui:Image
-                MaxWidth="{Binding HoverImagePreviewSize}"
-                MaxHeight="{Binding HoverImagePreviewSize}"
+                MaxWidth="{Binding MainViewModel.CurrentSettings.HoverImagePreviewSize}"
+                MaxHeight="{Binding MainViewModel.CurrentSettings.HoverImagePreviewSize}"
                 HorizontalAlignment="Center"
                 VerticalAlignment="Center"
                 RenderOptions.BitmapScalingMode="Fant"
@@ -40,16 +40,16 @@
             VerticalAlignment="Center"
             Visibility="{Binding IsFilePropertiesLoading, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=inverse}">
             <TextBlock
-                FontFamily="{Binding PreviewFont}"
-                FontSize="{Binding PreviewFontSize}"
+                FontFamily="{Binding MainViewModel.PreviewFont}"
+                FontSize="{Binding MainViewModel.CurrentSettings.PreviewFontSize}"
                 FontWeight="Bold"
                 Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                 Text="{Binding FileName}"
                 TextWrapping="Wrap"
                 Visibility="{Binding FileName, Converter={StaticResource NullToVisibilityConverter}}" />
             <TextBlock
-                FontFamily="{Binding PreviewFont}"
-                FontSize="{Binding PreviewFontSize}"
+                FontFamily="{Binding MainViewModel.PreviewFont}"
+                FontSize="{Binding MainViewModel.CurrentSettings.PreviewFontSize}"
                 Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                 Text="{Binding FileProperties}"
                 TextWrapping="Wrap" />
@@ -65,8 +65,8 @@
                     Source="{Binding FileTypeInfoIcon}" />
                 <TextBlock
                     VerticalAlignment="Center"
-                    FontFamily="{Binding PreviewFont}"
-                    FontSize="{Binding PreviewFontSize}"
+                    FontFamily="{Binding MainViewModel.PreviewFont}"
+                    FontSize="{Binding MainViewModel.CurrentSettings.PreviewFontSize}"
                     Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                     Text="{Binding FileTypeInfo}"
                     TextWrapping="Wrap" />

@@ -11,7 +11,7 @@
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
     xmlns:viewModels="clr-namespace:Cliptoo.UI.ViewModels"
     Height="Auto"
-    Padding="{Binding PaddingSize, Converter={StaticResource PaddingSizeToThicknessConverter}}"
+    Padding="{Binding DataContext.CurrentSettings.ClipItemPadding, RelativeSource={RelativeSource AncestorType=ListView}, Converter={StaticResource PaddingSizeToThicknessConverter}}"
     d:DataContext="{d:DesignInstance Type=viewModels:ClipViewModel}"
     Background="Transparent"
     SnapsToDevicePixels="True"
@@ -100,8 +100,8 @@
                     x:Name="PreviewTextBlock"
                     VerticalAlignment="Center"
                     helpers:TextBlockHighlighter.FormattedText="{Binding Preview}"
-                    FontFamily="{Binding CurrentFontFamily}"
-                    FontSize="{Binding CurrentFontSize}"
+                    FontFamily="{Binding DataContext.MainFont, RelativeSource={RelativeSource AncestorType=ListView}}"
+                    FontSize="{Binding DataContext.CurrentSettings.FontSize, RelativeSource={RelativeSource AncestorType=ListView}}"
                     TextTrimming="CharacterEllipsis">
                     <TextBlock.Style>
                         <Style TargetType="TextBlock">
