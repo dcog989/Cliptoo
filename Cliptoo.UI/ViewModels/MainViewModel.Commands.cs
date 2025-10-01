@@ -134,11 +134,19 @@ namespace Cliptoo.UI.ViewModels
 
         private async Task ExecuteDeleteClip(object? parameter)
         {
-            if (parameter is not ClipViewModel clipVM) return;
+            if (parameter is not ClipViewModel clipVM || clipVM.IsDeleting) return;
+
             LogManager.LogInfo($"Deleting clip: ID={clipVM.Id}.");
+            clipVM.IsDeleting = true;
+
             var fullClip = await clipVM.GetFullClipAsync().ConfigureAwait(false);
-            await _clipDataService.DeleteClipAsync(fullClip ?? clipVM._clip).ConfigureAwait(false);
-            Application.Current.Dispatcher.Invoke(() => Clips.Remove(clipVM));
+            var deleteDbTask = _clipDataService.DeleteClipAsync(fullClip ?? clipVM._clip);
+
+            await Task.Delay(500);
+
+            Clips.Remove(clipVM);
+
+            await deleteDbTask.ConfigureAwait(false);
         }
 
         private void ExecuteEditClip(object? parameter)

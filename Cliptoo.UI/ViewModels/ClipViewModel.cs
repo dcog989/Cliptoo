@@ -126,6 +126,9 @@ namespace Cliptoo.UI.ViewModels
 
         public bool IsPinned { get => _isPinned; set => SetProperty(ref _isPinned, value); }
 
+        private bool _isDeleting;
+        public bool IsDeleting { get => _isDeleting; set => SetProperty(ref _isDeleting, value); }
+
         public ImageSource? ThumbnailSource
         {
             get
