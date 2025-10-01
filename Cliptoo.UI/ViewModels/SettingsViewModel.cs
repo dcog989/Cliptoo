@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Media;
 using Cliptoo.Core;
 using Cliptoo.Core.Configuration;
@@ -85,58 +86,61 @@ namespace Cliptoo.UI.ViewModels
             }, _ => !IsBusy);
 
             RunHeavyMaintenanceCommand = new RelayCommand(async _ =>
+            {
+                if (IsBusy) return;
+                IsBusy = true;
+                try
                 {
-                    if (IsBusy) return;
-                    IsBusy = true;
-                    try
+                    var result = await Task.Run(async () => await _databaseService.RunHeavyMaintenanceNowAsync().ConfigureAwait(false)).ConfigureAwait(true);
+                    await InitializeAsync().ConfigureAwait(true);
+
+                    var results = new List<string>
                     {
-                        var result = await Task.Run(async () => await _databaseService.RunHeavyMaintenanceNowAsync().ConfigureAwait(false)).ConfigureAwait(true);
-                        await InitializeAsync().ConfigureAwait(true);
+                        $"- Removed {result.DbClipsCleaned} old clips.",
+                        $"- Pruned {result.ImageCachePruned} orphaned image previews.",
+                        $"- Pruned {result.FaviconCachePruned} orphaned favicons.",
+                        $"- Pruned {result.IconCachePruned} old icons.",
+                        $"- Pruned {result.ClipboardImagesPruned} clipboard images.",
+                        $"- Re-classified {result.ReclassifiedClips} file types.",
+                        $"- Cleaned {result.TempFilesCleaned} temporary files."
+                    };
 
-                        var results = new List<string>();
-                        if (result.DbClipsCleaned > 0) results.Add($"- Removed {result.DbClipsCleaned} old clips.");
-                        if (result.ImageCachePruned > 0) results.Add($"- Pruned {result.ImageCachePruned} orphaned image previews.");
-                        if (result.FaviconCachePruned > 0) results.Add($"- Pruned {result.FaviconCachePruned} orphaned favicons.");
-                        if (result.IconCachePruned > 0) results.Add($"- Pruned {result.IconCachePruned} old icons.");
-                        if (result.ReclassifiedClips > 0) results.Add($"- Re-classified {result.ReclassifiedClips} file types.");
-                        if (result.TempFilesCleaned > 0) results.Add($"- Cleaned {result.TempFilesCleaned} temporary files.");
-
-                        if (result.DatabaseSizeChangeMb > 0.0)
-                        {
-                            results.Add($"- Reclaimed {result.DatabaseSizeChangeMb:F2} MB of database space.");
-                        }
-                        else if (result.DatabaseSizeChangeMb < 0.0)
-                        {
-                            results.Add($"- Database size increased by {-result.DatabaseSizeChangeMb:F2} MB.");
-                        }
-                        else
-                        {
-                            results.Add("- Database compaction ran, but size did not change.");
-                        }
-
-                        UIElement dialogContent;
-                        if (results.Count > 0)
-                        {
-                            var stackPanel = new System.Windows.Controls.StackPanel();
-                            stackPanel.Children.Add(new System.Windows.Controls.TextBlock { Text = "Maintenance routine completed.", Margin = new Thickness(0, 0, 0, 10) });
-                            foreach (var line in results)
-                            {
-                                stackPanel.Children.Add(new System.Windows.Controls.TextBlock { Text = line });
-                            }
-                            dialogContent = stackPanel;
-                        }
-                        else
-                        {
-                            dialogContent = new System.Windows.Controls.TextBlock { Text = "No items required cleaning." };
-                        }
-
-                        await ShowInformationDialogAsync("Maintenance Complete", dialogContent).ConfigureAwait(true);
-                    }
-                    finally
+                    if (result.DatabaseSizeChangeMb > 0.0)
                     {
-                        IsBusy = false;
+                        results.Add($"- Database compacted, reclaiming {result.DatabaseSizeChangeMb:F2} MB of space.");
                     }
-                }, _ => !IsBusy);
+                    else if (result.DatabaseSizeChangeMb < 0.0)
+                    {
+                        results.Add($"- Database compacted. Size changed by {result.DatabaseSizeChangeMb:F2} MB.");
+                    }
+                    else
+                    {
+                        results.Add("- Database compacted. Size did not change.");
+                    }
+
+                    var stackPanel = new StackPanel();
+                    stackPanel.Children.Add(new TextBlock { Text = "Maintenance routine completed.", Margin = new Thickness(0, 0, 0, 10) });
+                    foreach (var line in results)
+                    {
+                        stackPanel.Children.Add(new TextBlock { Text = line });
+                    }
+
+                    stackPanel.Children.Add(new Separator { Margin = new Thickness(0, 10, 0, 10) });
+                    stackPanel.Children.Add(new TextBlock
+                    {
+                        Text = "Note: This maintenance process also runs automatically approximately every 24 hours when the application is idle.",
+                        TextWrapping = TextWrapping.Wrap,
+                        FontStyle = FontStyles.Italic,
+                        Foreground = (Brush)Application.Current.FindResource("TextFillColorSecondaryBrush")
+                    });
+
+                    await ShowInformationDialogAsync("Maintenance Complete", stackPanel).ConfigureAwait(true);
+                }
+                finally
+                {
+                    IsBusy = false;
+                }
+            }, _ => !IsBusy);
 
             RemoveDeadheadClipsCommand = new RelayCommand(async _ => await HandleRemoveDeadheadClips(), _ => !IsBusy);
             ClearOversizedCommand = new RelayCommand(async _ => await HandleClearOversized(), _ => !IsBusy);
