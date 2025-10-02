@@ -23,7 +23,6 @@
             </Grid.RowDefinitions>
             <TextBlock
                 Grid.Row="0"
-                MaxHeight="{Binding MainViewModel.CurrentSettings.PreviewFontSize, Converter={StaticResource MultiplyConverter}, ConverterParameter=44}"
                 Margin="5"
                 FontFamily="{Binding MainViewModel.PreviewFont}"
                 FontSize="{Binding MainViewModel.CurrentSettings.PreviewFontSize}"
