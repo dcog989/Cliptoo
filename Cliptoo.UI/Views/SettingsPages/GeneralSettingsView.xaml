@@ -80,27 +80,27 @@
                     IsChecked="{Binding DisplayLogo}" />
                 <CheckBox
                     Margin="0,0,12,16"
-                    Content="Always paste as plain text"
+                    Content="Paste as plain text"
                     IsChecked="{Binding PasteAsPlainText}"
                     ToolTip="Strips formatting from clips like RTF or images before pasting." />
                 <CheckBox
                     Margin="0,0,12,16"
-                    Content="Remember search input"
+                    Content="Remember search"
                     IsChecked="{Binding Settings.RememberSearchInput}"
                     ToolTip="Keep the search term in the search box when the window is reopened." />
                 <CheckBox
                     Margin="0,0,12,16"
-                    Content="Remember filter selection"
+                    Content="Remember filters"
                     IsChecked="{Binding Settings.RememberFilterSelection}"
                     ToolTip="Keep the last used filter active when the window is reopened." />
                 <CheckBox
                     Margin="0,0,12,16"
-                    Content="Move clips to top on paste"
+                    Content="Clips to top on paste"
                     IsChecked="{Binding Settings.MoveClipToTopOnPaste}"
                     ToolTip="When using a clip, move it to the top of the list." />
                 <CheckBox
                     Margin="0,0,12,16"
-                    Content="Always trim whitespace"
+                    Content="Trim whitespace"
                     IsChecked="{Binding Settings.AlwaysTrimWhitespace}"
                     ToolTip="Automatically remove leading and trailing whitespace from new text clips." />
             </UniformGrid>
