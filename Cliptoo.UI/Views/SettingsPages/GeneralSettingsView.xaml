@@ -98,6 +98,11 @@
                     Content="Move clips to top on paste"
                     IsChecked="{Binding Settings.MoveClipToTopOnPaste}"
                     ToolTip="When using a clip, move it to the top of the list." />
+                <CheckBox
+                    Margin="0,0,12,16"
+                    Content="Always trim whitespace"
+                    IsChecked="{Binding Settings.AlwaysTrimWhitespace}"
+                    ToolTip="Automatically remove leading and trailing whitespace from new text clips." />
             </UniformGrid>
 
             <Separator Margin="0,12,0,12" />

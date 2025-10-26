@@ -224,6 +224,10 @@ namespace Cliptoo.Core.Configuration
         [DefaultValue(false)]
         public bool PasteAsPlainText { get => _pasteAsPlainText; set => SetProperty(ref _pasteAsPlainText, value); }
 
+        private bool _alwaysTrimWhitespace;
+        [DefaultValue(false)]
+        public bool AlwaysTrimWhitespace { get => _alwaysTrimWhitespace; set => SetProperty(ref _alwaysTrimWhitespace, value); }
+
         private bool _moveClipToTopOnPaste = true;
         [DefaultValue(true)]
         public bool MoveClipToTopOnPaste { get => _moveClipToTopOnPaste; set => SetProperty(ref _moveClipToTopOnPaste, value); }

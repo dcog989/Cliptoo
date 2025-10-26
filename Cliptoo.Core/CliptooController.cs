@@ -157,6 +157,7 @@ namespace Cliptoo.Core
             var settings = _settingsService.Settings;
             bool wasTruncated = false;
             long maxBytes = (long)settings.MaxClipSizeMb * 1024 * 1024;
+            bool wasManuallyTrimmed = false;
 
             if (e.ContentType == ClipboardContentType.Text)
             {
@@ -169,7 +170,17 @@ namespace Cliptoo.Core
                 }
                 else
                 {
-                    result = _contentProcessor.Process(textContent);
+                    var contentForProcessing = textContent;
+                    if (settings.AlwaysTrimWhitespace)
+                    {
+                        var trimmed = textContent.Trim();
+                        if (trimmed.Length != textContent.Length)
+                        {
+                            wasManuallyTrimmed = true;
+                        }
+                        contentForProcessing = trimmed;
+                    }
+                    result = _contentProcessor.Process(contentForProcessing);
                 }
             }
             else if (e.ContentType == ClipboardContentType.Image)
@@ -223,7 +234,7 @@ namespace Cliptoo.Core
 
             if (result != null)
             {
-                bool finalWasTrimmed = result.SourceHadWhitespaceTrimmed || wasTruncated;
+                bool finalWasTrimmed = result.SourceHadWhitespaceTrimmed || wasTruncated || wasManuallyTrimmed;
                 string? sourceApp = result.SourceAppOverride ?? e.SourceApp;
                 await _clipDataService.AddClipAsync(
                     result.Content,
