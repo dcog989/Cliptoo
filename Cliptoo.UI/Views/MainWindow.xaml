@@ -507,12 +507,12 @@
             <Popup
                 x:Name="PreviewPopup"
                 AllowsTransparency="True"
-                DataContext="{Binding}"
+                DataContext="{Binding PreviewManager}"
                 IsOpen="{Binding IsPreviewOpen, Mode=TwoWay}"
                 MouseEnter="PreviewPopup_MouseEnter"
                 MouseLeave="PreviewPopup_MouseLeave"
-                Placement="{Binding PreviewPlacementMode}"
-                PlacementTarget="{Binding PreviewPlacementTarget}"
+                Placement="{Binding PlacementMode}"
+                PlacementTarget="{Binding PlacementTarget}"
                 PopupAnimation="Fade">
                 <Border
                     MaxWidth="{Binding DataContext.CurrentSettings.PreviewTooltipMaxWidth, ElementName=ClipListView}"

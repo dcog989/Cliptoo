@@ -34,6 +34,7 @@ namespace Cliptoo.UI.ViewModels
         private readonly IFontProvider _fontProvider;
         private readonly INotificationService _notificationService;
         private readonly IIconProvider _iconProvider;
+        private readonly IPreviewManager _previewManager;
         private string _searchTerm = string.Empty;
         private FilterOption _selectedFilter;
         private readonly DispatcherTimer _debounceTimer;
@@ -43,10 +44,6 @@ namespace Cliptoo.UI.ViewModels
         private bool _isFilterPopupOpen;
         private bool _isQuickPasteModeActive;
         private bool _isWindowVisible;
-        private System.Windows.Controls.Primitives.PlacementMode _previewPlacementMode = System.Windows.Controls.Primitives.PlacementMode.Mouse;
-        public System.Windows.Controls.Primitives.PlacementMode PreviewPlacementMode { get => _previewPlacementMode; set => SetProperty(ref _previewPlacementMode, value); }
-        private UIElement? _previewPlacementTarget;
-        public UIElement? PreviewPlacementTarget { get => _previewPlacementTarget; set => SetProperty(ref _previewPlacementTarget, value); }
         private bool _needsRefreshOnShow = true;
         public bool IsWindowVisible { get => _isWindowVisible; set => SetProperty(ref _isWindowVisible, value); }
         private FontFamily _mainFont;
@@ -73,6 +70,7 @@ namespace Cliptoo.UI.ViewModels
         public ImageSource? ErrorIcon { get => _errorIcon; private set => SetProperty(ref _errorIcon, value); }
         public event EventHandler<BoolEventArgs>? AlwaysOnTopChanged;
         public event EventHandler? ListScrolledToTopRequest;
+        public IPreviewManager PreviewManager => _previewManager;
         public ObservableCollection<ClipViewModel> Clips { get; }
         public ObservableCollection<FilterOption> FilterOptions { get; }
         public bool IsCompareToolAvailable { get; }
@@ -186,7 +184,7 @@ namespace Cliptoo.UI.ViewModels
             }
         }
 
-        public MainViewModel(IClipDataService clipDataService, IClipboardService clipboardService, ISettingsService settingsService, IDatabaseService databaseService, IAppInteractionService appInteractionService, IServiceProvider serviceProvider, IClipViewModelFactory clipViewModelFactory, IPastingService pastingService, IFontProvider fontProvider, INotificationService notificationService, IIconProvider iconProvider)
+        public MainViewModel(IClipDataService clipDataService, IClipboardService clipboardService, ISettingsService settingsService, IDatabaseService databaseService, IAppInteractionService appInteractionService, IServiceProvider serviceProvider, IClipViewModelFactory clipViewModelFactory, IPastingService pastingService, IFontProvider fontProvider, INotificationService notificationService, IIconProvider iconProvider, IPreviewManager previewManager)
         {
             _clipDataService = clipDataService;
             _clipboardService = clipboardService;
@@ -199,6 +197,7 @@ namespace Cliptoo.UI.ViewModels
             _fontProvider = fontProvider;
             _notificationService = notificationService;
             _iconProvider = iconProvider;
+            _previewManager = previewManager;
             _currentSettings = _settingsService.Settings;
             _currentSettings.PropertyChanged += CurrentSettings_PropertyChanged;
             _mainFont = _fontProvider.GetFont(CurrentSettings.FontFamily);
@@ -236,11 +235,6 @@ namespace Cliptoo.UI.ViewModels
 
             _clearClipsTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
             _clearClipsTimer.Tick += OnClearClipsTimerElapsed;
-
-            _showPreviewTimer = new DispatcherTimer();
-            _showPreviewTimer.Tick += OnShowPreviewTimerTick;
-            _hidePreviewTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
-            _hidePreviewTimer.Tick += OnHidePreviewTimerTick;
 
             IsCompareToolAvailable = _clipboardService.IsCompareToolAvailable();
         }
@@ -549,7 +543,7 @@ namespace Cliptoo.UI.ViewModels
                     IsFilterPopupOpen = false;
                 }
 
-                if (IsPreviewOpen)
+                if (PreviewManager.IsPreviewOpen)
                 {
                     RequestHidePreview();
                 }
@@ -598,5 +592,21 @@ namespace Cliptoo.UI.ViewModels
             }
         }
 
+        public void RequestShowPreview(ClipViewModel? clipVm)
+        {
+            _previewManager.RequestShowPreview(clipVm);
+        }
+
+        public void RequestHidePreview()
+        {
+            _previewManager.RequestHidePreview();
+        }
+
+        public void TogglePreviewForSelection(UIElement? placementTarget)
+        {
+            var listView = (Application.Current.MainWindow as Views.MainWindow)?.ClipListView;
+            if (listView?.SelectedItem is not ClipViewModel selectedVm) return;
+            _previewManager.TogglePreviewForSelection(selectedVm, placementTarget);
+        }
     }
 }

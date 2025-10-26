@@ -318,7 +318,7 @@ namespace Cliptoo.UI.Views
         {
             _viewModel.VerticalScrollOffset = e.VerticalOffset;
 
-            if (e.VerticalChange != 0 && _viewModel.IsPreviewOpen)
+            if (e.VerticalChange != 0 && _viewModel.PreviewManager.IsPreviewOpen)
             {
                 _viewModel.RequestHidePreview();
             }

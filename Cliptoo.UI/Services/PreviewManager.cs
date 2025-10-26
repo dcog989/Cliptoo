@@ -1,18 +1,43 @@
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Threading;
+using Cliptoo.Core.Interfaces;
 using Cliptoo.UI.Helpers;
+using Cliptoo.UI.ViewModels;
+using Cliptoo.UI.ViewModels.Base;
 
-namespace Cliptoo.UI.ViewModels
+namespace Cliptoo.UI.Services
 {
-    public partial class MainViewModel
+    public class PreviewManager : ViewModelBase, IPreviewManager
     {
+        private readonly ISettingsService _settingsService;
         private readonly DispatcherTimer _showPreviewTimer;
         private readonly DispatcherTimer _hidePreviewTimer;
         private WeakReference<ClipViewModel>? _previewClipRef;
+
         private bool _isPreviewOpen;
+        public bool IsPreviewOpen { get => _isPreviewOpen; set => SetProperty(ref _isPreviewOpen, value); }
 
         public ClipViewModel? PreviewClip => _previewClipRef != null && _previewClipRef.TryGetTarget(out var target) ? target : null;
-        public bool IsPreviewOpen { get => _isPreviewOpen; set => SetProperty(ref _isPreviewOpen, value); }
+
+        private System.Windows.Controls.Primitives.PlacementMode _placementMode = System.Windows.Controls.Primitives.PlacementMode.Mouse;
+        public System.Windows.Controls.Primitives.PlacementMode PlacementMode { get => _placementMode; private set => SetProperty(ref _placementMode, value); }
+
+        private UIElement? _placementTarget;
+        public UIElement? PlacementTarget { get => _placementTarget; private set => SetProperty(ref _placementTarget, value); }
+
+        public PreviewManager(ISettingsService settingsService)
+        {
+            _settingsService = settingsService;
+
+            _showPreviewTimer = new DispatcherTimer();
+            _showPreviewTimer.Tick += OnShowPreviewTimerTick;
+
+            _hidePreviewTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
+            _hidePreviewTimer.Tick += OnHidePreviewTimerTick;
+        }
 
         public void RequestShowPreview(ClipViewModel? clipVm)
         {
@@ -34,18 +59,16 @@ namespace Cliptoo.UI.ViewModels
                 return;
             }
 
-            if (CurrentSettings.HoverPreviewDelay == 0)
+            if (_settingsService.Settings.HoverPreviewDelay == 0)
             {
                 return;
             }
 
-            PreviewPlacementMode = System.Windows.Controls.Primitives.PlacementMode.Mouse;
-            PreviewPlacementTarget = null;
-            OnPropertyChanged(nameof(PreviewPlacementMode));
-            OnPropertyChanged(nameof(PreviewPlacementTarget));
+            PlacementMode = System.Windows.Controls.Primitives.PlacementMode.Mouse;
+            PlacementTarget = null;
 
             _previewClipRef = new WeakReference<ClipViewModel>(clipVm);
-            _showPreviewTimer.Interval = TimeSpan.FromMilliseconds(CurrentSettings.HoverPreviewDelay);
+            _showPreviewTimer.Interval = TimeSpan.FromMilliseconds(_settingsService.Settings.HoverPreviewDelay);
             _showPreviewTimer.Start();
         }
 
@@ -53,6 +76,25 @@ namespace Cliptoo.UI.ViewModels
         {
             _showPreviewTimer.Stop();
             _hidePreviewTimer.Start();
+        }
+
+        public void TogglePreviewForSelection(ClipViewModel selectedVm, UIElement? placementTarget)
+        {
+            if (IsPreviewOpen && PreviewClip?.Id == selectedVm.Id)
+            {
+                RequestHidePreview();
+            }
+            else
+            {
+                _showPreviewTimer.Stop();
+                _hidePreviewTimer.Stop();
+
+                PlacementMode = System.Windows.Controls.Primitives.PlacementMode.Right;
+                PlacementTarget = placementTarget;
+
+                _previewClipRef = new WeakReference<ClipViewModel>(selectedVm);
+                OnShowPreviewTimerTick(null, EventArgs.Empty);
+            }
         }
 
         private async void OnShowPreviewTimerTick(object? sender, EventArgs e)
@@ -70,14 +112,14 @@ namespace Cliptoo.UI.ViewModels
             }
             DebugUtils.LogMemoryUsage($"Before Tooltip Load (Clip ID: {currentPreviewClip.Id})");
 
-            var loadTasks = new System.Collections.Generic.List<Task>
+            var loadTasks = new List<Task>
             {
                 currentPreviewClip.LoadTooltipContentAsync()
             };
 
             if (currentPreviewClip.IsImage)
             {
-                loadTasks.Add(currentPreviewClip.LoadImagePreviewAsync(CurrentSettings.HoverImagePreviewSize));
+                loadTasks.Add(currentPreviewClip.LoadImagePreviewAsync(_settingsService.Settings.HoverImagePreviewSize));
             }
 
             await Task.WhenAll(loadTasks);
@@ -102,33 +144,7 @@ namespace Cliptoo.UI.ViewModels
                 PreviewClip?.ClearTooltipContent();
                 _previewClipRef = null;
                 OnPropertyChanged(nameof(PreviewClip));
-                PreviewPlacementTarget = null;
-                OnPropertyChanged(nameof(PreviewPlacementTarget));
-            }
-        }
-
-        public void TogglePreviewForSelection(UIElement? placementTarget)
-        {
-            var listView = (System.Windows.Application.Current.MainWindow as Views.MainWindow)?.ClipListView;
-            if (listView?.SelectedItem is not ClipViewModel selectedVm) return;
-
-            if (IsPreviewOpen && PreviewClip?.Id == selectedVm.Id)
-            {
-                RequestHidePreview();
-            }
-            else
-            {
-                // Stop any pending timers and immediately show the preview
-                _showPreviewTimer.Stop();
-                _hidePreviewTimer.Stop();
-
-                PreviewPlacementMode = System.Windows.Controls.Primitives.PlacementMode.Right;
-                PreviewPlacementTarget = placementTarget;
-                OnPropertyChanged(nameof(PreviewPlacementMode));
-                OnPropertyChanged(nameof(PreviewPlacementTarget));
-
-                _previewClipRef = new WeakReference<ClipViewModel>(selectedVm);
-                OnShowPreviewTimerTick(null, EventArgs.Empty);
+                PlacementTarget = null;
             }
         }
     }

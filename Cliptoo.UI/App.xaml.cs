@@ -166,6 +166,7 @@ namespace Cliptoo.UI
                         services.AddSingleton<Cliptoo.UI.Services.IThemeService, Cliptoo.UI.Services.ThemeService>();
                         services.AddSingleton<INotifyIconService, CustomNotifyIconService>();
                         services.AddSingleton<IContentDialogService, ContentDialogService>();
+                        services.AddSingleton<IPreviewManager, PreviewManager>();
                         services.AddHostedService<ApplicationHostService>();
 
                         services.AddSingleton<MainViewModel>(sp => new MainViewModel(
@@ -179,7 +180,8 @@ namespace Cliptoo.UI
                             sp.GetRequiredService<IPastingService>(),
                             sp.GetRequiredService<IFontProvider>(),
                             sp.GetRequiredService<INotificationService>(),
-                            sp.GetRequiredService<IIconProvider>()
+                            sp.GetRequiredService<IIconProvider>(),
+                            sp.GetRequiredService<IPreviewManager>()
                         ));
                         services.AddTransient<SettingsViewModel>(sp => new SettingsViewModel(
                             sp.GetRequiredService<IDatabaseService>(),
