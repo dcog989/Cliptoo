@@ -87,12 +87,12 @@ namespace Cliptoo.UI.Services
                 try
                 {
                     var um = new UpdateManager("https://github.com/dcog989/cliptoo");
-                    var updateInfo = await um.CheckForUpdatesAsync();
+                    var updateInfo = await um.CheckForUpdatesAsync().WaitAsync(cancellationToken).ConfigureAwait(false);
                     if (cancellationToken.IsCancellationRequested) return;
                     if (updateInfo != null)
                     {
                         LogManager.LogInfo($"Update found: {updateInfo.TargetFullRelease.Version}. Downloading...");
-                        await um.DownloadUpdatesAsync(updateInfo, cancelToken: cancellationToken);
+                        await um.DownloadUpdatesAsync(updateInfo, cancelToken: cancellationToken).ConfigureAwait(false);
                         if (cancellationToken.IsCancellationRequested) return;
                         LogManager.LogInfo("Update downloaded. Applying and restarting...");
                         um.ApplyUpdatesAndRestart(updateInfo);
