@@ -92,126 +92,25 @@ namespace Cliptoo.UI.Services
             LogManager.LogInfo($"Cliptoo v{appVersion} starting up...");
             LogManager.LogDebug("ApplicationHostService starting...");
 
-            if (_settingsService.Settings.AutoUpdate)
-            {
-                LogManager.LogInfo("Auto-update is enabled. Checking for updates...");
-                try
-                {
-                    var um = new UpdateManager("https://github.com/dcog989/cliptoo");
-                    var updateInfo = await um.CheckForUpdatesAsync().WaitAsync(cancellationToken).ConfigureAwait(false);
-                    if (cancellationToken.IsCancellationRequested) return;
-                    if (updateInfo != null)
-                    {
-                        LogManager.LogInfo($"Update found: {updateInfo.TargetFullRelease.Version}. Downloading...");
-                        await um.DownloadUpdatesAsync(updateInfo, cancelToken: cancellationToken).ConfigureAwait(false);
-                        if (cancellationToken.IsCancellationRequested) return;
-                        LogManager.LogInfo("Update downloaded. Applying and restarting...");
-                        um.ApplyUpdatesAndRestart(updateInfo);
-                        return; // App will restart, so we can exit the startup process.
-                    }
-                    else
-                    {
-                        LogManager.LogInfo("No updates found.");
-                    }
-                }
-                catch (Exception ex) when (ex is not OperationCanceledException)
-                {
-                    LogManager.LogWarning($"Velopack update check failed: {ex.Message}");
-                    // Don't rethrow, just log and continue launching the current version.
-                }
-            }
-            else
-            {
-                LogManager.LogInfo("Auto-update is disabled by user setting.");
-            }
+            await CheckForUpdatesAsync(cancellationToken);
+            if (cancellationToken.IsCancellationRequested) return;
 
             try
             {
-                await _dbManager.InitializeAsync().ConfigureAwait(false);
-                LogManager.LogDebug("Database initialized successfully.");
-                await _controller.InitializeAsync().ConfigureAwait(false);
+                await InitializeCoreServicesAsync();
                 await Application.Current.Dispatcher.InvokeAsync(async () =>
                 {
                     try
                     {
-                        _settingsService.SettingsChanged += OnSettingsChanged;
-
-                        var settings = _settingsService.Settings;
-                        _currentHotkey = settings.Hotkey;
-                        LogManager.LogDebug("Settings loaded.");
-
-                        _mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
-                        _mainWindow.MaxHeight = SystemParameters.WorkArea.Height * 0.9;
-
-                        _mainViewModel = _serviceProvider.GetRequiredService<MainWindow>().DataContext as MainViewModel;
-                        if (_mainViewModel != null)
-                        {
-                            // This await must resume on the UI thread because the subsequent
-                            // lines access UI-bound properties.
-#pragma warning disable CA2007 // Consider calling ConfigureAwait on the awaited task
-                            await _mainViewModel.InitializeAsync();
-#pragma warning restore CA2007
-                            _mainViewModel.IsAlwaysOnTop = settings.IsAlwaysOnTop;
-                            _mainViewModel.InitializeFirstFilter();
-                        }
-
-                        _mainWindow.Opacity = 0;
-                        _mainWindow.WindowStartupLocation = WindowStartupLocation.Manual;
-                        _mainWindow.Left = -9999;
-                        _mainWindow.Show();
-                        _snackbarService.SetSnackbarPresenter(_mainWindow.SnackbarPresenter);
-                        _mainWindow.Hide();
-                        _mainWindow.Opacity = 1;
-
-                        var windowInteropHelper = new WindowInteropHelper(_mainWindow);
-                        IntPtr handle = windowInteropHelper.EnsureHandle();
-
-                        _themeService.Initialize(_mainWindow);
-
-                        _taskbarCreatedMessageId = RegisterWindowMessage("TaskbarCreated");
-                        _hwndSource = HwndSource.FromHwnd(handle);
-                        _hwndSource?.AddHook(HwndHook);
-
-                        _globalHotkey = new GlobalHotkey(handle);
-                        if (!_globalHotkey.Register(_currentHotkey))
-                        {
-                            var message = $"Failed to register the global hotkey '{_currentHotkey}'. It may be in use by another application. You can set a new one in Settings via the tray icon.";
-                            LogManager.LogWarning(message);
-                            System.Windows.MessageBox.Show(message, "Cliptoo Warning", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
-                        }
-                        else
-                        {
-                            _globalHotkey.HotkeyPressed += OnHotkeyPressed;
-                        }
-                        LogManager.LogDebug("Global hotkey registered.");
-
-                        _controller.ClipboardMonitor.Start(handle);
-                        _clipDataService.NewClipAdded += OnNewClipAdded;
-                        _controller.ProcessingFailed += OnProcessingFailed;
-                        LogManager.LogDebug("Clipboard monitor started.");
-
-                        _mainWindow.Width = settings.WindowWidth;
-                        _mainWindow.Height = settings.WindowHeight;
-
-                        if (_mainViewModel != null)
-                        {
-                            _mainViewModel.AlwaysOnTopChanged += OnViewModelAlwaysOnTopChanged;
-                            _mainViewModel.IsReadyForEvents = true;
-                        }
-
+                        var handle = InitializeMainWindowAndGetHandle();
+                        await InitializeViewModelAsync();
+                        InitializePlatformServices(handle);
                         InitializeTrayIcon();
-                        LogManager.LogDebug("Tray icon initialized.");
-
-                        if (_mainViewModel != null)
-                        {
-                            _mainViewModel.IsInitializing = false;
-                            _ = _mainViewModel.LoadClipsAsync();
-                            LogManager.LogInfo("Initialization COMPLETE.");
-                        }
+                        FinalizeAndLoadData();
                     }
                     catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
                     {
-                        LogManager.LogCritical(ex, "FATAL: Unhandled exception during Dispatcher.InvokeAsync in ApplicationHostService.StartAsync.");
+                        LogManager.LogCritical(ex, "FATAL: Unhandled exception during UI thread initialization in ApplicationHostService.StartAsync.");
                         System.Windows.MessageBox.Show($"A critical error occurred during startup and has been logged. The application will now exit.\n\nError: {ex.Message}", "Cliptoo Startup Error", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
                         Application.Current.Shutdown();
                     }
@@ -335,6 +234,7 @@ namespace Cliptoo.UI.Services
 
             if (_mainViewModel != null) _mainViewModel.IsAlwaysOnTop = _settingsService.Settings.IsAlwaysOnTop;
             _alwaysOnTopMenuItem.IsChecked = _settingsService.Settings.IsAlwaysOnTop;
+            LogManager.LogDebug("Tray icon initialized.");
         }
 
         private IntPtr HwndHook(IntPtr hwnd, int msg, IntPtr wparam, IntPtr lparam, ref bool handled)
@@ -439,6 +339,123 @@ namespace Cliptoo.UI.Services
                 _mainWindow.Activate();
                 _mainWindow.Focus();
             }
+        }
+
+        private async Task CheckForUpdatesAsync(CancellationToken cancellationToken)
+        {
+            if (!_settingsService.Settings.AutoUpdate)
+            {
+                LogManager.LogInfo("Auto-update is disabled by user setting.");
+                return;
+            }
+
+            LogManager.LogInfo("Auto-update is enabled. Checking for updates...");
+            try
+            {
+                var um = new UpdateManager("https://github.com/dcog989/cliptoo");
+                var updateInfo = await um.CheckForUpdatesAsync().WaitAsync(cancellationToken).ConfigureAwait(false);
+                if (cancellationToken.IsCancellationRequested) return;
+
+                if (updateInfo != null)
+                {
+                    LogManager.LogInfo($"Update found: {updateInfo.TargetFullRelease.Version}. Downloading...");
+                    await um.DownloadUpdatesAsync(updateInfo, cancelToken: cancellationToken).ConfigureAwait(false);
+                    if (cancellationToken.IsCancellationRequested) return;
+                    LogManager.LogInfo("Update downloaded. Applying and restarting...");
+                    um.ApplyUpdatesAndRestart(updateInfo);
+                }
+                else
+                {
+                    LogManager.LogInfo("No updates found.");
+                }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                LogManager.LogWarning($"Velopack update check failed: {ex.Message}");
+            }
+        }
+
+        private async Task InitializeCoreServicesAsync()
+        {
+            await _dbManager.InitializeAsync().ConfigureAwait(false);
+            LogManager.LogDebug("Database initialized successfully.");
+            await _controller.InitializeAsync().ConfigureAwait(false);
+        }
+
+        private IntPtr InitializeMainWindowAndGetHandle()
+        {
+            _settingsService.SettingsChanged += OnSettingsChanged;
+            _currentHotkey = _settingsService.Settings.Hotkey;
+            LogManager.LogDebug("Settings loaded.");
+
+            _mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
+            _mainWindow.MaxHeight = SystemParameters.WorkArea.Height * 0.9;
+
+            _mainWindow.Opacity = 0;
+            _mainWindow.WindowStartupLocation = WindowStartupLocation.Manual;
+            _mainWindow.Left = -9999;
+            _mainWindow.Show();
+            _snackbarService.SetSnackbarPresenter(_mainWindow.SnackbarPresenter);
+            _mainWindow.Hide();
+            _mainWindow.Opacity = 1;
+
+            var windowInteropHelper = new WindowInteropHelper(_mainWindow);
+            var handle = windowInteropHelper.EnsureHandle();
+
+            _themeService.Initialize(_mainWindow);
+
+            _taskbarCreatedMessageId = RegisterWindowMessage("TaskbarCreated");
+            _hwndSource = HwndSource.FromHwnd(handle);
+            _hwndSource?.AddHook(HwndHook);
+
+            return handle;
+        }
+
+        private async Task InitializeViewModelAsync()
+        {
+            _mainViewModel = _serviceProvider.GetRequiredService<MainWindow>().DataContext as MainViewModel;
+            if (_mainViewModel != null)
+            {
+                await _mainViewModel.InitializeAsync();
+                _mainViewModel.IsAlwaysOnTop = _settingsService.Settings.IsAlwaysOnTop;
+                _mainViewModel.InitializeFirstFilter();
+            }
+        }
+
+        private void InitializePlatformServices(IntPtr handle)
+        {
+            _globalHotkey = new GlobalHotkey(handle);
+            if (!_globalHotkey.Register(_currentHotkey))
+            {
+                var message = $"Failed to register the global hotkey '{_currentHotkey}'. It may be in use by another application. You can set a new one in Settings via the tray icon.";
+                LogManager.LogWarning(message);
+                System.Windows.MessageBox.Show(message, "Cliptoo Warning", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+            }
+            else
+            {
+                _globalHotkey.HotkeyPressed += OnHotkeyPressed;
+            }
+            LogManager.LogDebug("Global hotkey registered.");
+
+            _controller.ClipboardMonitor.Start(handle);
+            _clipDataService.NewClipAdded += OnNewClipAdded;
+            _controller.ProcessingFailed += OnProcessingFailed;
+            LogManager.LogDebug("Clipboard monitor started.");
+        }
+
+        private void FinalizeAndLoadData()
+        {
+            if (_mainWindow == null || _mainViewModel == null) return;
+
+            var settings = _settingsService.Settings;
+            _mainWindow.Width = settings.WindowWidth;
+            _mainWindow.Height = settings.WindowHeight;
+
+            _mainViewModel.AlwaysOnTopChanged += OnViewModelAlwaysOnTopChanged;
+            _mainViewModel.IsReadyForEvents = true;
+            _mainViewModel.IsInitializing = false;
+            _ = _mainViewModel.LoadClipsAsync();
+            LogManager.LogInfo("Initialization COMPLETE.");
         }
 
         public void Dispose()
