@@ -86,6 +86,11 @@ namespace Cliptoo.Core
             public const string Light = "Light";
             public const string Dark = "Dark";
         }
+
+        public static class ConverterParameters
+        {
+            public const string Inverse = "inverse";
+        }
     }
 }
 

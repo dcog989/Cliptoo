@@ -20,7 +20,7 @@
                 RenderOptions.BitmapScalingMode="Fant"
                 Source="{Binding ImagePreviewSource}"
                 Stretch="Uniform"
-                Visibility="{Binding IsSourceMissing, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=inverse}" />
+                Visibility="{Binding IsSourceMissing, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter={x:Static core:AppConstants+ConverterParameters.Inverse}}" />
             <ContentControl
                 HorizontalAlignment="Center"
                 VerticalAlignment="Center"
@@ -38,7 +38,7 @@
         <StackPanel
             Margin="10"
             VerticalAlignment="Center"
-            Visibility="{Binding IsFilePropertiesLoading, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=inverse}">
+            Visibility="{Binding IsFilePropertiesLoading, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter={x:Static core:AppConstants+ConverterParameters.Inverse}}">
             <TextBlock
                 FontFamily="{Binding MainViewModel.PreviewFont}"
                 FontSize="{Binding MainViewModel.CurrentSettings.PreviewFontSize}"

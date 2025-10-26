@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Data;
 using System.Windows.Media;
+using Cliptoo.Core;
 using Cliptoo.Core.Services;
 using Cliptoo.UI.Helpers;
 
@@ -82,7 +83,7 @@ namespace Cliptoo.UI.Converters
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
             bool flag = value is bool b && b;
-            if (parameter is string s && s.Equals("inverse", StringComparison.OrdinalIgnoreCase))
+            if (parameter is string s && s.Equals(AppConstants.ConverterParameters.Inverse, StringComparison.OrdinalIgnoreCase))
             {
                 flag = !flag;
             }

@@ -75,7 +75,7 @@
                             Source="{Binding ThumbnailSource}"
                             Stretch="Uniform" />
                     </Grid>
-                    <ui:ImageIcon Source="{Binding ClipTypeIcon}" Visibility="{Binding HasThumbnail, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=inverse}" />
+                    <ui:ImageIcon Source="{Binding ClipTypeIcon}" Visibility="{Binding HasThumbnail, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter={x:Static core:AppConstants+ConverterParameters.Inverse}}" />
                 </Grid>
             </StackPanel>
         </Grid>
