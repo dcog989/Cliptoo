@@ -1,4 +1,5 @@
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
@@ -44,10 +45,15 @@ namespace Cliptoo.UI.Services
         private MainViewModel? _mainViewModel;
         private GlobalHotkey? _globalHotkey;
         private HwndSource? _hwndSource;
+        private uint _taskbarCreatedMessageId;
 
         private System.Windows.Controls.MenuItem? _alwaysOnTopMenuItem;
         private System.Windows.Controls.MenuItem? _showHideMenuItem;
         private string? _currentHotkey;
+
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+        [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        private static extern uint RegisterWindowMessage(string lpString);
 
         public ApplicationHostService(
             IServiceProvider serviceProvider,
@@ -157,6 +163,7 @@ namespace Cliptoo.UI.Services
 
                         _themeService.Initialize(_mainWindow);
 
+                        _taskbarCreatedMessageId = RegisterWindowMessage("TaskbarCreated");
                         _hwndSource = HwndSource.FromHwnd(handle);
                         _hwndSource?.AddHook(HwndHook);
 
@@ -327,6 +334,15 @@ namespace Cliptoo.UI.Services
 
         private IntPtr HwndHook(IntPtr hwnd, int msg, IntPtr wparam, IntPtr lparam, ref bool handled)
         {
+            if (msg == _taskbarCreatedMessageId)
+            {
+                LogManager.LogInfo("Taskbar has been recreated (Explorer likely restarted). Re-registering tray icon.");
+                _notifyIconService.Unregister();
+                _notifyIconService.Register();
+                handled = true;
+                return IntPtr.Zero;
+            }
+
             switch (msg)
             {
                 case WM_CLIPBOARDUPDATE:
