@@ -34,6 +34,7 @@ namespace Cliptoo.UI
         {
             // Logging initialization is now in Main() to ensure it runs after Velopack.
             this.DispatcherUnhandledException += OnDispatcherUnhandledException;
+            this.SessionEnding += OnSessionEnding;
         }
 
         [STAThread]
@@ -85,6 +86,14 @@ namespace Cliptoo.UI
                 MessageBox.Show($"A fatal file access error occurred during application startup. Please check the log files in '{logFolder}'.", "Cliptoo Startup Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 Environment.Exit(1);
             }
+        }
+
+        private void OnSessionEnding(object sender, SessionEndingCancelEventArgs e)
+        {
+            LogManager.LogInfo("Windows session is ending. Forcing settings save.");
+            var settingsService = Services?.GetService<ISettingsService>();
+            settingsService?.SaveSettings();
+            LogManager.Shutdown();
         }
 
         protected override async void OnStartup(StartupEventArgs e)

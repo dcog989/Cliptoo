@@ -27,15 +27,19 @@ namespace Cliptoo.Core.Configuration
 
         public Settings Load()
         {
+            LogManager.LogDebug($"Loading settings from: {_settingsPath}");
             if (!File.Exists(_settingsPath))
             {
+                LogManager.LogInfo("Settings file not found, creating new default settings.");
                 return new Settings(); // Return defaults
             }
 
             try
             {
                 var json = File.ReadAllText(_settingsPath);
-                return JsonSerializer.Deserialize<Settings>(json, _options) ?? new Settings();
+                var settings = JsonSerializer.Deserialize<Settings>(json, _options) ?? new Settings();
+                LogManager.LogDebug("Settings loaded successfully.");
+                return settings;
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException or JsonException or NotSupportedException)
             {
@@ -56,10 +60,16 @@ namespace Cliptoo.Core.Configuration
 
         public void Save(Settings settings)
         {
+            LogManager.LogDebug("Attempting to save settings.");
             try
             {
                 var json = JsonSerializer.Serialize(settings, _options);
-                File.WriteAllText(_settingsPath, json);
+                var tempPath = _settingsPath + ".tmp";
+
+                File.WriteAllText(tempPath, json);
+                File.Move(tempPath, _settingsPath, true);
+
+                LogManager.LogDebug("Settings saved successfully.");
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException or NotSupportedException)
             {
