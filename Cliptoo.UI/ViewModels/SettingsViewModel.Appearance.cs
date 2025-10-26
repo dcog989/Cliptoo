@@ -8,10 +8,23 @@ namespace Cliptoo.UI.ViewModels
     {
         private const double OKLCH_LIGHTNESS = 0.63;
 
+        private static double GetChromaFromLevel(string level)
+        {
+            return level?.ToLowerInvariant() switch
+            {
+                "neon" => 0.28,
+                "vibrant" => 0.22,
+                "mellow" => 0.16,
+                "muted" => 0.10,
+                "ditchwater" => 0.05,
+                _ => 0.22,
+            };
+        }
+
         private void UpdateOklchHueBrush()
         {
             var gradientStops = new GradientStopCollection();
-            var chroma = Settings.AccentChromaLevel == "vibrant" ? 0.22 : 0.10;
+            var chroma = GetChromaFromLevel(Settings.AccentChromaLevel);
 
             for (int i = 0; i <= 360; i += 10)
             {

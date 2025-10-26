@@ -12,8 +12,6 @@ namespace Cliptoo.UI.Services
     {
         private readonly ISettingsService _settingsService;
         private Window? _window;
-        private const double OKLCH_CHROMA_BRIGHT = 0.22;
-        private const double OKLCH_CHROMA_MUTED = 0.10;
 
         public ThemeService(ISettingsService settingsService)
         {
@@ -98,7 +96,7 @@ namespace Cliptoo.UI.Services
 
                 var lightness = currentTheme == ApplicationTheme.Dark ? 0.62 : 0.70;
                 var hoverLightness = currentTheme == ApplicationTheme.Dark ? 0.68 : 0.64;
-                var chroma = settings.AccentChromaLevel == "vibrant" ? OKLCH_CHROMA_BRIGHT : OKLCH_CHROMA_MUTED;
+                var chroma = GetChromaFromLevel(settings.AccentChromaLevel);
 
                 var (ar, ag, ab) = ColorParser.OklchToRgb(lightness, chroma, hue);
                 var accentColor = Color.FromRgb(ar, ag, ab);
@@ -128,6 +126,19 @@ namespace Cliptoo.UI.Services
             {
                 LogManager.LogCritical(ex, $"Invalid accent color format in settings: {settings.AccentColor}");
             }
+        }
+
+        private static double GetChromaFromLevel(string level)
+        {
+            return level?.ToLowerInvariant() switch
+            {
+                "neon" => 0.28,
+                "vibrant" => 0.22,
+                "mellow" => 0.16,
+                "muted" => 0.10,
+                "ditchwater" => 0.05,
+                _ => 0.22, // Default to Vibrant
+            };
         }
     }
 }

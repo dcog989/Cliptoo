@@ -39,6 +39,27 @@ namespace Cliptoo.Core.Configuration
                 var json = File.ReadAllText(_settingsPath);
                 var settings = JsonSerializer.Deserialize<Settings>(json, _options) ?? new Settings();
                 LogManager.LogDebug("Settings loaded successfully.");
+
+                // Migration for legacy accent chroma level values to PascalCase for UI binding.
+                switch (settings.AccentChromaLevel?.ToLowerInvariant())
+                {
+                    case "neon":
+                        settings.AccentChromaLevel = "Neon";
+                        break;
+                    case "vibrant":
+                        settings.AccentChromaLevel = "Vibrant";
+                        break;
+                    case "mellow":
+                        settings.AccentChromaLevel = "Mellow";
+                        break;
+                    case "muted":
+                        settings.AccentChromaLevel = "Muted";
+                        break;
+                    case "ditchwater":
+                        settings.AccentChromaLevel = "Ditchwater";
+                        break;
+                }
+
                 return settings;
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException or JsonException or NotSupportedException)

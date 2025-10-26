@@ -82,8 +82,8 @@ namespace Cliptoo.Core.Configuration
         [DefaultValue("Standard")]
         public string ClipItemPadding { get => _clipItemPadding; set => SetProperty(ref _clipItemPadding, value); }
 
-        private string _accentChromaLevel = "vibrant";
-        [DefaultValue("vibrant")]
+        private string _accentChromaLevel = "Vibrant";
+        [DefaultValue("Vibrant")]
         public string AccentChromaLevel { get => _accentChromaLevel; set => SetProperty(ref _accentChromaLevel, value); }
 
         private bool _displayLogo = true;
