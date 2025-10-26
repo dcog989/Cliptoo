@@ -62,9 +62,12 @@ namespace Cliptoo.UI.ViewModels
             _selectedFontFamily = Settings.FontFamily;
             _selectedPreviewFontFamily = Settings.PreviewFontFamily;
             _oklchHueBrush = new SolidColorBrush(Colors.Transparent);
-            AppVersion = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "0.0.0";
 
             var exePath = Process.GetCurrentProcess().MainModule?.FileName ?? "Not available";
+            var fvi = FileVersionInfo.GetVersionInfo(exePath);
+            var fullVersion = fvi.ProductVersion ?? fvi.FileVersion ?? System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "0.0.0";
+            AppVersion = fullVersion.Split('+')[0];
+
             ExePathDir = Path.GetDirectoryName(exePath) ?? "Not available";
             ExePathFile = Path.GetFileName(exePath);
 
@@ -96,13 +99,13 @@ namespace Cliptoo.UI.ViewModels
 
                     var results = new List<string>
                     {
-                        $"- Removed {result.DbClipsCleaned} old clips.",
-                        $"- Pruned {result.ImageCachePruned} orphaned image previews.",
-                        $"- Pruned {result.FaviconCachePruned} orphaned favicons.",
-                        $"- Pruned {result.IconCachePruned} old icons.",
-                        $"- Pruned {result.ClipboardImagesPruned} clipboard images.",
-                        $"- Re-classified {result.ReclassifiedClips} file types.",
-                        $"- Cleaned {result.TempFilesCleaned} temporary files."
+                $"- Removed {result.DbClipsCleaned} old clips.",
+                $"- Pruned {result.ImageCachePruned} orphaned image previews.",
+                $"- Pruned {result.FaviconCachePruned} orphaned favicons.",
+                $"- Pruned {result.IconCachePruned} old icons.",
+                $"- Pruned {result.ClipboardImagesPruned} clipboard images.",
+                $"- Re-classified {result.ReclassifiedClips} file types.",
+                $"- Cleaned {result.TempFilesCleaned} temporary files."
                     };
 
                     if (result.DatabaseSizeChangeMb > 0.0)

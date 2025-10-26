@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using System.IO;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
@@ -83,7 +85,10 @@ namespace Cliptoo.UI.Services
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
-            var appVersion = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "0.0.0";
+            var assembly = Assembly.GetExecutingAssembly();
+            var fvi = FileVersionInfo.GetVersionInfo(assembly.Location);
+            var fullVersion = fvi.ProductVersion ?? fvi.FileVersion ?? assembly.GetName().Version?.ToString(3) ?? "0.0.0";
+            var appVersion = fullVersion.Split('+')[0];
             LogManager.LogInfo($"Cliptoo v{appVersion} starting up...");
             LogManager.LogDebug("ApplicationHostService starting...");
 
