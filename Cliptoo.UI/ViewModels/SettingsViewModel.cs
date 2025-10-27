@@ -163,6 +163,9 @@ namespace Cliptoo.UI.ViewModels
             RemoveSendToTargetCommand = new RelayCommand(param => ExecuteRemoveSendToTarget(param as SendToTarget));
             MoveSendToTargetUpCommand = new RelayCommand(ExecuteMoveSendToTargetUp, CanExecuteMoveSendToTargetUp);
             MoveSendToTargetDownCommand = new RelayCommand(ExecuteMoveSendToTargetDown, CanExecuteMoveSendToTargetDown);
+            ExportAllCommand = new RelayCommand(async _ => await ExecuteExport(false), _ => !IsBusy);
+            ExportPinnedCommand = new RelayCommand(async _ => await ExecuteExport(true), _ => !IsBusy);
+            ImportCommand = new RelayCommand(async _ => await ExecuteImport(), _ => !IsBusy);
 
             SystemFonts = new ObservableCollection<string>();
             _ = PopulateFontsAsync();

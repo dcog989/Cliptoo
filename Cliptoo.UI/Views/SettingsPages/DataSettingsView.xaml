@@ -54,7 +54,7 @@
                 Margin="0,24,0,12"
                 FontSize="16"
                 FontWeight="SemiBold"
-                Text="Data Management" />
+                Text="Maintenance" />
             <StackPanel
                 Margin="24,0,0,0"
                 IsEnabled="{Binding !IsBusy}"
@@ -88,6 +88,34 @@
                     Command="{Binding RunHeavyMaintenanceCommand}"
                     Content="Run Maintenance"
                     ToolTip="Run the full daily maintenance routine now (database cleanup, cache pruning, etc)." />
+            </StackPanel>
+
+            <TextBlock
+                Margin="0,24,0,12"
+                FontSize="16"
+                FontWeight="SemiBold"
+                Text="Import / Export" />
+            <StackPanel
+                Margin="24,0,0,0"
+                IsEnabled="{Binding !IsBusy}"
+                Orientation="Horizontal">
+                <ui:Button
+                    Appearance="Secondary"
+                    Command="{Binding ExportAllCommand}"
+                    Content="Export All..."
+                    ToolTip="Export all clips in the database to a JSON file." />
+                <ui:Button
+                    Margin="12,0,0,0"
+                    Appearance="Secondary"
+                    Command="{Binding ExportPinnedCommand}"
+                    Content="Export Pinned..."
+                    ToolTip="Export only pinned clips to a JSON file." />
+                <ui:Button
+                    Margin="12,0,0,0"
+                    Appearance="Secondary"
+                    Command="{Binding ImportCommand}"
+                    Content="Import..."
+                    ToolTip="Import clips from a previously exported JSON file." />
             </StackPanel>
 
             <Separator Margin="0,24,0,16" />

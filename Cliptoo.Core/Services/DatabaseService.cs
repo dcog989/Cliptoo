@@ -141,6 +141,52 @@ namespace Cliptoo.Core.Services
             return updates.Count;
         }
 
+        public async Task<string> ExportToJsonStringAsync(bool pinnedOnly)
+        {
+            var clips = new List<Clip>();
+            await foreach (var clip in _dbManager.GetAllClipsAsync(pinnedOnly).ConfigureAwait(false))
+            {
+                clips.Add(clip);
+            }
+
+            var options = new System.Text.Json.JsonSerializerOptions
+            {
+                WriteIndented = true,
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+            };
+            return System.Text.Json.JsonSerializer.Serialize(clips, options);
+        }
+
+        public async Task<int> ImportFromJsonAsync(string jsonContent)
+        {
+            try
+            {
+                var options = new System.Text.Json.JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true,
+                };
+                var clips = System.Text.Json.JsonSerializer.Deserialize<List<Clip>>(jsonContent, options);
+
+                if (clips == null || clips.Count == 0)
+                {
+                    return 0;
+                }
+
+                var importedCount = await _dbManager.AddClipsAsync(clips).ConfigureAwait(false);
+                if (importedCount > 0)
+                {
+                    await _dbManager.CompactDbAsync().ConfigureAwait(false);
+                    HistoryCleared?.Invoke(this, EventArgs.Empty);
+                }
+                return importedCount;
+            }
+            catch (System.Text.Json.JsonException ex)
+            {
+                LogManager.LogCritical(ex, "Failed to deserialize JSON during import.");
+                throw; // Re-throw to be caught by the ViewModel
+            }
+        }
+
         private async Task<MaintenanceResult> RunHeavyMaintenanceAsync()
         {
             LogManager.LogInfo("Starting heavy maintenance routine...");

@@ -47,6 +47,8 @@ namespace Cliptoo.Core.Database
         public IAsyncEnumerable<string> GetAllLinkClipUrlsAsync() => _clipRepository.GetAllLinkClipUrlsAsync();
         public Task UpdateLastCleanupTimestampAsync() => _statsService.UpdateLastCleanupTimestampAsync();
         public Task IncrementPasteCountAsync(int clipId) => _clipRepository.IncrementPasteCountAsync(clipId);
+        public IAsyncEnumerable<Clip> GetAllClipsAsync(bool pinnedOnly) => _clipRepository.GetAllClipsAsync(pinnedOnly);
+        public Task<int> AddClipsAsync(IEnumerable<Clip> clips) => _clipRepository.AddClipsAsync(clips);
         public void Dispose()
         {
             // This class doesn't own any disposable resources directly.

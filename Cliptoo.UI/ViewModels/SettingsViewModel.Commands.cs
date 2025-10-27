@@ -1,8 +1,10 @@
 using System.Globalization;
 using System.IO;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Input;
 using Cliptoo.Core.Configuration;
+using Cliptoo.Core.Logging;
 using Cliptoo.UI.Views;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Win32;
@@ -29,6 +31,9 @@ namespace Cliptoo.UI.ViewModels
         public ICommand RemoveSendToTargetCommand { get; }
         public ICommand MoveSendToTargetUpCommand { get; }
         public ICommand MoveSendToTargetDownCommand { get; }
+        public ICommand ExportAllCommand { get; }
+        public ICommand ExportPinnedCommand { get; }
+        public ICommand ImportCommand { get; }
 
         private void ExecuteBrowseCompareTool()
         {
@@ -159,6 +164,87 @@ namespace Cliptoo.UI.ViewModels
                 window.Owner = owner;
             }
             window.ShowDialog();
+        }
+
+        private async Task ExecuteExport(bool pinnedOnly)
+        {
+            string downloadsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
+            if (!Directory.Exists(downloadsPath))
+            {
+                // Fallback to My Documents if Downloads folder doesn't exist
+                downloadsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+            }
+
+            string timestamp = DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
+            string baseFileName = pinnedOnly ? "cliptoo_pinned_export" : "cliptoo_export";
+            string fileName = $"{baseFileName}_{timestamp}.json";
+
+            var dialog = new SaveFileDialog
+            {
+                Filter = "JSON files (*.json)|*.json",
+                Title = pinnedOnly ? "Export Pinned Clips" : "Export All Clips",
+                InitialDirectory = downloadsPath,
+                FileName = fileName
+            };
+
+            if (dialog.ShowDialog() != true) return;
+
+            IsBusy = true;
+            try
+            {
+                var jsonContent = await _databaseService.ExportToJsonStringAsync(pinnedOnly).ConfigureAwait(true);
+                await File.WriteAllTextAsync(dialog.FileName, jsonContent).ConfigureAwait(true);
+                await ShowInformationDialogAsync("Export Complete", new TextBlock { Text = $"Successfully exported clips to:\n{dialog.FileName}" });
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                LogManager.LogCritical(ex, "Failed to export clips.");
+                await ShowInformationDialogAsync("Export Failed", new TextBlock { Text = $"An error occurred during export: {ex.Message}" });
+            }
+            finally
+            {
+                IsBusy = false;
+            }
+        }
+
+        private async Task ExecuteImport()
+        {
+            var dialog = new OpenFileDialog
+            {
+                Filter = "JSON files (*.json)|*.json",
+                Title = "Import Clips"
+            };
+
+            if (dialog.ShowDialog() != true) return;
+
+            var confirmDialog = new ContentDialog
+            {
+                Title = "Confirm Import",
+                Content = "This will import clips from the selected file. Duplicates based on content will be ignored. Continue?",
+                PrimaryButtonText = "Import",
+                CloseButtonText = "Cancel"
+            };
+
+            var result = await _contentDialogService.ShowAsync(confirmDialog, CancellationToken.None);
+            if (result != ContentDialogResult.Primary) return;
+
+            IsBusy = true;
+            try
+            {
+                var jsonContent = await File.ReadAllTextAsync(dialog.FileName).ConfigureAwait(true);
+                int importedCount = await _databaseService.ImportFromJsonAsync(jsonContent).ConfigureAwait(true);
+                await InitializeAsync().ConfigureAwait(true);
+                await ShowInformationDialogAsync("Import Complete", new TextBlock { Text = $"{importedCount} new clips were successfully imported." });
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+            {
+                LogManager.LogCritical(ex, "Failed to import clips.");
+                await ShowInformationDialogAsync("Import Failed", new TextBlock { Text = $"An error occurred during import. The file may be corrupt or in an invalid format.\n\nError: {ex.Message}" });
+            }
+            finally
+            {
+                IsBusy = false;
+            }
         }
 
         private void ExecuteAddSendToTarget()

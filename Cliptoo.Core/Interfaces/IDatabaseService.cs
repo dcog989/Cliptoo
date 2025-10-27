@@ -26,6 +26,8 @@ namespace Cliptoo.Core.Interfaces
         Task<int> ClearOversizedClipsAsync(uint sizeMb);
         Task<int> ReclassifyAllClipsAsync();
         int CleanupTempFiles();
+        Task<string> ExportToJsonStringAsync(bool pinnedOnly);
+        Task<int> ImportFromJsonAsync(string jsonContent);
         event EventHandler? CachesCleared;
         event EventHandler? HistoryCleared;
     }

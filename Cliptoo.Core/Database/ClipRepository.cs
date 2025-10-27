@@ -371,5 +371,69 @@ namespace Cliptoo.Core.Database
             var param = new SqliteParameter("@Id", clipId);
             return ExecuteNonQueryAsync(sql, param);
         }
+
+        public IAsyncEnumerable<Clip> GetAllClipsAsync(bool pinnedOnly)
+        {
+            var sql = new StringBuilder("SELECT * FROM clips");
+            if (pinnedOnly)
+            {
+                sql.Append(" WHERE IsPinned = 1");
+            }
+            sql.Append(" ORDER BY Timestamp DESC");
+
+            return QueryAsync(sql.ToString(), MapFullClipFromReader);
+        }
+
+        public async Task<int> AddClipsAsync(IEnumerable<Clip> clips)
+        {
+            ArgumentNullException.ThrowIfNull(clips);
+
+            int importedCount = 0;
+            await ExecuteTransactionAsync(async (connection, transaction) =>
+            {
+                foreach (var clip in clips)
+                {
+                    // Re-calculate hash and size for data integrity
+                    var contentSize = (long)Encoding.UTF8.GetByteCount(clip.Content ?? "");
+                    var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(clip.Content ?? "")));
+                    var previewContent = CreatePreview(clip.Content ?? "");
+
+                    using var command = connection.CreateCommand();
+                    command.Transaction = (SqliteTransaction)transaction;
+                    command.CommandText = @"
+                INSERT OR IGNORE INTO clips (Content, ContentHash, PreviewContent, ClipType, SourceApp, Timestamp, IsPinned, WasTrimmed, SizeInBytes, PasteCount)
+                VALUES (@Content, @ContentHash, @PreviewContent, @ClipType, @SourceApp, @Timestamp, @IsPinned, @WasTrimmed, @SizeInBytes, @PasteCount);
+            ";
+                    command.Parameters.AddWithValue("@Content", clip.Content ?? (object)DBNull.Value);
+                    command.Parameters.AddWithValue("@ContentHash", hash);
+                    command.Parameters.AddWithValue("@PreviewContent", previewContent);
+                    command.Parameters.AddWithValue("@ClipType", clip.ClipType);
+                    command.Parameters.AddWithValue("@SourceApp", clip.SourceApp ?? (object)DBNull.Value);
+                    command.Parameters.AddWithValue("@Timestamp", clip.Timestamp.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture));
+                    command.Parameters.AddWithValue("@IsPinned", clip.IsPinned ? 1 : 0);
+                    command.Parameters.AddWithValue("@WasTrimmed", clip.WasTrimmed ? 1 : 0);
+                    command.Parameters.AddWithValue("@SizeInBytes", contentSize);
+                    command.Parameters.AddWithValue("@PasteCount", clip.PasteCount);
+
+                    var rowsAffected = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                    if (rowsAffected > 0)
+                    {
+                        importedCount++;
+                    }
+                }
+
+                if (importedCount > 0)
+                {
+                    using var statCmd = connection.CreateCommand();
+                    statCmd.Transaction = (SqliteTransaction)transaction;
+                    statCmd.CommandText = "UPDATE stats SET Value = COALESCE(Value, 0) + @Count WHERE Key = 'UniqueClipsEver'";
+                    statCmd.Parameters.AddWithValue("@Count", importedCount);
+                    await statCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+                }
+            }).ConfigureAwait(false);
+
+            return importedCount;
+        }
+
     }
 }
