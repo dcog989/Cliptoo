@@ -80,7 +80,7 @@ namespace Cliptoo.UI.ViewModels
                 try
                 {
                     await Task.Run(() => _databaseService.ClearCaches()).ConfigureAwait(true);
-                    await ShowInformationDialogAsync("Caches Cleared", new System.Windows.Controls.TextBlock { Text = "All cached thumbnails and temporary files have been deleted." }).ConfigureAwait(true);
+                    await ShowInformationDialogAsync("Caches Cleared", new TextBlock { Text = "All cached thumbnails and temporary files have been deleted." }).ConfigureAwait(true);
                 }
                 finally
                 {
@@ -99,13 +99,13 @@ namespace Cliptoo.UI.ViewModels
 
                     var results = new List<string>
                     {
-                $"- Removed {result.DbClipsCleaned} old clips.",
-                $"- Pruned {result.ImageCachePruned} orphaned image previews.",
-                $"- Pruned {result.FaviconCachePruned} orphaned favicons.",
-                $"- Pruned {result.IconCachePruned} old icons.",
-                $"- Pruned {result.ClipboardImagesPruned} clipboard images.",
-                $"- Re-classified {result.ReclassifiedClips} file types.",
-                $"- Cleaned {result.TempFilesCleaned} temporary files."
+                        $"- Removed {result.DbClipsCleaned} old clips.",
+                        $"- Pruned {result.ImageCachePruned} orphaned image previews.",
+                        $"- Pruned {result.FaviconCachePruned} orphaned favicons.",
+                        $"- Pruned {result.IconCachePruned} old icons.",
+                        $"- Pruned {result.ClipboardImagesPruned} clipboard images.",
+                        $"- Re-classified {result.ReclassifiedClips} file types.",
+                        $"- Cleaned {result.TempFilesCleaned} temporary files."
                     };
 
                     if (result.DatabaseSizeChangeMb > 0.0)
@@ -166,11 +166,15 @@ namespace Cliptoo.UI.ViewModels
             ExportAllCommand = new RelayCommand(async _ => await ExecuteExport(false), _ => !IsBusy);
             ExportPinnedCommand = new RelayCommand(async _ => await ExecuteExport(true), _ => !IsBusy);
             ImportCommand = new RelayCommand(async _ => await ExecuteImport(), _ => !IsBusy);
+            AddBlacklistedAppCommand = new RelayCommand(p => ExecuteAddBlacklistedApp(p as string));
+            RemoveBlacklistedAppCommand = new RelayCommand(p => ExecuteRemoveBlacklistedApp(p as string));
+            BrowseAndAddBlacklistedAppCommand = new RelayCommand(_ => ExecuteBrowseAndAddBlacklistedApp());
 
             SystemFonts = new ObservableCollection<string>();
             _ = PopulateFontsAsync();
 
             Settings.SendToTargets.CollectionChanged += OnSendToTargetsCollectionChanged;
+            Settings.BlacklistedApps.CollectionChanged += (_, _) => DebounceSave();
             foreach (var target in Settings.SendToTargets)
             {
                 target.PropertyChanged += OnSendToTargetPropertyChanged;
@@ -372,13 +376,17 @@ namespace Cliptoo.UI.ViewModels
                     target.PropertyChanged -= OnSendToTargetPropertyChanged;
                 }
             }
+            if (Settings?.BlacklistedApps is not null)
+            {
+                Settings.BlacklistedApps.CollectionChanged -= (_, _) => DebounceSave();
+            }
             GC.SuppressFinalize(this);
         }
     }
 
     internal enum ClearHistoryResult { Cancel, ClearUnpinned, ClearAll }
 
-    internal class ClearHistoryDialogViewModel : ViewModelBase
+    internal sealed class ClearHistoryDialogViewModel : ViewModelBase
     {
         private bool _deletePinned;
         public bool DeletePinned { get => _deletePinned; set => SetProperty(ref _deletePinned, value); }

@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Data;
@@ -8,7 +9,8 @@ using Cliptoo.UI.Helpers;
 
 namespace Cliptoo.UI.Converters
 {
-    internal class ColorToBrushConverter : IValueConverter
+    [SuppressMessage("Performance", "CA1812:Avoid uninstantiated internal classes")]
+    internal sealed class ColorToBrushConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
@@ -30,7 +32,8 @@ namespace Cliptoo.UI.Converters
         }
     }
 
-    internal class ColorToTransparencyVisibilityConverter : IValueConverter
+    [SuppressMessage("Performance", "CA1812:Avoid uninstantiated internal classes")]
+    internal sealed class ColorToTransparencyVisibilityConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
@@ -51,7 +54,8 @@ namespace Cliptoo.UI.Converters
         }
     }
 
-    internal class IsTargetedForHotkeyCaptureConverter : IMultiValueConverter
+    [SuppressMessage("Performance", "CA1812:Avoid uninstantiated internal classes")]
+    internal sealed class IsTargetedForHotkeyCaptureConverter : IMultiValueConverter
     {
         public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
         {
@@ -77,8 +81,9 @@ namespace Cliptoo.UI.Converters
     }
 
 
+    [SuppressMessage("Performance", "CA1812:Avoid uninstantiated internal classes")]
     [ValueConversion(typeof(bool), typeof(Visibility))]
-    internal class BooleanToVisibilityConverter : IValueConverter
+    internal sealed class BooleanToVisibilityConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
@@ -96,7 +101,8 @@ namespace Cliptoo.UI.Converters
         }
     }
 
-    internal class EqualityToVisibilityConverter : IValueConverter
+    [SuppressMessage("Performance", "CA1812:Avoid uninstantiated internal classes")]
+    internal sealed class EqualityToVisibilityConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
@@ -110,7 +116,8 @@ namespace Cliptoo.UI.Converters
         }
     }
 
-    internal class StringIsNotNullOrEmptyConverter : IValueConverter
+    [SuppressMessage("Performance", "CA1812:Avoid uninstantiated internal classes")]
+    internal sealed class StringIsNotNullOrEmptyConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
@@ -123,7 +130,8 @@ namespace Cliptoo.UI.Converters
         }
     }
 
-    internal class EqualityToBooleanConverter : IValueConverter
+    [SuppressMessage("Performance", "CA1812:Avoid uninstantiated internal classes")]
+    internal sealed class EqualityToBooleanConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
@@ -136,7 +144,8 @@ namespace Cliptoo.UI.Converters
         }
     }
 
-    internal class EqualityMultiConverter : IMultiValueConverter
+    [SuppressMessage("Performance", "CA1812:Avoid uninstantiated internal classes")]
+    internal sealed class EqualityMultiConverter : IMultiValueConverter
     {
         public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
         {
@@ -153,8 +162,8 @@ namespace Cliptoo.UI.Converters
         }
     }
 
-    // UPDATE
-    internal class PaddingSizeToThicknessConverter : IValueConverter
+    [SuppressMessage("Performance", "CA1812:Avoid uninstantiated internal classes")]
+    internal sealed class PaddingSizeToThicknessConverter : IValueConverter
     {
         private static readonly Thickness Compact = new(2);
         private static readonly Thickness Standard = new(4);
@@ -181,7 +190,8 @@ namespace Cliptoo.UI.Converters
         }
     }
 
-    internal class ClipTypeToFriendlyNameConverter : IValueConverter
+    [SuppressMessage("Performance", "CA1812:Avoid uninstantiated internal classes")]
+    internal sealed class ClipTypeToFriendlyNameConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
@@ -196,7 +206,8 @@ namespace Cliptoo.UI.Converters
         }
     }
 
-    internal class NullToVisibilityConverter : IValueConverter
+    [SuppressMessage("Performance", "CA1812:Avoid uninstantiated internal classes")]
+    internal sealed class NullToVisibilityConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
@@ -209,7 +220,8 @@ namespace Cliptoo.UI.Converters
         }
     }
 
-    internal class IndexToVisibilityConverter : IValueConverter
+    [SuppressMessage("Performance", "CA1812:Avoid uninstantiated internal classes")]
+    internal sealed class IndexToVisibilityConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
@@ -226,7 +238,8 @@ namespace Cliptoo.UI.Converters
         }
     }
 
-    internal class MultiplyConverter : IValueConverter
+    [SuppressMessage("Performance", "CA1812:Avoid uninstantiated internal classes")]
+    internal sealed class MultiplyConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
@@ -243,7 +256,8 @@ namespace Cliptoo.UI.Converters
         }
     }
 
-    internal class AnyTrueToVisibilityConverter : IMultiValueConverter
+    [SuppressMessage("Performance", "CA1812:Avoid uninstantiated internal classes")]
+    internal sealed class AnyTrueToVisibilityConverter : IMultiValueConverter
     {
         public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
         {
@@ -274,7 +288,8 @@ namespace Cliptoo.UI.Converters
         }
     }
 
-    internal class AllTrueToVisibilityConverter : IMultiValueConverter
+    [SuppressMessage("Performance", "CA1812:Avoid uninstantiated internal classes")]
+    internal sealed class AllTrueToVisibilityConverter : IMultiValueConverter
     {
         public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
         {
@@ -292,7 +307,8 @@ namespace Cliptoo.UI.Converters
 
     }
 
-    internal class MultiCommandParameterConverter : IMultiValueConverter
+    [SuppressMessage("Performance", "CA1812:Avoid uninstantiated internal classes")]
+    internal sealed class MultiCommandParameterConverter : IMultiValueConverter
     {
         public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
         {

@@ -2,6 +2,7 @@ using System.Globalization;
 using System.IO;
 using System.Text.Json;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using Cliptoo.Core.Configuration;
 using Cliptoo.Core.Logging;
@@ -34,6 +35,9 @@ namespace Cliptoo.UI.ViewModels
         public ICommand ExportAllCommand { get; }
         public ICommand ExportPinnedCommand { get; }
         public ICommand ImportCommand { get; }
+        public ICommand AddBlacklistedAppCommand { get; }
+        public ICommand RemoveBlacklistedAppCommand { get; }
+        public ICommand BrowseAndAddBlacklistedAppCommand { get; }
 
         private void ExecuteBrowseCompareTool()
         {
@@ -194,12 +198,12 @@ namespace Cliptoo.UI.ViewModels
             {
                 var jsonContent = await _databaseService.ExportToJsonStringAsync(pinnedOnly).ConfigureAwait(true);
                 await File.WriteAllTextAsync(dialog.FileName, jsonContent).ConfigureAwait(true);
-                await ShowInformationDialogAsync("Export Complete", new TextBlock { Text = $"Successfully exported clips to:\n{dialog.FileName}" });
+                await ShowInformationDialogAsync("Export Complete", new System.Windows.Controls.TextBlock { Text = $"Successfully exported clips to:\n{dialog.FileName}" });
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 LogManager.LogCritical(ex, "Failed to export clips.");
-                await ShowInformationDialogAsync("Export Failed", new TextBlock { Text = $"An error occurred during export: {ex.Message}" });
+                await ShowInformationDialogAsync("Export Failed", new System.Windows.Controls.TextBlock { Text = $"An error occurred during export: {ex.Message}" });
             }
             finally
             {
@@ -234,12 +238,12 @@ namespace Cliptoo.UI.ViewModels
                 var jsonContent = await File.ReadAllTextAsync(dialog.FileName).ConfigureAwait(true);
                 int importedCount = await _databaseService.ImportFromJsonAsync(jsonContent).ConfigureAwait(true);
                 await InitializeAsync().ConfigureAwait(true);
-                await ShowInformationDialogAsync("Import Complete", new TextBlock { Text = $"{importedCount} new clips were successfully imported." });
+                await ShowInformationDialogAsync("Import Complete", new System.Windows.Controls.TextBlock { Text = $"{importedCount} new clips were successfully imported." });
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
             {
                 LogManager.LogCritical(ex, "Failed to import clips.");
-                await ShowInformationDialogAsync("Import Failed", new TextBlock { Text = $"An error occurred during import. The file may be corrupt or in an invalid format.\n\nError: {ex.Message}" });
+                await ShowInformationDialogAsync("Import Failed", new System.Windows.Controls.TextBlock { Text = $"An error occurred during import. The file may be corrupt or in an invalid format.\n\nError: {ex.Message}" });
             }
             finally
             {
@@ -315,6 +319,43 @@ namespace Cliptoo.UI.ViewModels
                 {
                     SendToTargets.Move(index, index + 1);
                 }
+            }
+        }
+
+        private void ExecuteAddBlacklistedApp(string? appName)
+        {
+            if (string.IsNullOrWhiteSpace(appName) || !appName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+            {
+                _ = ShowInformationDialogAsync("Invalid Application Name", new System.Windows.Controls.TextBlock { Text = "Please enter a valid executable name ending with .exe." });
+                return;
+            }
+            if (Settings.BlacklistedApps.Any(b => b.Equals(appName, StringComparison.OrdinalIgnoreCase)))
+            {
+                return; // Already exists
+            }
+            Settings.BlacklistedApps.Add(appName.Trim());
+        }
+
+        private void ExecuteRemoveBlacklistedApp(string? appName)
+        {
+            if (appName != null)
+            {
+                Settings.BlacklistedApps.Remove(appName);
+            }
+        }
+
+        private void ExecuteBrowseAndAddBlacklistedApp()
+        {
+            var openFileDialog = new OpenFileDialog
+            {
+                Filter = "Executable files (*.exe)|*.exe|All files (*.*)|*.*",
+                Title = "Select an Application to Blacklist"
+            };
+
+            if (openFileDialog.ShowDialog() == true)
+            {
+                var appName = Path.GetFileName(openFileDialog.FileName);
+                ExecuteAddBlacklistedApp(appName);
             }
         }
     }

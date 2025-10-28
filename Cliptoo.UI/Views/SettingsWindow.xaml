@@ -65,8 +65,8 @@
                     Style="{StaticResource SettingsTabRadioButton}" />
                 <RadioButton
                     Command="{Binding ChangePageCommand}"
-                    CommandParameter="Keyboard"
-                    Content="Keyboard"
+                    CommandParameter="External Apps"
+                    Content="External Apps"
                     GroupName="SettingsTabs"
                     Style="{StaticResource SettingsTabRadioButton}" />
                 <RadioButton
@@ -103,10 +103,10 @@
                                             </Setter.Value>
                                         </Setter>
                                     </DataTrigger>
-                                    <DataTrigger Binding="{Binding CurrentPage}" Value="Keyboard">
+                                    <DataTrigger Binding="{Binding CurrentPage}" Value="External Apps">
                                         <Setter Property="Content">
                                             <Setter.Value>
-                                                <pages:KeyboardSettingsView />
+                                                <pages:ExternalAppsSettingsView />
                                             </Setter.Value>
                                         </Setter>
                                     </DataTrigger>

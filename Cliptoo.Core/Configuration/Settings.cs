@@ -234,6 +234,7 @@ namespace Cliptoo.Core.Configuration
 
 #pragma warning disable CA2227 // Collection properties should be read only
         public ObservableCollection<SendToTarget> SendToTargets { get; set; } = new();
+        public ObservableCollection<string> BlacklistedApps { get; set; } = new();
 #pragma warning restore CA2227 // Collection properties should be read only
         #endregion
 

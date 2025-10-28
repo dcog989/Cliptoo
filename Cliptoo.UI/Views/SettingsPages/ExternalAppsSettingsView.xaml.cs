@@ -2,12 +2,11 @@ using System.Windows.Controls;
 
 namespace Cliptoo.UI.Views.SettingsPages
 {
-    public partial class KeyboardSettingsView : UserControl
+    public partial class ExternalAppsSettingsView : UserControl
     {
-        public KeyboardSettingsView()
+        public ExternalAppsSettingsView()
         {
             InitializeComponent();
         }
-
     }
 }

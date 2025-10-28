@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Cliptoo.Core.Interfaces;
@@ -152,9 +153,16 @@ namespace Cliptoo.Core
 
         private async Task ProcessClipboardChange(ClipboardChangedEventArgs e)
         {
+            var settings = _settingsService.Settings;
+
+            if (e.SourceApp != null && settings.BlacklistedApps.Any(b => e.SourceApp.Equals(b, StringComparison.OrdinalIgnoreCase)))
+            {
+                LogManager.LogInfo($"Ignoring clipboard update from blacklisted application: {e.SourceApp}");
+                return;
+            }
+
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             ProcessingResult? result = null;
-            var settings = _settingsService.Settings;
             bool wasTruncated = false;
             long maxBytes = (long)settings.MaxClipSizeMb * 1024 * 1024;
             bool wasManuallyTrimmed = false;

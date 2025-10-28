@@ -1,0 +1,229 @@
+<UserControl
+    x:Class="Cliptoo.UI.Views.SettingsPages.ExternalAppsSettingsView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    d:DesignHeight="450"
+    d:DesignWidth="800"
+    mc:Ignorable="d">
+    <UserControl.Resources>
+        <Style
+            x:Key="SettingsIconButtonStyle"
+            BasedOn="{StaticResource {x:Type ui:Button}}"
+            TargetType="ui:Button">
+            <Setter Property="Padding" Value="6" />
+        </Style>
+    </UserControl.Resources>
+    <ScrollViewer Padding="16,24,16,16" VerticalScrollBarVisibility="Auto">
+        <StackPanel>
+            <TextBlock
+                FontSize="16"
+                FontWeight="SemiBold"
+                Text="Compare Tool" />
+            <Grid Margin="0,6,0,12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock
+                    Grid.Column="0"
+                    Style="{StaticResource SettingLabel}"
+                    Text="Compare program" />
+                <ui:TextBox
+                    Grid.Column="1"
+                    Style="{StaticResource SettingsTextBoxStyle}"
+                    Text="{Binding CompareToolPath, UpdateSourceTrigger=PropertyChanged}" />
+                <ui:Button
+                    Grid.Column="2"
+                    Margin="12,0,0,0"
+                    Command="{Binding BrowseCompareToolCommand}"
+                    Content="Browse..."
+                    Style="{StaticResource SettingsButtonStyle}" />
+            </Grid>
+
+            <Separator Margin="0,24,0,12" />
+
+            <TextBlock
+                FontSize="16"
+                FontWeight="SemiBold"
+                Text="'Send To' Programs" />
+            <TextBlock
+                Margin="0,6,0,12"
+                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                Text="'{0}' is a placeholder for the file path of the clip content."
+                TextWrapping="Wrap" />
+
+            <ListView
+                MaxHeight="200"
+                Background="Transparent"
+                BorderThickness="0"
+                ItemsSource="{Binding SendToTargets}"
+                ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                ScrollViewer.VerticalScrollBarVisibility="Auto">
+                <ListView.ItemContainerStyle>
+                    <Style TargetType="ListViewItem">
+                        <Setter Property="Background" Value="Transparent" />
+                        <Setter Property="BorderThickness" Value="0" />
+                        <Setter Property="Padding" Value="0" />
+                        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="ListViewItem">
+                                    <ContentPresenter />
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </ListView.ItemContainerStyle>
+                <ListView.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Margin="0,6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="150" />
+                                <ColumnDefinition Width="*" MinWidth="100" />
+                                <ColumnDefinition Width="150" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <ui:TextBox
+                                Grid.Column="0"
+                                Margin="0,0,12,0"
+                                VerticalAlignment="Center"
+                                PlaceholderText="Display Name"
+                                Style="{StaticResource SettingsTextBoxStyle}"
+                                Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" />
+                            <Border
+                                Grid.Column="1"
+                                Margin="0,0,12,0"
+                                Padding="8,6"
+                                VerticalAlignment="Center"
+                                Background="{DynamicResource ControlFillColorDefaultBrush}"
+                                BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="4">
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                                    Text="{Binding Path}"
+                                    TextTrimming="CharacterEllipsis"
+                                    ToolTip="{Binding Path}" />
+                            </Border>
+                            <ui:TextBox
+                                Grid.Column="2"
+                                Margin="0,0,12,0"
+                                VerticalAlignment="Center"
+                                PlaceholderText="Optional. Use {0} for path."
+                                Style="{StaticResource SettingsTextBoxStyle}"
+                                Text="{Binding Arguments, UpdateSourceTrigger=PropertyChanged}" />
+
+                            <StackPanel Grid.Column="3" Orientation="Horizontal">
+                                <ui:Button
+                                    Command="{Binding DataContext.MoveSendToTargetUpCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
+                                    CommandParameter="{Binding}"
+                                    Style="{StaticResource SettingsIconButtonStyle}">
+                                    <ui:SymbolIcon FontSize="16" Symbol="ArrowUp24" />
+                                </ui:Button>
+                                <ui:Button
+                                    Margin="6,0,0,0"
+                                    Command="{Binding DataContext.MoveSendToTargetDownCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
+                                    CommandParameter="{Binding}"
+                                    Style="{StaticResource SettingsIconButtonStyle}">
+                                    <ui:SymbolIcon FontSize="16" Symbol="ArrowDown24" />
+                                </ui:Button>
+                            </StackPanel>
+                            <ui:Button
+                                Grid.Column="4"
+                                Margin="12,0,0,0"
+                                VerticalAlignment="Center"
+                                Appearance="Secondary"
+                                Command="{Binding DataContext.RemoveSendToTargetCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
+                                CommandParameter="{Binding}"
+                                Style="{StaticResource SettingsIconButtonStyle}"
+                                ToolTip="Remove this target">
+                                <ui:ImageIcon
+                                    Width="16"
+                                    Height="16"
+                                    Source="{Binding DataContext.TrashIcon, RelativeSource={RelativeSource AncestorType=ListView}}" />
+                            </ui:Button>
+                        </Grid>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
+            <ui:Button
+                Margin="0,12,0,0"
+                HorizontalAlignment="Left"
+                Appearance="Secondary"
+                Command="{Binding AddSendToTargetCommand}"
+                Content="Add Application..." />
+
+            <Separator Margin="0,24,0,12" />
+
+            <TextBlock
+                FontSize="16"
+                FontWeight="SemiBold"
+                Text="Application Blacklist" />
+            <TextBlock
+                Margin="0,6,0,12"
+                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                Text="Cliptoo will ignore any clipboard changes from these applications (e.g., keepass.exe)."
+                TextWrapping="Wrap" />
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <ui:TextBox x:Name="BlacklistTextBox" PlaceholderText="Application.exe" />
+                <ui:Button
+                    Grid.Column="1"
+                    Margin="12,0,0,0"
+                    Command="{Binding AddBlacklistedAppCommand}"
+                    CommandParameter="{Binding ElementName=BlacklistTextBox, Path=Text}"
+                    Content="Add" />
+                <ui:Button
+                    Grid.Column="2"
+                    Margin="12,0,0,0"
+                    Command="{Binding BrowseAndAddBlacklistedAppCommand}"
+                    Content="Browse..." />
+            </Grid>
+            <ListView
+                MaxHeight="150"
+                Margin="0,12,0,0"
+                Background="Transparent"
+                BorderThickness="0"
+                ItemsSource="{Binding Settings.BlacklistedApps}"
+                ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                ScrollViewer.VerticalScrollBarVisibility="Auto">
+                <ListView.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Margin="0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock VerticalAlignment="Center" Text="{Binding}" />
+                            <ui:Button
+                                Grid.Column="1"
+                                Margin="12,0,0,0"
+                                VerticalAlignment="Center"
+                                Appearance="Secondary"
+                                Command="{Binding DataContext.RemoveBlacklistedAppCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
+                                CommandParameter="{Binding}"
+                                Style="{StaticResource SettingsIconButtonStyle}"
+                                ToolTip="Remove this application">
+                                <ui:ImageIcon
+                                    Width="16"
+                                    Height="16"
+                                    Source="{Binding DataContext.TrashIcon, RelativeSource={RelativeSource AncestorType=ListView}}" />
+                            </ui:Button>
+                        </Grid>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

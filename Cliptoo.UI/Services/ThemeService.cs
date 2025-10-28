@@ -8,7 +8,7 @@ using Wpf.Ui.Controls;
 
 namespace Cliptoo.UI.Services
 {
-    internal class ThemeService : IThemeService
+    internal sealed class ThemeService : IThemeService
     {
         private readonly ISettingsService _settingsService;
         private Window? _window;
