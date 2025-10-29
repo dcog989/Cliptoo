@@ -9,15 +9,19 @@
     d:DesignHeight="450"
     d:DesignWidth="800"
     mc:Ignorable="d">
-    <ScrollViewer Padding="16,24,16,16">
+    <ScrollViewer Padding="16">
         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Top">
 
-            <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+            <StackPanel
+                Margin="0,0,0,16"
+                HorizontalAlignment="Center"
+                Orientation="Horizontal">
                 <ui:ImageIcon
                     Width="138"
                     Height="138"
                     Margin="0,0,16,0"
                     Source="{Binding LogoIcon}" />
+
                 <StackPanel VerticalAlignment="Center" TextBlock.TextAlignment="Center">
                     <TextBlock
                         FontFamily="Source Code Pro"
@@ -25,7 +29,7 @@
                         Text="Cliptoo" />
                     <TextBlock Foreground="{DynamicResource TextFillColorSecondaryBrush}" Text="{Binding AppVersion, StringFormat='Version: {0}'}" />
                     <TextBlock
-                        Margin="0,12,0,0"
+                        Margin="0,8,0,0"
                         FontSize="16"
                         Foreground="{DynamicResource TextFillColorSecondaryBrush}">
                         <TextBlock.Text>
@@ -33,7 +37,7 @@
                         </TextBlock.Text>
                     </TextBlock>
                     <TextBlock
-                        Margin="0,12,0,0"
+                        Margin="0,8,0,0"
                         FontFamily="Source Code Pro"
                         FontSize="16"
                         FontStyle="Italic"
@@ -42,7 +46,7 @@
                             "Klaatu barada nikto!"
                         </TextBlock.Text>
                     </TextBlock>
-                    <TextBlock Margin="0,6,0,0">
+                    <TextBlock Margin="0,8,0,0">
                         <Hyperlink Command="{Binding OpenGitHubUrlCommand}">
                             <Run Text="{Binding GitHubUrl, Mode=OneWay}" />
                         </Hyperlink>
@@ -50,9 +54,9 @@
                 </StackPanel>
             </StackPanel>
 
-            <Separator Margin="0,24,0,12" />
+            <Separator Margin="0,8,0,8" />
 
-            <TextBlock Margin="0,12,0,0" TextBlock.TextAlignment="Center">
+            <TextBlock Margin="0,8,0,0" TextBlock.TextAlignment="Center">
                 <Run Text="Executable:" />
                 <Hyperlink Command="{Binding OpenExeFolderCommand}">
                     <Run Text="{Binding ExePathDir, Mode=OneWay}" />
@@ -60,22 +64,27 @@
                 <Run Text="\" />
                 <Run Text="{Binding ExePathFile, Mode=OneWay}" />
             </TextBlock>
-            <TextBlock Margin="0,6,0,0" TextBlock.TextAlignment="Center">
+            <TextBlock Margin="0,8,0,0" TextBlock.TextAlignment="Center">
                 <Run Text="Settings, data, logs:" />
                 <Hyperlink Command="{Binding OpenSettingsFolderCommand}">
                     <Run Text="{Binding SettingsFolderPath, Mode=OneWay}" />
                 </Hyperlink>
             </TextBlock>
-            <TextBlock Margin="0,6,0,0" TextBlock.TextAlignment="Center">
+            <TextBlock Margin="0,8,0,8" TextBlock.TextAlignment="Center">
                 <Run Text="Temporary caches:" />
                 <Hyperlink Command="{Binding OpenTempDataFolderCommand}">
                     <Run Text="{Binding TempDataPath, Mode=OneWay}" />
                 </Hyperlink>
             </TextBlock>
 
-            <TextBlock Margin="0,24,0,0" TextBlock.TextAlignment="Center">
+            <Separator Margin="0,8,0,8" />
+
+            <TextBlock
+                Margin="0,8,0,8"
+                FontStyle="Italic"
+                TextBlock.TextAlignment="Center">
                 <Hyperlink Command="{Binding OpenAcknowledgementsWindowCommand}" CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}">
-                    <Run Text="Thanks, acknowledgements, and attributions" />
+                    <Run Text="Thanks and acknowledgements." />
                 </Hyperlink>
             </TextBlock>
         </StackPanel>

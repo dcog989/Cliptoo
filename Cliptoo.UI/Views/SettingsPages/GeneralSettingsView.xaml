@@ -21,24 +21,23 @@
                 <x:Type TypeName="logging:LogLevel" />
             </ObjectDataProvider.MethodParameters>
         </ObjectDataProvider>
-        <Style
-            x:Key="SettingsIconButtonStyle"
-            BasedOn="{StaticResource {x:Type ui:Button}}"
-            TargetType="ui:Button">
-            <Setter Property="Padding" Value="6" />
-        </Style>
     </UserControl.Resources>
-    <ScrollViewer Padding="16,24,16,16" VerticalScrollBarVisibility="Auto">
+    <ScrollViewer Padding="16" VerticalScrollBarVisibility="Auto">
         <StackPanel>
-            <StackPanel Margin="0,0,12,0" Orientation="Horizontal">
-                <TextBlock Style="{StaticResource SettingLabel}" Text="Launch position" />
+
+            <StackPanel Margin="0,0,0,8" Orientation="Horizontal">
+                <TextBlock
+                    Margin="0,0,8,0"
+                    Style="{StaticResource SettingLabel}"
+                    Text="Launch position" />
                 <ComboBox
                     HorizontalAlignment="Left"
                     ItemsSource="{StaticResource LaunchPositionOptions}"
                     SelectedItem="{Binding LaunchPosition}"
                     Style="{StaticResource SettingsComboBoxStyle}" />
+
                 <TextBlock
-                    Margin="32,0,12,0"
+                    Margin="32,0,8,0"
                     Style="{StaticResource SettingLabel}"
                     Text="Logging level" />
                 <ComboBox
@@ -47,131 +46,90 @@
                     SelectedItem="{Binding LoggingLevel}"
                     Style="{StaticResource SettingsComboBoxStyle}" />
             </StackPanel>
-            // this block is redundant???
-            <StackPanel Margin="24,12,0,0" Visibility="{Binding LaunchPosition, Converter={StaticResource EqualityToVisibilityConverter}, ConverterParameter=fixed}">
-                <TextBlock Style="{StaticResource SettingLabel}" Text="Fixed Position (X, Y):" />
-                <StackPanel Margin="0,6,0,0" Orientation="Horizontal">
-                    <ui:NumberBox
-                        Width="100"
-                        ClearButtonEnabled="False"
-                        Style="{StaticResource SettingsNumberBoxStyle}"
-                        Value="{Binding Settings.FixedX}" />
-                    <ui:NumberBox
-                        Width="100"
-                        Margin="12,0,0,0"
-                        ClearButtonEnabled="False"
-                        Style="{StaticResource SettingsNumberBoxStyle}"
-                        Value="{Binding Settings.FixedY}" />
-                </StackPanel>
-            </StackPanel>
-            // this block is redundant???
-            <UniformGrid Margin="0,24,0,0" Columns="4">
+
+            <UniformGrid Margin="0,8,0,8" Columns="4">
                 <CheckBox
-                    Margin="0,0,12,16"
+                    Margin="0,8,32,8"
                     Content="Start with Windows"
                     IsChecked="{Binding StartWithWindows}"
                     ToolTip="Automatically start the app at Windows startup." />
                 <CheckBox
-                    Margin="0,0,12,16"
+                    Margin="0,8,32,8"
                     Content="Auto-update"
                     IsChecked="{Binding AutoUpdate}"
                     ToolTip="Automatically check for and install updates on startup." />
                 <CheckBox
-                    Margin="0,0,12,16"
+                    Margin="0,8,32,8"
                     Content="Display logo"
                     IsChecked="{Binding DisplayLogo}"
                     ToolTip="Display the logo on main window, next to search input." />
                 <CheckBox
-                    Margin="0,0,12,16"
+                    Margin="0,8,32,8"
                     Content="Paste as plain text"
                     IsChecked="{Binding PasteAsPlainText}"
                     ToolTip="Strips formatting from clips like RTF or images before pasting." />
                 <CheckBox
-                    Margin="0,0,12,16"
+                    Margin="0,8,32,8"
                     Content="Remember search"
                     IsChecked="{Binding Settings.RememberSearchInput}"
                     ToolTip="Keep the search term in the search box when the window is reopened." />
                 <CheckBox
-                    Margin="0,0,12,16"
+                    Margin="0,8,32,8"
                     Content="Remember filters"
                     IsChecked="{Binding Settings.RememberFilterSelection}"
                     ToolTip="Keep the last used filter active when the window is reopened." />
                 <CheckBox
-                    Margin="0,0,12,16"
+                    Margin="0,8,32,8"
                     Content="Move clips to top"
                     IsChecked="{Binding Settings.MoveClipToTopOnPaste}"
                     ToolTip="After pasting a clip, move it to the top of the list." />
                 <CheckBox
-                    Margin="0,0,12,16"
+                    Margin="0,8,32,8"
                     Content="Trim whitespace"
                     IsChecked="{Binding Settings.AlwaysTrimWhitespace}"
                     ToolTip="Automatically remove leading and trailing whitespace from new text clips." />
             </UniformGrid>
 
-            <Separator Margin="0,12,0,12" />
+            <Separator Margin="0,8,0,8" />
 
             <TextBlock
+                Margin="0,8,0,8"
                 FontSize="16"
                 FontWeight="SemiBold"
                 Text="Hotkeys" />
 
-            <Grid Margin="0,16,0,0" Grid.IsSharedSizeScope="True">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" SharedSizeGroup="HotkeyLabels" />
-                    <ColumnDefinition Width="130" />
-                    <ColumnDefinition Width="32" />
-                    <ColumnDefinition Width="Auto" SharedSizeGroup="HotkeyLabels" />
-                    <ColumnDefinition Width="130" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
-
+            <StackPanel Orientation="Horizontal">
                 <TextBlock
-                    Grid.Row="0"
-                    Grid.Column="0"
+                    Margin="16,0,8,0"
                     Style="{StaticResource SettingLabel}"
                     Text="Launch main window" />
                 <ui:TextBox
-                    Grid.Row="0"
-                    Grid.Column="1"
                     helpers:HotkeyInputBehavior.HotkeyTarget="{x:Static core:AppConstants+HotkeyTargets.Main}"
                     helpers:HotkeyInputBehavior.IsEnabled="True"
                     Style="{StaticResource CaptureHotkeyStyle}"
                     Text="{Binding Hotkey, Mode=OneWay}" />
 
                 <TextBlock
-                    Grid.Row="0"
-                    Grid.Column="3"
-                    Margin="0,16,0,0"
+                    Margin="32,0,8,0"
                     Style="{StaticResource SettingLabel}"
                     Text="Display preview tooltip" />
                 <ui:TextBox
-                    Grid.Row="0"
-                    Grid.Column="4"
                     helpers:HotkeyInputBehavior.HotkeyTarget="{x:Static core:AppConstants+HotkeyTargets.Preview}"
                     helpers:HotkeyInputBehavior.IsEnabled="True"
                     Style="{StaticResource CaptureHotkeyStyle}"
                     Text="{Binding PreviewHotkey, Mode=OneWay}" />
 
                 <TextBlock
-                    Grid.Row="1"
-                    Grid.Column="0"
-                    Margin="0,16,0,0"
+                    Margin="32,0,8,0"
                     Style="{StaticResource SettingLabel}"
-                    Text="Activate quick paste (1 to 9)" />
+                    Text="Activate quick paste" />
                 <ui:TextBox
-                    Grid.Row="1"
-                    Grid.Column="1"
-                    Margin="0,16,0,0"
                     helpers:HotkeyInputBehavior.HotkeyTarget="{x:Static core:AppConstants+HotkeyTargets.QuickPaste}"
                     helpers:HotkeyInputBehavior.IsEnabled="True"
                     Style="{StaticResource CaptureHotkeyStyle}"
                     Text="{Binding QuickPasteHotkey, Mode=OneWay}"
                     ToolTip="Hold these keys, then press a number (1-9) to paste the corresponding clip." />
-            </Grid>
+            </StackPanel>
 
         </StackPanel>
     </ScrollViewer>

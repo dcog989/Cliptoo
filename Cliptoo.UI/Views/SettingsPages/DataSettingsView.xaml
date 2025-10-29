@@ -8,121 +8,138 @@
     d:DesignHeight="450"
     d:DesignWidth="800"
     mc:Ignorable="d">
-    <ScrollViewer Padding="15,20,15,15" VerticalScrollBarVisibility="Auto">
+    <ScrollViewer Padding="16" VerticalScrollBarVisibility="Auto">
         <StackPanel>
-            <StackPanel Orientation="Horizontal">
-                <TextBlock Style="{StaticResource SettingLabel}" Text="Maximum total clips" />
+            <StackPanel Margin="0,0,0,8" Orientation="Horizontal">
+                <TextBlock
+                    Margin="0,0,8,0"
+                    Style="{StaticResource SettingLabel}"
+                    Text="Maximum" />
                 <ui:NumberBox
-                    Width="110"
-                    Margin="6,0,12,0"
                     ClearButtonEnabled="False"
                     Style="{StaticResource SettingsNumberBoxStyle}"
+                    ToolTip="0 = no limit."
                     Value="{Binding MaxClipsTotal, UpdateSourceTrigger=PropertyChanged}" />
                 <TextBlock
-                    Margin="24,0,0,0"
+                    Margin="8,0,8,0"
                     Style="{StaticResource SettingLabel}"
-                    Text="Maximum days to keep" />
+                    Text="clips" />
+
+                <TextBlock
+                    Margin="32,0,8,0"
+                    Style="{StaticResource SettingLabel}"
+                    Text="Maximum age" />
                 <ui:NumberBox
-                    Width="100"
-                    Margin="6,0,0,0"
                     ClearButtonEnabled="False"
                     Style="{StaticResource SettingsNumberBoxStyle}"
+                    ToolTip="0 = no limit."
                     Value="{Binding CleanupAgeDays, UpdateSourceTrigger=PropertyChanged}" />
                 <TextBlock
-                    Margin="6,0,12,0"
+                    Margin="8,0,0,0"
                     Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                     Style="{StaticResource SettingLabel}"
-                    Text="(0 = unlimited)" />
-            </StackPanel>
+                    Text="days" />
 
-            <StackPanel Margin="0,16,0,0" Orientation="Horizontal">
-                <TextBlock Style="{StaticResource SettingLabel}" Text="Maximum clip size" />
+                <TextBlock
+                    Margin="32,0,8,0"
+                    Style="{StaticResource SettingLabel}"
+                    Text="Maximum size" />
                 <ui:NumberBox
-                    Width="110"
-                    Margin="6,0,0,0"
                     ClearButtonEnabled="False"
                     Minimum="1"
                     Style="{StaticResource SettingsNumberBoxStyle}"
                     Value="{Binding MaxClipSizeMb, UpdateSourceTrigger=PropertyChanged}" />
                 <TextBlock
-                    Margin="6,0,12,0"
+                    Margin="8,0,8,0"
                     Style="{StaticResource SettingLabel}"
                     Text="MB" />
             </StackPanel>
 
+            <Separator Margin="0,8,0,8" />
+
             <TextBlock
-                Margin="0,24,0,12"
+                Margin="0,8,0,8"
                 FontSize="16"
                 FontWeight="SemiBold"
                 Text="Maintenance" />
+
             <StackPanel
-                Margin="24,0,0,0"
+                Margin="0,8,0,8"
                 IsEnabled="{Binding !IsBusy}"
                 Orientation="Horizontal">
                 <ui:Button
+                    Margin="16,0,0,0"
                     Appearance="Secondary"
                     Command="{Binding ClearHistoryCommand}"
                     Content="Clear History..."
                     ToolTip="Delete all non-pinned clips from the database." />
                 <ui:Button
-                    Margin="12,0,0,0"
+                    Margin="16,0,0,0"
                     Appearance="Secondary"
                     Command="{Binding ClearOversizedCommand}"
                     Content="Clear Oversized..."
                     ToolTip="Delete clips larger than a specified size." />
                 <ui:Button
-                    Margin="12,0,0,0"
+                    Margin="16,0,0,0"
                     Appearance="Secondary"
                     Command="{Binding ClearCachesCommand}"
                     Content="Clear Caches"
                     ToolTip="Delete all cached thumbnails and temporary image files." />
                 <ui:Button
-                    Margin="12,0,0,0"
+                    Margin="16,0,0,0"
                     Appearance="Secondary"
                     Command="{Binding RemoveDeadheadClipsCommand}"
                     Content="Deadhead"
                     ToolTip="Remove clips for files or folders that no longer exist." />
                 <ui:Button
-                    Margin="12,0,0,0"
+                    Margin="16,0,0,0"
                     Appearance="Secondary"
                     Command="{Binding RunHeavyMaintenanceCommand}"
                     Content="Run Maintenance"
                     ToolTip="Run the full daily maintenance routine now (database cleanup, cache pruning, etc)." />
             </StackPanel>
 
+            <Separator Margin="0,8,0,8" />
+
             <TextBlock
-                Margin="0,24,0,12"
+                Margin="0,8,0,8"
                 FontSize="16"
                 FontWeight="SemiBold"
                 Text="Import / Export" />
+
             <StackPanel
-                Margin="24,0,0,0"
+                Margin="0,8,0,8"
                 IsEnabled="{Binding !IsBusy}"
                 Orientation="Horizontal">
                 <ui:Button
+                    Margin="16,0,0,0"
                     Appearance="Secondary"
                     Command="{Binding ExportAllCommand}"
                     Content="Export All..."
                     ToolTip="Export all clips in the database to a JSON file." />
                 <ui:Button
-                    Margin="12,0,0,0"
+                    Margin="16,0,0,0"
                     Appearance="Secondary"
                     Command="{Binding ExportPinnedCommand}"
                     Content="Export Pinned..."
                     ToolTip="Export only pinned clips to a JSON file." />
                 <ui:Button
-                    Margin="12,0,0,0"
+                    Margin="16,0,0,0"
                     Appearance="Secondary"
                     Command="{Binding ImportCommand}"
                     Content="Import..."
                     ToolTip="Import clips from a previously exported JSON file." />
             </StackPanel>
 
-            <Separator Margin="0,24,0,16" />
+            <Separator Margin="0,8,0,8" />
 
-            <TextBlock Text="{Binding StatsSummary}" TextBlock.TextAlignment="Center" />
+            <TextBlock
+                Margin="0,8,0,8"
+                Text="{Binding StatsSummary}"
+                TextBlock.TextAlignment="Center" />
+
             <StackPanel
-                Margin="0,6,0,0"
+                Margin="0,8,0,8"
                 HorizontalAlignment="Center"
                 Orientation="Horizontal">
                 <TextBlock>

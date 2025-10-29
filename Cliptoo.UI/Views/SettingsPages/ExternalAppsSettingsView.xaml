@@ -16,48 +16,43 @@
             <Setter Property="Padding" Value="6" />
         </Style>
     </UserControl.Resources>
-    <ScrollViewer Padding="16,24,16,16" VerticalScrollBarVisibility="Auto">
+    <ScrollViewer Padding="16" VerticalScrollBarVisibility="Auto">
         <StackPanel>
             <TextBlock
+                Margin="0,0,0,8"
                 FontSize="16"
                 FontWeight="SemiBold"
-                Text="Compare Tool" />
-            <Grid Margin="0,6,0,12">
+                Text="Compare App" />
+
+            <Grid Margin="16,8,0,16">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <TextBlock
-                    Grid.Column="0"
-                    Style="{StaticResource SettingLabel}"
-                    Text="Compare program" />
+
                 <ui:TextBox
-                    Grid.Column="1"
+                    Grid.Column="0"
+                    Margin="0,0,8,0"
                     Style="{StaticResource SettingsTextBoxStyle}"
                     Text="{Binding CompareToolPath, UpdateSourceTrigger=PropertyChanged}" />
                 <ui:Button
-                    Grid.Column="2"
-                    Margin="12,0,0,0"
+                    Grid.Column="1"
                     Command="{Binding BrowseCompareToolCommand}"
                     Content="Browse..."
                     Style="{StaticResource SettingsButtonStyle}" />
             </Grid>
 
-            <Separator Margin="0,24,0,12" />
+            <Separator Margin="0,8,0,8" />
 
             <TextBlock
+                Margin="0,8,0,8"
                 FontSize="16"
                 FontWeight="SemiBold"
-                Text="'Send To' Programs" />
-            <TextBlock
-                Margin="0,6,0,12"
-                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                Text="'{0}' is a placeholder for the file path of the clip content."
-                TextWrapping="Wrap" />
+                Text="'Send To' Apps" />
 
             <ListView
                 MaxHeight="200"
+                Margin="16,0,0,8"
                 Background="Transparent"
                 BorderThickness="0"
                 ItemsSource="{Binding SendToTargets}"
@@ -80,7 +75,7 @@
                 </ListView.ItemContainerStyle>
                 <ListView.ItemTemplate>
                     <DataTemplate>
-                        <Grid Margin="0,6">
+                        <Grid Margin="0,8,0,0">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="150" />
                                 <ColumnDefinition Width="*" MinWidth="100" />
@@ -88,16 +83,17 @@
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
+
                             <ui:TextBox
                                 Grid.Column="0"
-                                Margin="0,0,12,0"
+                                Margin="0,0,8,0"
                                 VerticalAlignment="Center"
                                 PlaceholderText="Display Name"
                                 Style="{StaticResource SettingsTextBoxStyle}"
                                 Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" />
                             <Border
                                 Grid.Column="1"
-                                Margin="0,0,12,0"
+                                Margin="0,0,8,0"
                                 Padding="8,6"
                                 VerticalAlignment="Center"
                                 Background="{DynamicResource ControlFillColorDefaultBrush}"
@@ -113,11 +109,12 @@
                             </Border>
                             <ui:TextBox
                                 Grid.Column="2"
-                                Margin="0,0,12,0"
+                                Margin="0,0,8,0"
                                 VerticalAlignment="Center"
                                 PlaceholderText="Optional. Use {0} for path."
                                 Style="{StaticResource SettingsTextBoxStyle}"
-                                Text="{Binding Arguments, UpdateSourceTrigger=PropertyChanged}" />
+                                Text="{Binding Arguments, UpdateSourceTrigger=PropertyChanged}"
+                                ToolTip="'{0}' is a placeholder for the file path of the clip content." />
 
                             <StackPanel Grid.Column="3" Orientation="Horizontal">
                                 <ui:Button
@@ -127,22 +124,23 @@
                                     <ui:SymbolIcon FontSize="16" Symbol="ArrowUp24" />
                                 </ui:Button>
                                 <ui:Button
-                                    Margin="6,0,0,0"
+                                    Margin="8,0,0,0"
                                     Command="{Binding DataContext.MoveSendToTargetDownCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
                                     CommandParameter="{Binding}"
                                     Style="{StaticResource SettingsIconButtonStyle}">
                                     <ui:SymbolIcon FontSize="16" Symbol="ArrowDown24" />
                                 </ui:Button>
                             </StackPanel>
+
                             <ui:Button
                                 Grid.Column="4"
-                                Margin="12,0,0,0"
+                                Margin="16,0,0,0"
                                 VerticalAlignment="Center"
                                 Appearance="Secondary"
                                 Command="{Binding DataContext.RemoveSendToTargetCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
                                 CommandParameter="{Binding}"
                                 Style="{StaticResource SettingsIconButtonStyle}"
-                                ToolTip="Remove this target">
+                                ToolTip="Remove this application.">
                                 <ui:ImageIcon
                                     Width="16"
                                     Height="16"
@@ -152,46 +150,47 @@
                     </DataTemplate>
                 </ListView.ItemTemplate>
             </ListView>
+
             <ui:Button
-                Margin="0,12,0,0"
+                Margin="16,0,0,8"
                 HorizontalAlignment="Left"
                 Appearance="Secondary"
                 Command="{Binding AddSendToTargetCommand}"
                 Content="Add Application..." />
 
-            <Separator Margin="0,24,0,12" />
+            <Separator Margin="0,8,0,8" />
 
             <TextBlock
+                Margin="0,8,0,8"
                 FontSize="16"
                 FontWeight="SemiBold"
-                Text="Application Blacklist" />
-            <TextBlock
-                Margin="0,6,0,12"
-                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                Text="Cliptoo will ignore any clipboard changes from these applications (e.g., keepass.exe)."
-                TextWrapping="Wrap" />
-            <Grid>
+                Text="Blacklist Apps" />
+
+            <Grid Margin="16,8,0,8">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <ui:TextBox x:Name="BlacklistTextBox" PlaceholderText="Application.exe" />
+                <ui:TextBox
+                    x:Name="BlacklistTextBox"
+                    PlaceholderText="Application.exe"
+                    ToolTip="Clips from this app will be ignored." />
                 <ui:Button
                     Grid.Column="1"
-                    Margin="12,0,0,0"
+                    Margin="8,0,0,0"
                     Command="{Binding AddBlacklistedAppCommand}"
                     CommandParameter="{Binding ElementName=BlacklistTextBox, Path=Text}"
                     Content="Add" />
                 <ui:Button
                     Grid.Column="2"
-                    Margin="12,0,0,0"
+                    Margin="8,0,0,0"
                     Command="{Binding BrowseAndAddBlacklistedAppCommand}"
                     Content="Browse..." />
             </Grid>
+
             <ListView
-                MaxHeight="150"
-                Margin="0,12,0,0"
+                Margin="16,8,0,0"
                 Background="Transparent"
                 BorderThickness="0"
                 ItemsSource="{Binding Settings.BlacklistedApps}"
@@ -207,13 +206,13 @@
                             <TextBlock VerticalAlignment="Center" Text="{Binding}" />
                             <ui:Button
                                 Grid.Column="1"
-                                Margin="12,0,0,0"
+                                Margin="8,0,0,0"
                                 VerticalAlignment="Center"
                                 Appearance="Secondary"
                                 Command="{Binding DataContext.RemoveBlacklistedAppCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
                                 CommandParameter="{Binding}"
                                 Style="{StaticResource SettingsIconButtonStyle}"
-                                ToolTip="Remove this application">
+                                ToolTip="Remove this application.">
                                 <ui:ImageIcon
                                     Width="16"
                                     Height="16"

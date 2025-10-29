@@ -24,33 +24,25 @@
             <sys:String>Ditchwater</sys:String>
         </x:Array>
     </UserControl.Resources>
-    <ScrollViewer Padding="16,24,16,16" VerticalScrollBarVisibility="Auto">
+
+    <ScrollViewer Padding="16" VerticalScrollBarVisibility="Auto">
         <StackPanel>
-            <TextBlock
-                FontSize="16"
-                FontWeight="SemiBold"
-                Text="Main Window" />
-            <StackPanel Margin="24,16,0,0" Orientation="Horizontal">
+            <StackPanel Margin="0,0,0,8" Orientation="Horizontal">
                 <TextBlock
-                    VerticalAlignment="Center"
+                    Margin="0,0,8,0"
                     Style="{StaticResource SettingLabel}"
                     Text="Font family" />
                 <ComboBox
-                    Margin="0,0,12,0"
                     HorizontalAlignment="Left"
-                    VerticalAlignment="Center"
                     IsEnabled="{Binding IsFontsLoading, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=inverse}"
                     ItemsSource="{Binding SystemFonts}"
                     SelectedItem="{Binding SelectedFontFamily}"
                     Style="{StaticResource SettingsComboBoxStyle}" />
                 <TextBlock
-                    Margin="24,0,12,0"
-                    VerticalAlignment="Center"
+                    Margin="32,0,8,0"
                     Style="{StaticResource SettingLabel}"
                     Text="Font size" />
                 <ui:NumberBox
-                    Width="100"
-                    VerticalAlignment="Center"
                     ClearButtonEnabled="False"
                     Maximum="24"
                     Minimum="10"
@@ -58,26 +50,22 @@
                     Style="{StaticResource SettingsNumberBoxStyle}"
                     Value="{Binding FontSize, UpdateSourceTrigger=PropertyChanged}" />
                 <TextBlock
-                    Margin="6,0,12,0"
-                    VerticalAlignment="Center"
+                    Margin="8,0,0,0"
                     Style="{StaticResource SettingLabel}"
                     Text="px" />
                 <TextBlock
-                    Margin="24,0,12,0"
-                    VerticalAlignment="Center"
+                    Margin="32,0,8,0"
                     Style="{StaticResource SettingLabel}"
                     Text="Line padding" />
                 <ComboBox
                     HorizontalAlignment="Left"
-                    VerticalAlignment="Center"
                     ItemsSource="{StaticResource PaddingOptions}"
                     SelectedItem="{Binding ClipItemPadding}"
                     Style="{StaticResource SettingsComboBoxStyle}" />
             </StackPanel>
 
-            <Grid Margin="24,16,0,0">
+            <Grid Margin="0,8,0,16">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
@@ -87,30 +75,29 @@
 
                 <TextBlock
                     Grid.Column="0"
+                    Margin="0,0,8,0"
                     Style="{StaticResource SettingLabel}"
                     Text="Theme" />
                 <ComboBox
                     Grid.Column="1"
-                    Margin="0,0,12,0"
                     ItemsSource="{StaticResource ThemeOptions}"
                     SelectedItem="{Binding Theme}"
                     Style="{StaticResource SettingsComboBoxStyle}" />
+
                 <TextBlock
                     Grid.Column="2"
-                    Margin="24,0,12,0"
+                    Margin="32,0,8,0"
                     Style="{StaticResource SettingLabel}"
                     Text="Accent" />
                 <ComboBox
                     Grid.Column="3"
-                    MinWidth="100"
-                    Margin="0,0,12,0"
-                    VerticalAlignment="Center"
                     ItemsSource="{StaticResource ChromaLevelOptions}"
                     SelectedItem="{Binding AccentChromaLevel}"
                     Style="{StaticResource SettingsComboBoxStyle}" />
+
                 <Slider
-                    Grid.Column="5"
-                    VerticalAlignment="Center"
+                    Grid.Column="4"
+                    Margin="8,0,8,0"
                     Background="{Binding OklchHueBrush}"
                     IsMoveToPointEnabled="True"
                     Maximum="360"
@@ -119,50 +106,48 @@
                     Value="{Binding AccentHue, UpdateSourceTrigger=PropertyChanged}" />
             </Grid>
 
+            <Separator Margin="0,8,0,8" />
+
             <TextBlock
-                Margin="0,24,0,0"
+                Margin="0,8,0,8"
                 FontSize="16"
                 FontWeight="SemiBold"
                 Text="Preview Tooltip" />
-            <StackPanel Margin="24,18,0,0" Orientation="Horizontal">
-                <TextBlock VerticalAlignment="Center" Text="Preview tooltip delay" />
+
+            <StackPanel Margin="16,8,0,8" Orientation="Horizontal">
+                <TextBlock
+                    Margin="0,0,8,0"
+                    Style="{StaticResource SettingLabel}"
+                    Text="Delay before showing" />
                 <ui:NumberBox
-                    Width="110"
-                    Margin="6,0,0,0"
-                    VerticalAlignment="Center"
                     ClearButtonEnabled="False"
                     Minimum="0"
                     SmallChange="50"
                     Style="{StaticResource SettingsNumberBoxStyle}"
+                    ToolTip="0 disables, hotkey always shows."
                     Value="{Binding HoverPreviewDelay, UpdateSourceTrigger=PropertyChanged}" />
                 <TextBlock
-                    Margin="6,0,0,0"
-                    VerticalAlignment="Center"
+                    Margin="8,0,0,0"
                     Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                    Text="ms (0 to disable, hotkey still works)" />
-            </StackPanel>
+                    Style="{StaticResource SettingLabel}"
+                    Text="ms" />
 
-            <StackPanel Margin="24,16,0,0" Orientation="Horizontal">
                 <TextBlock
-                    VerticalAlignment="Center"
+                    Margin="32,0,8,0"
                     Style="{StaticResource SettingLabel}"
                     Text="Font family" />
                 <ComboBox
-                    Margin="0,0,12,0"
                     HorizontalAlignment="Left"
-                    VerticalAlignment="Center"
                     IsEnabled="{Binding IsFontsLoading, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=inverse}"
                     ItemsSource="{Binding SystemFonts}"
                     SelectedItem="{Binding SelectedPreviewFontFamily}"
                     Style="{StaticResource SettingsComboBoxStyle}" />
+
                 <TextBlock
-                    Margin="24,0,12,0"
-                    VerticalAlignment="Center"
+                    Margin="32,0,8,0"
                     Style="{StaticResource SettingLabel}"
                     Text="Font size" />
                 <ui:NumberBox
-                    Width="100"
-                    VerticalAlignment="Center"
                     ClearButtonEnabled="False"
                     Maximum="24"
                     Minimum="10"
@@ -170,44 +155,42 @@
                     Style="{StaticResource SettingsNumberBoxStyle}"
                     Value="{Binding PreviewFontSize, UpdateSourceTrigger=PropertyChanged}" />
                 <TextBlock
-                    Margin="6,0,0,0"
-                    VerticalAlignment="Center"
+                    Margin="8,0,8,0"
                     Style="{StaticResource SettingLabel}"
                     Text="px" />
             </StackPanel>
 
-            <StackPanel Margin="24,16,0,0" Orientation="Horizontal">
-                <TextBlock VerticalAlignment="Center" Text="Text preview max width" />
+            <StackPanel Margin="16,8,0,8" Orientation="Horizontal">
+                <TextBlock
+                    Margin="0,0,8,0"
+                    Style="{StaticResource SettingLabel}"
+                    Text="Text preview max width" />
                 <ui:NumberBox
-                    Width="110"
-                    Margin="6,0,0,0"
-                    VerticalAlignment="Center"
                     ClearButtonEnabled="False"
                     Minimum="200"
                     SmallChange="10"
                     Style="{StaticResource SettingsNumberBoxStyle}"
+                    ToolTip="Maximum width of the text preview."
                     Value="{Binding Settings.PreviewTooltipMaxWidth, UpdateSourceTrigger=PropertyChanged}" />
                 <TextBlock
-                    Margin="6,0,32,0"
-                    VerticalAlignment="Center"
+                    Margin="8,0,0,0"
+                    Style="{StaticResource SettingLabel}"
                     Text="px" />
 
                 <TextBlock
-                    VerticalAlignment="Center"
+                    Margin="32,0,8,0"
                     Style="{StaticResource SettingLabel}"
-                    Text="Image preview max width / height" />
+                    Text="Image preview max size" />
                 <ui:NumberBox
-                    Width="110"
-                    Margin="6,0,0,0"
-                    VerticalAlignment="Center"
                     ClearButtonEnabled="False"
                     Minimum="100"
                     SmallChange="10"
                     Style="{StaticResource SettingsNumberBoxStyle}"
+                    ToolTip="Maximum width or height of the image preview."
                     Value="{Binding Settings.HoverImagePreviewSize, UpdateSourceTrigger=PropertyChanged}" />
                 <TextBlock
-                    Margin="6,0,0,0"
-                    VerticalAlignment="Center"
+                    Margin="8,0,0,0"
+                    Style="{StaticResource SettingLabel}"
                     Text="px" />
             </StackPanel>
         </StackPanel>
