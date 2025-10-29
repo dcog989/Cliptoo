@@ -143,12 +143,12 @@
                                 Command="{Binding OpenCommand}"
                                 Header="{Binding OpenCommandHeader}"
                                 Visibility="{Binding IsOpenable, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                            <MenuItem Header="Send To" ItemsSource="{Binding MainViewModel.SendToTargets}">
+                            <MenuItem Header="Send To" ItemsSource="{Binding SettingsService.Settings.SendToTargets}">
                                 <MenuItem.Style>
                                     <Style TargetType="MenuItem">
                                         <Setter Property="Visibility" Value="Visible" />
                                         <Style.Triggers>
-                                            <DataTrigger Binding="{Binding MainViewModel.SendToTargets.Count}" Value="0">
+                                            <DataTrigger Binding="{Binding SettingsService.Settings.SendToTargets.Count}" Value="0">
                                                 <Setter Property="Visibility" Value="Collapsed" />
                                             </DataTrigger>
                                             <DataTrigger Binding="{Binding IsSourceMissing}" Value="True">
@@ -173,7 +173,7 @@
                                                 <MultiBinding Converter="{StaticResource AnyTrueToVisibilityConverter}">
                                                     <Binding Path="IsEditable" />
                                                     <Binding Path="IsOpenable" />
-                                                    <Binding Path="MainViewModel.SendToTargets.Count" />
+                                                    <Binding Path="SettingsService.Settings.SendToTargets.Count" />
                                                 </MultiBinding>
                                             </Setter.Value>
                                         </Setter>
@@ -189,7 +189,7 @@
                                     <Image
                                         Width="16"
                                         Height="16"
-                                        Source="{Binding MainViewModel.SharedResources.PinIcon16}" />
+                                        Source="{Binding SharedResources.PinIcon16}" />
                                 </MenuItem.Icon>
                             </MenuItem>
                             <MenuItem Command="{Binding MoveToTopCommand}" Header="Move to Top" />
@@ -202,13 +202,12 @@
                                 </Separator.Visibility>
                             </Separator>
                             <MenuItem
-                                Command="{Binding DataContext.PasteClipAsPlainTextCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
-                                CommandParameter="{Binding}"
+                                Command="{Binding PasteAsPlainTextCommand}"
                                 Header="Plain Text"
                                 Visibility="{Binding CanPasteAsPlainText, Converter={StaticResource BooleanToVisibilityConverter}}" />
                             <MenuItem Header="RTF Text" Visibility="{Binding CanPasteAsRtf, Converter={StaticResource BooleanToVisibilityConverter}}">
                                 <MenuItem.Command>
-                                    <Binding Path="DataContext.PasteClipCommand" RelativeSource="{RelativeSource AncestorType=ListView}" />
+                                    <Binding Path="PasteCommand" />
                                 </MenuItem.Command>
                                 <MenuItem.CommandParameter>
                                     <Binding />
@@ -217,7 +216,7 @@
                             <MenuItem Header="Paste Transform" Visibility="{Binding IsTextTransformable, Converter={StaticResource BooleanToVisibilityConverter}}">
                                 <MenuItem Header="Trim Whitespace">
                                     <MenuItem.Command>
-                                        <Binding Path="DataContext.TransformAndPasteCommand" RelativeSource="{RelativeSource AncestorType=ListView}" />
+                                        <Binding Path="TransformAndPasteCommand" />
                                     </MenuItem.Command>
                                     <MenuItem.CommandParameter>
                                         <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
@@ -228,7 +227,7 @@
                                 </MenuItem>
                                 <MenuItem Header="1 Line Feed After">
                                     <MenuItem.Command>
-                                        <Binding Path="DataContext.TransformAndPasteCommand" RelativeSource="{RelativeSource AncestorType=ListView}" />
+                                        <Binding Path="TransformAndPasteCommand" />
                                     </MenuItem.Command>
                                     <MenuItem.CommandParameter>
                                         <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
@@ -239,7 +238,7 @@
                                 </MenuItem>
                                 <MenuItem Header="2 Line Feeds After">
                                     <MenuItem.Command>
-                                        <Binding Path="DataContext.TransformAndPasteCommand" RelativeSource="{RelativeSource AncestorType=ListView}" />
+                                        <Binding Path="TransformAndPasteCommand" />
                                     </MenuItem.Command>
                                     <MenuItem.CommandParameter>
                                         <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
@@ -250,7 +249,7 @@
                                 </MenuItem>
                                 <MenuItem Header="Remove Line Feeds">
                                     <MenuItem.Command>
-                                        <Binding Path="DataContext.TransformAndPasteCommand" RelativeSource="{RelativeSource AncestorType=ListView}" />
+                                        <Binding Path="TransformAndPasteCommand" />
                                     </MenuItem.Command>
                                     <MenuItem.CommandParameter>
                                         <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
@@ -261,7 +260,7 @@
                                 </MenuItem>
                                 <MenuItem Header="Timestamp Prefix">
                                     <MenuItem.Command>
-                                        <Binding Path="DataContext.TransformAndPasteCommand" RelativeSource="{RelativeSource AncestorType=ListView}" />
+                                        <Binding Path="TransformAndPasteCommand" />
                                     </MenuItem.Command>
                                     <MenuItem.CommandParameter>
                                         <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
@@ -274,7 +273,7 @@
                             <MenuItem Header="Paste Case" Visibility="{Binding IsTextTransformable, Converter={StaticResource BooleanToVisibilityConverter}}">
                                 <MenuItem Header="UPPER CASE">
                                     <MenuItem.Command>
-                                        <Binding Path="DataContext.TransformAndPasteCommand" RelativeSource="{RelativeSource AncestorType=ListView}" />
+                                        <Binding Path="TransformAndPasteCommand" />
                                     </MenuItem.Command>
                                     <MenuItem.CommandParameter>
                                         <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
@@ -285,7 +284,7 @@
                                 </MenuItem>
                                 <MenuItem Header="lower case">
                                     <MenuItem.Command>
-                                        <Binding Path="DataContext.TransformAndPasteCommand" RelativeSource="{RelativeSource AncestorType=ListView}" />
+                                        <Binding Path="TransformAndPasteCommand" />
                                     </MenuItem.Command>
                                     <MenuItem.CommandParameter>
                                         <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
@@ -296,7 +295,7 @@
                                 </MenuItem>
                                 <MenuItem Header="Capitalize Case">
                                     <MenuItem.Command>
-                                        <Binding Path="DataContext.TransformAndPasteCommand" RelativeSource="{RelativeSource AncestorType=ListView}" />
+                                        <Binding Path="TransformAndPasteCommand" />
                                     </MenuItem.Command>
                                     <MenuItem.CommandParameter>
                                         <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
@@ -307,7 +306,7 @@
                                 </MenuItem>
                                 <MenuItem Header="Sentence case">
                                     <MenuItem.Command>
-                                        <Binding Path="DataContext.TransformAndPasteCommand" RelativeSource="{RelativeSource AncestorType=ListView}" />
+                                        <Binding Path="TransformAndPasteCommand" />
                                     </MenuItem.Command>
                                     <MenuItem.CommandParameter>
                                         <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
@@ -318,7 +317,7 @@
                                 </MenuItem>
                                 <MenuItem Header="iNVERT cASE">
                                     <MenuItem.Command>
-                                        <Binding Path="DataContext.TransformAndPasteCommand" RelativeSource="{RelativeSource AncestorType=ListView}" />
+                                        <Binding Path="TransformAndPasteCommand" />
                                     </MenuItem.Command>
                                     <MenuItem.CommandParameter>
                                         <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
@@ -329,7 +328,7 @@
                                 </MenuItem>
                                 <MenuItem Header="kebab-case">
                                     <MenuItem.Command>
-                                        <Binding Path="DataContext.TransformAndPasteCommand" RelativeSource="{RelativeSource AncestorType=ListView}" />
+                                        <Binding Path="TransformAndPasteCommand" />
                                     </MenuItem.Command>
                                     <MenuItem.CommandParameter>
                                         <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
@@ -340,7 +339,7 @@
                                 </MenuItem>
                                 <MenuItem Header="snake__case">
                                     <MenuItem.Command>
-                                        <Binding Path="DataContext.TransformAndPasteCommand" RelativeSource="{RelativeSource AncestorType=ListView}" />
+                                        <Binding Path="TransformAndPasteCommand" />
                                     </MenuItem.Command>
                                     <MenuItem.CommandParameter>
                                         <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
@@ -351,7 +350,7 @@
                                 </MenuItem>
                                 <MenuItem Header="CamelCase">
                                     <MenuItem.Command>
-                                        <Binding Path="DataContext.TransformAndPasteCommand" RelativeSource="{RelativeSource AncestorType=ListView}" />
+                                        <Binding Path="TransformAndPasteCommand" />
                                     </MenuItem.Command>
                                     <MenuItem.CommandParameter>
                                         <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
@@ -362,7 +361,7 @@
                                 </MenuItem>
                                 <MenuItem Header="Deslug">
                                     <MenuItem.Command>
-                                        <Binding Path="DataContext.TransformAndPasteCommand" RelativeSource="{RelativeSource AncestorType=ListView}" />
+                                        <Binding Path="TransformAndPasteCommand" />
                                     </MenuItem.Command>
                                     <MenuItem.CommandParameter>
                                         <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">

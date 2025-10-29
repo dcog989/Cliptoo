@@ -366,5 +366,6 @@ namespace Cliptoo.UI.ViewModels
                 ExecuteAddBlacklistedApp(appName);
             }
         }
+
     }
 }

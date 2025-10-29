@@ -5,7 +5,6 @@
     xmlns:sys="clr-namespace:System;assembly=mscorlib"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
     xmlns:viewModels="clr-namespace:Cliptoo.UI.ViewModels">
-
     <x:Array x:Key="LaunchPositionOptions" Type="sys:String">
         <sys:String>Cursor</sys:String>
         <sys:String>Center</sys:String>
@@ -60,13 +59,9 @@
         <Setter Property="VerticalContentAlignment" Value="Center" />
     </Style>
 
-    <Style
-        x:Key="PrimaryDialogButton"
-        BasedOn="{StaticResource {x:Type ui:Button}}"
-        TargetType="ui:Button">
-        <Setter Property="Appearance" Value="Primary" />
+    <Style BasedOn="{StaticResource {x:Type ui:Button}}" TargetType="{x:Type ui:Button}">
         <Style.Triggers>
-            <Trigger Property="IsDefault" Value="True">
+            <Trigger Property="Appearance" Value="Primary">
                 <Setter Property="Foreground" Value="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
             </Trigger>
         </Style.Triggers>

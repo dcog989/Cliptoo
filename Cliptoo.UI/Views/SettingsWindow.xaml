@@ -143,10 +143,10 @@
                 Orientation="Horizontal">
                 <ui:Button
                     Padding="30,10"
+                    Appearance="Primary"
                     Click="Close_Click"
                     Content="Close"
-                    IsDefault="True"
-                    Style="{StaticResource PrimaryDialogButton}" />
+                    IsDefault="True" />
             </StackPanel>
 
             <ContentPresenter x:Name="RootContentDialogPresenter" Grid.RowSpan="4" />
