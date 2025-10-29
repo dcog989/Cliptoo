@@ -65,11 +65,17 @@ namespace Cliptoo.Core.Services
 
         public string Transform(string content, string transformType)
         {
-            LogManager.LogDebug($"TRANSFORM_DIAG (Transformer): Applying '{transformType}'. Input: '{content}'.");
+            ArgumentNullException.ThrowIfNull(content);
+
+            const int maxLogLength = 200;
+            var truncatedInput = content.Length > maxLogLength ? string.Concat(content.AsSpan(0, maxLogLength), "...") : content;
+
+            LogManager.LogDebug($"TRANSFORM_DIAG (Transformer): Applying '{transformType}'. Input: '{truncatedInput}'.");
             if (_transformations.TryGetValue(transformType, out var transformFunc))
             {
                 var result = transformFunc(content);
-                LogManager.LogDebug($"TRANSFORM_DIAG (Transformer): Result: '{result}'.");
+                var truncatedResult = result.Length > maxLogLength ? string.Concat(result.AsSpan(0, maxLogLength), "...") : result;
+                LogManager.LogDebug($"TRANSFORM_DIAG (Transformer): Result: '{truncatedResult}'.");
                 return result;
             }
             return content;
