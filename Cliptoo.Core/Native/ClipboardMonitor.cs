@@ -216,10 +216,11 @@ namespace Cliptoo.Core.Native
                 var filePaths = ClipboardUtils.SafeGet(() => Clipboard.GetData(DataFormats.FileDrop) as string[]);
                 if (filePaths != null && filePaths.Length > 0)
                 {
-                    var allFiles = string.Join(Environment.NewLine, filePaths);
-                    if (!string.IsNullOrEmpty(allFiles))
+                    var contentForApp = string.Join(Environment.NewLine, filePaths);
+                    var normalizedForHash = contentForApp.Replace("\r\n", "\n", StringComparison.Ordinal);
+                    if (!string.IsNullOrEmpty(contentForApp))
                     {
-                        availableData["FileDrop"] = (allFiles, HashingUtils.ComputeHash(Encoding.UTF8.GetBytes(allFiles)));
+                        availableData["FileDrop"] = (contentForApp, HashingUtils.ComputeHash(Encoding.UTF8.GetBytes(normalizedForHash)));
                     }
                 }
             }
@@ -260,7 +261,8 @@ namespace Cliptoo.Core.Native
                 var text = ClipboardUtils.SafeGet(() => Clipboard.GetText());
                 if (!string.IsNullOrWhiteSpace(text))
                 {
-                    availableData[DataFormats.UnicodeText] = (text, HashingUtils.ComputeHash(Encoding.UTF8.GetBytes(text)));
+                    var normalizedText = text.Replace("\r\n", "\n", StringComparison.Ordinal);
+                    availableData[DataFormats.UnicodeText] = (text, HashingUtils.ComputeHash(Encoding.UTF8.GetBytes(normalizedText)));
                 }
             }
             return availableData;
