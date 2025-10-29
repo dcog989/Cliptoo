@@ -14,6 +14,7 @@
     Padding="{Binding DataContext.CurrentSettings.ClipItemPadding, RelativeSource={RelativeSource AncestorType=ListView}, Converter={StaticResource PaddingSizeToThicknessConverter}}"
     d:DataContext="{d:DesignInstance Type=viewModels:ClipViewModel}"
     Background="Transparent"
+    MouseLeave="ClipItem_MouseLeave"
     SnapsToDevicePixels="True"
     TextOptions.TextFormattingMode="Display"
     TextOptions.TextRenderingMode="ClearType"

@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using Cliptoo.UI.ViewModels;
 
 namespace Cliptoo.UI.Controls
@@ -27,6 +28,14 @@ namespace Cliptoo.UI.Controls
                 clipVm.MainViewModel?.RequestShowPreview(clipVm);
             }
             e.Handled = true;
+        }
+
+        private void ClipItem_MouseLeave(object sender, MouseEventArgs e)
+        {
+            if (DataContext is ClipViewModel clipVm)
+            {
+                clipVm.MainViewModel?.RequestHidePreview();
+            }
         }
     }
 }
