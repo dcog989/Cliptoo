@@ -168,21 +168,17 @@ namespace Cliptoo.UI
                         services.AddSingleton<IContentDialogService, ContentDialogService>();
                         services.AddSingleton<IPreviewManager, PreviewManager>();
                         services.AddHostedService<ApplicationHostService>();
+                        services.AddSingleton<IComparisonStateService, ComparisonStateService>();
 
-                        services.AddSingleton<MainViewModel>(sp => new MainViewModel(
-                            sp.GetRequiredService<IClipDataService>(),
-                            sp.GetRequiredService<IClipboardService>(),
-                            sp.GetRequiredService<ISettingsService>(),
-                            sp.GetRequiredService<IDatabaseService>(),
-                            sp.GetRequiredService<IAppInteractionService>(),
-                            sp,
-                            sp.GetRequiredService<IClipViewModelFactory>(),
-                            sp.GetRequiredService<IPastingService>(),
-                            sp.GetRequiredService<IFontProvider>(),
-                            sp.GetRequiredService<INotificationService>(),
-                            sp.GetRequiredService<IIconProvider>(),
-                            sp.GetRequiredService<IPreviewManager>()
-                        ));
+                        services.AddSingleton<MainViewModel>();
+                        services.AddSingleton<IClipDisplayService>(sp => new ClipDisplayService(
+                           sp.GetRequiredService<IClipDataService>(),
+                           sp.GetRequiredService<IClipViewModelFactory>(),
+                           sp.GetRequiredService<ISettingsService>(),
+                           sp.GetRequiredService<IIconProvider>(),
+                           new Lazy<MainViewModel>(() => sp.GetRequiredService<MainViewModel>())
+                       ));
+
                         services.AddTransient<SettingsViewModel>(sp => new SettingsViewModel(
                             sp.GetRequiredService<IDatabaseService>(),
                             sp.GetRequiredService<ISettingsService>(),

@@ -43,6 +43,7 @@ namespace Cliptoo.UI.Services
         private readonly ISnackbarService _snackbarService;
         private readonly IDbManager _dbManager;
         private readonly IThemeService _themeService;
+        private readonly IClipDisplayService _clipDisplayService;
         private MainWindow? _mainWindow;
         private MainViewModel? _mainViewModel;
         private GlobalHotkey? _globalHotkey;
@@ -68,7 +69,8 @@ namespace Cliptoo.UI.Services
             IAppInteractionService appInteractionService,
             IClipDataService clipDataService,
             IDbManager dbManager,
-            IThemeService themeService)
+            IThemeService themeService,
+            IClipDisplayService clipDisplayService)
         {
             _serviceProvider = serviceProvider;
             _notifyIconService = notifyIconService;
@@ -81,6 +83,7 @@ namespace Cliptoo.UI.Services
             _clipDataService = clipDataService;
             _dbManager = dbManager;
             _themeService = themeService;
+            _clipDisplayService = clipDisplayService;
         }
 
         public async Task StartAsync(CancellationToken cancellationToken)
@@ -413,12 +416,11 @@ namespace Cliptoo.UI.Services
 
         private async Task InitializeViewModelAsync()
         {
-            _mainViewModel = _serviceProvider.GetRequiredService<MainWindow>().DataContext as MainViewModel;
+            _mainViewModel = _serviceProvider.GetRequiredService<MainViewModel>();
             if (_mainViewModel != null)
             {
                 await _mainViewModel.InitializeAsync();
                 _mainViewModel.IsAlwaysOnTop = _settingsService.Settings.IsAlwaysOnTop;
-                _mainViewModel.InitializeFirstFilter();
             }
         }
 
@@ -454,7 +456,7 @@ namespace Cliptoo.UI.Services
             _mainViewModel.AlwaysOnTopChanged += OnViewModelAlwaysOnTopChanged;
             _mainViewModel.IsReadyForEvents = true;
             _mainViewModel.IsInitializing = false;
-            _ = _mainViewModel.LoadClipsAsync();
+            _ = _clipDisplayService.LoadClipsAsync();
             LogManager.LogInfo("Initialization COMPLETE.");
         }
 

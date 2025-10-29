@@ -64,7 +64,7 @@ namespace Cliptoo.UI.ViewModels
                 await _clipDataService.IncrementPasteCountAsync(clip.Id).ConfigureAwait(false);
                 await _clipboardService.UpdatePasteCountAsync().ConfigureAwait(false);
 
-                await LoadClipsAsync(true);
+                await _clipDisplayService.LoadClipsAsync(true);
 
                 if (wasOnTop)
                 {
@@ -165,7 +165,7 @@ namespace Cliptoo.UI.ViewModels
                 _fontProvider,
                 _serviceProvider.GetRequiredService<ISyntaxHighlighter>()
             );
-            viewerViewModel.OnClipUpdated += RefreshClipList;
+            viewerViewModel.OnClipUpdated += () => _clipDisplayService.RefreshClipList();
 
             var viewerWindow = _serviceProvider.GetRequiredService<Views.ClipViewerWindow>();
             viewerWindow.Owner = Application.Current.MainWindow;
@@ -193,7 +193,7 @@ namespace Cliptoo.UI.ViewModels
             {
                 await _pastingService.SetClipboardContentAsync(clip, forcePlainText: null);
             }
-            await LoadClipsAsync(false);
+            await _clipDisplayService.LoadClipsAsync(false);
         }
 
         private async Task ExecuteOpen(object? parameter)
@@ -217,18 +217,17 @@ namespace Cliptoo.UI.ViewModels
         private void ExecuteSelectForCompareLeft(object? parameter)
         {
             if (parameter is not ClipViewModel clipVM) return;
-            LeftCompareClipId = (LeftCompareClipId == clipVM.Id) ? null : clipVM.Id;
+            _comparisonStateService.SelectLeftClip(clipVM.Id);
         }
 
         private async Task ExecuteCompareWithSelectedRight(object? parameter)
         {
-            if (parameter is not ClipViewModel clipVM || !LeftCompareClipId.HasValue) return;
-            var result = await _clipboardService.CompareClipsAsync(LeftCompareClipId.Value, clipVM.Id);
+            if (parameter is not ClipViewModel clipVM) return;
+            var result = await _comparisonStateService.CompareWithRightClipAsync(clipVM.Id);
             if (!result.success)
             {
                 _notificationService.Show("Compare Failed", result.message, ControlAppearance.Danger, SymbolRegular.ErrorCircle24);
             }
-            LeftCompareClipId = null;
         }
 
         private async Task ExecuteSendTo(object? parameter)

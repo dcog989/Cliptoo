@@ -35,9 +35,8 @@ namespace Cliptoo.UI.ViewModels
         private readonly INotificationService _notificationService;
         private readonly IIconProvider _iconProvider;
         private readonly IPreviewManager _previewManager;
-        private string _searchTerm = string.Empty;
-        private FilterOption _selectedFilter;
-        private readonly DispatcherTimer _debounceTimer;
+        private readonly IComparisonStateService _comparisonStateService;
+        private readonly IClipDisplayService _clipDisplayService;
         private readonly DispatcherTimer _clearClipsTimer;
         private bool _isAlwaysOnTop;
         private Settings _currentSettings;
@@ -48,7 +47,6 @@ namespace Cliptoo.UI.ViewModels
         public bool IsWindowVisible { get => _isWindowVisible; set => SetProperty(ref _isWindowVisible, value); }
         private FontFamily _mainFont;
         private FontFamily _previewFont;
-        private int? _leftCompareClipId;
         private int _selectedIndex;
         private double _verticalScrollOffset;
         private bool _isPasting;
@@ -71,9 +69,9 @@ namespace Cliptoo.UI.ViewModels
         public event EventHandler<BoolEventArgs>? AlwaysOnTopChanged;
         public event EventHandler? ListScrolledToTopRequest;
         public IPreviewManager PreviewManager => _previewManager;
-        public ObservableCollection<ClipViewModel> Clips { get; }
-        public ObservableCollection<FilterOption> FilterOptions { get; }
-        public bool IsCompareToolAvailable { get; }
+        public ObservableCollection<ClipViewModel> Clips => _clipDisplayService.Clips;
+        public ObservableCollection<FilterOption> FilterOptions => _clipDisplayService.FilterOptions;
+        public bool IsCompareToolAvailable => _comparisonStateService.IsCompareToolAvailable;
         public bool IsHidingExplicitly { get; set; }
         public bool IsInitializing { get; set; } = true;
         public Settings CurrentSettings { get => _currentSettings; private set => SetProperty(ref _currentSettings, value); }
@@ -93,19 +91,6 @@ namespace Cliptoo.UI.ViewModels
         });
 
         public bool IsPasting { get => _isPasting; private set => SetProperty(ref _isPasting, value); }
-
-        public int? LeftCompareClipId
-        {
-            get => _leftCompareClipId;
-            set
-            {
-                var oldValue = _leftCompareClipId;
-                if (SetProperty(ref _leftCompareClipId, value))
-                {
-                    UpdateCompareState(oldValue, value);
-                }
-            }
-        }
 
         public bool IsFilterPopupOpen
         {
@@ -153,38 +138,47 @@ namespace Cliptoo.UI.ViewModels
 
         public string SearchTerm
         {
-            get => _searchTerm;
+            get => _clipDisplayService.SearchTerm;
             set
             {
-                if (_searchTerm != value)
+                if (_clipDisplayService.SearchTerm != value)
                 {
-                    SetProperty(ref _searchTerm, value);
+                    _clipDisplayService.SearchTerm = value;
                     _appInteractionService.NotifyUiActivity();
-                    _debounceTimer.Stop();
-                    _debounceTimer.Start();
+                    OnPropertyChanged();
                 }
             }
         }
 
         public FilterOption SelectedFilter
         {
-            get => _selectedFilter;
+            get => _clipDisplayService.SelectedFilter;
             set
             {
-                if (_selectedFilter == value || value == null) return;
-
-                if (SetProperty(ref _selectedFilter, value))
+                if (_clipDisplayService.SelectedFilter != value)
                 {
+                    _clipDisplayService.SelectedFilter = value;
                     _appInteractionService.NotifyUiActivity();
-                    if (IsReadyForEvents && !IsInitializing)
-                    {
-                        _ = LoadClipsAsync();
-                    }
+                    OnPropertyChanged();
                 }
             }
         }
 
-        public MainViewModel(IClipDataService clipDataService, IClipboardService clipboardService, ISettingsService settingsService, IDatabaseService databaseService, IAppInteractionService appInteractionService, IServiceProvider serviceProvider, IClipViewModelFactory clipViewModelFactory, IPastingService pastingService, IFontProvider fontProvider, INotificationService notificationService, IIconProvider iconProvider, IPreviewManager previewManager)
+        public MainViewModel(
+            IClipDataService clipDataService,
+            IClipboardService clipboardService,
+            ISettingsService settingsService,
+            IDatabaseService databaseService,
+            IAppInteractionService appInteractionService,
+            IServiceProvider serviceProvider,
+            IClipViewModelFactory clipViewModelFactory,
+            IPastingService pastingService,
+            IFontProvider fontProvider,
+            INotificationService notificationService,
+            IIconProvider iconProvider,
+            IPreviewManager previewManager,
+            IComparisonStateService comparisonStateService,
+            IClipDisplayService clipDisplayService)
         {
             _clipDataService = clipDataService;
             _clipboardService = clipboardService;
@@ -198,23 +192,23 @@ namespace Cliptoo.UI.ViewModels
             _notificationService = notificationService;
             _iconProvider = iconProvider;
             _previewManager = previewManager;
+            _comparisonStateService = comparisonStateService;
+            _clipDisplayService = clipDisplayService;
+
             _currentSettings = _settingsService.Settings;
             _currentSettings.PropertyChanged += CurrentSettings_PropertyChanged;
             _mainFont = _fontProvider.GetFont(CurrentSettings.FontFamily);
             _previewFont = _fontProvider.GetFont(CurrentSettings.PreviewFontFamily);
             TooltipMaxHeight = SystemParameters.WorkArea.Height * 0.9;
 
-            Clips = new ObservableCollection<ClipViewModel>();
-            FilterOptions = new ObservableCollection<FilterOption>();
             SendToTargets = new ObservableCollection<SendToTarget>(CurrentSettings.SendToTargets);
-            _selectedFilter = new FilterOption("All", AppConstants.FilterKeys.All, null);
 
             PasteClipCommand = new RelayCommand(async param => await ExecutePasteClip(param, forcePlainText: null));
             PasteClipAsPlainTextCommand = new RelayCommand(async param => await ExecutePasteClip(param, forcePlainText: true));
             TransformAndPasteCommand = new RelayCommand(async param => await ExecuteTransformAndPaste(param));
             OpenSettingsCommand = new RelayCommand(_ => OpenSettingsWindow());
             HideWindowCommand = new RelayCommand(_ => HideWindow());
-            LoadMoreClipsCommand = new RelayCommand(async _ => await LoadMoreClipsAsync());
+            LoadMoreClipsCommand = new RelayCommand(async _ => await _clipDisplayService.LoadMoreClipsAsync());
             TogglePinCommand = new RelayCommand(async p => await ExecuteTogglePin(p));
             DeleteClipCommand = new RelayCommand(async p => await ExecuteDeleteClip(p));
             EditClipCommand = new RelayCommand(p => ExecuteEditClip(p));
@@ -225,30 +219,32 @@ namespace Cliptoo.UI.ViewModels
             SendToCommand = new RelayCommand(async p => await ExecuteSendTo(p));
 
             _clipDataService.NewClipAdded += OnNewClipAdded;
-            Clips.CollectionChanged += Clips_CollectionChanged;
             _databaseService.HistoryCleared += OnHistoryCleared;
             _settingsService.SettingsChanged += OnSettingsChanged;
             _databaseService.CachesCleared += OnCachesCleared;
-
-            _debounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
-            _debounceTimer.Tick += OnDebounceTimerElapsed;
+            _comparisonStateService.ComparisonStateChanged += OnComparisonStateChanged;
+            _clipDisplayService.ListScrolledToTopRequest += (s, e) => ListScrolledToTopRequest?.Invoke(s, e);
 
             _clearClipsTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
             _clearClipsTimer.Tick += OnClearClipsTimerElapsed;
-
-            IsCompareToolAvailable = _clipboardService.IsCompareToolAvailable();
         }
 
-        private void Clips_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+        private void OnComparisonStateChanged(object? sender, ComparisonStateChangedEventArgs e)
         {
-            if (e.OldItems != null)
+            // This logic updates all visible clips to reflect the current comparison state.
+            // It's robust against virtualization recycling items.
+            foreach (var clip in Clips)
             {
-                foreach (var item in e.OldItems)
+                if (e.NewLeftClipId.HasValue && clip.Id == e.NewLeftClipId.Value)
                 {
-                    if (item is IDisposable disposable)
-                    {
-                        disposable.Dispose();
-                    }
+                    clip.CompareLeftHeader = "✓ Comparing with this";
+                    clip.ShowCompareRightOption = false; // Cannot compare with self
+                }
+                else
+                {
+                    clip.CompareLeftHeader = "Compare Left";
+                    // Show "Compare Right" if a left clip is selected
+                    clip.ShowCompareRightOption = e.NewLeftClipId.HasValue;
                 }
             }
         }
@@ -274,15 +270,9 @@ namespace Cliptoo.UI.ViewModels
 
         public async Task InitializeAsync()
         {
-            await InitializeFilterOptionsAsync().ConfigureAwait(true);
-            await LoadStaticIconsAsync().ConfigureAwait(true);
-        }
-
-        public void InitializeFirstFilter()
-        {
-            LogManager.LogDebug($"InitializeFirstFilter called.");
-            _selectedFilter = FilterOptions.FirstOrDefault() ?? new FilterOption("All", AppConstants.FilterKeys.All, null);
-            OnPropertyChanged(nameof(SelectedFilter));
+            await _clipDisplayService.InitializeAsync();
+            await LoadStaticIconsAsync();
+            OnPropertyChanged(nameof(SelectedFilter)); // Ensure UI reflects initial filter
         }
 
         private async Task LoadStaticIconsAsync()
@@ -308,117 +298,19 @@ namespace Cliptoo.UI.ViewModels
             });
         }
 
-        private void UpdateCompareState(int? oldClipId, int? newClipId)
-        {
-            if (oldClipId.HasValue)
-            {
-                var oldVm = Clips.FirstOrDefault(vm => vm.Id == oldClipId.Value);
-                if (oldVm != null)
-                {
-                    oldVm.ShowCompareRightOption = newClipId.HasValue && oldVm.Id != newClipId.Value;
-                    oldVm.CompareLeftHeader = "Compare Left";
-                }
-            }
-
-            if (newClipId.HasValue)
-            {
-                var newVm = Clips.FirstOrDefault(vm => vm.Id == newClipId.Value);
-                if (newVm != null)
-                {
-                    newVm.CompareLeftHeader = "✓ Comparing with this";
-                }
-            }
-
-            // Update all other clips to show/hide the "Compare Right" option
-            foreach (var vm in Clips.Where(c => c.Id != oldClipId && c.Id != newClipId))
-            {
-                vm.ShowCompareRightOption = newClipId.HasValue && vm.Id != newClipId.Value;
-            }
-        }
-
-        private async Task InitializeFilterOptionsAsync()
-        {
-            var filterDisplayNames = new Dictionary<string, string>
-            {
-                { AppConstants.FilterKeys.All, "All" },
-                { AppConstants.FilterKeys.Pinned, "Pinned" },
-                { AppConstants.ClipTypes.Archive, "Archives" },
-                { AppConstants.ClipTypes.Audio, "Audio" },
-                { AppConstants.ClipTypes.Dev, "Dev Files" },
-                { AppConstants.ClipTypes.CodeSnippet, "Code Snippets" },
-                { AppConstants.ClipTypes.Color, "Colors" },
-                { AppConstants.ClipTypes.Danger, "Dangerous" },
-                { AppConstants.ClipTypes.Database, "Database Files" },
-                { AppConstants.ClipTypes.Document, "Documents" },
-                { AppConstants.ClipTypes.FileText, "Text Files" },
-                { AppConstants.ClipTypes.Folder, "Folders" },
-                { AppConstants.ClipTypes.Font, "Font Files" },
-                { AppConstants.ClipTypes.Generic, "Generic Files" },
-                { AppConstants.ClipTypes.Image, "Images" },
-                { AppConstants.ClipTypes.Link, "Links" },
-                { AppConstants.ClipTypes.Rtf, "Formatted Text" },
-                { AppConstants.ClipTypes.System, "System Files" },
-                { AppConstants.ClipTypes.Text, "Text" },
-                { AppConstants.ClipTypes.Video, "Video" },
-            };
-
-            var orderedFilterKeys = new[]
-            {
-                AppConstants.FilterKeys.All,
-                AppConstants.FilterKeys.Pinned,
-                AppConstants.ClipTypes.Archive,
-                AppConstants.ClipTypes.Audio,
-                AppConstants.ClipTypes.CodeSnippet,
-                AppConstants.ClipTypes.Color,
-                AppConstants.ClipTypes.Danger,
-                AppConstants.ClipTypes.Database,
-                AppConstants.ClipTypes.Dev,
-                AppConstants.ClipTypes.Document,
-                AppConstants.ClipTypes.Folder,
-                AppConstants.ClipTypes.Font,
-                AppConstants.ClipTypes.Generic,
-                AppConstants.ClipTypes.Image,
-                AppConstants.ClipTypes.Link,
-                AppConstants.ClipTypes.System,
-                AppConstants.ClipTypes.Text,
-                AppConstants.ClipTypes.FileText,
-                AppConstants.ClipTypes.Rtf,
-                AppConstants.ClipTypes.Video,
-            };
-
-            FilterOptions.Clear();
-            foreach (var key in orderedFilterKeys)
-            {
-                var icon = await _iconProvider.GetIconAsync(key, 20).ConfigureAwait(true);
-                FilterOptions.Add(new FilterOption(filterDisplayNames[key], key, icon));
-            }
-        }
-
-        private void ApplyAppearanceToViewModel(ClipViewModel clipVM)
-        {
-        }
-
-        private async void OnDebounceTimerElapsed(object? sender, EventArgs e)
-        {
-            _debounceTimer.Stop();
-            await LoadClipsAsync(true).ConfigureAwait(false);
-        }
-
         private void OnClearClipsTimerElapsed(object? sender, EventArgs e)
         {
             _clearClipsTimer.Stop();
             if (!IsWindowVisible && Clips.Count > 0)
             {
                 LogManager.LogInfo("Delayed timer elapsed. Clearing clips collection to conserve memory.");
-                Clips.Clear();
-                _currentOffset = 0;
+                _clipDisplayService.ClearClipsForHiding();
             }
         }
 
         public void HideWindow()
         {
             IsHidingExplicitly = true;
-            _debounceTimer.Stop(); // Prevent pending searches from firing after hide.
 
             IsFilterPopupOpen = false;
 
@@ -430,16 +322,11 @@ namespace Cliptoo.UI.ViewModels
             var settings = _settingsService.Settings;
             if (!settings.RememberSearchInput)
             {
-                _searchTerm = string.Empty;
-                OnPropertyChanged(nameof(SearchTerm));
+                SearchTerm = string.Empty;
             }
-            if (!settings.RememberFilterSelection)
+            if (!settings.RememberFilterSelection && FilterOptions.Any())
             {
-                if (FilterOptions.Any())
-                {
-                    _selectedFilter = FilterOptions.First();
-                    OnPropertyChanged(nameof(SelectedFilter));
-                }
+                SelectedFilter = FilterOptions.First();
             }
 
             Application.Current.MainWindow?.Hide();
@@ -470,10 +357,7 @@ namespace Cliptoo.UI.ViewModels
 
             if (_needsRefreshOnShow && IsReadyForEvents)
             {
-                Application.Current.Dispatcher.InvokeAsync(async () =>
-                {
-                    await LoadClipsAsync(true).ConfigureAwait(false);
-                });
+                _clipDisplayService.RefreshClipList();
                 _needsRefreshOnShow = false;
             }
         }
@@ -485,9 +369,14 @@ namespace Cliptoo.UI.ViewModels
             _databaseService.HistoryCleared -= OnHistoryCleared;
             _settingsService.SettingsChanged -= OnSettingsChanged;
             _databaseService.CachesCleared -= OnCachesCleared;
-            _debounceTimer.Tick -= OnDebounceTimerElapsed;
             _clearClipsTimer.Tick -= OnClearClipsTimerElapsed;
-            Clips.CollectionChanged -= Clips_CollectionChanged;
+            _comparisonStateService.ComparisonStateChanged -= OnComparisonStateChanged;
+
+            if (_clipDisplayService is IDisposable disposable)
+            {
+                disposable.Dispose();
+            }
+
             foreach (var clip in Clips)
             {
                 clip.Dispose();
@@ -495,9 +384,18 @@ namespace Cliptoo.UI.ViewModels
             Clips.Clear();
         }
 
-        private void OnNewClipAdded(object? sender, EventArgs e) => OnNewClipAdded();
-        private void OnHistoryCleared(object? sender, EventArgs e) => RefreshClipList();
-        private void OnCachesCleared(object? sender, EventArgs e) => RefreshClipList();
+        private void OnNewClipAdded(object? sender, EventArgs e)
+        {
+            if (!IsWindowVisible)
+            {
+                _needsRefreshOnShow = true;
+                return;
+            }
+            if (!IsReadyForEvents) return;
+            _clipDisplayService.RefreshClipList();
+        }
+        private void OnHistoryCleared(object? sender, EventArgs e) => _clipDisplayService.RefreshClipList();
+        private void OnCachesCleared(object? sender, EventArgs e) => _clipDisplayService.RefreshClipList();
 
         private static T? FindVisualChild<T>(DependencyObject? obj) where T : DependencyObject
         {
