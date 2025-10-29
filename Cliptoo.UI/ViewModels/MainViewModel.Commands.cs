@@ -139,14 +139,28 @@ namespace Cliptoo.UI.ViewModels
             LogManager.LogInfo($"Deleting clip: ID={clipVM.Id}.");
             clipVM.IsDeleting = true;
 
-            var fullClip = await clipVM.GetFullClipAsync().ConfigureAwait(false);
-            var deleteDbTask = _clipDataService.DeleteClipAsync(fullClip ?? clipVM._clip);
+            // Wait for the UI animation to play.
+            await Task.Delay(300);
 
-            await Task.Delay(500);
+            try
+            {
+                var fullClip = await clipVM.GetFullClipAsync().ConfigureAwait(false);
+                await _clipDataService.DeleteClipAsync(fullClip ?? clipVM._clip).ConfigureAwait(false);
 
-            Clips.Remove(clipVM);
+                // If DB deletion is successful, remove from UI on the UI thread.
+                await Application.Current.Dispatcher.InvokeAsync(() => Clips.Remove(clipVM));
+            }
+            catch (Exception ex)
+            {
+                // If DB deletion fails, log, notify, and revert UI state.
+                LogManager.LogError($"Failed to delete clip ID={clipVM.Id}. Error: {ex.Message}");
 
-            await deleteDbTask.ConfigureAwait(false);
+                await Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    _notificationService.Show("Delete Failed", "Could not delete the selected item.", ControlAppearance.Danger, SymbolRegular.ErrorCircle24);
+                    clipVM.IsDeleting = false; // Revert the animation state, making the item visible again.
+                });
+            }
         }
 
         private void ExecuteEditClip(object? parameter)
