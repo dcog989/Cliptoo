@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.IO;
 using System.Windows;
 using System.Windows.Media;
@@ -12,15 +11,48 @@ namespace Cliptoo.UI.Services
 {
     internal class IconProvider : IIconProvider
     {
-        private readonly ConcurrentDictionary<string, ImageSource> _cache = new();
+        private readonly LruCache<string, ImageSource> _cache;
+        private const int MaxCacheSize = 500;
         private readonly ISettingsService _settingsService;
         private readonly string _iconCachePath;
+
+        private static readonly Dictionary<string, string> _iconMap = new(StringComparer.OrdinalIgnoreCase)
+        {
+            [Core.AppConstants.ClipTypes.Archive] = "file-zip.svg",
+            [Core.AppConstants.ClipTypes.Audio] = "file-music.svg",
+            [Core.AppConstants.ClipTypes.Dev] = "file-code.svg",
+            [Core.AppConstants.ClipTypes.CodeSnippet] = "code.svg",
+            [Core.AppConstants.FilterKeys.Color] = "palette.svg",
+            [Core.AppConstants.ClipTypes.Danger] = "exclamation-diamond.svg",
+            [Core.AppConstants.ClipTypes.Document] = "journal-text.svg",
+            [Core.AppConstants.ClipTypes.FileText] = "file-text.svg",
+            [Core.AppConstants.ClipTypes.Folder] = "folder.svg",
+            [Core.AppConstants.FilterKeys.Image] = "image.svg",
+            [Core.AppConstants.ClipTypes.Database] = "database.svg",
+            [Core.AppConstants.ClipTypes.Font] = "file-font.svg",
+            [Core.AppConstants.ClipTypes.FileLink] = "link-45deg.svg",
+            [Core.AppConstants.FilterKeys.Link] = "link-45deg.svg",
+            [Core.AppConstants.ClipTypes.System] = "microsoft.svg",
+            [Core.AppConstants.ClipTypes.Rtf] = "blockquote.svg",
+            [Core.AppConstants.FilterKeys.Text] = "text-paragraph.svg",
+            [Core.AppConstants.ClipTypes.Video] = "film.svg",
+            [Core.AppConstants.FilterKeys.All] = "check2-all.svg",
+            [Core.AppConstants.FilterKeys.Pinned] = "pin-angle.svg",
+            [Core.AppConstants.IconKeys.Error] = "x-circle.svg",
+            [Core.AppConstants.IconKeys.List] = "list.svg",
+            [Core.AppConstants.IconKeys.Logo] = "cliptoo.svg",
+            [Core.AppConstants.IconKeys.Multiline] = "text-wrap.svg",
+            [Core.AppConstants.IconKeys.Pin] = "pin-angle.svg",
+            [Core.AppConstants.IconKeys.WasTrimmed] = "backspace.svg",
+            [Core.AppConstants.IconKeys.Trash] = "trash.svg"
+        };
 
         public IconProvider(ISettingsService settingsService, string appDataLocalPath)
         {
             _settingsService = settingsService;
             _iconCachePath = Path.Combine(appDataLocalPath, "Cliptoo", "IconCache");
             Directory.CreateDirectory(_iconCachePath);
+            _cache = new LruCache<string, ImageSource>(MaxCacheSize);
         }
         public async Task<ImageSource?> GetIconAsync(string key, int size = 20)
         {
@@ -36,7 +68,7 @@ namespace Cliptoo.UI.Services
                 cacheKey = $"{key}_{size}_{dpiScale}_{settings.AccentColor}";
             }
 
-            if (_cache.TryGetValue(cacheKey, out var cachedImage))
+            if (_cache.TryGetValue(cacheKey, out var cachedImage) && cachedImage != null)
             {
                 return cachedImage;
             }
@@ -51,7 +83,7 @@ namespace Cliptoo.UI.Services
                 {
                     iconBytes = await File.ReadAllBytesAsync(cacheFilePath).ConfigureAwait(false);
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
                     LogManager.LogWarning($"Failed to read cached icon file: {cacheFilePath}. Error: {ex.Message}");
                 }
@@ -66,7 +98,7 @@ namespace Cliptoo.UI.Services
                     {
                         await File.WriteAllBytesAsync(cacheFilePath, iconBytes).ConfigureAwait(false);
                     }
-                    catch (Exception ex)
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                     {
                         LogManager.LogWarning($"Failed to save icon to cache: {cacheFilePath}. Error: {ex.Message}");
                     }
@@ -84,7 +116,7 @@ namespace Cliptoo.UI.Services
                 bitmapImage.EndInit();
             }
             bitmapImage.Freeze();
-            _cache.TryAdd(cacheKey, bitmapImage);
+            _cache.Add(cacheKey, bitmapImage);
             return bitmapImage;
         }
 
@@ -124,61 +156,36 @@ namespace Cliptoo.UI.Services
                     svgContent = svgContent.Replace("currentColor", "#FFFFFF", StringComparison.OrdinalIgnoreCase);
                 }
 
-                using var imageSharpImage = await Task.Run(() => ServiceUtils.RenderSvgToImageSharp(svgContent, physicalSize));
+                using var imageSharpImage = await Task.Run(() => ServiceUtils.RenderSvgToImageSharp(svgContent, physicalSize)).ConfigureAwait(false);
                 if (imageSharpImage == null) return null;
 
                 using var ms = new MemoryStream();
-                await imageSharpImage.SaveAsPngAsync(ms);
+                await imageSharpImage.SaveAsPngAsync(ms).ConfigureAwait(false);
                 return ms.ToArray();
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Xml.XmlException)
             {
                 LogManager.LogCritical(ex, $"Failed to load icon for key: {key}");
                 return null;
             }
         }
 
-        private string GetIconFileName(string key)
+        private static string GetIconFileName(string key)
         {
             if (int.TryParse(key, out int num) && num >= 1 && num <= 9)
             {
                 return $"circle-number-{num}.svg";
             }
 
-            return key.ToLowerInvariant() switch
+            if (_iconMap.TryGetValue(key, out var iconName))
             {
-                Core.AppConstants.ClipTypes.Archive => "file-zip.svg",
-                Core.AppConstants.ClipTypes.Audio => "file-music.svg",
-                Core.AppConstants.ClipTypes.Dev => "file-code.svg",
-                Core.AppConstants.ClipTypes.CodeSnippet => "code.svg",
-                Core.AppConstants.FilterKeys.Color => "palette.svg",
-                Core.AppConstants.ClipTypes.Danger => "exclamation-diamond.svg",
-                Core.AppConstants.ClipTypes.Document => "journal-text.svg",
-                Core.AppConstants.ClipTypes.FileText => "file-text.svg",
-                Core.AppConstants.ClipTypes.Folder => "folder.svg",
-                Core.AppConstants.FilterKeys.Image => "image.svg",
-                Core.AppConstants.ClipTypes.Database => "database.svg",
-                Core.AppConstants.ClipTypes.Font => "file-font.svg",
-                Core.AppConstants.ClipTypes.FileLink => "link-45deg.svg",
-                Core.AppConstants.FilterKeys.Link => "link-45deg.svg",
-                Core.AppConstants.ClipTypes.System => "microsoft.svg",
-                Core.AppConstants.ClipTypes.Rtf => "blockquote.svg",
-                Core.AppConstants.FilterKeys.Text => "text-paragraph.svg",
-                Core.AppConstants.ClipTypes.Video => "film.svg",
-                Core.AppConstants.FilterKeys.All => "check2-all.svg",
-                Core.AppConstants.FilterKeys.Pinned => "pin-angle.svg",
-                Core.AppConstants.IconKeys.Error => "x-circle.svg",
-                Core.AppConstants.IconKeys.List => "list.svg",
-                Core.AppConstants.IconKeys.Logo => "cliptoo.svg",
-                Core.AppConstants.IconKeys.Multiline => "text-wrap.svg",
-                Core.AppConstants.IconKeys.Pin => "pin-angle.svg",
-                Core.AppConstants.IconKeys.WasTrimmed => "backspace.svg",
-                Core.AppConstants.IconKeys.Trash => "trash.svg",
-                _ => "file.svg"
-            };
+                return iconName;
+            }
+
+            return "file.svg";
         }
 
-        private double GetDpiScale()
+        private static double GetDpiScale()
         {
             if (Application.Current?.MainWindow != null && VisualTreeHelper.GetDpi(Application.Current.MainWindow).PixelsPerDip != 0)
             {
@@ -202,7 +209,7 @@ namespace Cliptoo.UI.Services
                         File.Delete(file);
                         filesDeleted++;
                     }
-                    catch (Exception ex)
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                     {
                         LogManager.LogWarning($"Could not delete old icon cache file: {file}. Error: {ex.Message}");
                     }
@@ -213,7 +220,7 @@ namespace Cliptoo.UI.Services
                 }
                 return filesDeleted;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 LogManager.LogCritical(ex, "Failed to perform icon cache cleanup.");
                 return 0;
