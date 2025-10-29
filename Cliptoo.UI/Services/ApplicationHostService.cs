@@ -356,6 +356,13 @@ namespace Cliptoo.UI.Services
             try
             {
                 var um = new UpdateManager("https://github.com/dcog989/cliptoo");
+
+                if (um.IsPortable)
+                {
+                    LogManager.LogInfo("Application is running in portable mode. Skipping update check.");
+                    return;
+                }
+
                 var updateInfo = await um.CheckForUpdatesAsync().WaitAsync(cancellationToken).ConfigureAwait(false);
                 if (cancellationToken.IsCancellationRequested) return;
 
