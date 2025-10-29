@@ -207,36 +207,70 @@ namespace Cliptoo.Core.Database
             }
         }
 
+        [SuppressMessage("Microsoft.Security", "CA2100:Review SQL queries for security vulnerabilities", Justification = "The SQL query is hardcoded and uses parameters, making it safe from injection.")]
         public async Task UpdateClipContentAsync(int id, string content)
         {
             ArgumentNullException.ThrowIfNull(content);
             var newHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(content)));
 
-            // Check if another clip with the same content already exists.
-            var existingClip = await GetClipByHashAsync(newHash).ConfigureAwait(false);
+            await ExecuteTransactionAsync(async (connection, transaction) =>
+            {
+                // Check if another clip with the same content already exists.
+                var sql = "SELECT * FROM clips WHERE ContentHash = @ContentHash";
+                var param = new SqliteParameter("@ContentHash", newHash);
 
-            if (existingClip != null && existingClip.Id != id)
-            {
-                // A different clip with this content already exists.
-                // Delete the clip being edited and update the timestamp of the existing one.
-                await DeleteClipAsync(id).ConfigureAwait(false);
-                await UpdateTimestampAsync(existingClip.Id).ConfigureAwait(false);
-            }
-            else
-            {
-                // No conflict. Just update the current clip.
-                var previewContent = CreatePreview(content);
-                var sql = "UPDATE clips SET Content = @Content, ContentHash = @ContentHash, PreviewContent = @PreviewContent, SizeInBytes = @SizeInBytes WHERE Id = @Id";
-                var parameters = new[]
+                Clip? existingClip = null;
+                using (var command = connection.CreateCommand())
                 {
-                    new SqliteParameter("@Content", content),
-                    new SqliteParameter("@ContentHash", newHash),
-                    new SqliteParameter("@PreviewContent", previewContent),
-                    new SqliteParameter("@SizeInBytes", (long)System.Text.Encoding.UTF8.GetByteCount(content)),
-                    new SqliteParameter("@Id", id)
-                };
-                await ExecuteNonQueryAsync(sql, parameters).ConfigureAwait(false);
-            }
+                    command.Transaction = (SqliteTransaction)transaction;
+                    command.CommandText = sql;
+                    command.Parameters.Add(param);
+                    using (var reader = await command.ExecuteReaderAsync().ConfigureAwait(false))
+                    {
+                        if (await reader.ReadAsync().ConfigureAwait(false))
+                        {
+                            existingClip = MapFullClipFromReader(reader);
+                        }
+                    }
+                }
+
+                if (existingClip != null && existingClip.Id != id)
+                {
+                    // A different clip with this content already exists.
+                    // Delete the clip being edited and update the timestamp of the existing one.
+                    using (var deleteCmd = connection.CreateCommand())
+                    {
+                        deleteCmd.Transaction = (SqliteTransaction)transaction;
+                        deleteCmd.CommandText = "DELETE FROM clips WHERE Id = @Id";
+                        deleteCmd.Parameters.AddWithValue("@Id", id);
+                        await deleteCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+                    }
+                    using (var updateCmd = connection.CreateCommand())
+                    {
+                        updateCmd.Transaction = (SqliteTransaction)transaction;
+                        updateCmd.CommandText = "UPDATE clips SET Timestamp = @Timestamp WHERE Id = @Id";
+                        updateCmd.Parameters.AddWithValue("@Timestamp", DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture));
+                        updateCmd.Parameters.AddWithValue("@Id", existingClip.Id);
+                        await updateCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+                    }
+                }
+                else
+                {
+                    // No conflict. Just update the current clip.
+                    var previewContent = CreatePreview(content);
+                    using (var updateCmd = connection.CreateCommand())
+                    {
+                        updateCmd.Transaction = (SqliteTransaction)transaction;
+                        updateCmd.CommandText = "UPDATE clips SET Content = @Content, ContentHash = @ContentHash, PreviewContent = @PreviewContent, SizeInBytes = @SizeInBytes WHERE Id = @Id";
+                        updateCmd.Parameters.AddWithValue("@Content", content);
+                        updateCmd.Parameters.AddWithValue("@ContentHash", newHash);
+                        updateCmd.Parameters.AddWithValue("@PreviewContent", previewContent);
+                        updateCmd.Parameters.AddWithValue("@SizeInBytes", (long)System.Text.Encoding.UTF8.GetByteCount(content));
+                        updateCmd.Parameters.AddWithValue("@Id", id);
+                        await updateCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+                    }
+                }
+            }).ConfigureAwait(false);
         }
 
         public IAsyncEnumerable<string> GetAllImageClipPathsAsync()
