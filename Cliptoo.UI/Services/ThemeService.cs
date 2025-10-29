@@ -90,7 +90,7 @@ namespace Cliptoo.UI.Services
 
                 var lightness = currentTheme == ApplicationTheme.Dark ? 0.62 : 0.70;
                 var hoverLightness = currentTheme == ApplicationTheme.Dark ? 0.68 : 0.64;
-                var chroma = GetChromaFromLevel(settings.AccentChromaLevel);
+                var chroma = ColorParser.GetChromaFromLevel(settings.AccentChromaLevel);
 
                 var (ar, ag, ab) = ColorParser.OklchToRgb(lightness, chroma, hue);
                 var accentColor = Color.FromRgb(ar, ag, ab);

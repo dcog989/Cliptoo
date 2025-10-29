@@ -222,6 +222,19 @@ namespace Cliptoo.Core.Services
             return (LinearToSrgb(r_lin), LinearToSrgb(g_lin), LinearToSrgb(b_lin));
         }
 
+        public static double GetChromaFromLevel(string? level)
+        {
+            return level?.ToLowerInvariant() switch
+            {
+                "neon" => 0.28,
+                "vibrant" => 0.22,
+                "mellow" => 0.16,
+                "muted" => 0.10,
+                "ditchwater" => 0.05,
+                _ => 0.22, // Default to Vibrant
+            };
+        }
+
         private static double Clamp(double value, double min, double max) => Math.Max(min, Math.Min(value, max));
         private static bool IsPercentage(string s) => s.EndsWith('%');
 
