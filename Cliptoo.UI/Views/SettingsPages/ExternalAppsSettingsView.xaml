@@ -166,7 +166,7 @@
                 FontWeight="SemiBold"
                 Text="Blacklist Apps" />
 
-            <Grid Margin="16,8,0,8">
+            <Grid Margin="16,8,0,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />

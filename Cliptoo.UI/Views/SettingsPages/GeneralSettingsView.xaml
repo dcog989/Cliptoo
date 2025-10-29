@@ -98,7 +98,7 @@
                 FontWeight="SemiBold"
                 Text="Hotkeys" />
 
-            <StackPanel Orientation="Horizontal">
+            <StackPanel Margin="0,8,0,8" Orientation="Horizontal">
                 <TextBlock
                     Margin="16,0,8,0"
                     Style="{StaticResource SettingLabel}"
