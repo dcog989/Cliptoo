@@ -193,7 +193,7 @@ namespace Cliptoo.UI.Services
 
         public void RefreshClipList()
         {
-            Application.Current.Dispatcher.InvokeAsync(async () => await LoadClipsAsync());
+            Application.Current.Dispatcher.InvokeAsync(async () => await LoadClipsAsync(true));
         }
 
         public void ClearClipsForHiding()
