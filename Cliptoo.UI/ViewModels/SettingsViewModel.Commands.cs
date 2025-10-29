@@ -64,34 +64,43 @@ namespace Cliptoo.UI.ViewModels
                 CloseButtonText = "Cancel"
             };
 
+            var binding = new System.Windows.Data.Binding("IsAnyOptionSelected")
+            {
+                Source = viewModel,
+                Mode = System.Windows.Data.BindingMode.OneWay
+            };
+            dialog.SetBinding(ContentDialog.IsPrimaryButtonEnabledProperty, binding);
+
             var result = await _contentDialogService.ShowAsync(dialog, CancellationToken.None);
 
             if (result != ContentDialogResult.Primary)
             {
-                viewModel.Result = ClearHistoryResult.Cancel;
+                return;
             }
-            else
-            {
-                viewModel.Result = viewModel.DeletePinned ? ClearHistoryResult.ClearAll : ClearHistoryResult.ClearUnpinned;
-            }
-
-            if (viewModel.Result == ClearHistoryResult.Cancel) return;
 
             if (IsBusy) return;
             IsBusy = true;
             try
             {
-                if (viewModel.Result == ClearHistoryResult.ClearAll)
+                if (viewModel.DeletePinned && viewModel.DeleteOtherClips)
                 {
                     await Task.Run(async () => await _databaseService.ClearAllHistoryAsync().ConfigureAwait(false)).ConfigureAwait(true);
                 }
-                else if (viewModel.Result == ClearHistoryResult.ClearUnpinned)
+                else
                 {
-                    await Task.Run(async () => await _databaseService.ClearHistoryAsync().ConfigureAwait(false)).ConfigureAwait(true);
+                    if (viewModel.DeletePinned)
+                    {
+                        await Task.Run(async () => await _databaseService.ClearPinnedClipsAsync().ConfigureAwait(false)).ConfigureAwait(true);
+                    }
+                    if (viewModel.DeleteOtherClips)
+                    {
+                        await Task.Run(async () => await _databaseService.ClearHistoryAsync().ConfigureAwait(false)).ConfigureAwait(true);
+                    }
                 }
+
                 if (viewModel.DeleteLogs)
                 {
-                    await Task.Run(() => Cliptoo.Core.Logging.LogManager.ClearLogs()).ConfigureAwait(false);
+                    await Task.Run(() => LogManager.ClearLogs()).ConfigureAwait(false);
                 }
                 await InitializeAsync();
             }

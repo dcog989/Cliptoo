@@ -31,6 +31,13 @@ namespace Cliptoo.Core.Database
             return affected;
         }
 
+        public async Task<int> ClearPinnedClipsAsync()
+        {
+            var affected = await ExecuteNonQueryAsync("DELETE FROM clips WHERE IsPinned = 1").ConfigureAwait(false);
+            if (affected > 0) await CompactDbAsync().ConfigureAwait(false);
+            return affected;
+        }
+
         public async Task CompactDbAsync()
         {
             LogManager.LogDebug("DB_LOCK_DIAG: Starting database compaction.");

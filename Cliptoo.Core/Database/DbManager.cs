@@ -36,6 +36,7 @@ namespace Cliptoo.Core.Database
         public Task UpdatePasteCountAsync() => _statsService.UpdatePasteCountAsync();
         public Task<int> ClearHistoryAsync() => _maintenanceService.ClearHistoryAsync();
         public Task<int> ClearAllHistoryAsync() => _maintenanceService.ClearAllHistoryAsync();
+        public Task<int> ClearPinnedClipsAsync() => _maintenanceService.ClearPinnedClipsAsync();
         public Task CompactDbAsync() => _maintenanceService.CompactDbAsync();
         public Task<int> PerformCleanupAsync(uint days, uint maxClips, bool forceCompact = false) => _maintenanceService.PerformCleanupAsync(days, maxClips, forceCompact);
         public Task<DbStats> GetStatsAsync() => _statsService.GetStatsAsync();

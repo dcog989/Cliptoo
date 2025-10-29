@@ -20,6 +20,7 @@ namespace Cliptoo.Core.Interfaces
         Task<DbStats> GetStatsAsync();
         Task ClearHistoryAsync();
         Task ClearAllHistoryAsync();
+        Task ClearPinnedClipsAsync();
         void ClearCaches();
         Task<MaintenanceResult> RunHeavyMaintenanceNowAsync();
         Task<int> RemoveDeadheadClipsAsync();

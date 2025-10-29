@@ -384,15 +384,48 @@ namespace Cliptoo.UI.ViewModels
         }
     }
 
-    internal enum ClearHistoryResult { Cancel, ClearUnpinned, ClearAll }
-
     internal sealed class ClearHistoryDialogViewModel : ViewModelBase
     {
         private bool _deletePinned;
-        public bool DeletePinned { get => _deletePinned; set => SetProperty(ref _deletePinned, value); }
+        public bool DeletePinned
+        {
+            get => _deletePinned;
+            set
+            {
+                if (SetProperty(ref _deletePinned, value))
+                {
+                    OnPropertyChanged(nameof(IsAnyOptionSelected));
+                }
+            }
+        }
+
         private bool _deleteLogs;
-        public bool DeleteLogs { get => _deleteLogs; set => SetProperty(ref _deleteLogs, value); }
-        public ClearHistoryResult Result { get; set; } = ClearHistoryResult.Cancel;
+        public bool DeleteLogs
+        {
+            get => _deleteLogs;
+            set
+            {
+                if (SetProperty(ref _deleteLogs, value))
+                {
+                    OnPropertyChanged(nameof(IsAnyOptionSelected));
+                }
+            }
+        }
+
+        private bool _deleteOtherClips;
+        public bool DeleteOtherClips
+        {
+            get => _deleteOtherClips;
+            set
+            {
+                if (SetProperty(ref _deleteOtherClips, value))
+                {
+                    OnPropertyChanged(nameof(IsAnyOptionSelected));
+                }
+            }
+        }
+
+        public bool IsAnyOptionSelected => DeletePinned || DeleteLogs || DeleteOtherClips;
     }
 
 }

@@ -19,6 +19,7 @@ namespace Cliptoo.Core.Database
         Task UpdatePasteCountAsync();
         Task<int> ClearHistoryAsync();
         Task<int> ClearAllHistoryAsync();
+        Task<int> ClearPinnedClipsAsync();
         Task CompactDbAsync();
         Task<int> PerformCleanupAsync(uint days, uint maxClips, bool forceCompact = false);
         Task<DbStats> GetStatsAsync();

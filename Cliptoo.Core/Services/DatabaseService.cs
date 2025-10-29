@@ -60,6 +60,12 @@ namespace Cliptoo.Core.Services
             HistoryCleared?.Invoke(this, EventArgs.Empty);
         }
 
+        public async Task ClearPinnedClipsAsync()
+        {
+            await _dbManager.ClearPinnedClipsAsync().ConfigureAwait(false);
+            HistoryCleared?.Invoke(this, EventArgs.Empty);
+        }
+
         public void ClearCaches()
         {
             LogManager.LogInfo("Clearing thumbnail and temp file caches.");

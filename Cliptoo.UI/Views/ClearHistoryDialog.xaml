@@ -6,21 +6,25 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:viewModels="clr-namespace:Cliptoo.UI.ViewModels"
     d:DataContext="{d:DesignInstance Type=viewModels:ClearHistoryDialogViewModel}"
-    d:DesignHeight="150"
+    d:DesignHeight="120"
     d:DesignWidth="300"
     mc:Ignorable="d">
     <StackPanel>
         <TextBlock
-            Margin="0,12,0,0"
-            Text="Permanently delete all clips from your history?"
+            Margin="0,8,0,8"
+            Text="Select the items you want to permanently delete:"
             TextWrapping="Wrap" />
         <CheckBox
-            Margin="0,15,0,0"
-            Content="Delete pinned clips as well"
+            Margin="16,8,0,0"
+            Content="Delete pinned clips"
             IsChecked="{Binding DeletePinned}" />
         <CheckBox
-            Margin="0,8,0,0"
-            Content="Delete logs as well"
+            Margin="16,8,0,0"
+            Content="Delete logs"
             IsChecked="{Binding DeleteLogs}" />
+        <CheckBox
+            Margin="16,8,0,0"
+            Content="Delete all other clips"
+            IsChecked="{Binding DeleteOtherClips}" />
     </StackPanel>
 </UserControl>
