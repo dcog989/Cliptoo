@@ -64,11 +64,11 @@ namespace Cliptoo.UI.Helpers
             vm.CapturingHotkeyTarget = GetHotkeyTarget(textBox);
         }
 
-        private static void TextBox_LostFocus(object sender, RoutedEventArgs e)
+        private static async void TextBox_LostFocus(object sender, RoutedEventArgs e)
         {
             if (sender is not Wpf.Ui.Controls.TextBox textBox || textBox.DataContext is not SettingsViewModel vm) return;
 
-            vm.ValidateHotkey(GetHotkeyTarget(textBox));
+            await vm.ValidateHotkey(GetHotkeyTarget(textBox));
 
             vm.IsCapturingHotkey = false;
             vm.CapturingHotkeyTarget = null;

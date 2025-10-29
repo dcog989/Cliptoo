@@ -64,7 +64,7 @@ namespace Cliptoo.UI.ViewModels
             }
         }
 
-        public async void ValidateHotkey(string target)
+        public async Task ValidateHotkey(string target)
         {
             if (target == AppConstants.HotkeyTargets.QuickPaste)
             {
@@ -84,5 +84,6 @@ namespace Cliptoo.UI.ViewModels
                 }
             }
         }
+
     }
 }
