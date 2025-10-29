@@ -185,7 +185,7 @@ namespace Cliptoo.Core.Services
                 var c = double.Parse(match.Groups[2].Value, CultureInfo.InvariantCulture);
                 var h = ParseHue(match.Groups[3].Value);
                 var a = match.Groups[4].Success ? ParseAlpha(match.Groups[4].Value) : 1.0;
-                var (r, g, b) = OklchToRgb(l, c, h);
+                var (r, g, b) = OklchToRgbGamutMapped(l, c, h);
                 color = new ColorData { R = r, G = g, B = b, A = (byte)(a * 255) };
                 return true;
             }
@@ -210,7 +210,7 @@ namespace Cliptoo.Core.Services
             if (h < 0) h += 360;
         }
 
-        public static (byte r, byte g, byte b) OklchToRgb(double l, double c, double h)
+        private static (double r_lin, double g_lin, double b_lin) OklchToLinearRgb(double l, double c, double h)
         {
             var hRad = h * Math.PI / 180.0;
             var a = c * Math.Cos(hRad);
@@ -218,20 +218,72 @@ namespace Cliptoo.Core.Services
             var (lms_p1, lms_p2, lms_p3) = MultiplyMatrix(OklabLabToLmsMatrix, (l, a, b));
             var (lms1, lms2, lms3) = (lms_p1 * lms_p1 * lms_p1, lms_p2 * lms_p2 * lms_p2, lms_p3 * lms_p3 * lms_p3);
             var (x, y, z) = MultiplyMatrix(OklabLmsToXyzMatrix, (lms1, lms2, lms3));
-            var (r_lin, g_lin, b_lin) = MultiplyMatrix(XyzToSrgbMatrix, (x, y, z));
+            return MultiplyMatrix(XyzToSrgbMatrix, (x, y, z));
+        }
+
+        private static bool IsInSrgbGamut(double r_lin, double g_lin, double b_lin)
+        {
+            const double epsilon = 1e-7;
+            return r_lin >= -epsilon && r_lin <= 1 + epsilon &&
+                   g_lin >= -epsilon && g_lin <= 1 + epsilon &&
+                   b_lin >= -epsilon && b_lin <= 1 + epsilon;
+        }
+
+        public static (byte r, byte g, byte b) OklchToRgb(double l, double c, double h)
+        {
+            var (r_lin, g_lin, b_lin) = OklchToLinearRgb(l, c, h);
             return (LinearToSrgb(r_lin), LinearToSrgb(g_lin), LinearToSrgb(b_lin));
+        }
+
+        public static (byte r, byte g, byte b) OklchToRgbGamutMapped(double l, double c, double h)
+        {
+            if (l > 1.0) l = 1.0;
+            if (l < 0.0) l = 0.0;
+
+            var (r_lin, g_lin, b_lin) = OklchToLinearRgb(l, c, h);
+            if (IsInSrgbGamut(r_lin, g_lin, b_lin))
+            {
+                return (LinearToSrgb(r_lin), LinearToSrgb(g_lin), LinearToSrgb(b_lin));
+            }
+
+            double maxChroma = FindMaxChroma(l, h);
+            c = Math.Min(c, maxChroma);
+
+            return OklchToRgb(l, c, h);
+        }
+
+        public static double FindMaxChroma(double l, double h)
+        {
+            double low = 0.0;
+            double high = 0.4; // A reasonable upper bound for chroma in OKLCH
+            const int maxIterations = 10;
+
+            for (int i = 0; i < maxIterations; i++)
+            {
+                var midChroma = (low + high) / 2.0;
+                var (mid_r, mid_g, mid_b) = OklchToLinearRgb(l, midChroma, h);
+                if (IsInSrgbGamut(mid_r, mid_g, mid_b))
+                {
+                    low = midChroma;
+                }
+                else
+                {
+                    high = midChroma;
+                }
+            }
+            return low;
         }
 
         public static double GetChromaFromLevel(string? level)
         {
             return level?.ToLowerInvariant() switch
             {
-                "neon" => 0.28,
-                "vibrant" => 0.22,
-                "mellow" => 0.16,
-                "muted" => 0.10,
-                "ditchwater" => 0.05,
-                _ => 0.22, // Default to Vibrant
+                "neon" => 1.0,          // 100% of max chroma
+                "vibrant" => 0.70,      // 70% of max chroma
+                "mellow" => 0.50,       // 50% of max chroma
+                "muted" => 0.35,        // 35% of max chroma
+                "ditchwater" => 0.20,   // 20% of max chroma
+                _ => 0.50,              // Default to Mellow
             };
         }
 

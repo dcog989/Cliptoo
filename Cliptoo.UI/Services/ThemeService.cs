@@ -13,6 +13,21 @@ namespace Cliptoo.UI.Services
         private readonly ISettingsService _settingsService;
         private Window? _window;
 
+        private const double ACCENT_LIGHTNESS_DARK_THEME = 0.4;
+        private const double HOVER_LIGHTNESS_DARK_THEME = 0.5;
+        private const double ACCENT_LIGHTNESS_LIGHT_THEME = 0.8;
+        private const double HOVER_LIGHTNESS_LIGHT_THEME = 0.9;
+        private const double SELECTED_HIGHLIGHT_LIGHTNESS_OFFSET = -0.20;
+
+        private const double ACCENT_TEXT_LIGHTNESS_DARK_THEME = 0.75;
+        private const double ACCENT_TEXT_LIGHTNESS_LIGHT_THEME = 0.45;
+
+        private const double LUMINANCE_R_COEFFICIENT = 0.299;
+        private const double LUMINANCE_G_COEFFICIENT = 0.587;
+        private const double LUMINANCE_B_COEFFICIENT = 0.114;
+        private const int LUMINANCE_THRESHOLD = 128;
+
+
         public ThemeService(ISettingsService settingsService)
         {
             _settingsService = settingsService;
@@ -88,33 +103,52 @@ namespace Cliptoo.UI.Services
                     currentTheme = ApplicationThemeManager.GetSystemTheme() == SystemTheme.Dark ? ApplicationTheme.Dark : ApplicationTheme.Light;
                 }
 
-                var lightness = currentTheme == ApplicationTheme.Dark ? 0.62 : 0.70;
-                var hoverLightness = currentTheme == ApplicationTheme.Dark ? 0.68 : 0.64;
-                var chroma = ColorParser.GetChromaFromLevel(settings.AccentChromaLevel);
+                var lightness = currentTheme == ApplicationTheme.Dark ? ACCENT_LIGHTNESS_DARK_THEME : ACCENT_LIGHTNESS_LIGHT_THEME;
+                var hoverLightness = currentTheme == ApplicationTheme.Dark ? HOVER_LIGHTNESS_DARK_THEME : HOVER_LIGHTNESS_LIGHT_THEME;
+                var textLightness = currentTheme == ApplicationTheme.Dark ? ACCENT_TEXT_LIGHTNESS_DARK_THEME : ACCENT_TEXT_LIGHTNESS_LIGHT_THEME;
+                var chromaProportion = ColorParser.GetChromaFromLevel(settings.AccentChromaLevel);
 
-                var (ar, ag, ab) = ColorParser.OklchToRgb(lightness, chroma, hue);
+                // --- Main Accent Color ---
+                var maxChroma = ColorParser.FindMaxChroma(lightness, hue);
+                var finalChroma = maxChroma * chromaProportion;
+                var (ar, ag, ab) = ColorParser.OklchToRgb(lightness, finalChroma, hue);
                 var accentColor = Color.FromRgb(ar, ag, ab);
                 var accentBrush = new SolidColorBrush(accentColor);
                 accentBrush.Freeze();
 
-                var (hr, hg, hb) = ColorParser.OklchToRgb(hoverLightness, chroma, hue);
+                // --- Hover Color ---
+                var maxHoverChroma = ColorParser.FindMaxChroma(hoverLightness, hue);
+                var finalHoverChroma = maxHoverChroma * chromaProportion;
+                var (hr, hg, hb) = ColorParser.OklchToRgb(hoverLightness, finalHoverChroma, hue);
                 var hoverColor = Color.FromRgb(hr, hg, hb);
                 var hoverBrush = new SolidColorBrush(hoverColor);
                 hoverBrush.Freeze();
 
-                var selectedHighlightLightness = lightness - 0.20;
-                var (shr, shg, shb) = ColorParser.OklchToRgb(selectedHighlightLightness, chroma, hue);
+                // --- Selected Highlight Color ---
+                var selectedHighlightLightness = lightness + SELECTED_HIGHLIGHT_LIGHTNESS_OFFSET;
+                var maxSelectedChroma = ColorParser.FindMaxChroma(selectedHighlightLightness, hue);
+                var finalSelectedChroma = maxSelectedChroma * chromaProportion;
+                var (shr, shg, shb) = ColorParser.OklchToRgb(selectedHighlightLightness, finalSelectedChroma, hue);
                 var selectedHighlightColor = Color.FromRgb(shr, shg, shb);
                 var selectedHighlightBrush = new SolidColorBrush(selectedHighlightColor);
                 selectedHighlightBrush.Freeze();
 
+                // --- Accent Text Color ---
+                var maxTextChroma = ColorParser.FindMaxChroma(textLightness, hue);
+                var finalTextChroma = maxTextChroma * chromaProportion;
+                var (tr, tg, tb) = ColorParser.OklchToRgb(textLightness, finalTextChroma, hue);
+                var accentTextColor = Color.FromRgb(tr, tg, tb);
+                var accentTextBrush = new SolidColorBrush(accentTextColor);
+                accentTextBrush.Freeze();
+
                 Application.Current.Resources["AccentBrush"] = accentBrush;
                 Application.Current.Resources["AccentBrushHover"] = hoverBrush;
                 Application.Current.Resources["AccentBrushSelectedHighlight"] = selectedHighlightBrush;
+                Application.Current.Resources["AccentTextBrush"] = accentTextBrush;
 
                 // Dynamically set text color for contrast
-                var brightness = (accentColor.R * 0.299) + (accentColor.G * 0.587) + (accentColor.B * 0.114);
-                var textOnAccentBrush = brightness > 128
+                var brightness = (accentColor.R * LUMINANCE_R_COEFFICIENT) + (accentColor.G * LUMINANCE_G_COEFFICIENT) + (accentColor.B * LUMINANCE_B_COEFFICIENT);
+                var textOnAccentBrush = brightness > LUMINANCE_THRESHOLD
                     ? new SolidColorBrush(Colors.Black)
                     : new SolidColorBrush(Colors.White);
                 textOnAccentBrush.Freeze();
@@ -128,19 +162,6 @@ namespace Cliptoo.UI.Services
             {
                 LogManager.LogCritical(ex, $"Invalid accent color format in settings: {settings.AccentColor}");
             }
-        }
-
-        private static double GetChromaFromLevel(string level)
-        {
-            return level?.ToLowerInvariant() switch
-            {
-                "neon" => 0.28,
-                "vibrant" => 0.22,
-                "mellow" => 0.16,
-                "muted" => 0.10,
-                "ditchwater" => 0.05,
-                _ => 0.22, // Default to Vibrant
-            };
         }
     }
 }

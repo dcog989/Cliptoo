@@ -1,21 +1,29 @@
 using System.Windows;
 using System.Windows.Media;
 using Cliptoo.Core.Services;
+using Wpf.Ui.Appearance;
 
 namespace Cliptoo.UI.ViewModels
 {
     internal partial class SettingsViewModel
     {
-        private const double OKLCH_LIGHTNESS = 0.63;
-
         private void UpdateOklchHueBrush()
         {
-            var gradientStops = new GradientStopCollection();
-            var chroma = ColorParser.GetChromaFromLevel(Settings.AccentChromaLevel);
-
-            for (int i = 0; i <= 360; i += 10)
+            var currentTheme = ApplicationThemeManager.GetAppTheme();
+            if (currentTheme == ApplicationTheme.Unknown)
             {
-                var (r, g, b) = ColorParser.OklchToRgb(OKLCH_LIGHTNESS, chroma, i);
+                currentTheme = ApplicationThemeManager.GetSystemTheme() == SystemTheme.Dark ? ApplicationTheme.Dark : ApplicationTheme.Light;
+            }
+
+            var lightness = currentTheme == ApplicationTheme.Dark ? 0.50 : 0.75;
+            var gradientStops = new GradientStopCollection();
+            var chromaProportion = ColorParser.GetChromaFromLevel(Settings.AccentChromaLevel);
+
+            for (int i = 0; i <= 360; i += 5)
+            {
+                var maxChromaForHue = ColorParser.FindMaxChroma(lightness, i);
+                var finalChroma = maxChromaForHue * chromaProportion;
+                var (r, g, b) = ColorParser.OklchToRgb(lightness, finalChroma, i);
                 gradientStops.Add(new GradientStop(System.Windows.Media.Color.FromRgb(r, g, b), (double)i / 360.0));
             }
             var brush = new LinearGradientBrush(gradientStops, new Point(0, 0.5), new Point(1, 0.5));

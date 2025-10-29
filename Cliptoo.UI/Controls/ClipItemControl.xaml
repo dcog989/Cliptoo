@@ -120,7 +120,7 @@
                                         <Condition Binding="{Binding IsPinned}" Value="True" />
                                         <Condition Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListViewItem}}" Value="False" />
                                     </MultiDataTrigger.Conditions>
-                                    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+                                    <Setter Property="Foreground" Value="{DynamicResource AccentTextBrush}" />
                                 </MultiDataTrigger>
                             </Style.Triggers>
                         </Style>
@@ -141,7 +141,7 @@
                 </Rectangle.OpacityMask>
                 <Rectangle.Style>
                     <Style TargetType="Rectangle">
-                        <Setter Property="Fill" Value="{DynamicResource AccentBrush}" />
+                        <Setter Property="Fill" Value="{DynamicResource AccentTextBrush}" />
                         <Style.Triggers>
                             <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListViewItem}}" Value="True">
                                 <Setter Property="Fill" Value="White" />
