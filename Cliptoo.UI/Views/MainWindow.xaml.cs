@@ -4,6 +4,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 using Cliptoo.Core.Interfaces;
+using Cliptoo.UI.Helpers;
 using Cliptoo.UI.ViewModels;
 using Wpf.Ui.Controls;
 
@@ -115,7 +116,7 @@ namespace Cliptoo.UI.Views
             var hitTestResult = VisualTreeHelper.HitTest(listView, e.GetPosition(listView));
             if (hitTestResult?.VisualHit != null)
             {
-                var ancestor = FindVisualAncestor<System.Windows.Controls.ListViewItem>(hitTestResult.VisualHit);
+                var ancestor = VisualTreeUtils.FindVisualAncestor<System.Windows.Controls.ListViewItem>(hitTestResult.VisualHit);
                 if (ancestor != null)
                 {
                     listView.SelectedItem = ancestor.DataContext;
@@ -129,7 +130,7 @@ namespace Cliptoo.UI.Views
             var hitTestResult = VisualTreeHelper.HitTest(sender as Visual, e.GetPosition(sender as IInputElement));
             if (hitTestResult != null)
             {
-                var ancestor = FindVisualAncestor<System.Windows.Controls.ListViewItem>(hitTestResult.VisualHit);
+                var ancestor = VisualTreeUtils.FindVisualAncestor<System.Windows.Controls.ListViewItem>(hitTestResult.VisualHit);
                 if (ancestor == null)
                 {
                     // Click was not on an item, so clear selection.
@@ -187,38 +188,18 @@ namespace Cliptoo.UI.Views
             }
         }
 
-        private static bool HasVisualAncestor(DependencyObject? descendant, DependencyObject? ancestor)
-        {
-            if (descendant is not Visual)
-            {
-                return false;
-            }
-
-            if (ancestor == null)
-                return false;
-
-            DependencyObject? parent = descendant;
-            while (parent != null)
-            {
-                if (parent == ancestor)
-                    return true;
-                parent = VisualTreeHelper.GetParent(parent);
-            }
-            return false;
-        }
-
         private void MainWindow_PreviewMouseDown(object sender, MouseButtonEventArgs e)
         {
             var originalSource = e.OriginalSource as DependencyObject;
 
-            if (HasVisualAncestor(originalSource, FilterButton))
+            if (VisualTreeUtils.HasVisualAncestor(originalSource, FilterButton))
             {
                 _viewModel.IsFilterPopupOpen = !_viewModel.IsFilterPopupOpen;
                 e.Handled = true;
                 return;
             }
 
-            if (_viewModel.IsFilterPopupOpen && !HasVisualAncestor(originalSource, FilterPopup.Child))
+            if (_viewModel.IsFilterPopupOpen && !VisualTreeUtils.HasVisualAncestor(originalSource, FilterPopup.Child))
             {
                 _viewModel.IsFilterPopupOpen = false;
             }
@@ -339,38 +320,5 @@ namespace Cliptoo.UI.Views
             }
         }
 
-        private static T? FindVisualChild<T>(DependencyObject? obj) where T : DependencyObject
-        {
-            if (obj == null) return null;
-
-            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(obj); i++)
-            {
-                DependencyObject child = VisualTreeHelper.GetChild(obj, i);
-                if (child is T dependencyObject)
-                    return dependencyObject;
-
-                T? childOfChild = FindVisualChild<T>(child);
-                if (childOfChild != null)
-                    return childOfChild;
-            }
-            return null;
-        }
-
-        private static T? FindVisualAncestor<T>(DependencyObject? d) where T : DependencyObject
-        {
-            while (d != null)
-            {
-                if (d is T target) { return target; }
-                if (d is Visual || d is System.Windows.Media.Media3D.Visual3D)
-                {
-                    d = VisualTreeHelper.GetParent(d);
-                }
-                else
-                {
-                    d = LogicalTreeHelper.GetParent(d);
-                }
-            }
-            return null;
-        }
     }
 }

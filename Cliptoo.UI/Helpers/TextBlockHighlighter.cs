@@ -83,7 +83,7 @@ namespace Cliptoo.UI.Helpers
 
             if (string.IsNullOrEmpty(formattedText)) return;
 
-            var lvi = FindAncestor<System.Windows.Controls.ListViewItem>(textBlock);
+            var lvi = VisualTreeUtils.FindVisualAncestor<System.Windows.Controls.ListViewItem>(textBlock);
             bool isSelected = lvi?.IsSelected ?? false;
 
             Brush currentForeground = isSelected ? Brushes.White : textBlock.Foreground;
@@ -134,18 +134,5 @@ namespace Cliptoo.UI.Helpers
             }
         }
 
-        private static T? FindAncestor<T>(DependencyObject current) where T : DependencyObject
-        {
-            do
-            {
-                if (current is T ancestor)
-                {
-                    return ancestor;
-                }
-                current = VisualTreeHelper.GetParent(current);
-            }
-            while (current != null);
-            return null;
-        }
     }
 }

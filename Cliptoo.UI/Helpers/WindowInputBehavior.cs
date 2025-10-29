@@ -169,7 +169,7 @@ namespace Cliptoo.UI.Helpers
 
                 if (number != -1)
                 {
-                    var scrollViewer = FindVisualChild<ScrollViewer>(clipListView);
+                    var scrollViewer = VisualTreeUtils.FindVisualChild<ScrollViewer>(clipListView);
                     var firstVisibleIndex = scrollViewer != null ? (int)scrollViewer.VerticalOffset : 0;
                     var targetIndex = firstVisibleIndex + number;
 
@@ -232,7 +232,7 @@ namespace Cliptoo.UI.Helpers
                 if (e.Key == Key.PageUp || e.Key == Key.PageDown)
                 {
                     e.Handled = true;
-                    var scrollViewer = FindVisualChild<ScrollViewer>(clipListView);
+                    var scrollViewer = VisualTreeUtils.FindVisualChild<ScrollViewer>(clipListView);
                     if (scrollViewer != null)
                     {
                         if (e.Key == Key.PageUp)
@@ -281,21 +281,6 @@ namespace Cliptoo.UI.Helpers
                 current = VisualTreeHelper.GetParent(current);
             }
             return false;
-        }
-
-        private static T? FindVisualChild<T>(DependencyObject? obj) where T : DependencyObject
-        {
-            if (obj == null) return null;
-            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(obj); i++)
-            {
-                DependencyObject child = VisualTreeHelper.GetChild(obj, i);
-                if (child is T dependencyObject)
-                    return dependencyObject;
-                T? childOfChild = FindVisualChild<T>(child);
-                if (childOfChild != null)
-                    return childOfChild;
-            }
-            return null;
         }
 
         private static ModifierKeys ParseModifiers(string modifiersString)
