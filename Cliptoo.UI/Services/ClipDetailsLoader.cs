@@ -112,11 +112,13 @@ namespace Cliptoo.UI.Services
                         try
                         {
                             DebugUtils.LogMemoryUsage("GetFilePropertiesAsync - Before CalculateDirectorySize");
-                            var dirSize = await Task.Run(() => CalculateDirectorySize(dirInfo, token), token).ConfigureAwait(false);
+                            var (size, fileCount, folderCount, wasLimited) = await Task.Run(() => CalculateDirectorySize(dirInfo, token), token).ConfigureAwait(false);
                             DebugUtils.LogMemoryUsage("GetFilePropertiesAsync - After CalculateDirectorySize");
                             if (token.IsCancellationRequested) return;
-                            sb.AppendLine(CultureInfo.InvariantCulture, $"Size: {FormatUtils.FormatBytes(dirSize.Size)}");
-                            sb.AppendLine(CultureInfo.InvariantCulture, $"Contains: {dirSize.FileCount} files, {dirSize.FolderCount} folders");
+
+                            var sizeString = wasLimited ? $"> {FormatUtils.FormatBytes(size)}" : FormatUtils.FormatBytes(size);
+                            sb.AppendLine(CultureInfo.InvariantCulture, $"Size: {sizeString}");
+                            sb.AppendLine(CultureInfo.InvariantCulture, $"Contains: {fileCount:N0} files, {folderCount:N0} folders");
                         }
                         catch (OperationCanceledException)
                         {
@@ -194,11 +196,18 @@ namespace Cliptoo.UI.Services
             return (fileProperties, fileTypeInfo, isMissing);
         }
 
-        private static (long Size, int FileCount, int FolderCount) CalculateDirectorySize(DirectoryInfo dirInfo, CancellationToken token)
+        private static (long Size, int FileCount, int FolderCount, bool WasLimited) CalculateDirectorySize(DirectoryInfo dirInfo, CancellationToken token, int depth = 0)
         {
+            const int maxDepth = 5; // A reasonable limit to prevent deep recursion on system folders.
+            if (depth > maxDepth)
+            {
+                return (0, 0, 0, true);
+            }
+
             long size = 0;
             int fileCount = 0;
             int folderCount = 0;
+            bool wasLimited = false;
 
             try
             {
@@ -212,15 +221,19 @@ namespace Cliptoo.UI.Services
                 foreach (var dir in dirInfo.EnumerateDirectories())
                 {
                     token.ThrowIfCancellationRequested();
-                    var subDirSize = CalculateDirectorySize(dir, token);
+                    var subDirSize = CalculateDirectorySize(dir, token, depth + 1);
                     size += subDirSize.Size;
                     fileCount += subDirSize.FileCount;
                     folderCount += subDirSize.FolderCount + 1; // +1 for the current subdirectory
+                    if (subDirSize.WasLimited)
+                    {
+                        wasLimited = true;
+                    }
                 }
             }
             catch (UnauthorizedAccessException) { /* ignore */ }
 
-            return (size, fileCount, folderCount);
+            return (size, fileCount, folderCount, wasLimited);
         }
 
     }
