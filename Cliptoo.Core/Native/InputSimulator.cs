@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Cliptoo.Core.Logging;
@@ -99,48 +100,54 @@ namespace Cliptoo.Core.Native
         public static async Task SendPasteAsync()
         {
             LogManager.LogDebug("PASTE_DIAG: Polling for focus change...");
-            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            var stopwatch = Stopwatch.StartNew();
+            uint currentProcessId = (uint)Process.GetCurrentProcess().Id;
+
             while (stopwatch.ElapsedMilliseconds < 500)
             {
-                var foregroundProcessName = ProcessUtils.GetForegroundWindowProcessName();
-                if (foregroundProcessName != "Cliptoo.exe")
-                {
-                    break;
-                }
-
                 IntPtr hwnd = GetForegroundWindow();
-                _ = GetWindowThreadProcessId(hwnd, out uint pid);
-                var buffer = new char[256];
-                _ = GetWindowText(hwnd, buffer, buffer.Length);
-                var windowTitle = new string(buffer).TrimEnd('\0');
-                LogManager.LogDebug($"PASTE_DIAG: Waiting... Still on Cliptoo. HWND: {hwnd}, PID: {pid}, Title: '{windowTitle}'");
+                _ = GetWindowThreadProcessId(hwnd, out uint foregroundProcessId);
+                if (foregroundProcessId != 0 && foregroundProcessId != currentProcessId)
+                {
+                    break; // Focus has changed to another process.
+                }
 
                 await Task.Delay(20).ConfigureAwait(false);
             }
             stopwatch.Stop();
+            LogManager.LogDebug($"PASTE_DIAG: Focus change polling finished after {stopwatch.ElapsedMilliseconds}ms.");
 
             IntPtr finalHwnd = GetForegroundWindow();
-            _ = GetWindowThreadProcessId(finalHwnd, out uint finalPid);
-            var finalBuffer = new char[256];
-            _ = GetWindowText(finalHwnd, finalBuffer, finalBuffer.Length);
-            var finalWindowTitle = new string(finalBuffer).TrimEnd('\0');
-            var finalProcessName = ProcessUtils.GetForegroundWindowProcessName();
+
+            // Wait for the new window to be ready for input.
+            stopwatch.Restart();
+            while (stopwatch.ElapsedMilliseconds < 300)
+            {
+                if (IsWindowVisible(finalHwnd) && IsWindowEnabled(finalHwnd))
+                {
+                    break;
+                }
+                await Task.Delay(30).ConfigureAwait(false);
+            }
+            stopwatch.Stop();
+
             bool isVisible = IsWindowVisible(finalHwnd);
             bool isEnabled = IsWindowEnabled(finalHwnd);
 
-            LogManager.LogDebug($"PASTE_DIAG: Focus change detected after {stopwatch.ElapsedMilliseconds}ms.");
+            // Log final state for diagnostics.
+            _ = GetWindowThreadProcessId(finalHwnd, out uint finalPid);
+            var finalProcessName = ProcessUtils.GetForegroundWindowProcessName();
+            var finalBuffer = new char[256];
+            _ = GetWindowText(finalHwnd, finalBuffer, finalBuffer.Length);
+            var finalWindowTitle = new string(finalBuffer).TrimEnd('\0');
+            LogManager.LogDebug($"PASTE_DIAG: Waited {stopwatch.ElapsedMilliseconds}ms for target window to be ready.");
             LogManager.LogDebug($"PASTE_DIAG: Target HWND: {finalHwnd}, PID: {finalPid}, Process: '{finalProcessName ?? "Unknown"}', Title: '{finalWindowTitle}', Visible: {isVisible}, Enabled: {isEnabled}");
 
             if (!isEnabled || !isVisible)
             {
-                LogManager.LogDebug($"PASTE_DIAG: Paste aborted. Target window is not visible or not enabled.");
+                LogManager.LogWarning("PASTE_DIAG: Paste aborted. Target window is not visible or not enabled after waiting.");
                 return;
             }
-
-            // A consistent, small delay is more reliable to ensure the target application's
-            // message queue is ready for input after regaining focus, preventing a race condition.
-            await Task.Delay(50).ConfigureAwait(false);
-            LogManager.LogDebug("PASTE_DIAG: Added 50ms post-focus delay for responsiveness.");
 
             // Temporarily release any modifier keys the user is holding for Quick Paste
             var modifierReleaseInputs = new List<INPUT>();
