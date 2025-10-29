@@ -37,6 +37,7 @@ namespace Cliptoo.UI.ViewModels
         private readonly IPreviewManager _previewManager;
         private readonly IComparisonStateService _comparisonStateService;
         private readonly IClipDisplayService _clipDisplayService;
+        private readonly IUiSharedResources _uiSharedResources;
         private readonly DispatcherTimer _clearClipsTimer;
         private bool _isAlwaysOnTop;
         private Settings _currentSettings;
@@ -52,20 +53,6 @@ namespace Cliptoo.UI.ViewModels
         private bool _isPasting;
         private bool _isReadyForEvents; // Start false, ApplicationHostService will set it to true.
         public bool IsReadyForEvents { get => _isReadyForEvents; set => _isReadyForEvents = value; }
-        private ImageSource? _logoIcon;
-        public ImageSource? LogoIcon { get => _logoIcon; private set => SetProperty(ref _logoIcon, value); }
-        private ImageSource? _menuIcon;
-        public ImageSource? MenuIcon { get => _menuIcon; private set => SetProperty(ref _menuIcon, value); }
-        private ImageSource? _wasTrimmedIcon;
-        public ImageSource? WasTrimmedIcon { get => _wasTrimmedIcon; private set => SetProperty(ref _wasTrimmedIcon, value); }
-        private ImageSource? _multiLineIcon;
-        public ImageSource? MultiLineIcon { get => _multiLineIcon; private set => SetProperty(ref _multiLineIcon, value); }
-        private ImageSource? _pinIcon;
-        public ImageSource? PinIcon { get => _pinIcon; private set => SetProperty(ref _pinIcon, value); }
-        private ImageSource? _pinIcon16;
-        public ImageSource? PinIcon16 { get => _pinIcon16; private set => SetProperty(ref _pinIcon16, value); }
-        private ImageSource? _errorIcon;
-        public ImageSource? ErrorIcon { get => _errorIcon; private set => SetProperty(ref _errorIcon, value); }
         public event EventHandler<BoolEventArgs>? AlwaysOnTopChanged;
         public event EventHandler? ListScrolledToTopRequest;
         public IPreviewManager PreviewManager => _previewManager;
@@ -77,6 +64,7 @@ namespace Cliptoo.UI.ViewModels
         public Settings CurrentSettings { get => _currentSettings; private set => SetProperty(ref _currentSettings, value); }
         public FontFamily MainFont { get => _mainFont; private set => SetProperty(ref _mainFont, value); }
         public FontFamily PreviewFont { get => _previewFont; private set => SetProperty(ref _previewFont, value); }
+        public IUiSharedResources SharedResources => _uiSharedResources;
         public ObservableCollection<SendToTarget> SendToTargets { get; }
         public double TooltipMaxHeight { get; }
         public static string CurrentThemeString => Application.Current.Dispatcher.Invoke(() =>
@@ -178,7 +166,8 @@ namespace Cliptoo.UI.ViewModels
             IIconProvider iconProvider,
             IPreviewManager previewManager,
             IComparisonStateService comparisonStateService,
-            IClipDisplayService clipDisplayService)
+            IClipDisplayService clipDisplayService,
+            IUiSharedResources uiSharedResources)
         {
             _clipDataService = clipDataService;
             _clipboardService = clipboardService;
@@ -194,6 +183,7 @@ namespace Cliptoo.UI.ViewModels
             _previewManager = previewManager;
             _comparisonStateService = comparisonStateService;
             _clipDisplayService = clipDisplayService;
+            _uiSharedResources = uiSharedResources;
 
             _currentSettings = _settingsService.Settings;
             _currentSettings.PropertyChanged += CurrentSettings_PropertyChanged;
@@ -271,19 +261,8 @@ namespace Cliptoo.UI.ViewModels
         public async Task InitializeAsync()
         {
             await _clipDisplayService.InitializeAsync();
-            await LoadStaticIconsAsync();
+            await SharedResources.InitializeAsync();
             OnPropertyChanged(nameof(SelectedFilter)); // Ensure UI reflects initial filter
-        }
-
-        private async Task LoadStaticIconsAsync()
-        {
-            LogoIcon = await _iconProvider.GetIconAsync(AppConstants.IconKeys.Logo, 24).ConfigureAwait(true);
-            MenuIcon = await _iconProvider.GetIconAsync(AppConstants.IconKeys.List, 28).ConfigureAwait(true);
-            WasTrimmedIcon = await _iconProvider.GetIconAsync(AppConstants.IconKeys.WasTrimmed, 20).ConfigureAwait(true);
-            MultiLineIcon = await _iconProvider.GetIconAsync(AppConstants.IconKeys.Multiline, 20).ConfigureAwait(true);
-            PinIcon = await _iconProvider.GetIconAsync(AppConstants.IconKeys.Pin, 20).ConfigureAwait(true);
-            PinIcon16 = await _iconProvider.GetIconAsync(AppConstants.IconKeys.Pin, 16).ConfigureAwait(true);
-            ErrorIcon = await _iconProvider.GetIconAsync(AppConstants.IconKeys.Error, 32).ConfigureAwait(true);
         }
 
         private async void OnSettingsChanged(object? sender, EventArgs e)

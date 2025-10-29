@@ -189,7 +189,7 @@
                                     <Image
                                         Width="16"
                                         Height="16"
-                                        Source="{Binding MainViewModel.PinIcon16}" />
+                                        Source="{Binding MainViewModel.SharedResources.PinIcon16}" />
                                 </MenuItem.Icon>
                             </MenuItem>
                             <MenuItem Command="{Binding MoveToTopCommand}" Header="Move to Top" />
@@ -443,7 +443,7 @@
                         <ui:ImageIcon
                             Width="24"
                             Height="24"
-                            Source="{Binding LogoIcon}" />
+                            Source="{Binding SharedResources.LogoIcon}" />
                     </Border>
 
                     <Grid Grid.Column="1" Margin="4,0,0,0">
@@ -499,7 +499,7 @@
                         <ui:ImageIcon
                             Width="28"
                             Height="28"
-                            Source="{Binding MenuIcon}" />
+                            Source="{Binding SharedResources.MenuIcon}" />
                     </Button>
                 </Grid>
             </Border>

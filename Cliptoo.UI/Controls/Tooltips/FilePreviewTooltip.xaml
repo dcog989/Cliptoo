@@ -22,7 +22,6 @@
                 Content="{Binding}"
                 ContentTemplate="{StaticResource FileNotFoundErrorTemplate}"
                 Visibility="{Binding IsSourceMissing, Converter={StaticResource BooleanToVisibilityConverter}}" />
-
             <StackPanel Visibility="{Binding IsSourceMissing, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter={x:Static core:AppConstants+ConverterParameters.Inverse}}">
                 <TextBlock
                     FontFamily="{Binding MainViewModel.PreviewFont}"

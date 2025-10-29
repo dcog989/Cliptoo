@@ -93,7 +93,7 @@
                     Height="20"
                     Margin="0,0,4,0"
                     VerticalAlignment="Center"
-                    Source="{Binding MainViewModel.WasTrimmedIcon}"
+                    Source="{Binding MainViewModel.SharedResources.WasTrimmedIcon}"
                     ToolTip="Content was modified (e.g., whitespace trimmed or content truncated)"
                     Visibility="{Binding WasTrimmed, Converter={StaticResource BooleanToVisibilityConverter}}" />
 
@@ -106,7 +106,6 @@
                     TextTrimming="CharacterEllipsis">
                     <TextBlock.Style>
                         <Style TargetType="TextBlock">
-                            <!--  Base foreground is now inherited from ListViewItem  -->
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListViewItem}}" Value="True">
                                     <Setter Property="Foreground" Value="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
@@ -137,7 +136,7 @@
                 ToolTip="Pinned"
                 Visibility="{Binding IsPinned, Converter={StaticResource BooleanToVisibilityConverter}}">
                 <Rectangle.OpacityMask>
-                    <ImageBrush ImageSource="{Binding MainViewModel.PinIcon}" Stretch="Uniform" />
+                    <ImageBrush ImageSource="{Binding MainViewModel.SharedResources.PinIcon}" Stretch="Uniform" />
                 </Rectangle.OpacityMask>
                 <Rectangle.Style>
                     <Style TargetType="Rectangle">
@@ -158,7 +157,7 @@
                 ToolTip="Multi-line Content"
                 Visibility="{Binding IsMultiLine, Converter={StaticResource BooleanToVisibilityConverter}}">
                 <Rectangle.OpacityMask>
-                    <ImageBrush ImageSource="{Binding MainViewModel.MultiLineIcon}" Stretch="Uniform" />
+                    <ImageBrush ImageSource="{Binding MainViewModel.SharedResources.MultiLineIcon}" Stretch="Uniform" />
                 </Rectangle.OpacityMask>
                 <Rectangle.Style>
                     <Style TargetType="Rectangle">
