@@ -42,8 +42,9 @@ namespace Cliptoo.UI.ViewModels
             if (Keyboard.Modifiers.HasFlag(ModifierKeys.Control)) hotkeyParts.Add("Ctrl");
             if (Keyboard.Modifiers.HasFlag(ModifierKeys.Alt)) hotkeyParts.Add("Alt");
             if (Keyboard.Modifiers.HasFlag(ModifierKeys.Shift)) hotkeyParts.Add("Shift");
+            if (Keyboard.Modifiers.HasFlag(ModifierKeys.Windows)) hotkeyParts.Add("Win");
 
-            if (!isModifierKey)
+            if (!isModifierKey && target != AppConstants.HotkeyTargets.QuickPaste)
             {
                 hotkeyParts.Add(key.ToString());
             }
