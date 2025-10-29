@@ -29,15 +29,14 @@ namespace Cliptoo.UI.ViewModels
         private readonly IDatabaseService _databaseService;
         private readonly IAppInteractionService _appInteractionService;
         private readonly IServiceProvider _serviceProvider;
-        private readonly IClipViewModelFactory _clipViewModelFactory;
         private readonly IPastingService _pastingService;
         private readonly IFontProvider _fontProvider;
         private readonly INotificationService _notificationService;
-        private readonly IIconProvider _iconProvider;
         private readonly IPreviewManager _previewManager;
         private readonly IComparisonStateService _comparisonStateService;
         private readonly IClipDisplayService _clipDisplayService;
         private readonly IUiSharedResources _uiSharedResources;
+        private readonly IEventAggregator _eventAggregator;
         private readonly DispatcherTimer _clearClipsTimer;
         private bool _isAlwaysOnTop;
         private Settings _currentSettings;
@@ -159,15 +158,14 @@ namespace Cliptoo.UI.ViewModels
             IDatabaseService databaseService,
             IAppInteractionService appInteractionService,
             IServiceProvider serviceProvider,
-            IClipViewModelFactory clipViewModelFactory,
             IPastingService pastingService,
             IFontProvider fontProvider,
             INotificationService notificationService,
-            IIconProvider iconProvider,
             IPreviewManager previewManager,
             IComparisonStateService comparisonStateService,
             IClipDisplayService clipDisplayService,
-            IUiSharedResources uiSharedResources)
+            IUiSharedResources uiSharedResources,
+            IEventAggregator eventAggregator)
         {
             _clipDataService = clipDataService;
             _clipboardService = clipboardService;
@@ -175,15 +173,14 @@ namespace Cliptoo.UI.ViewModels
             _databaseService = databaseService;
             _appInteractionService = appInteractionService;
             _serviceProvider = serviceProvider;
-            _clipViewModelFactory = clipViewModelFactory;
             _pastingService = pastingService;
             _fontProvider = fontProvider;
             _notificationService = notificationService;
-            _iconProvider = iconProvider;
             _previewManager = previewManager;
             _comparisonStateService = comparisonStateService;
             _clipDisplayService = clipDisplayService;
             _uiSharedResources = uiSharedResources;
+            _eventAggregator = eventAggregator;
 
             _currentSettings = _settingsService.Settings;
             _currentSettings.PropertyChanged += CurrentSettings_PropertyChanged;
@@ -194,19 +191,11 @@ namespace Cliptoo.UI.ViewModels
             SendToTargets = new ObservableCollection<SendToTarget>(CurrentSettings.SendToTargets);
 
             PasteClipCommand = new RelayCommand(async param => await ExecutePasteClip(param, forcePlainText: null));
-            PasteClipAsPlainTextCommand = new RelayCommand(async param => await ExecutePasteClip(param, forcePlainText: true));
-            TransformAndPasteCommand = new RelayCommand(async param => await ExecuteTransformAndPaste(param));
             OpenSettingsCommand = new RelayCommand(_ => OpenSettingsWindow());
             HideWindowCommand = new RelayCommand(_ => HideWindow());
             LoadMoreClipsCommand = new RelayCommand(async _ => await _clipDisplayService.LoadMoreClipsAsync());
-            TogglePinCommand = new RelayCommand(async p => await ExecuteTogglePin(p));
-            DeleteClipCommand = new RelayCommand(async p => await ExecuteDeleteClip(p));
-            EditClipCommand = new RelayCommand(p => ExecuteEditClip(p));
-            MoveToTopCommand = new RelayCommand(async p => await ExecuteMoveToTop(p));
-            OpenCommand = new RelayCommand(async p => await ExecuteOpen(p));
-            SelectForCompareLeftCommand = new RelayCommand(p => ExecuteSelectForCompareLeft(p));
-            CompareWithSelectedRightCommand = new RelayCommand(async p => await ExecuteCompareWithSelectedRight(p));
-            SendToCommand = new RelayCommand(async p => await ExecuteSendTo(p));
+
+            SubscribeToEvents();
 
             _clipDataService.NewClipAdded += OnNewClipAdded;
             _databaseService.HistoryCleared += OnHistoryCleared;
@@ -219,21 +208,40 @@ namespace Cliptoo.UI.ViewModels
             _clearClipsTimer.Tick += OnClearClipsTimerElapsed;
         }
 
+        private void SubscribeToEvents()
+        {
+            _eventAggregator.Subscribe<ClipDeletionRequested>(async msg => await ExecuteDeleteClip(msg.ClipId));
+            _eventAggregator.Subscribe<ClipPinToggled>(async msg => await ExecuteTogglePin(msg.ClipId, msg.IsPinned));
+            _eventAggregator.Subscribe<ClipMoveToTopRequested>(async msg => await ExecuteMoveToTop(msg.ClipId));
+            _eventAggregator.Subscribe<ClipEditRequested>(msg => ExecuteEditClip(msg.ClipId));
+            _eventAggregator.Subscribe<ClipOpenRequested>(async msg => await ExecuteOpen(msg.ClipId));
+            _eventAggregator.Subscribe<ClipSelectForCompareLeft>(msg => ExecuteSelectForCompareLeft(msg.ClipId));
+            _eventAggregator.Subscribe<ClipCompareWithSelectedRight>(async msg => await ExecuteCompareWithSelectedRight(msg.ClipId));
+            _eventAggregator.Subscribe<ClipSendToRequested>(async msg => await ExecuteSendTo(msg.ClipId, msg.Target));
+            _eventAggregator.Subscribe<TogglePreviewForSelectionRequested>(msg => TogglePreviewForSelection(msg.PlacementTarget as UIElement));
+            _eventAggregator.Subscribe<ClipPasteRequested>(async msg =>
+            {
+                var clipVM = Clips.FirstOrDefault(c => c.Id == msg.ClipId);
+                if (clipVM != null)
+                {
+                    await ExecutePasteClip(clipVM, msg.ForcePlainText);
+                }
+            });
+            _eventAggregator.Subscribe<ClipTransformAndPasteRequested>(async msg => await ExecuteTransformAndPaste(msg.ClipId, msg.TransformType));
+        }
+
         private void OnComparisonStateChanged(object? sender, ComparisonStateChangedEventArgs e)
         {
-            // This logic updates all visible clips to reflect the current comparison state.
-            // It's robust against virtualization recycling items.
             foreach (var clip in Clips)
             {
                 if (e.NewLeftClipId.HasValue && clip.Id == e.NewLeftClipId.Value)
                 {
                     clip.CompareLeftHeader = "✓ Comparing with this";
-                    clip.ShowCompareRightOption = false; // Cannot compare with self
+                    clip.ShowCompareRightOption = false;
                 }
                 else
                 {
                     clip.CompareLeftHeader = "Compare Left";
-                    // Show "Compare Right" if a left clip is selected
                     clip.ShowCompareRightOption = e.NewLeftClipId.HasValue;
                 }
             }
@@ -262,7 +270,7 @@ namespace Cliptoo.UI.ViewModels
         {
             await _clipDisplayService.InitializeAsync();
             await SharedResources.InitializeAsync();
-            OnPropertyChanged(nameof(SelectedFilter)); // Ensure UI reflects initial filter
+            OnPropertyChanged(nameof(SelectedFilter));
         }
 
         private async void OnSettingsChanged(object? sender, EventArgs e)
@@ -290,14 +298,9 @@ namespace Cliptoo.UI.ViewModels
         public void HideWindow()
         {
             IsHidingExplicitly = true;
-
             IsFilterPopupOpen = false;
-
-            // Start a timer to clear the collection later, instead of immediately.
             _clearClipsTimer.Start();
-
             _needsRefreshOnShow = true;
-
             var settings = _settingsService.Settings;
             if (!settings.RememberSearchInput)
             {
@@ -307,33 +310,24 @@ namespace Cliptoo.UI.ViewModels
             {
                 SelectedFilter = FilterOptions.First();
             }
-
             Application.Current.MainWindow?.Hide();
-
             GCSettings.LatencyMode = GCLatencyMode.SustainedLowLatency;
             LogManager.LogDebug("GC mode set to SustainedLowLatency.");
         }
 
         public void HandleWindowShown()
         {
-            // Restore interactive GC mode for UI responsiveness.
             GCSettings.LatencyMode = GCLatencyMode.Interactive;
             LogManager.LogDebug("GC mode restored to Interactive.");
-
-            // Stop the timer to prevent the collection from being cleared.
             _clearClipsTimer.Stop();
-
             if (IsInitializing)
             {
                 return;
             }
-
-            // If the clips were cleared by the timer, we must reload.
             if (Clips.Count == 0)
             {
                 _needsRefreshOnShow = true;
             }
-
             if (_needsRefreshOnShow && IsReadyForEvents)
             {
                 _clipDisplayService.RefreshClipList();
@@ -350,12 +344,10 @@ namespace Cliptoo.UI.ViewModels
             _databaseService.CachesCleared -= OnCachesCleared;
             _clearClipsTimer.Tick -= OnClearClipsTimerElapsed;
             _comparisonStateService.ComparisonStateChanged -= OnComparisonStateChanged;
-
             if (_clipDisplayService is IDisposable disposable)
             {
                 disposable.Dispose();
             }
-
             foreach (var clip in Clips)
             {
                 clip.Dispose();
@@ -375,22 +367,6 @@ namespace Cliptoo.UI.ViewModels
         }
         private void OnHistoryCleared(object? sender, EventArgs e) => _clipDisplayService.RefreshClipList();
         private void OnCachesCleared(object? sender, EventArgs e) => _clipDisplayService.RefreshClipList();
-
-        private static T? FindVisualChild<T>(DependencyObject? obj) where T : DependencyObject
-        {
-            if (obj == null) return null;
-            for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(obj); i++)
-            {
-                DependencyObject child = System.Windows.Media.VisualTreeHelper.GetChild(obj, i);
-                if (child is T dependencyObject)
-                    return dependencyObject;
-                T? childOfChild = FindVisualChild<T>(child);
-                if (childOfChild != null)
-                    return childOfChild;
-            }
-            return null;
-        }
-
         public int SelectedIndex
         {
             get => _selectedIndex;
@@ -414,32 +390,26 @@ namespace Cliptoo.UI.ViewModels
             Application.Current.Dispatcher.InvokeAsync(async () =>
             {
                 await Task.Delay(50);
-
                 if (IsFilterPopupOpen)
                 {
                     IsFilterPopupOpen = false;
                 }
-
                 if (PreviewManager.IsPreviewOpen)
                 {
                     RequestHidePreview();
                 }
-
                 if (IsHidingExplicitly)
                 {
                     return;
                 }
-
                 if (Application.Current.Windows.OfType<Window>().Any(x => x != Application.Current.MainWindow && x.IsActive))
                 {
                     return;
                 }
-
                 if (Application.Current.MainWindow is not { IsVisible: true })
                 {
                     return;
                 }
-
                 if (!IsAlwaysOnTop)
                 {
                     HideWindow();
@@ -449,16 +419,12 @@ namespace Cliptoo.UI.ViewModels
 
         public void UpdateQuickPasteIndices()
         {
-            // Clear previous indices
             foreach (var clip in Clips.Where(c => c.Index > 0))
             {
                 clip.Index = 0;
             }
-
             if (!IsQuickPasteModeActive) return;
-
             var firstVisibleIndex = (int)VerticalScrollOffset;
-
             for (var i = 0; i < 9; i++)
             {
                 var targetIndex = firstVisibleIndex + i;
@@ -469,21 +435,14 @@ namespace Cliptoo.UI.ViewModels
             }
         }
 
-        public void RequestShowPreview(ClipViewModel? clipVm)
-        {
-            _previewManager.RequestShowPreview(clipVm);
-        }
-
-        public void RequestHidePreview()
-        {
-            _previewManager.RequestHidePreview();
-        }
-
+        public void RequestShowPreview(ClipViewModel? clipVm) => _previewManager.RequestShowPreview(clipVm);
+        public void RequestHidePreview() => _previewManager.RequestHidePreview();
         public void TogglePreviewForSelection(UIElement? placementTarget)
         {
             var listView = (Application.Current.MainWindow as Views.MainWindow)?.ClipListView;
             if (listView?.SelectedItem is not ClipViewModel selectedVm) return;
             _previewManager.TogglePreviewForSelection(selectedVm, placementTarget);
         }
+
     }
 }

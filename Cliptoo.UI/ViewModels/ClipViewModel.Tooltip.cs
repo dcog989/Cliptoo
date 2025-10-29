@@ -83,15 +83,11 @@ namespace Cliptoo.UI.ViewModels
         {
             if (!_isTooltipContentLoaded) return;
 
-            // Using Cancel() is acceptable here as no callbacks are registered on the tokens,
-            // preventing any blocking behavior that CA1849 warns against. The cost of
-            // converting the entire call chain to async outweighs the benefit for this specific use case.
 #pragma warning disable CA1849 // Use CancelAsync when available
             _pageTitleCts?.Cancel();
             _filePropertiesCts?.Cancel();
 #pragma warning restore CA1849
 
-            // Clear all data loaded specifically for the tooltip
             TooltipTextContent = null;
             LineCountInfo = null;
             ImagePreviewSource = null;
@@ -100,7 +96,6 @@ namespace Cliptoo.UI.ViewModels
             FileTypeInfo = null;
             FileTypeInfoIcon = null;
 
-            // Reset state flags
             _isTooltipContentLoaded = false;
             IsPageTitleLoading = false;
             IsFilePropertiesLoading = false;
@@ -142,7 +137,6 @@ namespace Cliptoo.UI.ViewModels
                         if (linesProcessed < MaxTooltipLines)
                         {
                             linesProcessed++;
-                            // Line number padding will be calculated later
                             sb.AppendLine(line);
                         }
                     }
@@ -153,7 +147,6 @@ namespace Cliptoo.UI.ViewModels
                     totalLines = 1;
                 }
 
-                // Now format the output with correct padding
                 var finalSb = new StringBuilder();
                 var lines = sb.ToString().Split(new[] { Environment.NewLine }, StringSplitOptions.None);
                 int numberPadding = totalLines.ToString(CultureInfo.InvariantCulture).Length;
@@ -264,9 +257,7 @@ namespace Cliptoo.UI.ViewModels
             FileTypeInfo = null;
             FileTypeInfoIcon = null;
 
-            // This entire block must resume on the UI thread because it is followed
-            // by updates to UI-bound properties and UI resources (icons).
-#pragma warning disable CA2007 // Consider calling ConfigureAwait on the awaited task
+#pragma warning disable CA2007
             var (properties, typeInfo, isMissing) = await _clipDetailsLoader.GetFilePropertiesAsync(this, token);
 
             if (!token.IsCancellationRequested)
@@ -283,5 +274,6 @@ namespace Cliptoo.UI.ViewModels
             }
 #pragma warning restore CA2007
         }
+
     }
 }

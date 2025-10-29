@@ -25,6 +25,9 @@ namespace Cliptoo.UI.ViewModels
         private readonly IClipDataService _clipDataService;
         private readonly IThumbnailService _thumbnailService;
         private readonly IWebMetadataService _webMetadataService;
+        private readonly IEventAggregator _eventAggregator;
+        private readonly IComparisonStateService _comparisonStateService;
+        private readonly IPreviewManager _previewManager;
         private ImageSource? _thumbnailSource;
         private bool _isThumbnailLoading;
         private bool _isPinned;
@@ -65,9 +68,13 @@ namespace Cliptoo.UI.ViewModels
         public ImageSource? QuickPasteIcon { get => _quickPasteIcon; private set => SetProperty(ref _quickPasteIcon, value); }
         public ImageSource? FileTypeInfoIcon { get => _fileTypeInfoIcon; private set => SetProperty(ref _fileTypeInfoIcon, value); }
         public bool IsTextTransformable => IsEditable;
-        public bool IsCompareToolAvailable => MainViewModel.IsCompareToolAvailable;
+        public bool IsCompareToolAvailable => _comparisonStateService.IsCompareToolAvailable;
         public bool ShowCompareMenu => !IsSourceMissing && IsComparable && IsCompareToolAvailable;
-        public MainViewModel MainViewModel { get; }
+        public ISettingsService SettingsService { get; }
+        public IUiSharedResources SharedResources { get; }
+        public FontFamily MainFont { get; }
+        public FontFamily PreviewFont { get; }
+        public Settings CurrentSettings => SettingsService.Settings;
 
         public int Id => _clip.Id;
         public string Content => _clip.PreviewContent ?? string.Empty;
@@ -97,7 +104,7 @@ namespace Cliptoo.UI.ViewModels
         public string? RtfContent => IsRtf ? Content : null;
 
         public bool CanPasteAsPlainText => IsRtf;
-        public bool CanPasteAsRtf => MainViewModel.CurrentSettings.PasteAsPlainText && IsRtf;
+        public bool CanPasteAsRtf => CurrentSettings.PasteAsPlainText && IsRtf;
         public bool IsEditable => !IsImage && !ClipType.StartsWith("file_", StringComparison.Ordinal) && ClipType != AppConstants.ClipTypes.Folder;
         public bool IsOpenable => !IsSourceMissing && (IsImage || ClipType.StartsWith("file_", StringComparison.Ordinal) || ClipType == AppConstants.ClipTypes.Folder || ClipType == AppConstants.ClipTypes.Link);
         public static string OpenCommandHeader => "Open";
@@ -153,38 +160,61 @@ namespace Cliptoo.UI.ViewModels
         public ICommand CompareWithSelectedRightCommand { get; }
         public ICommand SendToCommand { get; }
         public ICommand TogglePreviewCommand { get; }
-        public ClipViewModel(Clip clip, MainViewModel mainViewModel, IClipDetailsLoader clipDetailsLoader, IIconProvider iconProvider, IClipDataService clipDataService, IThumbnailService thumbnailService, IWebMetadataService webMetadataService)
-        {
-            ArgumentNullException.ThrowIfNull(clip);
-            ArgumentNullException.ThrowIfNull(mainViewModel);
+        public ICommand PasteCommand { get; }
+        public ICommand PasteAsPlainTextCommand { get; }
+        public ICommand TransformAndPasteCommand { get; }
 
+        public ClipViewModel(
+            Clip clip,
+            IClipDetailsLoader clipDetailsLoader,
+            IIconProvider iconProvider,
+            IClipDataService clipDataService,
+            IThumbnailService thumbnailService,
+            IWebMetadataService webMetadataService,
+            IEventAggregator eventAggregator,
+            IComparisonStateService comparisonStateService,
+            ISettingsService settingsService,
+            IUiSharedResources sharedResources,
+            IFontProvider fontProvider,
+            IPreviewManager previewManager)
+        {
             _clip = clip;
             _clipDetailsLoader = clipDetailsLoader;
             _isPinned = clip.IsPinned;
-            MainViewModel = mainViewModel;
             _iconProvider = iconProvider;
             _clipDataService = clipDataService;
             _thumbnailService = thumbnailService;
             _webMetadataService = webMetadataService;
+            _eventAggregator = eventAggregator;
+            _comparisonStateService = comparisonStateService;
+            SettingsService = settingsService;
+            SharedResources = sharedResources;
+            _previewManager = previewManager;
+            MainFont = fontProvider.GetFont(CurrentSettings.FontFamily);
+            PreviewFont = fontProvider.GetFont(CurrentSettings.PreviewFontFamily);
 
-            TogglePinCommand = new RelayCommand(_ => MainViewModel.TogglePinCommand.Execute(this));
-            DeleteCommand = new RelayCommand(_ => MainViewModel.DeleteClipCommand.Execute(this));
-            EditClipCommand = new RelayCommand(_ => MainViewModel.EditClipCommand.Execute(this));
-            MoveToTopCommand = new RelayCommand(_ => MainViewModel.MoveToTopCommand.Execute(this));
-            OpenCommand = new RelayCommand(_ => MainViewModel.OpenCommand.Execute(this));
-            SelectForCompareLeftCommand = new RelayCommand(_ => MainViewModel.SelectForCompareLeftCommand.Execute(this));
-            CompareWithSelectedRightCommand = new RelayCommand(_ => MainViewModel.CompareWithSelectedRightCommand.Execute(this));
-            SendToCommand = new RelayCommand(p => MainViewModel.SendToCommand.Execute(new object[] { this, p as SendToTarget ?? null! }));
-            TogglePreviewCommand = new RelayCommand(p => ExecuteTogglePreview(p));
-        }
-
-        private void ExecuteTogglePreview(object? parameter)
-        {
-            if (parameter is UIElement placementTarget)
+            TogglePinCommand = new RelayCommand(_ => _eventAggregator.Publish(new ClipPinToggled(Id, !IsPinned)));
+            DeleteCommand = new RelayCommand(_ => _eventAggregator.Publish(new ClipDeletionRequested(Id)));
+            EditClipCommand = new RelayCommand(_ => _eventAggregator.Publish(new ClipEditRequested(Id)));
+            MoveToTopCommand = new RelayCommand(_ => _eventAggregator.Publish(new ClipMoveToTopRequested(Id)));
+            OpenCommand = new RelayCommand(_ => _eventAggregator.Publish(new ClipOpenRequested(Id)));
+            SelectForCompareLeftCommand = new RelayCommand(_ => _eventAggregator.Publish(new ClipSelectForCompareLeft(Id)));
+            CompareWithSelectedRightCommand = new RelayCommand(_ => _eventAggregator.Publish(new ClipCompareWithSelectedRight(Id)));
+            SendToCommand = new RelayCommand(p => _eventAggregator.Publish(new ClipSendToRequested(Id, p as SendToTarget ?? null!)));
+            TogglePreviewCommand = new RelayCommand(p => _eventAggregator.Publish(new TogglePreviewForSelectionRequested(p)));
+            PasteCommand = new RelayCommand(_ => _eventAggregator.Publish(new ClipPasteRequested(Id, null)));
+            PasteAsPlainTextCommand = new RelayCommand(_ => _eventAggregator.Publish(new ClipPasteRequested(Id, true)));
+            TransformAndPasteCommand = new RelayCommand(p =>
             {
-                MainViewModel.TogglePreviewForSelection(placementTarget);
-            }
+                if (p is object[] values && values.Length == 2 && values[1] is string transformType)
+                {
+                    _eventAggregator.Publish(new ClipTransformAndPasteRequested(Id, transformType));
+                }
+            });
         }
+
+        public void RequestShowPreview() => _previewManager.RequestShowPreview(this);
+        public void RequestHidePreview() => _previewManager.RequestHidePreview();
 
         internal async Task<Clip?> GetFullClipAsync()
         {
@@ -194,8 +224,6 @@ namespace Cliptoo.UI.ViewModels
 
         public void UpdateClip(Clip clip, string theme)
         {
-            ArgumentNullException.ThrowIfNull(clip);
-
             _clip = clip;
             _theme = theme;
             IsPinned = clip.IsPinned;
@@ -270,7 +298,7 @@ namespace Cliptoo.UI.ViewModels
         private void UpdatePreviewText()
         {
             string basePreview;
-            var searchTerm = MainViewModel.SearchTerm;
+            var searchTerm = (Application.Current.MainWindow?.DataContext as MainViewModel)?.SearchTerm ?? string.Empty;
             bool isSearching = !string.IsNullOrEmpty(searchTerm);
             const string startTag = "[HL]";
             const string endTag = "[/HL]";
@@ -279,25 +307,20 @@ namespace Cliptoo.UI.ViewModels
             {
                 string context = _clip.MatchContext.ReplaceLineEndings(" ");
 
-                // Clean the context of all highlight tags to measure and substring it.
                 string contextWithoutTags = context.Replace(startTag, "").Replace(endTag, "");
 
-                // The position of the start of the first match is the same in the tagged and untagged string.
                 int firstHighlightStart = context.IndexOf(startTag, StringComparison.Ordinal);
 
-                // Dynamically calculate how many characters can fit in the preview.
-                double windowWidth = MainViewModel.CurrentSettings.WindowWidth;
-                double fontSize = MainViewModel.CurrentSettings.FontSize;
-                double fixedWidth = 100; // Estimated non-text horizontal space (icons, margins, etc.)
-                double avgCharWidthFactor = MainViewModel.CurrentSettings.FontFamily == "Source Code Pro" ? 0.6 : 0.55;
+                double windowWidth = CurrentSettings.WindowWidth;
+                double fontSize = CurrentSettings.FontSize;
+                double fixedWidth = 100;
+                double avgCharWidthFactor = CurrentSettings.FontFamily == "Source Code Pro" ? 0.6 : 0.55;
                 int maxPreviewLength = (int)((windowWidth - fixedWidth) / (fontSize * avgCharWidthFactor));
                 if (maxPreviewLength < 40) maxPreviewLength = 40;
 
-                // Calculate the ideal preview window to center the first match.
-                int idealStart = firstHighlightStart - (maxPreviewLength / 3); // Bias to show more context after the match
+                int idealStart = firstHighlightStart - (maxPreviewLength / 3);
                 int idealEnd = idealStart + maxPreviewLength;
 
-                // Adjust the window if it goes out of bounds, sliding it to maximize content.
                 if (idealStart < 0)
                 {
                     idealEnd += -idealStart;
@@ -309,14 +332,11 @@ namespace Cliptoo.UI.ViewModels
                     idealEnd = contextWithoutTags.Length;
                 }
 
-                // Final clamp and substring to create the base preview.
                 int visibleStart = Math.Max(0, idealStart);
                 int visibleEnd = Math.Min(contextWithoutTags.Length, idealEnd);
                 int visibleLength = Math.Max(0, visibleEnd - visibleStart);
                 basePreview = contextWithoutTags.Substring(visibleStart, visibleLength);
 
-                // Re-highlight all search terms in the final preview string. This is safer
-                // than manipulating substrings with tags and fixes multi-highlight issues.
                 var terms = searchTerm.Split(_spaceSeparator, StringSplitOptions.RemoveEmptyEntries);
                 foreach (var term in terms)
                 {

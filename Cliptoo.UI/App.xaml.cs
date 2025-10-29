@@ -128,16 +128,15 @@ namespace Cliptoo.UI
                         services.AddSingleton<IClipDataService, ClipDataService>();
                         services.AddSingleton<IClipboardService, ClipboardService>();
 
-                        services.AddSingleton<IDatabaseService>(
-                            sp => new DatabaseService(
-                            sp.GetRequiredService<IDbManager>(),
-                            sp.GetRequiredService<IThumbnailService>(),
-                            sp.GetRequiredService<IWebMetadataService>(),
-                            sp.GetRequiredService<Core.Services.IIconCacheManager>(),
-                            sp.GetRequiredService<IFileTypeClassifier>(),
-                            sp.GetRequiredService<ISettingsService>(),
-                            AppDataLocalPath
-                        ));
+                        services.AddSingleton<IDatabaseService>(sp => new DatabaseService(
+                           sp.GetRequiredService<IDbManager>(),
+                           sp.GetRequiredService<IThumbnailService>(),
+                           sp.GetRequiredService<IWebMetadataService>(),
+                           sp.GetRequiredService<Core.Services.IIconCacheManager>(),
+                           sp.GetRequiredService<IFileTypeClassifier>(),
+                           sp.GetRequiredService<ISettingsService>(),
+                           AppDataLocalPath
+                       ));
 
                         services.AddSingleton<IAppInteractionService, AppInteractionService>();
                         services.AddSingleton<CliptooController>();
@@ -169,6 +168,7 @@ namespace Cliptoo.UI
                         services.AddSingleton<IContentDialogService, ContentDialogService>();
                         services.AddSingleton<IPreviewManager, PreviewManager>();
 
+                        services.AddSingleton<IEventAggregator, EventAggregator>();
                         services.AddSingleton<IUpdateService, UpdateService>();
                         services.AddSingleton<IPlatformService, PlatformService>();
                         services.AddSingleton<ITrayManagerService, TrayManagerService>();
@@ -178,14 +178,12 @@ namespace Cliptoo.UI
                         services.AddSingleton<IComparisonStateService, ComparisonStateService>();
 
                         services.AddSingleton<MainViewModel>();
-                        services.AddSingleton<IClipDisplayService>(
-                            sp => new ClipDisplayService(
-                            sp.GetRequiredService<IClipDataService>(),
-                            sp.GetRequiredService<IClipViewModelFactory>(),
-                            sp.GetRequiredService<ISettingsService>(),
-                            sp.GetRequiredService<IIconProvider>(),
-                            new Lazy<MainViewModel>(() => sp.GetRequiredService<MainViewModel>())
-                        ));
+                        services.AddSingleton<IClipDisplayService>(sp => new ClipDisplayService(
+                           sp.GetRequiredService<IClipDataService>(),
+                           sp.GetRequiredService<IClipViewModelFactory>(),
+                           sp.GetRequiredService<ISettingsService>(),
+                           sp.GetRequiredService<IIconProvider>()
+                       ));
 
                         services.AddTransient<SettingsViewModel>(sp => new SettingsViewModel(
                             sp.GetRequiredService<IDatabaseService>(),

@@ -8,6 +8,7 @@ using Cliptoo.Core.Database.Models;
 using Cliptoo.Core.Logging;
 using Cliptoo.Core.Services;
 using Cliptoo.UI.Helpers;
+using Cliptoo.UI.Services;
 using Cliptoo.UI.Views;
 using Microsoft.Extensions.DependencyInjection;
 using Wpf.Ui.Controls;
@@ -17,20 +18,9 @@ namespace Cliptoo.UI.ViewModels
     public partial class MainViewModel
     {
         public ICommand PasteClipCommand { get; }
-        public ICommand PasteClipAsPlainTextCommand { get; }
-        public ICommand TransformAndPasteCommand { get; }
         public ICommand OpenSettingsCommand { get; }
         public ICommand HideWindowCommand { get; }
         public ICommand LoadMoreClipsCommand { get; }
-        public ICommand TogglePinCommand { get; }
-        public ICommand DeleteClipCommand { get; }
-        public ICommand EditClipCommand { get; }
-        public ICommand MoveToTopCommand { get; }
-        public ICommand OpenCommand { get; }
-        public ICommand SelectForCompareLeftCommand { get; }
-        public ICommand CompareWithSelectedRightCommand { get; }
-        public ICommand SendToCommand { get; }
-
 
         private async Task PerformPasteAction(ClipViewModel clipVM, Func<Clip, Task> pasteAction)
         {
@@ -96,10 +86,10 @@ namespace Cliptoo.UI.ViewModels
             }
         }
 
-        private async Task ExecuteTransformAndPaste(object? parameter)
+        private async Task ExecuteTransformAndPaste(int clipId, string transformType)
         {
-            if (parameter is not object[] values || values.Length != 2) return;
-            if (values[0] is not ClipViewModel clipVM || values[1] is not string transformType) return;
+            var clipVM = Clips.FirstOrDefault(c => c.Id == clipId);
+            if (clipVM == null) return;
 
             await PerformPasteAction(clipVM, async clip =>
             {
@@ -119,10 +109,12 @@ namespace Cliptoo.UI.ViewModels
             settingsWindow.ShowDialog();
         }
 
-        private async Task ExecuteTogglePin(object? parameter)
+        private async Task ExecuteTogglePin(int clipId, bool isPinned)
         {
-            if (parameter is not ClipViewModel clipVM) return;
-            clipVM.IsPinned = !clipVM.IsPinned;
+            var clipVM = Clips.FirstOrDefault(c => c.Id == clipId);
+            if (clipVM == null) return;
+
+            clipVM.IsPinned = isPinned;
             LogManager.LogInfo($"Toggling pin for clip: ID={clipVM.Id}, NewState={(clipVM.IsPinned ? "Pinned" : "Unpinned")}.");
             await _clipDataService.TogglePinAsync(clipVM.Id, clipVM.IsPinned).ConfigureAwait(false);
 
@@ -132,14 +124,14 @@ namespace Cliptoo.UI.ViewModels
             }
         }
 
-        private async Task ExecuteDeleteClip(object? parameter)
+        private async Task ExecuteDeleteClip(int clipId)
         {
-            if (parameter is not ClipViewModel clipVM || clipVM.IsDeleting) return;
+            var clipVM = Clips.FirstOrDefault(c => c.Id == clipId);
+            if (clipVM == null || clipVM.IsDeleting) return;
 
             LogManager.LogInfo($"Deleting clip: ID={clipVM.Id}.");
             clipVM.IsDeleting = true;
 
-            // Wait for the UI animation to play.
             await Task.Delay(300);
 
             try
@@ -147,25 +139,25 @@ namespace Cliptoo.UI.ViewModels
                 var fullClip = await clipVM.GetFullClipAsync().ConfigureAwait(false);
                 await _clipDataService.DeleteClipAsync(fullClip ?? clipVM._clip).ConfigureAwait(false);
 
-                // If DB deletion is successful, remove from UI on the UI thread.
                 await Application.Current.Dispatcher.InvokeAsync(() => Clips.Remove(clipVM));
             }
             catch (Exception ex)
             {
-                // If DB deletion fails, log, notify, and revert UI state.
                 LogManager.LogError($"Failed to delete clip ID={clipVM.Id}. Error: {ex.Message}");
 
                 await Application.Current.Dispatcher.InvokeAsync(() =>
                 {
                     _notificationService.Show("Delete Failed", "Could not delete the selected item.", ControlAppearance.Danger, SymbolRegular.ErrorCircle24);
-                    clipVM.IsDeleting = false; // Revert the animation state, making the item visible again.
+                    clipVM.IsDeleting = false;
                 });
             }
         }
 
-        private void ExecuteEditClip(object? parameter)
+        private void ExecuteEditClip(int clipId)
         {
-            if (parameter is not ClipViewModel clipVM) return;
+            var clipVM = Clips.FirstOrDefault(c => c.Id == clipId);
+            if (clipVM == null) return;
+
             var wasAlwaysOnTop = this.IsAlwaysOnTop;
             if (wasAlwaysOnTop)
             {
@@ -198,9 +190,11 @@ namespace Cliptoo.UI.ViewModels
             viewerWindow.Show();
         }
 
-        private async Task ExecuteMoveToTop(object? parameter)
+        private async Task ExecuteMoveToTop(int clipId)
         {
-            if (parameter is not ClipViewModel clipVM) return;
+            var clipVM = Clips.FirstOrDefault(c => c.Id == clipId);
+            if (clipVM == null) return;
+
             await _clipDataService.MoveClipToTopAsync(clipVM.Id);
             var clip = await _clipDataService.GetClipByIdAsync(clipVM.Id);
             if (clip != null)
@@ -210,9 +204,11 @@ namespace Cliptoo.UI.ViewModels
             await _clipDisplayService.LoadClipsAsync(false);
         }
 
-        private async Task ExecuteOpen(object? parameter)
+        private async Task ExecuteOpen(int clipId)
         {
-            if (parameter is not ClipViewModel clipVM) return;
+            var clipVM = Clips.FirstOrDefault(c => c.Id == clipId);
+            if (clipVM == null) return;
+
             var fullClip = await clipVM.GetFullClipAsync().ConfigureAwait(false);
             if (fullClip?.Content == null) return;
             try
@@ -228,25 +224,24 @@ namespace Cliptoo.UI.ViewModels
             }
         }
 
-        private void ExecuteSelectForCompareLeft(object? parameter)
+        private void ExecuteSelectForCompareLeft(int clipId)
         {
-            if (parameter is not ClipViewModel clipVM) return;
-            _comparisonStateService.SelectLeftClip(clipVM.Id);
+            _comparisonStateService.SelectLeftClip(clipId);
         }
 
-        private async Task ExecuteCompareWithSelectedRight(object? parameter)
+        private async Task ExecuteCompareWithSelectedRight(int clipId)
         {
-            if (parameter is not ClipViewModel clipVM) return;
-            var result = await _comparisonStateService.CompareWithRightClipAsync(clipVM.Id);
+            var result = await _comparisonStateService.CompareWithRightClipAsync(clipId);
             if (!result.success)
             {
                 _notificationService.Show("Compare Failed", result.message, ControlAppearance.Danger, SymbolRegular.ErrorCircle24);
             }
         }
 
-        private async Task ExecuteSendTo(object? parameter)
+        private async Task ExecuteSendTo(int clipId, SendToTarget target)
         {
-            if (parameter is not object[] values || values.Length != 2 || values[0] is not ClipViewModel clipVM || values[1] is not SendToTarget target) return;
+            var clipVM = Clips.FirstOrDefault(c => c.Id == clipId);
+            if (clipVM == null || target == null) return;
 
             LogManager.LogDebug($"SENDTO_DIAG: ExecuteSendTo called for target: {target.Name} ({target.Path})");
             var clip = await clipVM.GetFullClipAsync().ConfigureAwait(false);

@@ -25,23 +25,23 @@
             <TextBlock
                 Grid.Row="0"
                 Margin="5"
-                FontFamily="{Binding MainViewModel.PreviewFont}"
-                FontSize="{Binding MainViewModel.CurrentSettings.PreviewFontSize}"
+                FontFamily="{Binding PreviewFont}"
+                FontSize="{Binding CurrentSettings.PreviewFontSize}"
                 Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                 Text="{Binding TooltipTextContent, Mode=OneWay}"
                 TextWrapping="Wrap" />
             <StackPanel Grid.Row="1" Margin="10">
                 <TextBlock
-                    FontFamily="{Binding MainViewModel.PreviewFont}"
-                    FontSize="{Binding MainViewModel.CurrentSettings.PreviewFontSize}"
+                    FontFamily="{Binding PreviewFont}"
+                    FontSize="{Binding CurrentSettings.PreviewFontSize}"
                     FontWeight="Bold"
                     Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                     Text="{Binding FileName}"
                     TextWrapping="Wrap"
                     Visibility="{Binding FileName, Converter={StaticResource NullToVisibilityConverter}}" />
                 <TextBlock
-                    FontFamily="{Binding MainViewModel.PreviewFont}"
-                    FontSize="{Binding MainViewModel.CurrentSettings.PreviewFontSize}"
+                    FontFamily="{Binding PreviewFont}"
+                    FontSize="{Binding CurrentSettings.PreviewFontSize}"
                     Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                     Text="{Binding FileProperties}"
                     TextWrapping="Wrap"
@@ -58,16 +58,16 @@
                         Source="{Binding FileTypeInfoIcon}" />
                     <TextBlock
                         VerticalAlignment="Center"
-                        FontFamily="{Binding MainViewModel.PreviewFont}"
-                        FontSize="{Binding MainViewModel.CurrentSettings.PreviewFontSize}"
+                        FontFamily="{Binding PreviewFont}"
+                        FontSize="{Binding CurrentSettings.PreviewFontSize}"
                         Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                         Text="{Binding FileTypeInfo}"
                         TextWrapping="Wrap" />
                 </StackPanel>
                 <TextBlock
                     HorizontalAlignment="Left"
-                    FontFamily="{Binding MainViewModel.PreviewFont}"
-                    FontSize="{Binding MainViewModel.CurrentSettings.PreviewFontSize}"
+                    FontFamily="{Binding PreviewFont}"
+                    FontSize="{Binding CurrentSettings.PreviewFontSize}"
                     Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                     Text="{Binding LineCountInfo}"
                     Visibility="{Binding LineCountInfo, Converter={StaticResource NullToVisibilityConverter}}" />

@@ -25,7 +25,7 @@ namespace Cliptoo.UI.Controls
         {
             if (DataContext is ClipViewModel clipVm)
             {
-                clipVm.MainViewModel?.RequestShowPreview(clipVm);
+                clipVm.RequestShowPreview();
             }
             e.Handled = true;
         }
@@ -34,7 +34,7 @@ namespace Cliptoo.UI.Controls
         {
             if (DataContext is ClipViewModel clipVm)
             {
-                clipVm.MainViewModel?.RequestHidePreview();
+                clipVm.RequestHidePreview();
             }
         }
     }

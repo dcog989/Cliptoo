@@ -12,9 +12,7 @@ namespace Cliptoo.UI.Services
     {
         private readonly IClipDataService _clipDataService;
         private readonly IClipViewModelFactory _clipViewModelFactory;
-        private readonly ISettingsService _settingsService;
         private readonly IIconProvider _iconProvider;
-        private readonly Lazy<MainViewModel> _mainViewModel;
 
         private string _searchTerm = string.Empty;
         private FilterOption _selectedFilter;
@@ -36,14 +34,11 @@ namespace Cliptoo.UI.Services
             IClipDataService clipDataService,
             IClipViewModelFactory clipViewModelFactory,
             ISettingsService settingsService,
-            IIconProvider iconProvider,
-            Lazy<MainViewModel> mainViewModel)
+            IIconProvider iconProvider)
         {
             _clipDataService = clipDataService;
             _clipViewModelFactory = clipViewModelFactory;
-            _settingsService = settingsService;
             _iconProvider = iconProvider;
-            _mainViewModel = mainViewModel;
 
             _selectedFilter = new FilterOption("All", AppConstants.FilterKeys.All, null);
 
@@ -131,7 +126,7 @@ namespace Cliptoo.UI.Services
                     var theme = MainViewModel.CurrentThemeString;
                     foreach (var clip in clipsData)
                     {
-                        Clips.Add(_clipViewModelFactory.Create(clip, _settingsService.Settings, theme, _mainViewModel.Value));
+                        Clips.Add(_clipViewModelFactory.Create(clip, theme));
                     }
                     if (scrollToTop) ListScrolledToTopRequest?.Invoke(this, EventArgs.Empty);
                 });
@@ -170,7 +165,7 @@ namespace Cliptoo.UI.Services
                         var theme = MainViewModel.CurrentThemeString;
                         foreach (var clipData in clipsData)
                         {
-                            Clips.Add(_clipViewModelFactory.Create(clipData, _settingsService.Settings, theme, _mainViewModel.Value));
+                            Clips.Add(_clipViewModelFactory.Create(clipData, theme));
                         }
                         _currentOffset += (uint)clipsData.Count;
                         if (clipsData.Count < PageSize) _canLoadMore = false;
