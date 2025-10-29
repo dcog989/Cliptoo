@@ -58,17 +58,11 @@ namespace Cliptoo.UI.Services
             {
                 Application.Current.Resources["HyperlinkBlueBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#5599FF"));
                 Application.Current.Resources["HyperlinkBlueBrushHover"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#88BBFF"));
-                var whiteBrush = new SolidColorBrush(Colors.White);
-                whiteBrush.Freeze();
-                Application.Current.Resources["TextOnAccentFillColorPrimaryBrush"] = whiteBrush;
             }
             else
             {
                 Application.Current.Resources["HyperlinkBlueBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#0078D4"));
                 Application.Current.Resources["HyperlinkBlueBrushHover"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#005A9E"));
-                var blackBrush = new SolidColorBrush(Colors.Black);
-                blackBrush.Freeze();
-                Application.Current.Resources["TextOnAccentFillColorPrimaryBrush"] = blackBrush;
             }
 
             try
@@ -117,6 +111,14 @@ namespace Cliptoo.UI.Services
                 Application.Current.Resources["AccentBrush"] = accentBrush;
                 Application.Current.Resources["AccentBrushHover"] = hoverBrush;
                 Application.Current.Resources["AccentBrushSelectedHighlight"] = selectedHighlightBrush;
+
+                // Dynamically set text color for contrast
+                var brightness = (accentColor.R * 0.299) + (accentColor.G * 0.587) + (accentColor.B * 0.114);
+                var textOnAccentBrush = brightness > 128
+                    ? new SolidColorBrush(Colors.Black)
+                    : new SolidColorBrush(Colors.White);
+                textOnAccentBrush.Freeze();
+                Application.Current.Resources["TextOnAccentFillColorPrimaryBrush"] = textOnAccentBrush;
 
                 ApplicationAccentColorManager.Apply(accentColor);
 
