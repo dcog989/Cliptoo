@@ -183,15 +183,15 @@
                                 </Separator.Style>
                             </Separator>
                             <MenuItem
-                                Command="{Binding TogglePinCommand}"
-                                Header="Pin"
+                                Command="{Binding ToggleFavoriteCommand}"
+                                Header="Favorite"
                                 IsCheckable="True"
-                                IsChecked="{Binding IsPinned, Mode=OneWay}">
+                                IsChecked="{Binding IsFavorite, Mode=OneWay}">
                                 <MenuItem.Icon>
                                     <Image
                                         Width="16"
                                         Height="16"
-                                        Source="{Binding SharedResources.PinIcon16}" />
+                                        Source="{Binding SharedResources.FavoriteIcon16}" />
                                 </MenuItem.Icon>
                             </MenuItem>
                             <MenuItem Command="{Binding MoveToTopCommand}" Header="Move to Top" />

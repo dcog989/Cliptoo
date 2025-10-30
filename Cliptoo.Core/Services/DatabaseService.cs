@@ -74,9 +74,9 @@ namespace Cliptoo.Core.Services
             HistoryCleared?.Invoke(this, EventArgs.Empty);
         }
 
-        public async Task ClearPinnedClipsAsync()
+        public async Task ClearFavoriteClipsAsync()
         {
-            await _dbManager.ClearPinnedClipsAsync().ConfigureAwait(false);
+            await _dbManager.ClearFavoriteClipsAsync().ConfigureAwait(false);
             HistoryCleared?.Invoke(this, EventArgs.Empty);
         }
 
@@ -161,10 +161,10 @@ namespace Cliptoo.Core.Services
             return updates.Count;
         }
 
-        public async Task<string> ExportToJsonStringAsync(bool pinnedOnly)
+        public async Task<string> ExportToJsonStringAsync(bool favoriteOnly)
         {
             var clips = new List<Clip>();
-            await foreach (var clip in _dbManager.GetAllClipsAsync(pinnedOnly).ConfigureAwait(false))
+            await foreach (var clip in _dbManager.GetAllClipsAsync(favoriteOnly).ConfigureAwait(false))
             {
                 clips.Add(clip);
             }

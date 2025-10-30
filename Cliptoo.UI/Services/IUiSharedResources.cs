@@ -9,8 +9,8 @@ namespace Cliptoo.UI.Services
         ImageSource? MenuIcon { get; }
         ImageSource? WasTrimmedIcon { get; }
         ImageSource? MultiLineIcon { get; }
-        ImageSource? PinIcon { get; }
-        ImageSource? PinIcon16 { get; }
+        ImageSource? FavoriteIcon { get; }
+        ImageSource? FavoriteIcon16 { get; }
         ImageSource? ErrorIcon { get; }
         Task InitializeAsync();
     }

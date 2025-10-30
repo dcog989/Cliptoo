@@ -31,12 +31,12 @@ namespace Cliptoo.Core.Database
         public Task<int> AddClipAsync(string content, string clipType, string? sourceApp, bool wasTrimmed) => _clipRepository.AddClipAsync(content, clipType, sourceApp, wasTrimmed);
         public Task UpdateClipContentAsync(int id, string content) => _clipRepository.UpdateClipContentAsync(id, content);
         public Task DeleteClipAsync(int id) => _clipRepository.DeleteClipAsync(id);
-        public Task TogglePinAsync(int id, bool isPinned) => _clipRepository.TogglePinAsync(id, isPinned);
+        public Task ToggleFavoriteAsync(int id, bool isFavorite) => _clipRepository.ToggleFavoriteAsync(id, isFavorite);
         public Task UpdateTimestampAsync(int id) => _clipRepository.UpdateTimestampAsync(id);
         public Task UpdatePasteCountAsync() => _statsService.UpdatePasteCountAsync();
         public Task<int> ClearHistoryAsync() => _maintenanceService.ClearHistoryAsync();
         public Task<int> ClearAllHistoryAsync() => _maintenanceService.ClearAllHistoryAsync();
-        public Task<int> ClearPinnedClipsAsync() => _maintenanceService.ClearPinnedClipsAsync();
+        public Task<int> ClearFavoriteClipsAsync() => _maintenanceService.ClearFavoriteClipsAsync();
         public Task CompactDbAsync() => _maintenanceService.CompactDbAsync();
         public Task<int> PerformCleanupAsync(uint days, uint maxClips, bool forceCompact = false) => _maintenanceService.PerformCleanupAsync(days, maxClips, forceCompact);
         public Task<DbStats> GetStatsAsync() => _statsService.GetStatsAsync();
@@ -48,7 +48,7 @@ namespace Cliptoo.Core.Database
         public IAsyncEnumerable<string> GetAllLinkClipUrlsAsync() => _clipRepository.GetAllLinkClipUrlsAsync();
         public Task UpdateLastCleanupTimestampAsync() => _statsService.UpdateLastCleanupTimestampAsync();
         public Task IncrementPasteCountAsync(int clipId) => _clipRepository.IncrementPasteCountAsync(clipId);
-        public IAsyncEnumerable<Clip> GetAllClipsAsync(bool pinnedOnly) => _clipRepository.GetAllClipsAsync(pinnedOnly);
+        public IAsyncEnumerable<Clip> GetAllClipsAsync(bool favoriteOnly) => _clipRepository.GetAllClipsAsync(favoriteOnly);
         public Task<int> AddClipsAsync(IEnumerable<Clip> clips) => _clipRepository.AddClipsAsync(clips);
         public void Dispose()
         {

@@ -7,7 +7,7 @@ namespace Cliptoo.Core.Database
 {
     public class DatabaseInitializer : RepositoryBase, IDatabaseInitializer
     {
-        private const int CurrentDbVersion = 4;
+        private const int CurrentDbVersion = 5;
 
         public DatabaseInitializer(string dbPath) : base(dbPath) { }
 
@@ -37,7 +37,7 @@ namespace Cliptoo.Core.Database
                             Timestamp TEXT NOT NULL,
                             ClipType TEXT NOT NULL,
                             SourceApp TEXT,
-                            IsPinned INTEGER NOT NULL DEFAULT 0,
+                            IsFavorite INTEGER NOT NULL DEFAULT 0,
                             WasTrimmed INTEGER NOT NULL DEFAULT 0,
                             SizeInBytes INTEGER NOT NULL DEFAULT 0,
                             PasteCount INTEGER NOT NULL DEFAULT 0
@@ -102,6 +102,7 @@ namespace Cliptoo.Core.Database
             }
         }
 
+        [SuppressMessage("Microsoft.Security", "CA2100:Review SQL queries for security vulnerabilities", Justification = "Migration queries are hardcoded and do not use user input.")]
         private async Task UpgradeDatabaseAsync(long fromVersion)
         {
             if (fromVersion >= CurrentDbVersion) return;
@@ -200,6 +201,41 @@ namespace Cliptoo.Core.Database
                             alterCmd = connection.CreateCommand();
                             alterCmd.Transaction = transaction;
                             alterCmd.CommandText = "ALTER TABLE clips ADD COLUMN PasteCount INTEGER NOT NULL DEFAULT 0;";
+                            await alterCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            if (alterCmd != null) { await alterCmd.DisposeAsync().ConfigureAwait(false); }
+                        }
+                    }
+                }
+
+                if (fromVersion < 5)
+                {
+                    bool isFavoriteColumnExists = false;
+                    var pragmaCmd = connection.CreateCommand();
+                    pragmaCmd.Transaction = transaction;
+                    pragmaCmd.CommandText = "PRAGMA table_info('clips');";
+                    using (var reader = await pragmaCmd.ExecuteReaderAsync().ConfigureAwait(false))
+                    {
+                        while (await reader.ReadAsync().ConfigureAwait(false))
+                        {
+                            if (reader.GetString(reader.GetOrdinal("name")).Equals("IsPinned", StringComparison.OrdinalIgnoreCase))
+                            {
+                                isFavoriteColumnExists = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (isFavoriteColumnExists)
+                    {
+                        SqliteCommand? alterCmd = null;
+                        try
+                        {
+                            alterCmd = connection.CreateCommand();
+                            alterCmd.Transaction = transaction;
+                            alterCmd.CommandText = "ALTER TABLE clips RENAME COLUMN IsPinned TO IsFavorite;";
                             await alterCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
                         }
                         finally

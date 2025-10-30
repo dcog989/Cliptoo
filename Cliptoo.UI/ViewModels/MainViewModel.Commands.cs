@@ -108,16 +108,16 @@ namespace Cliptoo.UI.ViewModels
             settingsWindow.ShowDialog();
         }
 
-        private async Task ExecuteTogglePin(int clipId, bool isPinned)
+        private async Task ExecuteToggleFavorite(int clipId, bool isFavorite)
         {
             var clipVM = Clips.FirstOrDefault(c => c.Id == clipId);
             if (clipVM == null) return;
 
-            clipVM.IsPinned = isPinned;
-            LogManager.LogInfo($"Toggling pin for clip: ID={clipVM.Id}, NewState={(clipVM.IsPinned ? "Pinned" : "Unpinned")}.");
-            await _clipDataService.TogglePinAsync(clipVM.Id, clipVM.IsPinned).ConfigureAwait(false);
+            clipVM.IsFavorite = isFavorite;
+            LogManager.LogInfo($"Toggling favorite for clip: ID={clipVM.Id}, NewState={(clipVM.IsFavorite ? "Favorite" : "Not Favorite")}.");
+            await _clipDataService.ToggleFavoriteAsync(clipVM.Id, clipVM.IsFavorite).ConfigureAwait(false);
 
-            if (SelectedFilter.Key == AppConstants.FilterKeys.Pinned && !clipVM.IsPinned)
+            if (SelectedFilter.Key == AppConstants.FilterKeys.Favorite && !clipVM.IsFavorite)
             {
                 Application.Current.Dispatcher.Invoke(() => Clips.Remove(clipVM));
             }

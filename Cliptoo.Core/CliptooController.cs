@@ -253,12 +253,12 @@ namespace Cliptoo.Core
                 if (settings.MaxClipsTotal > 0)
                 {
                     var stats = await _databaseService.GetStatsAsync().ConfigureAwait(false);
-                    var unpinnedCount = stats.TotalClips - stats.PinnedClips;
+                    var notFavoriteCount = stats.TotalClips - stats.FavoriteClips;
                     var threshold = (uint)(settings.MaxClipsTotal * 1.2);
 
-                    if (unpinnedCount > threshold)
+                    if (notFavoriteCount > threshold)
                     {
-                        LogManager.LogInfo($"Proactive maintenance triggered: Clip count ({unpinnedCount}) exceeds threshold ({threshold}).");
+                        LogManager.LogInfo($"Proactive maintenance triggered: Clip count ({notFavoriteCount}) exceeds threshold ({threshold}).");
                         _ = Task.Run(() => _databaseService.RunHeavyMaintenanceNowAsync());
                     }
                 }

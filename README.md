@@ -35,8 +35,8 @@ Cliptoo will turn your clipboard history in to a quick-access library of the thi
 
 - **Persistent History:** Never lose a copied item again. Your history is stored locally in a high-performance SQLite database.
 - **Full-Text Search:** Find clips with a powerful, fuzzy search engine that highlights matches in real-time.
-- **Content-Aware Filtering:** Filter your history by type: text, links, images, colors, pinned items, etc.
-- **Pinning:** Keep frequently used items, pin them to avoid auto-cleanup.
+- **Content-Aware Filtering:** Filter your history by type: text, links, images, colors, favorite items, etc.
+- **Favorites:** Keep frequently used items, make them favorite to avoid auto-cleanup.
 - **Virtualized Scrolling:** Scroll through thousands of clips with no performance degradation.
 
 ### Content-Aware Previews
@@ -68,7 +68,7 @@ Cliptoo will turn your clipboard history in to a quick-access library of the thi
 
 - **Automatic Cleanup:** Configure rules to automatically delete old clips based on age or total number of items, keeping your database lean.
 - **Manual Tools:**
-  - **Clear History:** Delete everything - but optionally keep pinned items.
+  - **Clear History:** Delete everything - but optionally keep favorite items.
   - **Clear Caches:** Reclaim disk space by deleting all cached thumbnails and web metadata.
   - **Deadhead:** Remove clips that point to files or folders that no longer exist.
   - **Run Maintenance** Perform manual housekeeping if you don't want to wait for the automatic cycle.

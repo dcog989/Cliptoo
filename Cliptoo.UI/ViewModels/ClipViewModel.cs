@@ -30,7 +30,7 @@ namespace Cliptoo.UI.ViewModels
         private readonly IPreviewManager _previewManager;
         private ImageSource? _thumbnailSource;
         private bool _isThumbnailLoading;
-        private bool _isPinned;
+        private bool _isFavorite;
         private int _index;
         private ImageSource? _imagePreviewSource;
         private int _currentThumbnailLoadId;
@@ -131,7 +131,7 @@ namespace Cliptoo.UI.ViewModels
 
         public bool IsPasteGroupVisible => IsEditable || IsRtf;
 
-        public bool IsPinned { get => _isPinned; set => SetProperty(ref _isPinned, value); }
+        public bool IsFavorite { get => _isFavorite; set => SetProperty(ref _isFavorite, value); }
 
         private bool _isDeleting;
         public bool IsDeleting { get => _isDeleting; set => SetProperty(ref _isDeleting, value); }
@@ -151,7 +151,7 @@ namespace Cliptoo.UI.ViewModels
 
         public string Preview { get; private set; } = string.Empty;
 
-        public ICommand TogglePinCommand { get; }
+        public ICommand ToggleFavoriteCommand { get; }
         public ICommand DeleteCommand { get; }
         public ICommand EditClipCommand { get; }
         public ICommand MoveToTopCommand { get; }
@@ -182,7 +182,7 @@ namespace Cliptoo.UI.ViewModels
             ArgumentNullException.ThrowIfNull(fontProvider);
             _clip = clip;
             _clipDetailsLoader = clipDetailsLoader;
-            _isPinned = clip.IsPinned;
+            _isFavorite = clip.IsFavorite;
             _iconProvider = iconProvider;
             _clipDataService = clipDataService;
             _thumbnailService = thumbnailService;
@@ -195,7 +195,7 @@ namespace Cliptoo.UI.ViewModels
             MainFont = fontProvider.GetFont(CurrentSettings.FontFamily);
             PreviewFont = fontProvider.GetFont(CurrentSettings.PreviewFontFamily);
 
-            TogglePinCommand = new RelayCommand(_ => _eventAggregator.Publish(new ClipPinToggled(Id, !IsPinned)));
+            ToggleFavoriteCommand = new RelayCommand(_ => _eventAggregator.Publish(new ClipFavoriteToggled(Id, !IsFavorite)));
             DeleteCommand = new RelayCommand(_ => _eventAggregator.Publish(new ClipDeletionRequested(Id)));
             EditClipCommand = new RelayCommand(_ => _eventAggregator.Publish(new ClipEditRequested(Id)));
             MoveToTopCommand = new RelayCommand(_ => _eventAggregator.Publish(new ClipMoveToTopRequested(Id)));
@@ -229,7 +229,7 @@ namespace Cliptoo.UI.ViewModels
             ArgumentNullException.ThrowIfNull(clip);
             _clip = clip;
             _theme = theme;
-            IsPinned = clip.IsPinned;
+            IsFavorite = clip.IsFavorite;
             ReleaseThumbnail();
             FileProperties = null;
             FileTypeInfo = null;
@@ -253,7 +253,7 @@ namespace Cliptoo.UI.ViewModels
             OnPropertyChanged(nameof(ShowTextualTooltip));
             OnPropertyChanged(nameof(IsMultiLine));
             OnPropertyChanged(nameof(WasTrimmed));
-            OnPropertyChanged(nameof(IsPinned));
+            OnPropertyChanged(nameof(IsFavorite));
             OnPropertyChanged(nameof(IsFileBased));
             OnPropertyChanged(nameof(IsLinkToolTip));
             OnPropertyChanged(nameof(SizeInBytes));
@@ -487,5 +487,6 @@ namespace Cliptoo.UI.ViewModels
             Dispose(disposing: true);
             GC.SuppressFinalize(this);
         }
+
     }
 }

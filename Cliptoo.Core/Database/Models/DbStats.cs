@@ -10,7 +10,7 @@ namespace Cliptoo.Core.Database.Models
         public double DatabaseSizeMb { get; set; }
         public long UniqueClipsEver { get; set; }
         public DateTime? CreationTimestamp { get; set; }
-        public long PinnedClips { get; set; }
+        public long FavoriteClips { get; set; }
         public DateTime? LastCleanupTimestamp { get; set; }
     }
 }

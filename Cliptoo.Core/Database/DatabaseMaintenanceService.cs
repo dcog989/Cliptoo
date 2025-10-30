@@ -19,7 +19,7 @@ namespace Cliptoo.Core.Database
 
         public async Task<int> ClearHistoryAsync()
         {
-            var affected = await ExecuteNonQueryAsync("DELETE FROM clips WHERE IsPinned = 0").ConfigureAwait(false);
+            var affected = await ExecuteNonQueryAsync("DELETE FROM clips WHERE IsFavorite = 0").ConfigureAwait(false);
             if (affected > 0) await CompactDbAsync().ConfigureAwait(false);
             return affected;
         }
@@ -31,9 +31,9 @@ namespace Cliptoo.Core.Database
             return affected;
         }
 
-        public async Task<int> ClearPinnedClipsAsync()
+        public async Task<int> ClearFavoriteClipsAsync()
         {
-            var affected = await ExecuteNonQueryAsync("DELETE FROM clips WHERE IsPinned = 1").ConfigureAwait(false);
+            var affected = await ExecuteNonQueryAsync("DELETE FROM clips WHERE IsFavorite = 1").ConfigureAwait(false);
             if (affected > 0) await CompactDbAsync().ConfigureAwait(false);
             return affected;
         }
@@ -121,7 +121,7 @@ namespace Cliptoo.Core.Database
                     try
                     {
                         ageCmd = connection.CreateCommand();
-                        ageCmd.CommandText = "DELETE FROM clips WHERE IsPinned = 0 AND Timestamp < @CutoffDate";
+                        ageCmd.CommandText = "DELETE FROM clips WHERE IsFavorite = 0 AND Timestamp < @CutoffDate";
                         ageCmd.Parameters.AddWithValue("@CutoffDate", DateTime.UtcNow.AddDays(-days).ToString("o"));
                         totalAffected += await ageCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
                     }
@@ -138,7 +138,7 @@ namespace Cliptoo.Core.Database
                     try
                     {
                         countCmd = connection.CreateCommand();
-                        countCmd.CommandText = "SELECT COUNT(*) FROM clips WHERE IsPinned = 0";
+                        countCmd.CommandText = "SELECT COUNT(*) FROM clips WHERE IsFavorite = 0";
                         count = (long)(await countCmd.ExecuteScalarAsync().ConfigureAwait(false) ?? 0L);
                     }
                     finally
@@ -152,7 +152,7 @@ namespace Cliptoo.Core.Database
                         try
                         {
                             deleteCmd = connection.CreateCommand();
-                            deleteCmd.CommandText = @"DELETE FROM clips WHERE Id IN (SELECT Id FROM clips WHERE IsPinned = 0 ORDER BY Timestamp ASC LIMIT @Limit)";
+                            deleteCmd.CommandText = @"DELETE FROM clips WHERE Id IN (SELECT Id FROM clips WHERE IsFavorite = 0 ORDER BY Timestamp ASC LIMIT @Limit)";
                             deleteCmd.Parameters.AddWithValue("@Limit", count - maxClips);
                             totalAffected += await deleteCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
                         }
@@ -295,7 +295,7 @@ namespace Cliptoo.Core.Database
         public async Task<int> ClearOversizedClipsAsync(uint sizeMb)
         {
             var sizeBytes = (long)sizeMb * 1024 * 1024;
-            var sql = "DELETE FROM clips WHERE IsPinned = 0 AND SizeInBytes > @SizeBytes";
+            var sql = "DELETE FROM clips WHERE IsFavorite = 0 AND SizeInBytes > @SizeBytes";
             var param = new SqliteParameter("@SizeBytes", sizeBytes);
             int totalAffected = await ExecuteNonQueryAsync(sql, param).ConfigureAwait(false);
 

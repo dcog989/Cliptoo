@@ -20,14 +20,14 @@ namespace Cliptoo.Core.Interfaces
         Task<DbStats> GetStatsAsync();
         Task ClearHistoryAsync();
         Task ClearAllHistoryAsync();
-        Task ClearPinnedClipsAsync();
+        Task ClearFavoriteClipsAsync();
         void ClearCaches();
         Task<MaintenanceResult> RunHeavyMaintenanceNowAsync();
         Task<int> RemoveDeadheadClipsAsync();
         Task<int> ClearOversizedClipsAsync(uint sizeMb);
         Task<int> ReclassifyAllClipsAsync();
         int CleanupTempFiles();
-        Task<string> ExportToJsonStringAsync(bool pinnedOnly);
+        Task<string> ExportToJsonStringAsync(bool favoriteOnly);
         Task<int> ImportFromJsonAsync(string jsonContent);
         event EventHandler? CachesCleared;
         event EventHandler? HistoryCleared;

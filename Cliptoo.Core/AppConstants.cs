@@ -30,7 +30,7 @@ namespace Cliptoo.Core
         public static class FilterKeys
         {
             public const string All = "all";
-            public const string Pinned = "pinned";
+            public const string Favorite = "favorite";
             public const string Text = "text";
             public const string Link = "link";
             public const string Image = "file_image";
@@ -39,7 +39,7 @@ namespace Cliptoo.Core
 
         public static class IconKeys
         {
-            public const string Pin = "pin";
+            public const string Favorite = "favorite";
             public const string Multiline = "multiline";
             public const string WasTrimmed = "was_trimmed";
             public const string Logo = "logo";

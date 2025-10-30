@@ -3,7 +3,7 @@ using Cliptoo.Core.Configuration;
 namespace Cliptoo.UI.Services
 {
     public record ClipDeletionRequested(int ClipId);
-    public record ClipPinToggled(int ClipId, bool IsPinned);
+    public record ClipFavoriteToggled(int ClipId, bool IsFavorite);
     public record ClipMoveToTopRequested(int ClipId);
     public record ClipEditRequested(int ClipId);
     public record ClipOpenRequested(int ClipId);

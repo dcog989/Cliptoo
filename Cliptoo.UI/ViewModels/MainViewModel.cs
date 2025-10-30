@@ -212,7 +212,7 @@ namespace Cliptoo.UI.ViewModels
         private void SubscribeToEvents()
         {
             _eventAggregator.Subscribe<ClipDeletionRequested>(async msg => await ExecuteDeleteClip(msg.ClipId));
-            _eventAggregator.Subscribe<ClipPinToggled>(async msg => await ExecuteTogglePin(msg.ClipId, msg.IsPinned));
+            _eventAggregator.Subscribe<ClipFavoriteToggled>(async msg => await ExecuteToggleFavorite(msg.ClipId, msg.IsFavorite));
             _eventAggregator.Subscribe<ClipMoveToTopRequested>(async msg => await ExecuteMoveToTop(msg.ClipId));
             _eventAggregator.Subscribe<ClipEditRequested>(msg => ExecuteEditClip(msg.ClipId));
             _eventAggregator.Subscribe<ClipOpenRequested>(async msg => await ExecuteOpen(msg.ClipId));

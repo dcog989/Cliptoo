@@ -76,9 +76,9 @@ namespace Cliptoo.Core.Services
             }
         }
 
-        public Task TogglePinAsync(int id, bool isPinned)
+        public Task ToggleFavoriteAsync(int id, bool isFavorite)
         {
-            return _dbManager.TogglePinAsync(id, isPinned);
+            return _dbManager.ToggleFavoriteAsync(id, isFavorite);
         }
 
         public async Task MoveClipToTopAsync(int id)

@@ -13,7 +13,7 @@ namespace Cliptoo.Core.Database
     internal static class ClipQueryBuilder
     {
         private static readonly char[] _spaceSeparator = [' '];
-        private const string columns = "c.Id, c.Timestamp, c.ClipType, c.SourceApp, c.IsPinned, c.WasTrimmed, c.SizeInBytes, c.PreviewContent, c.PasteCount";
+        private const string columns = "c.Id, c.Timestamp, c.ClipType, c.SourceApp, c.IsFavorite, c.WasTrimmed, c.SizeInBytes, c.PreviewContent, c.PasteCount";
         private static readonly Regex FtsSpecialCharsRegex = new("[^a-zA-Z0-9_]");
 
         [SuppressMessage("Microsoft.Security", "CA2100:Review SQL queries for security vulnerabilities", Justification = "OrderBy clause is constructed from hardcoded, non-user-input strings.")]
@@ -66,9 +66,9 @@ namespace Cliptoo.Core.Database
                     "FROM clips c ", columns);
             }
 
-            if (filterType == AppConstants.FilterKeys.Pinned)
+            if (filterType == AppConstants.FilterKeys.Favorite)
             {
-                whereConditions.Add("c.IsPinned = 1");
+                whereConditions.Add("c.IsFavorite = 1");
             }
             else if (filterType == AppConstants.ClipTypes.Link)
             {
@@ -88,7 +88,7 @@ namespace Cliptoo.Core.Database
             }
 
             string orderBy = sanitizedTerms.Count > 0
-                ? "ORDER BY c.IsPinned DESC, (rank - Hotness * 5.0) ASC, c.Timestamp DESC"
+                ? "ORDER BY c.IsFavorite DESC, (rank - Hotness * 5.0) ASC, c.Timestamp DESC"
                 : "ORDER BY c.Timestamp DESC";
 
             queryBuilder.Append(CultureInfo.InvariantCulture, $" {orderBy} LIMIT @Limit OFFSET @Offset");

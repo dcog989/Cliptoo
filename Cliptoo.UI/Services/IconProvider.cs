@@ -37,12 +37,12 @@ namespace Cliptoo.UI.Services
             [Core.AppConstants.FilterKeys.Text] = "text-paragraph.svg",
             [Core.AppConstants.ClipTypes.Video] = "film.svg",
             [Core.AppConstants.FilterKeys.All] = "check2-all.svg",
-            [Core.AppConstants.FilterKeys.Pinned] = "pin-angle.svg",
+            [Core.AppConstants.FilterKeys.Favorite] = "star.svg",
             [Core.AppConstants.IconKeys.Error] = "x-circle.svg",
             [Core.AppConstants.IconKeys.List] = "list.svg",
             [Core.AppConstants.IconKeys.Logo] = "cliptoo.svg",
             [Core.AppConstants.IconKeys.Multiline] = "text-wrap.svg",
-            [Core.AppConstants.IconKeys.Pin] = "pin-angle.svg",
+            [Core.AppConstants.IconKeys.Favorite] = "star.svg",
             [Core.AppConstants.IconKeys.WasTrimmed] = "backspace.svg",
             [Core.AppConstants.IconKeys.Trash] = "trash.svg"
         };

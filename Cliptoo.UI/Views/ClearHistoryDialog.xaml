@@ -16,8 +16,8 @@
             TextWrapping="Wrap" />
         <CheckBox
             Margin="16,8,0,0"
-            Content="Delete pinned clips"
-            IsChecked="{Binding DeletePinned}" />
+            Content="Delete favorite clips"
+            IsChecked="{Binding DeleteFavorite}" />
         <CheckBox
             Margin="16,8,0,0"
             Content="Delete logs"

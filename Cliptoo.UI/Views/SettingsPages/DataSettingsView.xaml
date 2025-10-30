@@ -72,7 +72,7 @@
                     Appearance="Secondary"
                     Command="{Binding ClearHistoryCommand}"
                     Content="Clear History..."
-                    ToolTip="Delete all non-pinned clips from the database." />
+                    ToolTip="Delete all non-favorite clips from the database." />
                 <ui:Button
                     Margin="16,0,0,0"
                     Appearance="Secondary"
@@ -120,9 +120,9 @@
                 <ui:Button
                     Margin="16,0,0,0"
                     Appearance="Secondary"
-                    Command="{Binding ExportPinnedCommand}"
-                    Content="Export Pinned..."
-                    ToolTip="Export only pinned clips to a JSON file." />
+                    Command="{Binding ExportFavoriteCommand}"
+                    Content="Export Favorites..."
+                    ToolTip="Export only favorite clips to a JSON file." />
                 <ui:Button
                     Margin="16,0,0,0"
                     Appearance="Secondary"

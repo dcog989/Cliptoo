@@ -201,7 +201,7 @@ namespace Cliptoo.UI.Services
         {
             var filterDisplayNames = new Dictionary<string, string>
             {
-                { AppConstants.FilterKeys.All, "All" }, { AppConstants.FilterKeys.Pinned, "Pinned" },
+                { AppConstants.FilterKeys.All, "All" }, { AppConstants.FilterKeys.Favorite, "Favorites" },
                 { AppConstants.ClipTypes.Archive, "Archives" }, { AppConstants.ClipTypes.Audio, "Audio" },
                 { AppConstants.ClipTypes.Dev, "Dev Files" }, { AppConstants.ClipTypes.CodeSnippet, "Code Snippets" },
                 { AppConstants.ClipTypes.Color, "Colors" }, { AppConstants.ClipTypes.Danger, "Dangerous" },
@@ -214,7 +214,7 @@ namespace Cliptoo.UI.Services
             };
             var orderedFilterKeys = new[]
             {
-                AppConstants.FilterKeys.All, AppConstants.FilterKeys.Pinned, AppConstants.ClipTypes.Archive, AppConstants.ClipTypes.Audio,
+                AppConstants.FilterKeys.All, AppConstants.FilterKeys.Favorite, AppConstants.ClipTypes.Archive, AppConstants.ClipTypes.Audio,
                 AppConstants.ClipTypes.CodeSnippet, AppConstants.ClipTypes.Color, AppConstants.ClipTypes.Danger, AppConstants.ClipTypes.Database,
                 AppConstants.ClipTypes.Dev, AppConstants.ClipTypes.Document, AppConstants.ClipTypes.Folder, AppConstants.ClipTypes.Font,
                 AppConstants.ClipTypes.Generic, AppConstants.ClipTypes.Image, AppConstants.ClipTypes.Link, AppConstants.ClipTypes.System,

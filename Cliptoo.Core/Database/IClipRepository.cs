@@ -12,14 +12,14 @@ namespace Cliptoo.Core.Database
         Task<int> AddClipAsync(string content, string clipType, string? sourceApp, bool wasTrimmed);
         Task UpdateClipContentAsync(int id, string content);
         Task DeleteClipAsync(int id);
-        Task TogglePinAsync(int id, bool isPinned);
+        Task ToggleFavoriteAsync(int id, bool isFavorite);
         Task UpdateTimestampAsync(int id);
         IAsyncEnumerable<Clip> GetAllFileBasedClipsAsync();
         Task UpdateClipTypesAsync(Dictionary<int, string> updates);
         IAsyncEnumerable<string> GetAllImageClipPathsAsync();
         IAsyncEnumerable<string> GetAllLinkClipUrlsAsync();
         Task IncrementPasteCountAsync(int clipId);
-        IAsyncEnumerable<Clip> GetAllClipsAsync(bool pinnedOnly);
+        IAsyncEnumerable<Clip> GetAllClipsAsync(bool favoriteOnly);
         Task<int> AddClipsAsync(IEnumerable<Clip> clips);
     }
 }

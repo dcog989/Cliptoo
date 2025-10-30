@@ -17,6 +17,13 @@ using Cliptoo.UI.ViewModels.Base;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 using Wpf.Ui;
+using System.Globalization;
+using System.Windows.Input;
+using Cliptoo.UI.Views;
+using Microsoft.Win32;
+using Wpf.Ui.Controls;
+using System.Text.Json;
+
 
 namespace Cliptoo.UI.ViewModels
 {
@@ -80,7 +87,7 @@ namespace Cliptoo.UI.ViewModels
                 try
                 {
                     await Task.Run(() => _databaseService.ClearCaches()).ConfigureAwait(true);
-                    await ShowInformationDialogAsync("Caches Cleared", new TextBlock { Text = "All cached thumbnails and temporary files have been deleted." }).ConfigureAwait(true);
+                    await ShowInformationDialogAsync("Caches Cleared", new System.Windows.Controls.TextBlock { Text = "All cached thumbnails and temporary files have been deleted." }).ConfigureAwait(true);
                 }
                 finally
                 {
@@ -122,14 +129,14 @@ namespace Cliptoo.UI.ViewModels
                     }
 
                     var stackPanel = new StackPanel();
-                    stackPanel.Children.Add(new TextBlock { Text = "Maintenance routine completed.", Margin = new Thickness(0, 0, 0, 10) });
+                    stackPanel.Children.Add(new System.Windows.Controls.TextBlock { Text = "Maintenance routine completed.", Margin = new Thickness(0, 0, 0, 10) });
                     foreach (var line in results)
                     {
-                        stackPanel.Children.Add(new TextBlock { Text = line });
+                        stackPanel.Children.Add(new System.Windows.Controls.TextBlock { Text = line });
                     }
 
                     stackPanel.Children.Add(new Separator { Margin = new Thickness(0, 10, 0, 10) });
-                    stackPanel.Children.Add(new TextBlock
+                    stackPanel.Children.Add(new System.Windows.Controls.TextBlock
                     {
                         Text = "Note: This maintenance process also runs automatically approximately every 24 hours when the application is idle.",
                         TextWrapping = TextWrapping.Wrap,
@@ -164,7 +171,7 @@ namespace Cliptoo.UI.ViewModels
             MoveSendToTargetUpCommand = new RelayCommand(ExecuteMoveSendToTargetUp, CanExecuteMoveSendToTargetUp);
             MoveSendToTargetDownCommand = new RelayCommand(ExecuteMoveSendToTargetDown, CanExecuteMoveSendToTargetDown);
             ExportAllCommand = new RelayCommand(async _ => await ExecuteExport(false), _ => !IsBusy);
-            ExportPinnedCommand = new RelayCommand(async _ => await ExecuteExport(true), _ => !IsBusy);
+            ExportFavoriteCommand = new RelayCommand(async _ => await ExecuteExport(true), _ => !IsBusy);
             ImportCommand = new RelayCommand(async _ => await ExecuteImport(), _ => !IsBusy);
             AddBlacklistedAppCommand = new RelayCommand(p => ExecuteAddBlacklistedApp(p as string));
             RemoveBlacklistedAppCommand = new RelayCommand(p => ExecuteRemoveBlacklistedApp(p as string));
@@ -252,9 +259,9 @@ namespace Cliptoo.UI.ViewModels
             get
             {
                 if (Stats == null) return "Loading stats...";
-                var pinnedText = Stats.PinnedClips > 0 ? $" (+{Stats.PinnedClips:N0} pinned)" : "";
-                var totalUnpinned = Stats.TotalClips - Stats.PinnedClips;
-                return $"{totalUnpinned:N0} clips{pinnedText} in database using {Stats.DatabaseSizeMb} MB.";
+                var favoriteText = Stats.FavoriteClips > 0 ? $" (+{Stats.FavoriteClips:N0} favorited)" : "";
+                var totalNotFavorite = Stats.TotalClips - Stats.FavoriteClips;
+                return $"{totalNotFavorite:N0} clips{favoriteText} in database using {Stats.DatabaseSizeMb} MB.";
             }
         }
 
@@ -269,6 +276,63 @@ namespace Cliptoo.UI.ViewModels
             {
                 LogManager.LogCritical(ex, "Failed to load database stats.");
                 Stats = new DbStats();
+            }
+        }
+
+        private async Task HandleClearHistory()
+        {
+            var viewModel = new ClearHistoryDialogViewModel();
+            var dialog = new ContentDialog
+            {
+                Title = "Clear History?",
+                Content = new Views.ClearHistoryDialog { DataContext = viewModel },
+                PrimaryButtonText = "Delete",
+                CloseButtonText = "Cancel"
+            };
+
+            var binding = new System.Windows.Data.Binding("IsAnyOptionSelected")
+            {
+                Source = viewModel,
+                Mode = System.Windows.Data.BindingMode.OneWay
+            };
+            dialog.SetBinding(ContentDialog.IsPrimaryButtonEnabledProperty, binding);
+
+            var result = await _contentDialogService.ShowAsync(dialog, CancellationToken.None);
+
+            if (result != ContentDialogResult.Primary)
+            {
+                return;
+            }
+
+            if (IsBusy) return;
+            IsBusy = true;
+            try
+            {
+                if (viewModel.DeleteFavorite && viewModel.DeleteOtherClips)
+                {
+                    await _databaseService.ClearAllHistoryAsync();
+                }
+                else
+                {
+                    if (viewModel.DeleteFavorite)
+                    {
+                        await _databaseService.ClearFavoriteClipsAsync();
+                    }
+                    if (viewModel.DeleteOtherClips)
+                    {
+                        await _databaseService.ClearHistoryAsync();
+                    }
+                }
+
+                if (viewModel.DeleteLogs)
+                {
+                    await Task.Run(() => LogManager.ClearLogs());
+                }
+                await InitializeAsync();
+            }
+            finally
+            {
+                IsBusy = false;
             }
         }
 
@@ -386,13 +450,13 @@ namespace Cliptoo.UI.ViewModels
 
     internal sealed class ClearHistoryDialogViewModel : ViewModelBase
     {
-        private bool _deletePinned;
-        public bool DeletePinned
+        private bool _deleteFavorite;
+        public bool DeleteFavorite
         {
-            get => _deletePinned;
+            get => _deleteFavorite;
             set
             {
-                if (SetProperty(ref _deletePinned, value))
+                if (SetProperty(ref _deleteFavorite, value))
                 {
                     OnPropertyChanged(nameof(IsAnyOptionSelected));
                 }
@@ -425,7 +489,7 @@ namespace Cliptoo.UI.ViewModels
             }
         }
 
-        public bool IsAnyOptionSelected => DeletePinned || DeleteLogs || DeleteOtherClips;
+        public bool IsAnyOptionSelected => DeleteFavorite || DeleteLogs || DeleteOtherClips;
     }
 
 }

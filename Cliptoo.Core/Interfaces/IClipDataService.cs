@@ -13,7 +13,7 @@ namespace Cliptoo.Core.Interfaces
         Task<int> AddClipAsync(string content, string clipType, string? sourceApp, bool wasTrimmed);
         Task UpdateClipContentAsync(int id, string newContent);
         Task DeleteClipAsync(Clip clip);
-        Task TogglePinAsync(int id, bool isPinned);
+        Task ToggleFavoriteAsync(int id, bool isFavorite);
         Task MoveClipToTopAsync(int id);
         void ClearCache();
         Task IncrementPasteCountAsync(int clipId);

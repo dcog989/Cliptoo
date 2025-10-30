@@ -6,7 +6,7 @@ namespace Cliptoo.Core.Database
     {
         Task<int> ClearHistoryAsync();
         Task<int> ClearAllHistoryAsync();
-        Task<int> ClearPinnedClipsAsync();
+        Task<int> ClearFavoriteClipsAsync();
         Task CompactDbAsync();
         Task<int> PerformCleanupAsync(uint days, uint maxClips, bool forceCompact = false);
         Task<int> RemoveDeadheadClipsAsync();

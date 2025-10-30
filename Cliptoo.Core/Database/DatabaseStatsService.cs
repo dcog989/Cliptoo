@@ -30,7 +30,7 @@ namespace Cliptoo.Core.Database
         public async Task<DbStats> GetStatsAsync()
         {
             long totalClips = 0;
-            long pinnedClips = 0;
+            long favoriteClips = 0;
             long totalContentLength = 0;
             long pasteCount = 0;
             long uniqueClipsEver = 0;
@@ -46,13 +46,13 @@ namespace Cliptoo.Core.Database
                 try
                 {
                     command = connection.CreateCommand();
-                    command.CommandText = "SELECT COUNT(*), COALESCE(SUM(LENGTH(Content)), 0), COALESCE(SUM(CASE WHEN IsPinned = 1 THEN 1 ELSE 0 END), 0) FROM clips";
+                    command.CommandText = "SELECT COUNT(*), COALESCE(SUM(LENGTH(Content)), 0), COALESCE(SUM(CASE WHEN IsFavorite = 1 THEN 1 ELSE 0 END), 0) FROM clips";
                     reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
                     if (await reader.ReadAsync().ConfigureAwait(false))
                     {
                         totalClips = reader.GetInt64(0);
                         totalContentLength = reader.GetInt64(1);
-                        pinnedClips = reader.GetInt64(2);
+                        favoriteClips = reader.GetInt64(2);
                     }
                 }
                 finally
@@ -118,7 +118,7 @@ namespace Cliptoo.Core.Database
                 DatabaseSizeMb = dbSizeMb,
                 UniqueClipsEver = uniqueClipsEver,
                 CreationTimestamp = creationTimestamp,
-                PinnedClips = pinnedClips,
+                FavoriteClips = favoriteClips,
                 LastCleanupTimestamp = lastCleanupTimestamp
             };
         }

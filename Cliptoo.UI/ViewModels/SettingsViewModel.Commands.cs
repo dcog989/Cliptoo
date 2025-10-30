@@ -32,7 +32,7 @@ namespace Cliptoo.UI.ViewModels
         public ICommand MoveSendToTargetUpCommand { get; }
         public ICommand MoveSendToTargetDownCommand { get; }
         public ICommand ExportAllCommand { get; }
-        public ICommand ExportPinnedCommand { get; }
+        public ICommand ExportFavoriteCommand { get; }
         public ICommand ImportCommand { get; }
         public ICommand AddBlacklistedAppCommand { get; }
         public ICommand RemoveBlacklistedAppCommand { get; }
@@ -49,63 +49,6 @@ namespace Cliptoo.UI.ViewModels
             if (openFileDialog.ShowDialog() == true)
             {
                 CompareToolPath = openFileDialog.FileName;
-            }
-        }
-
-        private async Task HandleClearHistory()
-        {
-            var viewModel = new ClearHistoryDialogViewModel();
-            var dialog = new ContentDialog
-            {
-                Title = "Clear History?",
-                Content = new Views.ClearHistoryDialog { DataContext = viewModel },
-                PrimaryButtonText = "Delete",
-                CloseButtonText = "Cancel"
-            };
-
-            var binding = new System.Windows.Data.Binding("IsAnyOptionSelected")
-            {
-                Source = viewModel,
-                Mode = System.Windows.Data.BindingMode.OneWay
-            };
-            dialog.SetBinding(ContentDialog.IsPrimaryButtonEnabledProperty, binding);
-
-            var result = await _contentDialogService.ShowAsync(dialog, CancellationToken.None);
-
-            if (result != ContentDialogResult.Primary)
-            {
-                return;
-            }
-
-            if (IsBusy) return;
-            IsBusy = true;
-            try
-            {
-                if (viewModel.DeletePinned && viewModel.DeleteOtherClips)
-                {
-                    await _databaseService.ClearAllHistoryAsync();
-                }
-                else
-                {
-                    if (viewModel.DeletePinned)
-                    {
-                        await _databaseService.ClearPinnedClipsAsync();
-                    }
-                    if (viewModel.DeleteOtherClips)
-                    {
-                        await _databaseService.ClearHistoryAsync();
-                    }
-                }
-
-                if (viewModel.DeleteLogs)
-                {
-                    await Task.Run(() => LogManager.ClearLogs());
-                }
-                await InitializeAsync();
-            }
-            finally
-            {
-                IsBusy = false;
             }
         }
 
@@ -178,7 +121,7 @@ namespace Cliptoo.UI.ViewModels
             window.ShowDialog();
         }
 
-        private async Task ExecuteExport(bool pinnedOnly)
+        private async Task ExecuteExport(bool favoriteOnly)
         {
             string downloadsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
             if (!Directory.Exists(downloadsPath))
@@ -188,13 +131,13 @@ namespace Cliptoo.UI.ViewModels
             }
 
             string timestamp = DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
-            string baseFileName = pinnedOnly ? "cliptoo_pinned_export" : "cliptoo_export";
+            string baseFileName = favoriteOnly ? "cliptoo_favorites_export" : "cliptoo_export";
             string fileName = $"{baseFileName}_{timestamp}.json";
 
             var dialog = new SaveFileDialog
             {
                 Filter = "JSON files (*.json)|*.json",
-                Title = pinnedOnly ? "Export Pinned Clips" : "Export All Clips",
+                Title = favoriteOnly ? "Export Favorite Clips" : "Export All Clips",
                 InitialDirectory = downloadsPath,
                 FileName = fileName
             };
@@ -204,7 +147,7 @@ namespace Cliptoo.UI.ViewModels
             IsBusy = true;
             try
             {
-                var jsonContent = await _databaseService.ExportToJsonStringAsync(pinnedOnly).ConfigureAwait(true);
+                var jsonContent = await _databaseService.ExportToJsonStringAsync(favoriteOnly).ConfigureAwait(true);
                 await File.WriteAllTextAsync(dialog.FileName, jsonContent).ConfigureAwait(true);
                 await ShowInformationDialogAsync("Export Complete", new System.Windows.Controls.TextBlock { Text = $"Successfully exported clips to:\n{dialog.FileName}" });
             }

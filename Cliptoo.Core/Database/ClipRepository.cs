@@ -37,7 +37,7 @@ namespace Cliptoo.Core.Database
                 Timestamp = reader.GetOrdinal("Timestamp"),
                 ClipType = reader.GetOrdinal("ClipType"),
                 SourceApp = reader.GetOrdinal("SourceApp"),
-                IsPinned = reader.GetOrdinal("IsPinned"),
+                IsFavorite = reader.GetOrdinal("IsFavorite"),
                 WasTrimmed = reader.GetOrdinal("WasTrimmed"),
                 SizeInBytes = reader.GetOrdinal("SizeInBytes"),
                 PreviewContent = reader.GetOrdinal("PreviewContent"),
@@ -51,7 +51,7 @@ namespace Cliptoo.Core.Database
                 Timestamp = DateTime.Parse(reader.GetString(ordinals.Timestamp), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind).ToLocalTime(),
                 ClipType = reader.GetString(ordinals.ClipType),
                 SourceApp = reader.IsDBNull(ordinals.SourceApp) ? null : reader.GetString(ordinals.SourceApp),
-                IsPinned = reader.GetInt64(ordinals.IsPinned) == 1,
+                IsFavorite = reader.GetInt64(ordinals.IsFavorite) == 1,
                 WasTrimmed = reader.GetInt64(ordinals.WasTrimmed) == 1,
                 SizeInBytes = reader.GetInt64(ordinals.SizeInBytes),
                 PreviewContent = reader.IsDBNull(ordinals.PreviewContent) ? null : reader.GetString(ordinals.PreviewContent),
@@ -124,7 +124,7 @@ namespace Cliptoo.Core.Database
                     upsertCmd = connection.CreateCommand();
                     upsertCmd.Transaction = transaction;
                     upsertCmd.CommandText = @"
-                        INSERT INTO clips (Content, ContentHash, PreviewContent, ClipType, SourceApp, Timestamp, IsPinned, WasTrimmed, SizeInBytes)
+                        INSERT INTO clips (Content, ContentHash, PreviewContent, ClipType, SourceApp, Timestamp, IsFavorite, WasTrimmed, SizeInBytes)
                         VALUES (@Content, @ContentHash, @PreviewContent, @ClipType, @SourceApp, @Timestamp, 0, @WasTrimmed, @SizeInBytes)
                         ON CONFLICT(ContentHash) DO UPDATE SET
                             Timestamp = excluded.Timestamp,
@@ -274,12 +274,12 @@ namespace Cliptoo.Core.Database
             return ExecuteNonQueryAsync(sql, param);
         }
 
-        public Task TogglePinAsync(int id, bool isPinned)
+        public Task ToggleFavoriteAsync(int id, bool isFavorite)
         {
-            var sql = "UPDATE clips SET IsPinned = @IsPinned WHERE Id = @Id";
+            var sql = "UPDATE clips SET IsFavorite = @IsFavorite WHERE Id = @Id";
             var parameters = new[]
             {
-                new SqliteParameter("@IsPinned", isPinned ? 1 : 0),
+                new SqliteParameter("@IsFavorite", isFavorite ? 1 : 0),
                 new SqliteParameter("@Id", id)
             };
             return ExecuteNonQueryAsync(sql, parameters);
@@ -314,7 +314,7 @@ namespace Cliptoo.Core.Database
                 Timestamp = DateTime.Parse(reader.GetString(reader.GetOrdinal("Timestamp")), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind).ToLocalTime(),
                 ClipType = reader.GetString(reader.GetOrdinal("ClipType")),
                 SourceApp = reader.IsDBNull(reader.GetOrdinal("SourceApp")) ? null : reader.GetString(reader.GetOrdinal("SourceApp")),
-                IsPinned = reader.GetInt64(reader.GetOrdinal("IsPinned")) == 1,
+                IsFavorite = reader.GetInt64(reader.GetOrdinal("IsFavorite")) == 1,
                 WasTrimmed = reader.GetInt64(reader.GetOrdinal("WasTrimmed")) == 1,
                 SizeInBytes = reader.GetInt64(reader.GetOrdinal("SizeInBytes")),
                 PasteCount = reader.GetInt32(reader.GetOrdinal("PasteCount"))
@@ -386,12 +386,12 @@ namespace Cliptoo.Core.Database
             return ExecuteNonQueryAsync(sql, param);
         }
 
-        public IAsyncEnumerable<Clip> GetAllClipsAsync(bool pinnedOnly)
+        public IAsyncEnumerable<Clip> GetAllClipsAsync(bool favoriteOnly)
         {
             var sql = new StringBuilder("SELECT * FROM clips");
-            if (pinnedOnly)
+            if (favoriteOnly)
             {
-                sql.Append(" WHERE IsPinned = 1");
+                sql.Append(" WHERE IsFavorite = 1");
             }
             sql.Append(" ORDER BY Timestamp DESC");
 
@@ -415,8 +415,8 @@ namespace Cliptoo.Core.Database
                     using var command = connection.CreateCommand();
                     command.Transaction = (SqliteTransaction)transaction;
                     command.CommandText = @"
-                INSERT OR IGNORE INTO clips (Content, ContentHash, PreviewContent, ClipType, SourceApp, Timestamp, IsPinned, WasTrimmed, SizeInBytes, PasteCount)
-                VALUES (@Content, @ContentHash, @PreviewContent, @ClipType, @SourceApp, @Timestamp, @IsPinned, @WasTrimmed, @SizeInBytes, @PasteCount);
+                INSERT OR IGNORE INTO clips (Content, ContentHash, PreviewContent, ClipType, SourceApp, Timestamp, IsFavorite, WasTrimmed, SizeInBytes, PasteCount)
+                VALUES (@Content, @ContentHash, @PreviewContent, @ClipType, @SourceApp, @Timestamp, @IsFavorite, @WasTrimmed, @SizeInBytes, @PasteCount);
             ";
                     command.Parameters.AddWithValue("@Content", clip.Content ?? (object)DBNull.Value);
                     command.Parameters.AddWithValue("@ContentHash", hash);
@@ -424,7 +424,7 @@ namespace Cliptoo.Core.Database
                     command.Parameters.AddWithValue("@ClipType", clip.ClipType);
                     command.Parameters.AddWithValue("@SourceApp", clip.SourceApp ?? (object)DBNull.Value);
                     command.Parameters.AddWithValue("@Timestamp", clip.Timestamp.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture));
-                    command.Parameters.AddWithValue("@IsPinned", clip.IsPinned ? 1 : 0);
+                    command.Parameters.AddWithValue("@IsFavorite", clip.IsFavorite ? 1 : 0);
                     command.Parameters.AddWithValue("@WasTrimmed", clip.WasTrimmed ? 1 : 0);
                     command.Parameters.AddWithValue("@SizeInBytes", contentSize);
                     command.Parameters.AddWithValue("@PasteCount", clip.PasteCount);

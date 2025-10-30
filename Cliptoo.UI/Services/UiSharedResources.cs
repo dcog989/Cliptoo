@@ -23,11 +23,11 @@ namespace Cliptoo.UI.Services
         private ImageSource? _multiLineIcon;
         public ImageSource? MultiLineIcon { get => _multiLineIcon; private set => SetProperty(ref _multiLineIcon, value); }
 
-        private ImageSource? _pinIcon;
-        public ImageSource? PinIcon { get => _pinIcon; private set => SetProperty(ref _pinIcon, value); }
+        private ImageSource? _favoriteIcon;
+        public ImageSource? FavoriteIcon { get => _favoriteIcon; private set => SetProperty(ref _favoriteIcon, value); }
 
-        private ImageSource? _pinIcon16;
-        public ImageSource? PinIcon16 { get => _pinIcon16; private set => SetProperty(ref _pinIcon16, value); }
+        private ImageSource? _favoriteIcon16;
+        public ImageSource? FavoriteIcon16 { get => _favoriteIcon16; private set => SetProperty(ref _favoriteIcon16, value); }
 
         private ImageSource? _errorIcon;
         public ImageSource? ErrorIcon { get => _errorIcon; private set => SetProperty(ref _errorIcon, value); }
@@ -43,8 +43,8 @@ namespace Cliptoo.UI.Services
             MenuIcon = await _iconProvider.GetIconAsync(AppConstants.IconKeys.List, 28).ConfigureAwait(true);
             WasTrimmedIcon = await _iconProvider.GetIconAsync(AppConstants.IconKeys.WasTrimmed, 20).ConfigureAwait(true);
             MultiLineIcon = await _iconProvider.GetIconAsync(AppConstants.IconKeys.Multiline, 20).ConfigureAwait(true);
-            PinIcon = await _iconProvider.GetIconAsync(AppConstants.IconKeys.Pin, 20).ConfigureAwait(true);
-            PinIcon16 = await _iconProvider.GetIconAsync(AppConstants.IconKeys.Pin, 16).ConfigureAwait(true);
+            FavoriteIcon = await _iconProvider.GetIconAsync(AppConstants.IconKeys.Favorite, 20).ConfigureAwait(true);
+            FavoriteIcon16 = await _iconProvider.GetIconAsync(AppConstants.IconKeys.Favorite, 16).ConfigureAwait(true);
             ErrorIcon = await _iconProvider.GetIconAsync(AppConstants.IconKeys.Error, 32).ConfigureAwait(true);
         }
 
