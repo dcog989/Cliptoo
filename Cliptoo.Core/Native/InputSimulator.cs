@@ -97,11 +97,12 @@ namespace Cliptoo.Core.Native
                 u = new InputUnion { ki = new KEYBDINPUT { wVk = virtualKeyCode, dwFlags = flags } }
             };
         }
+
         public static async Task SendPasteAsync()
         {
             LogManager.LogDebug("PASTE_DIAG: Polling for focus change...");
             var stopwatch = Stopwatch.StartNew();
-            uint currentProcessId = (uint)Process.GetCurrentProcess().Id;
+            uint currentProcessId = (uint)Environment.ProcessId;
 
             while (stopwatch.ElapsedMilliseconds < 500)
             {
