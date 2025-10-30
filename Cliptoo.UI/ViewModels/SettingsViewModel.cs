@@ -94,7 +94,7 @@ namespace Cliptoo.UI.ViewModels
                 IsBusy = true;
                 try
                 {
-                    var result = await Task.Run(async () => await _databaseService.RunHeavyMaintenanceNowAsync().ConfigureAwait(false)).ConfigureAwait(true);
+                    var result = await _databaseService.RunHeavyMaintenanceNowAsync();
                     await InitializeAsync().ConfigureAwait(true);
 
                     var results = new List<string>
