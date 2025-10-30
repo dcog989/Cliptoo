@@ -37,5 +37,6 @@ namespace Cliptoo.UI.Controls
                 clipVm.RequestHidePreview();
             }
         }
+
     }
 }

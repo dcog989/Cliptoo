@@ -8,7 +8,6 @@ using Cliptoo.Core.Database.Models;
 using Cliptoo.Core.Logging;
 using Cliptoo.Core.Services;
 using Cliptoo.UI.Helpers;
-using Cliptoo.UI.Services;
 using Cliptoo.UI.Views;
 using Microsoft.Extensions.DependencyInjection;
 using Wpf.Ui.Controls;
@@ -282,5 +281,6 @@ namespace Cliptoo.UI.ViewModels
                 _notificationService.Show("Error", $"Could not send to '{target.Name}'.", ControlAppearance.Danger, SymbolRegular.ErrorCircle24);
             }
         }
+
     }
 }

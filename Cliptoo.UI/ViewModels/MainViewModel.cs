@@ -3,7 +3,6 @@ using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Threading;
-using Cliptoo.Core;
 using Cliptoo.Core.Configuration;
 using Cliptoo.Core.Interfaces;
 using Cliptoo.Core.Logging;

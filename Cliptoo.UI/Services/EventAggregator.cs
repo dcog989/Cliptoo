@@ -22,5 +22,6 @@ namespace Cliptoo.UI.Services
             var handlers = _subscriptions.GetOrAdd(typeof(TMessage), _ => new List<Action<object>>());
             handlers.Add(msg => handler((TMessage)msg));
         }
+
     }
 }

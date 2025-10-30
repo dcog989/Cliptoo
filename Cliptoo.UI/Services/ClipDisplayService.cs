@@ -235,5 +235,6 @@ namespace Cliptoo.UI.Services
             _debounceTimer.Stop();
             GC.SuppressFinalize(this);
         }
+
     }
 }

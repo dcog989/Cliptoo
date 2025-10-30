@@ -69,5 +69,6 @@ namespace Cliptoo.UI.ViewModels
             vm.UpdateClip(clip, theme);
             return vm;
         }
+
     }
 }

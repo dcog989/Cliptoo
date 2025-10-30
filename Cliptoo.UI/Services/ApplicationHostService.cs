@@ -300,5 +300,6 @@ namespace Cliptoo.UI.Services
         {
             _notificationService.Show(e.Title, e.Message, ControlAppearance.Danger, SymbolRegular.ErrorCircle24, 5);
         }
+
     }
 }
