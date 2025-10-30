@@ -207,5 +207,6 @@ namespace Cliptoo.UI.ViewModels
             get => Settings.LoggingLevel;
             set => Settings.LoggingLevel = value;
         }
+
     }
 }
