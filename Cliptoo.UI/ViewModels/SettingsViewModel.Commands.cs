@@ -83,23 +83,23 @@ namespace Cliptoo.UI.ViewModels
             {
                 if (viewModel.DeletePinned && viewModel.DeleteOtherClips)
                 {
-                    await Task.Run(async () => await _databaseService.ClearAllHistoryAsync().ConfigureAwait(false)).ConfigureAwait(true);
+                    await _databaseService.ClearAllHistoryAsync();
                 }
                 else
                 {
                     if (viewModel.DeletePinned)
                     {
-                        await Task.Run(async () => await _databaseService.ClearPinnedClipsAsync().ConfigureAwait(false)).ConfigureAwait(true);
+                        await _databaseService.ClearPinnedClipsAsync();
                     }
                     if (viewModel.DeleteOtherClips)
                     {
-                        await Task.Run(async () => await _databaseService.ClearHistoryAsync().ConfigureAwait(false)).ConfigureAwait(true);
+                        await _databaseService.ClearHistoryAsync();
                     }
                 }
 
                 if (viewModel.DeleteLogs)
                 {
-                    await Task.Run(() => LogManager.ClearLogs()).ConfigureAwait(false);
+                    await Task.Run(() => LogManager.ClearLogs());
                 }
                 await InitializeAsync();
             }
@@ -131,7 +131,7 @@ namespace Cliptoo.UI.ViewModels
             IsBusy = true;
             try
             {
-                int count = await Task.Run(async () => await _databaseService.ClearOversizedClipsAsync(viewModel.SizeMb).ConfigureAwait(false)).ConfigureAwait(true);
+                int count = await _databaseService.ClearOversizedClipsAsync(viewModel.SizeMb);
                 await InitializeAsync();
                 await ShowInformationDialogAsync("Oversized Clips Removed", new System.Windows.Controls.TextBlock { Text = string.Format(CultureInfo.CurrentCulture, "{0} clip(s) larger than {1} MB have been removed.", count, viewModel.SizeMb) });
             }
@@ -147,7 +147,7 @@ namespace Cliptoo.UI.ViewModels
             IsBusy = true;
             try
             {
-                int count = await Task.Run(async () => await _databaseService.RemoveDeadheadClipsAsync().ConfigureAwait(false)).ConfigureAwait(true);
+                int count = await _databaseService.RemoveDeadheadClipsAsync();
                 await InitializeAsync();
                 await ShowInformationDialogAsync("Deadhead Clips Removed", new System.Windows.Controls.TextBlock { Text = string.Format(CultureInfo.CurrentCulture, "{0} clip(s) pointing to non-existent files or folders have been removed.", count) });
             }
