@@ -11,20 +11,44 @@ namespace Cliptoo.UI.Helpers
         public static readonly DependencyProperty SearchTextBoxProperty =
             DependencyProperty.RegisterAttached("SearchTextBox", typeof(TextBox), typeof(WindowInputBehavior), new PropertyMetadata(null));
 
-        public static TextBox GetSearchTextBox(DependencyObject obj) => (TextBox)obj.GetValue(SearchTextBoxProperty);
-        public static void SetSearchTextBox(DependencyObject obj, TextBox value) => obj.SetValue(SearchTextBoxProperty, value);
+        public static TextBox GetSearchTextBox(DependencyObject obj)
+        {
+            ArgumentNullException.ThrowIfNull(obj);
+            return (TextBox)obj.GetValue(SearchTextBoxProperty);
+        }
+        public static void SetSearchTextBox(DependencyObject obj, TextBox value)
+        {
+            ArgumentNullException.ThrowIfNull(obj);
+            obj.SetValue(SearchTextBoxProperty, value);
+        }
 
         public static readonly DependencyProperty ClipListViewProperty =
             DependencyProperty.RegisterAttached("ClipListView", typeof(ListView), typeof(WindowInputBehavior), new PropertyMetadata(null));
 
-        public static ListView GetClipListView(DependencyObject obj) => (ListView)obj.GetValue(ClipListViewProperty);
-        public static void SetClipListView(DependencyObject obj, ListView value) => obj.SetValue(ClipListViewProperty, value);
+        public static ListView GetClipListView(DependencyObject obj)
+        {
+            ArgumentNullException.ThrowIfNull(obj);
+            return (ListView)obj.GetValue(ClipListViewProperty);
+        }
+        public static void SetClipListView(DependencyObject obj, ListView value)
+        {
+            ArgumentNullException.ThrowIfNull(obj);
+            obj.SetValue(ClipListViewProperty, value);
+        }
 
         public static readonly DependencyProperty IsEnabledProperty =
             DependencyProperty.RegisterAttached("IsEnabled", typeof(bool), typeof(WindowInputBehavior), new PropertyMetadata(false, OnIsEnabledChanged));
 
-        public static bool GetIsEnabled(DependencyObject obj) => (bool)obj.GetValue(IsEnabledProperty);
-        public static void SetIsEnabled(DependencyObject obj, bool value) => obj.SetValue(IsEnabledProperty, value);
+        public static bool GetIsEnabled(DependencyObject obj)
+        {
+            ArgumentNullException.ThrowIfNull(obj);
+            return (bool)obj.GetValue(IsEnabledProperty);
+        }
+        public static void SetIsEnabled(DependencyObject obj, bool value)
+        {
+            ArgumentNullException.ThrowIfNull(obj);
+            obj.SetValue(IsEnabledProperty, value);
+        }
 
         private static void OnIsEnabledChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
@@ -91,7 +115,7 @@ namespace Cliptoo.UI.Helpers
             if (parts.Count == 0) return (Key.None, ModifierKeys.None);
 
             var keyStr = parts.Last();
-            var modifiers = parts.Take(parts.Count - 1);
+            var modifiers = parts.Take(parts.Count - 1).ToList();
 
             ModifierKeys modifierFlags = ModifierKeys.None;
             if (modifiers.Contains("CTRL")) modifierFlags |= ModifierKeys.Control;
