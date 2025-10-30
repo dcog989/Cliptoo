@@ -5,12 +5,12 @@ using Cliptoo.UI.Views;
 
 namespace Cliptoo.UI.Services
 {
-    public interface IWindowPositioner
+    internal interface IWindowPositioner
     {
         void PositionWindow(MainWindow window, Settings settings, bool isTrayRequest);
     }
 
-    public class WindowPositioner : IWindowPositioner
+    internal class WindowPositioner : IWindowPositioner
     {
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [DllImport("user32.dll")]
@@ -18,7 +18,7 @@ namespace Cliptoo.UI.Services
         private static extern bool GetCursorPos(out POINT lpPoint);
 
         [StructLayout(LayoutKind.Sequential)]
-        public struct POINT
+        private struct POINT
         {
             public int X;
             public int Y;
@@ -26,6 +26,9 @@ namespace Cliptoo.UI.Services
 
         public void PositionWindow(MainWindow window, Settings settings, bool isTrayRequest)
         {
+            ArgumentNullException.ThrowIfNull(window);
+            ArgumentNullException.ThrowIfNull(settings);
+
             var positionType = isTrayRequest ? "tray" : settings.LaunchPosition;
             var dpiScale = GetDpiScale(window);
 
@@ -86,7 +89,7 @@ namespace Cliptoo.UI.Services
             EnsureWindowIsOnScreen(window);
         }
 
-        private void EnsureWindowIsOnScreen(Window window)
+        private static void EnsureWindowIsOnScreen(Window window)
         {
             var screenWidth = SystemParameters.VirtualScreenWidth;
             var screenHeight = SystemParameters.VirtualScreenHeight;
@@ -96,7 +99,7 @@ namespace Cliptoo.UI.Services
             if (window.Top < 0) window.Top = 0;
         }
 
-        private double GetDpiScale(Window window)
+        private static double GetDpiScale(Window window)
         {
             var source = PresentationSource.FromVisual(window);
             return source?.CompositionTarget != null ? source.CompositionTarget.TransformToDevice.M11 : 1.0;
