@@ -26,8 +26,8 @@ namespace Cliptoo.UI.ViewModels
         private string _clipInfo = string.Empty;
         private string _originalContent = string.Empty;
 
-        public event Action? OnRequestClose;
-        public event Action? OnClipUpdated;
+        public event EventHandler? OnRequestClose;
+        public event EventHandler? OnClipUpdated;
 
         public int ClipId => _clipId;
 
@@ -56,7 +56,7 @@ namespace Cliptoo.UI.ViewModels
             _syntaxHighlighter = syntaxHighlighter;
 
             SaveChangesCommand = new RelayCommand(async _ => await ExecuteSaveChanges());
-            CancelCommand = new RelayCommand(_ => OnRequestClose?.Invoke());
+            CancelCommand = new RelayCommand(_ => OnRequestClose?.Invoke(this, EventArgs.Empty));
 
             var settings = SettingsService.Settings;
             _editorFontSize = settings.PreviewFontSize;
@@ -70,7 +70,7 @@ namespace Cliptoo.UI.ViewModels
             var clip = await _clipDataService.GetClipByIdAsync(_clipId);
             if (clip == null)
             {
-                OnRequestClose?.Invoke();
+                OnRequestClose?.Invoke(this, EventArgs.Empty);
                 return;
             }
 
@@ -113,7 +113,10 @@ namespace Cliptoo.UI.ViewModels
             }
 
             IHighlightingDefinition? highlighting = null;
-            if (theme == ApplicationTheme.Dark && (definitionName == "C#" || definitionName == "XML" || definitionName == "JavaScript"))
+            // The CSharp-Dark.xshd file provides a complete highlighting definition for C#, not just a theme.
+            // Applying it to other languages like XML or JavaScript results in incorrect syntax parsing.
+            // This logic is now restricted to only apply the dark theme when the content is identified as C#.
+            if (theme == ApplicationTheme.Dark && definitionName == "C#")
             {
                 var uri = new Uri("pack://application:,,,/Assets/AvalonEditThemes/CSharp-Dark.xshd");
                 var resourceInfo = Application.GetResourceStream(uri);
@@ -134,9 +137,9 @@ namespace Cliptoo.UI.ViewModels
             if (DocumentContent != _originalContent)
             {
                 await _clipDataService.UpdateClipContentAsync(_clipId, DocumentContent);
-                OnClipUpdated?.Invoke();
+                OnClipUpdated?.Invoke(this, EventArgs.Empty);
             }
-            OnRequestClose?.Invoke();
+            OnRequestClose?.Invoke(this, EventArgs.Empty);
         }
     }
 }
