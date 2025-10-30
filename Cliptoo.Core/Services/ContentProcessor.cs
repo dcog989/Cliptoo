@@ -10,8 +10,6 @@ namespace Cliptoo.Core.Services
     {
         private readonly IFileTypeClassifier _fileTypeClassifier;
         private static readonly SearchValues<char> _invalidColorChars = SearchValues.Create("\n\r<>[]");
-        private const int MaxLinesForFilePathCheck = 500;
-        private static readonly char[] _newlineChars = { '\r', '\n' };
 
         private static readonly HashSet<string> _codeKeywords = new(StringComparer.Ordinal)
         {
