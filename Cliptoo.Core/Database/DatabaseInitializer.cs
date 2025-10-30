@@ -5,20 +5,11 @@ using Microsoft.Data.Sqlite;
 
 namespace Cliptoo.Core.Database
 {
-    /// <summary>
-    /// Initializes and upgrades the application database schema.
-    /// </summary>
     public class DatabaseInitializer : RepositoryBase, IDatabaseInitializer
     {
         private const int CurrentDbVersion = 5;
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="DatabaseInitializer"/> class.
-        /// </summary>
-        /// <param name="dbPath">The path to the database file.</param>
         public DatabaseInitializer(string dbPath) : base(dbPath) { }
 
-        /// <inheritdoc />
         [SuppressMessage("Microsoft.Security", "CA2100:Review SQL queries for security vulnerabilities", Justification = "PRAGMA user_version is a hardcoded value, not user input.")]
         public async Task InitializeAsync()
         {
