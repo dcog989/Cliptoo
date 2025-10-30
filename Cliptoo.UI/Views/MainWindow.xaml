@@ -38,6 +38,7 @@
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Width" Value="32" />
             <Setter Property="Height" Value="32" />
+            <Setter Property="TextElement.Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
@@ -50,6 +51,7 @@
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="border" Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                                <Setter Property="TextElement.Foreground" Value="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -457,10 +459,14 @@
                             HorizontalAlignment="Right"
                             Style="{StaticResource IconButton}"
                             ToolTip="{Binding SelectedFilter.Name}">
-                            <ui:ImageIcon
+                            <Rectangle
                                 Width="20"
                                 Height="20"
-                                Source="{Binding SelectedFilter.Icon}" />
+                                Fill="{Binding Path=(TextElement.Foreground), RelativeSource={RelativeSource AncestorType=Button}}">
+                                <Rectangle.OpacityMask>
+                                    <ImageBrush ImageSource="{Binding SelectedFilter.Icon}" Stretch="Uniform" />
+                                </Rectangle.OpacityMask>
+                            </Rectangle>
                         </Button>
                         <Popup
                             x:Name="FilterPopup"
@@ -495,10 +501,14 @@
                                 <MenuItem Command="{Binding HideWindowCommand}" Header="Send to Tray" />
                             </ContextMenu>
                         </Button.ContextMenu>
-                        <ui:ImageIcon
+                        <Rectangle
                             Width="28"
                             Height="28"
-                            Source="{Binding SharedResources.MenuIcon}" />
+                            Fill="{Binding Path=(TextElement.Foreground), RelativeSource={RelativeSource AncestorType=Button}}">
+                            <Rectangle.OpacityMask>
+                                <ImageBrush ImageSource="{Binding SharedResources.MenuIcon}" Stretch="Uniform" />
+                            </Rectangle.OpacityMask>
+                        </Rectangle>
                     </Button>
                 </Grid>
             </Border>

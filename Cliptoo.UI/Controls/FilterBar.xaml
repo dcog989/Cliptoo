@@ -22,6 +22,7 @@
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Width" Value="32" />
             <Setter Property="Height" Value="32" />
+            <Setter Property="TextElement.Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="RadioButton">
@@ -36,9 +37,11 @@
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="border" Property="Background" Value="{DynamicResource AccentBrushHover}" />
+                                <Setter Property="TextElement.Foreground" Value="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
                             </Trigger>
                             <Trigger Property="IsChecked" Value="True">
                                 <Setter TargetName="border" Property="Background" Value="{DynamicResource AccentBrush}" />
+                                <Setter Property="TextElement.Foreground" Value="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -66,10 +69,14 @@
                             <Binding Path="DataContext.SelectedFilter" RelativeSource="{RelativeSource AncestorType=UserControl}" />
                         </MultiBinding>
                     </RadioButton.IsChecked>
-                    <ui:ImageIcon
+                    <Rectangle
                         Width="20"
                         Height="20"
-                        Source="{Binding Icon}" />
+                        Fill="{Binding Path=(TextElement.Foreground), RelativeSource={RelativeSource AncestorType=RadioButton}}">
+                        <Rectangle.OpacityMask>
+                            <ImageBrush ImageSource="{Binding Icon}" Stretch="Uniform" />
+                        </Rectangle.OpacityMask>
+                    </Rectangle>
                 </RadioButton>
             </DataTemplate>
         </ItemsControl.ItemTemplate>

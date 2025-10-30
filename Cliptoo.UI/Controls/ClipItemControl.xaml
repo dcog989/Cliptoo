@@ -76,7 +76,16 @@
                             Source="{Binding ThumbnailSource}"
                             Stretch="Uniform" />
                     </Grid>
-                    <ui:ImageIcon Source="{Binding ClipTypeIcon}" Visibility="{Binding HasThumbnail, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter={x:Static core:AppConstants+ConverterParameters.Inverse}}" />
+                    <Rectangle Visibility="{Binding HasThumbnail, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter={x:Static core:AppConstants+ConverterParameters.Inverse}}">
+                        <Rectangle.OpacityMask>
+                            <ImageBrush ImageSource="{Binding ClipTypeIcon}" Stretch="Uniform" />
+                        </Rectangle.OpacityMask>
+                        <Rectangle.Style>
+                            <Style TargetType="Rectangle">
+                                <Setter Property="Fill" Value="{Binding Foreground, ElementName=PreviewTextBlock}" />
+                            </Style>
+                        </Rectangle.Style>
+                    </Rectangle>
                 </Grid>
             </StackPanel>
         </Grid>
@@ -88,14 +97,22 @@
                 <ToolTip Visibility="Collapsed" />
             </Grid.ToolTip>
             <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
-                <ui:ImageIcon
+                <Rectangle
                     Width="20"
                     Height="20"
                     Margin="0,0,4,0"
                     VerticalAlignment="Center"
-                    Source="{Binding SharedResources.WasTrimmedIcon}"
                     ToolTip="Content was modified (e.g., whitespace trimmed or content truncated)"
-                    Visibility="{Binding WasTrimmed, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                    Visibility="{Binding WasTrimmed, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <Rectangle.OpacityMask>
+                        <ImageBrush ImageSource="{Binding SharedResources.WasTrimmedIcon}" Stretch="Uniform" />
+                    </Rectangle.OpacityMask>
+                    <Rectangle.Style>
+                        <Style TargetType="Rectangle">
+                            <Setter Property="Fill" Value="{Binding Foreground, ElementName=PreviewTextBlock}" />
+                        </Style>
+                    </Rectangle.Style>
+                </Rectangle>
 
                 <TextBlock
                     x:Name="PreviewTextBlock"
@@ -140,12 +157,7 @@
                 </Rectangle.OpacityMask>
                 <Rectangle.Style>
                     <Style TargetType="Rectangle">
-                        <Setter Property="Fill" Value="{DynamicResource AccentTextBrush}" />
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListViewItem}}" Value="True">
-                                <Setter Property="Fill" Value="White" />
-                            </DataTrigger>
-                        </Style.Triggers>
+                        <Setter Property="Fill" Value="{Binding Foreground, ElementName=PreviewTextBlock}" />
                     </Style>
                 </Rectangle.Style>
             </Rectangle>
@@ -161,12 +173,7 @@
                 </Rectangle.OpacityMask>
                 <Rectangle.Style>
                     <Style TargetType="Rectangle">
-                        <Setter Property="Fill" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListViewItem}}" />
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListViewItem}}" Value="True">
-                                <Setter Property="Fill" Value="White" />
-                            </DataTrigger>
-                        </Style.Triggers>
+                        <Setter Property="Fill" Value="{Binding Foreground, ElementName=PreviewTextBlock}" />
                     </Style>
                 </Rectangle.Style>
             </Rectangle>

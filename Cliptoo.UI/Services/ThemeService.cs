@@ -13,14 +13,14 @@ namespace Cliptoo.UI.Services
         private readonly ISettingsService _settingsService;
         private Window? _window;
 
-        private const double ACCENT_LIGHTNESS_DARK_THEME = 0.4;
-        private const double HOVER_LIGHTNESS_DARK_THEME = 0.5;
+        private const double ACCENT_LIGHTNESS_DARK_THEME = 0.45;
+        private const double HOVER_LIGHTNESS_DARK_THEME = 0.55;
         private const double ACCENT_LIGHTNESS_LIGHT_THEME = 0.8;
         private const double HOVER_LIGHTNESS_LIGHT_THEME = 0.9;
         private const double SELECTED_HIGHLIGHT_LIGHTNESS_OFFSET = -0.20;
 
         private const double ACCENT_TEXT_LIGHTNESS_DARK_THEME = 0.75;
-        private const double ACCENT_TEXT_LIGHTNESS_LIGHT_THEME = 0.45;
+        private const double ACCENT_TEXT_LIGHTNESS_LIGHT_THEME = 0.35;
 
         private const double LUMINANCE_R_COEFFICIENT = 0.299;
         private const double LUMINANCE_G_COEFFICIENT = 0.587;
