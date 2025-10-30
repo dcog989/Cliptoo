@@ -23,6 +23,7 @@ namespace Cliptoo.UI.Services
         private const uint PageSize = 50;
         private CancellationTokenSource _loadClipsCts = new();
         private bool _canLoadMore = true;
+        private bool _disposedValue;
 
         public ObservableCollection<ClipViewModel> Clips { get; } = new();
         public ObservableCollection<FilterOption> FilterOptions { get; } = new();
@@ -96,6 +97,7 @@ namespace Cliptoo.UI.Services
         {
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             await _loadClipsCts.CancelAsync();
+            _loadClipsCts.Dispose();
             _loadClipsCts = new CancellationTokenSource();
             var token = _loadClipsCts.Token;
 
@@ -229,10 +231,24 @@ namespace Cliptoo.UI.Services
             }
         }
 
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!_disposedValue)
+            {
+                if (disposing)
+                {
+                    _debounceTimer.Tick -= OnDebounceTimerElapsed;
+                    _debounceTimer.Stop();
+                    _loadClipsCts.Dispose();
+                }
+
+                _disposedValue = true;
+            }
+        }
+
         public void Dispose()
         {
-            _debounceTimer.Tick -= OnDebounceTimerElapsed;
-            _debounceTimer.Stop();
+            Dispose(disposing: true);
             GC.SuppressFinalize(this);
         }
 
