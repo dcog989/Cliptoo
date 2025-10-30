@@ -198,25 +198,23 @@ namespace Cliptoo.Core.Database
             await ExecuteTransactionAsync(async (connection, transaction) =>
             {
                 // Check if another clip with the same content already exists.
-                var sql = "SELECT * FROM clips WHERE ContentHash = @ContentHash";
+                var sql = "SELECT Id FROM clips WHERE ContentHash = @ContentHash";
                 var param = new SqliteParameter("@ContentHash", newHash);
 
-                Clip? existingClip = null;
+                int? existingClipId = null;
                 using (var command = connection.CreateCommand())
                 {
                     command.Transaction = (SqliteTransaction)transaction;
                     command.CommandText = sql;
                     command.Parameters.Add(param);
-                    using (var reader = await command.ExecuteReaderAsync().ConfigureAwait(false))
+                    var result = await command.ExecuteScalarAsync().ConfigureAwait(false);
+                    if (result is not null and not DBNull)
                     {
-                        if (await reader.ReadAsync().ConfigureAwait(false))
-                        {
-                            existingClip = MapFullClipFromReader(reader);
-                        }
+                        existingClipId = Convert.ToInt32(result, CultureInfo.InvariantCulture);
                     }
                 }
 
-                if (existingClip != null && existingClip.Id != id)
+                if (existingClipId.HasValue && existingClipId.Value != id)
                 {
                     // A different clip with this content already exists.
                     // Delete the clip being edited and update the timestamp of the existing one.
@@ -232,7 +230,7 @@ namespace Cliptoo.Core.Database
                         updateCmd.Transaction = (SqliteTransaction)transaction;
                         updateCmd.CommandText = "UPDATE clips SET Timestamp = @Timestamp WHERE Id = @Id";
                         updateCmd.Parameters.AddWithValue("@Timestamp", DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture));
-                        updateCmd.Parameters.AddWithValue("@Id", existingClip.Id);
+                        updateCmd.Parameters.AddWithValue("@Id", existingClipId.Value);
                         await updateCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
                     }
                 }
