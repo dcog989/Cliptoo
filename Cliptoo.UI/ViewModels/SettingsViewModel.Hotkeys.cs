@@ -65,24 +65,58 @@ namespace Cliptoo.UI.ViewModels
             }
         }
 
+        private async Task ShowInvalidHotkeyDialog(string hotkeyName, string reason, string defaultValue)
+        {
+            var dialog = new ContentDialog
+            {
+                Title = "Invalid Hotkey",
+                Content = $"The {hotkeyName} is invalid. It {reason}. It has been reset to the default '{defaultValue}'.",
+                CloseButtonText = "OK"
+            };
+            await _contentDialogService.ShowAsync(dialog, CancellationToken.None).ConfigureAwait(false);
+        }
+
         public async Task ValidateHotkey(string target)
         {
-            if (target == AppConstants.HotkeyTargets.QuickPaste)
-            {
-                var parts = this.QuickPasteHotkey.Split(_plusSeparator, StringSplitOptions.RemoveEmptyEntries);
-                bool allModifiers = parts.All(p => p is "Ctrl" or "Alt" or "Shift" or "Win");
+            string[] parts;
+            bool isValid;
 
-                if (!allModifiers || parts.Length < 2)
-                {
-                    this.QuickPasteHotkey = "Ctrl+Alt";
-                    var dialog = new ContentDialog
+            switch (target)
+            {
+                case AppConstants.HotkeyTargets.Main:
+                    parts = this.Hotkey.Split(_plusSeparator, StringSplitOptions.RemoveEmptyEntries);
+                    var mainKeyPart = parts.LastOrDefault();
+                    // Must have at least one modifier and one non-modifier key
+                    isValid = parts.Length >= 2 && mainKeyPart is not "Ctrl" and not "Alt" and not "Shift" and not "Win";
+                    if (!isValid)
                     {
-                        Title = "Invalid Hotkey",
-                        Content = "The Quick Paste hotkey must consist of at least two modifier keys (e.g., Ctrl, Alt, Shift). It has been reset to the default 'Ctrl+Alt'.",
-                        CloseButtonText = "OK"
-                    };
-                    await _contentDialogService.ShowAsync(dialog, CancellationToken.None).ConfigureAwait(false);
-                }
+                        this.Hotkey = "Ctrl+Alt+V";
+                        await ShowInvalidHotkeyDialog("Launch main window hotkey", "must include at least one modifier (e.g., Ctrl, Alt) and a regular key (e.g., V)", this.Hotkey);
+                    }
+                    break;
+
+                case AppConstants.HotkeyTargets.Preview:
+                    parts = this.PreviewHotkey.Split(_plusSeparator, StringSplitOptions.RemoveEmptyEntries);
+                    var previewKeyPart = parts.LastOrDefault();
+                    // Must have at least one non-modifier key
+                    isValid = parts.Length >= 1 && previewKeyPart is not "Ctrl" and not "Alt" and not "Shift" and not "Win";
+                    if (!isValid)
+                    {
+                        this.PreviewHotkey = "F3";
+                        await ShowInvalidHotkeyDialog("Preview tooltip hotkey", "must include a regular key (e.g., F3)", this.PreviewHotkey);
+                    }
+                    break;
+
+                case AppConstants.HotkeyTargets.QuickPaste:
+                    parts = this.QuickPasteHotkey.Split(_plusSeparator, StringSplitOptions.RemoveEmptyEntries);
+                    bool allModifiers = parts.All(p => p is "Ctrl" or "Alt" or "Shift" or "Win");
+                    isValid = allModifiers && parts.Length >= 2;
+                    if (!isValid)
+                    {
+                        this.QuickPasteHotkey = "Ctrl+Alt";
+                        await ShowInvalidHotkeyDialog("Quick Paste hotkey", "must consist of at least two modifier keys (e.g., Ctrl, Alt, Shift)", this.QuickPasteHotkey);
+                    }
+                    break;
             }
         }
 
