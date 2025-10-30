@@ -13,7 +13,7 @@
     <StackPanel>
         <TextBlock
             Margin="0,12,0,0"
-            Text="Permanently delete non-favorite and over-sized clips from your history?"
+            Text="Permanently delete over-sized (non-favorite) clips from your history?"
             TextWrapping="Wrap" />
         <StackPanel Margin="0,15,0,0" Orientation="Horizontal">
             <TextBlock

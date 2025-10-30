@@ -5,12 +5,20 @@ using Microsoft.Data.Sqlite;
 
 namespace Cliptoo.Core.Database
 {
+    /// <summary>
+    /// Initializes and upgrades the application database schema.
+    /// </summary>
     public class DatabaseInitializer : RepositoryBase, IDatabaseInitializer
     {
         private const int CurrentDbVersion = 5;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="DatabaseInitializer"/> class.
+        /// </summary>
+        /// <param name="dbPath">The path to the database file.</param>
         public DatabaseInitializer(string dbPath) : base(dbPath) { }
 
+        /// <inheritdoc />
         [SuppressMessage("Microsoft.Security", "CA2100:Review SQL queries for security vulnerabilities", Justification = "PRAGMA user_version is a hardcoded value, not user input.")]
         public async Task InitializeAsync()
         {
@@ -212,7 +220,7 @@ namespace Cliptoo.Core.Database
 
                 if (fromVersion < 5)
                 {
-                    bool isFavoriteColumnExists = false;
+                    bool isPinnedColumnExists = false;
                     var pragmaCmd = connection.CreateCommand();
                     pragmaCmd.Transaction = transaction;
                     pragmaCmd.CommandText = "PRAGMA table_info('clips');";
@@ -222,13 +230,13 @@ namespace Cliptoo.Core.Database
                         {
                             if (reader.GetString(reader.GetOrdinal("name")).Equals("IsPinned", StringComparison.OrdinalIgnoreCase))
                             {
-                                isFavoriteColumnExists = true;
+                                isPinnedColumnExists = true;
                                 break;
                             }
                         }
                     }
 
-                    if (isFavoriteColumnExists)
+                    if (isPinnedColumnExists)
                     {
                         SqliteCommand? alterCmd = null;
                         try

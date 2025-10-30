@@ -340,5 +340,6 @@ namespace Cliptoo.Core.Services
             Dispose(disposing: true);
             GC.SuppressFinalize(this);
         }
+
     }
 }
