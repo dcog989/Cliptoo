@@ -141,10 +141,14 @@
                                 CommandParameter="{Binding}"
                                 Style="{StaticResource SettingsIconButtonStyle}"
                                 ToolTip="Remove this application.">
-                                <ui:ImageIcon
+                                <Rectangle
                                     Width="16"
                                     Height="16"
-                                    Source="{Binding DataContext.TrashIcon, RelativeSource={RelativeSource AncestorType=ListView}}" />
+                                    Fill="{Binding Path=(TextElement.Foreground), RelativeSource={RelativeSource AncestorType=Button}}">
+                                    <Rectangle.OpacityMask>
+                                        <ImageBrush ImageSource="{Binding DataContext.TrashIcon, RelativeSource={RelativeSource AncestorType=ListView}}" Stretch="Uniform" />
+                                    </Rectangle.OpacityMask>
+                                </Rectangle>
                             </ui:Button>
                         </Grid>
                     </DataTemplate>
@@ -213,10 +217,14 @@
                                 CommandParameter="{Binding}"
                                 Style="{StaticResource SettingsIconButtonStyle}"
                                 ToolTip="Remove this application.">
-                                <ui:ImageIcon
+                                <Rectangle
                                     Width="16"
                                     Height="16"
-                                    Source="{Binding DataContext.TrashIcon, RelativeSource={RelativeSource AncestorType=ListView}}" />
+                                    Fill="{Binding Path=(TextElement.Foreground), RelativeSource={RelativeSource AncestorType=Button}}">
+                                    <Rectangle.OpacityMask>
+                                        <ImageBrush ImageSource="{Binding DataContext.TrashIcon, RelativeSource={RelativeSource AncestorType=ListView}}" Stretch="Uniform" />
+                                    </Rectangle.OpacityMask>
+                                </Rectangle>
                             </ui:Button>
                         </Grid>
                     </DataTemplate>

@@ -67,7 +67,6 @@ namespace Cliptoo.UI.Helpers
             textBlock.SetValue(IsHandlerAttachedProperty, false);
         }
 
-
         private static void OnFontPropertyChanged(object? sender, System.EventArgs e)
         {
             if (sender is TextBlock textBlock)
@@ -86,7 +85,7 @@ namespace Cliptoo.UI.Helpers
             var lvi = VisualTreeUtils.FindVisualAncestor<System.Windows.Controls.ListViewItem>(textBlock);
             bool isSelected = lvi?.IsSelected ?? false;
 
-            Brush currentForeground = isSelected ? Brushes.White : textBlock.Foreground;
+            Brush currentForeground = textBlock.Foreground;
 
             const string startTag = "[HL]";
             const string endTag = "[/HL]";
@@ -126,7 +125,7 @@ namespace Cliptoo.UI.Helpers
                     FontFamily = textBlock.FontFamily,
                     FontSize = textBlock.FontSize,
                     Background = highlightBackground,
-                    Foreground = Brushes.White
+                    Foreground = (Brush)Application.Current.FindResource("TextOnAccentFillColorPrimaryBrush")
                 };
                 textBlock.Inlines.Add(highlightRun);
 

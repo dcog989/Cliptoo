@@ -15,12 +15,12 @@ namespace Cliptoo.UI.Services
 
         private const double ACCENT_LIGHTNESS_DARK_THEME = 0.45;
         private const double HOVER_LIGHTNESS_DARK_THEME = 0.55;
-        private const double ACCENT_LIGHTNESS_LIGHT_THEME = 0.8;
-        private const double HOVER_LIGHTNESS_LIGHT_THEME = 0.9;
+        private const double ACCENT_LIGHTNESS_LIGHT_THEME = 0.85;
+        private const double HOVER_LIGHTNESS_LIGHT_THEME = 0.95;
         private const double SELECTED_HIGHLIGHT_LIGHTNESS_OFFSET = -0.20;
 
         private const double ACCENT_TEXT_LIGHTNESS_DARK_THEME = 0.75;
-        private const double ACCENT_TEXT_LIGHTNESS_LIGHT_THEME = 0.35;
+        private const double ACCENT_TEXT_LIGHTNESS_LIGHT_THEME = 0.45;
 
         private const double LUMINANCE_R_COEFFICIENT = 0.299;
         private const double LUMINANCE_G_COEFFICIENT = 0.587;
@@ -146,15 +146,16 @@ namespace Cliptoo.UI.Services
                 Application.Current.Resources["AccentBrushSelectedHighlight"] = selectedHighlightBrush;
                 Application.Current.Resources["AccentTextBrush"] = accentTextBrush;
 
-                // Dynamically set text color for contrast
+                // First, let the library apply its default (and potentially incorrect) styling.
+                ApplicationAccentColorManager.Apply(accentColor);
+
+                // Then, immediately override the text-on-accent color with our own calculated high-contrast color.
                 var brightness = (accentColor.R * LUMINANCE_R_COEFFICIENT) + (accentColor.G * LUMINANCE_G_COEFFICIENT) + (accentColor.B * LUMINANCE_B_COEFFICIENT);
                 var textOnAccentBrush = brightness > LUMINANCE_THRESHOLD
                     ? new SolidColorBrush(Colors.Black)
                     : new SolidColorBrush(Colors.White);
                 textOnAccentBrush.Freeze();
                 Application.Current.Resources["TextOnAccentFillColorPrimaryBrush"] = textOnAccentBrush;
-
-                ApplicationAccentColorManager.Apply(accentColor);
 
                 settings.AccentColor = $"#{accentColor.R:X2}{accentColor.G:X2}{accentColor.B:X2}";
             }
@@ -163,5 +164,6 @@ namespace Cliptoo.UI.Services
                 LogManager.LogCritical(ex, $"Invalid accent color format in settings: {settings.AccentColor}");
             }
         }
+
     }
 }

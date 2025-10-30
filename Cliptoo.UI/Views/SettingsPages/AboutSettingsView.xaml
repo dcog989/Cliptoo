@@ -27,11 +27,8 @@
                         FontFamily="Source Code Pro"
                         FontSize="32"
                         Text="Cliptoo" />
-                    <TextBlock Foreground="{DynamicResource TextFillColorSecondaryBrush}" Text="{Binding AppVersion, StringFormat='Version: {0}'}" />
-                    <TextBlock
-                        Margin="0,8,0,0"
-                        FontSize="16"
-                        Foreground="{DynamicResource TextFillColorSecondaryBrush}">
+                    <TextBlock Text="{Binding AppVersion, StringFormat='Version: {0}'}" />
+                    <TextBlock Margin="0,8,0,0" FontSize="16">
                         <TextBlock.Text>
                             The advanced clipboard manager.
                         </TextBlock.Text>
@@ -40,8 +37,7 @@
                         Margin="0,8,0,0"
                         FontFamily="Source Code Pro"
                         FontSize="16"
-                        FontStyle="Italic"
-                        Foreground="{DynamicResource TextFillColorSecondaryBrush}">
+                        FontStyle="Italic">
                         <TextBlock.Text>
                             "Klaatu barada nikto!"
                         </TextBlock.Text>
