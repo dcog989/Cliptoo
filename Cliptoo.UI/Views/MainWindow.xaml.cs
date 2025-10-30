@@ -5,6 +5,7 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using Cliptoo.Core.Interfaces;
 using Cliptoo.UI.Helpers;
+using Cliptoo.UI.Services;
 using Cliptoo.UI.ViewModels;
 using Wpf.Ui.Controls;
 
@@ -14,13 +15,15 @@ namespace Cliptoo.UI.Views
     {
         private readonly MainViewModel _viewModel;
         private readonly ISettingsService _settingsService;
+        private readonly IListViewInteractionService _listViewInteractionService;
         private readonly DispatcherTimer _saveStateDebounceTimer;
 
-        public MainWindow(MainViewModel viewModel, ISettingsService settingsService)
+        public MainWindow(MainViewModel viewModel, ISettingsService settingsService, IListViewInteractionService listViewInteractionService)
         {
             InitializeComponent();
             _viewModel = viewModel;
             _settingsService = settingsService;
+            _listViewInteractionService = listViewInteractionService;
             DataContext = _viewModel;
 
             _viewModel.IsWindowVisible = IsVisible;
@@ -297,7 +300,11 @@ namespace Cliptoo.UI.Views
 
         private void ClipListView_ScrollChanged(object sender, ScrollChangedEventArgs e)
         {
-            _viewModel.VerticalScrollOffset = e.VerticalOffset;
+            _listViewInteractionService.FirstVisibleIndex = (int)e.VerticalOffset;
+            if (_viewModel.IsQuickPasteModeActive)
+            {
+                _viewModel.UpdateQuickPasteIndices();
+            }
 
             if (e.VerticalChange != 0 && _viewModel.PreviewManager.IsPreviewOpen)
             {

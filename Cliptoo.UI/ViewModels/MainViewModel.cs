@@ -36,6 +36,7 @@ namespace Cliptoo.UI.ViewModels
         private readonly IClipDisplayService _clipDisplayService;
         private readonly IUiSharedResources _uiSharedResources;
         private readonly IEventAggregator _eventAggregator;
+        private readonly IListViewInteractionService _listViewInteractionService;
         private readonly DispatcherTimer _clearClipsTimer;
         private bool _isAlwaysOnTop;
         private Settings _currentSettings;
@@ -47,7 +48,6 @@ namespace Cliptoo.UI.ViewModels
         private FontFamily _mainFont;
         private FontFamily _previewFont;
         private int _selectedIndex;
-        private double _verticalScrollOffset;
         private bool _isPasting;
         private bool _isReadyForEvents; // Start false, ApplicationHostService will set it to true.
         public bool IsReadyForEvents { get => _isReadyForEvents; set => _isReadyForEvents = value; }
@@ -164,7 +164,8 @@ namespace Cliptoo.UI.ViewModels
             IComparisonStateService comparisonStateService,
             IClipDisplayService clipDisplayService,
             IUiSharedResources uiSharedResources,
-            IEventAggregator eventAggregator)
+            IEventAggregator eventAggregator,
+            IListViewInteractionService listViewInteractionService)
         {
             _clipDataService = clipDataService;
             _clipboardService = clipboardService;
@@ -180,6 +181,7 @@ namespace Cliptoo.UI.ViewModels
             _clipDisplayService = clipDisplayService;
             _uiSharedResources = uiSharedResources;
             _eventAggregator = eventAggregator;
+            _listViewInteractionService = listViewInteractionService;
 
             _currentSettings = _settingsService.Settings;
             _currentSettings.PropertyChanged += CurrentSettings_PropertyChanged;
@@ -372,18 +374,6 @@ namespace Cliptoo.UI.ViewModels
             set => SetProperty(ref _selectedIndex, value);
         }
 
-        public double VerticalScrollOffset
-        {
-            get => _verticalScrollOffset;
-            set
-            {
-                if (SetProperty(ref _verticalScrollOffset, value) && IsQuickPasteModeActive)
-                {
-                    UpdateQuickPasteIndices();
-                }
-            }
-        }
-
         public void HandleWindowDeactivated()
         {
             Application.Current.Dispatcher.InvokeAsync(async () =>
@@ -423,7 +413,7 @@ namespace Cliptoo.UI.ViewModels
                 clip.Index = 0;
             }
             if (!IsQuickPasteModeActive) return;
-            var firstVisibleIndex = (int)VerticalScrollOffset;
+            var firstVisibleIndex = _listViewInteractionService.FirstVisibleIndex;
             for (var i = 0; i < 9; i++)
             {
                 var targetIndex = firstVisibleIndex + i;

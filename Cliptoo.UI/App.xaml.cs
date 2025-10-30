@@ -167,6 +167,7 @@ namespace Cliptoo.UI
                         services.AddSingleton<INotifyIconService, CustomNotifyIconService>();
                         services.AddSingleton<IContentDialogService, ContentDialogService>();
                         services.AddSingleton<IPreviewManager, PreviewManager>();
+                        services.AddSingleton<IListViewInteractionService, ListViewInteractionService>();
 
                         services.AddSingleton<IEventAggregator, EventAggregator>();
                         services.AddSingleton<IUpdateService, UpdateService>();
