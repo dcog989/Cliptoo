@@ -1,10 +1,8 @@
 using System;
 using System.Buffers;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using Cliptoo.Core.Services.Models;
-using Cliptoo.Core.Configuration;
 
 namespace Cliptoo.Core.Services
 {
