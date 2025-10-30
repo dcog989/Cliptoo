@@ -41,21 +41,21 @@ namespace Cliptoo.Core.Configuration
                 LogManager.LogDebug("Settings loaded successfully.");
 
                 // Migration for legacy accent chroma level values to PascalCase for UI binding.
-                switch (settings.AccentChromaLevel?.ToLowerInvariant())
+                switch (settings.AccentChromaLevel?.ToUpperInvariant())
                 {
-                    case "neon":
+                    case "NEON":
                         settings.AccentChromaLevel = "Neon";
                         break;
-                    case "vibrant":
+                    case "VIBRANT":
                         settings.AccentChromaLevel = "Vibrant";
                         break;
-                    case "mellow":
+                    case "MELLOW":
                         settings.AccentChromaLevel = "Mellow";
                         break;
-                    case "muted":
+                    case "MUTED":
                         settings.AccentChromaLevel = "Muted";
                         break;
-                    case "ditchwater":
+                    case "DITCHWATER":
                         settings.AccentChromaLevel = "Ditchwater";
                         break;
                 }

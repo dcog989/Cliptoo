@@ -48,10 +48,10 @@ namespace Cliptoo.UI.Services
                 return;
             }
 
-            var wpfuiTheme = settings.Theme?.ToLowerInvariant() switch
+            var wpfuiTheme = settings.Theme?.ToUpperInvariant() switch
             {
-                "light" => ApplicationTheme.Light,
-                "dark" => ApplicationTheme.Dark,
+                "LIGHT" => ApplicationTheme.Light,
+                "DARK" => ApplicationTheme.Dark,
                 _ => ApplicationTheme.Unknown,
             };
 

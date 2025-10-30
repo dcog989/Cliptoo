@@ -276,13 +276,13 @@ namespace Cliptoo.Core.Services
 
         public static double GetChromaFromLevel(string? level)
         {
-            return level?.ToLowerInvariant() switch
+            return level?.ToUpperInvariant() switch
             {
-                "neon" => 1.0,          // 100% of max chroma
-                "vibrant" => 0.70,      // 70% of max chroma
-                "mellow" => 0.50,       // 50% of max chroma
-                "muted" => 0.35,        // 35% of max chroma
-                "ditchwater" => 0.20,   // 20% of max chroma
+                "NEON" => 1.0,          // 100% of max chroma
+                "VIBRANT" => 0.70,      // 70% of max chroma
+                "MELLOW" => 0.50,       // 50% of max chroma
+                "MUTED" => 0.35,        // 35% of max chroma
+                "DITCHWATER" => 0.20,   // 20% of max chroma
                 _ => 0.50,              // Default to Mellow
             };
         }
@@ -309,15 +309,15 @@ namespace Cliptoo.Core.Services
             var num = double.Parse(numStr, CultureInfo.InvariantCulture);
 
             double normalized;
-            if (str.Contains("rad", StringComparison.Ordinal))
+            if (str.Contains("RAD", StringComparison.Ordinal))
             {
                 normalized = num * 180 / Math.PI;
             }
-            else if (str.Contains("grad", StringComparison.Ordinal))
+            else if (str.Contains("GRAD", StringComparison.Ordinal))
             {
                 normalized = num * 0.9;
             }
-            else if (str.Contains("turn", StringComparison.Ordinal))
+            else if (str.Contains("TURN", StringComparison.Ordinal))
             {
                 normalized = num * 360;
             }

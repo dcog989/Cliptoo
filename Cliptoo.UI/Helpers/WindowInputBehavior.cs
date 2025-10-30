@@ -87,7 +87,7 @@ namespace Cliptoo.UI.Helpers
 
         private static (Key key, ModifierKeys modifiers) ParseHotkey(string hotkeyString)
         {
-            var parts = hotkeyString.Split('+').Select(p => p.Trim().ToUpper()).ToList();
+            var parts = hotkeyString.Split('+').Select(p => p.Trim().ToUpperInvariant()).ToList();
             if (parts.Count == 0) return (Key.None, ModifierKeys.None);
 
             var keyStr = parts.Last();
@@ -285,7 +285,7 @@ namespace Cliptoo.UI.Helpers
 
         private static ModifierKeys ParseModifiers(string modifiersString)
         {
-            var parts = modifiersString.Split('+').Select(p => p.Trim().ToUpper()).ToList();
+            var parts = modifiersString.Split('+').Select(p => p.Trim().ToUpperInvariant()).ToList();
             ModifierKeys modifierFlags = ModifierKeys.None;
             if (parts.Contains("CTRL")) modifierFlags |= ModifierKeys.Control;
             if (parts.Contains("ALT")) modifierFlags |= ModifierKeys.Alt;

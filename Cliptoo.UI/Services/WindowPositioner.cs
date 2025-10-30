@@ -29,9 +29,9 @@ namespace Cliptoo.UI.Services
             var positionType = isTrayRequest ? "tray" : settings.LaunchPosition;
             var dpiScale = GetDpiScale(window);
 
-            switch (positionType.ToLowerInvariant())
+            switch (positionType.ToUpperInvariant())
             {
-                case "cursor":
+                case "CURSOR":
                     GetCursorPos(out POINT point);
                     var cursorInDips = PointToDips(in point, dpiScale);
                     const double topMargin = 8.0;
@@ -46,35 +46,35 @@ namespace Cliptoo.UI.Services
                     window.Top = cursorInDips.Y - verticalOffset;
                     break;
 
-                case "top left":
+                case "TOP LEFT":
                     window.Left = SystemParameters.WorkArea.Left;
                     window.Top = SystemParameters.WorkArea.Top;
                     break;
-                case "top right":
+                case "TOP RIGHT":
                     window.Left = SystemParameters.WorkArea.Right - window.Width;
                     window.Top = SystemParameters.WorkArea.Top;
                     break;
-                case "bottom left":
+                case "BOTTOM LEFT":
                     window.Left = SystemParameters.WorkArea.Left;
                     window.Top = SystemParameters.WorkArea.Bottom - window.Height;
                     break;
-                case "bottom right":
+                case "BOTTOM RIGHT":
                     window.Left = SystemParameters.WorkArea.Right - window.Width;
                     window.Top = SystemParameters.WorkArea.Bottom - window.Height;
                     break;
 
-                case "tray":
+                case "TRAY":
                     var workArea = SystemParameters.WorkArea;
                     window.Left = workArea.Right - window.Width - 80;
                     window.Top = workArea.Bottom - window.Height - 80;
                     break;
 
-                case "fixed":
+                case "FIXED":
                     window.Left = settings.FixedX;
                     window.Top = settings.FixedY;
                     break;
 
-                case "center":
+                case "CENTER":
                 default:
                     double pScreenWidth = SystemParameters.PrimaryScreenWidth;
                     double pScreenHeight = SystemParameters.PrimaryScreenHeight;
