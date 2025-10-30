@@ -27,7 +27,14 @@ namespace Cliptoo.UI.ViewModels
         public string CompareToolPath
         {
             get => Settings.CompareToolPath;
-            set => Settings.CompareToolPath = value;
+            set
+            {
+                if (Settings.CompareToolPath != value)
+                {
+                    Settings.CompareToolPath = value;
+                    OnPropertyChanged();
+                }
+            }
         }
 
         public string Hotkey
