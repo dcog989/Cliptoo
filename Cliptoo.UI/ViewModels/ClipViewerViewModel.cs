@@ -50,6 +50,11 @@ namespace Cliptoo.UI.ViewModels
 
         public ClipViewerViewModel(int clipId, IClipDataService clipDataService, ISettingsService settingsService, IFontProvider fontProvider, ISyntaxHighlighter syntaxHighlighter)
         {
+            ArgumentNullException.ThrowIfNull(clipDataService);
+            ArgumentNullException.ThrowIfNull(settingsService);
+            ArgumentNullException.ThrowIfNull(fontProvider);
+            ArgumentNullException.ThrowIfNull(syntaxHighlighter);
+
             _clipId = clipId;
             _clipDataService = clipDataService;
             SettingsService = settingsService;
@@ -112,23 +117,34 @@ namespace Cliptoo.UI.ViewModels
                 theme = ApplicationThemeManager.GetSystemTheme() == SystemTheme.Dark ? ApplicationTheme.Dark : ApplicationTheme.Light;
             }
 
-            IHighlightingDefinition? highlighting = null;
-            // The CSharp-Dark.xshd file provides a complete highlighting definition for C#, not just a theme.
-            // Applying it to other languages like XML or JavaScript results in incorrect syntax parsing.
-            // This logic is now restricted to only apply the dark theme when the content is identified as C#.
-            if (theme == ApplicationTheme.Dark && definitionName == "C#")
+            IHighlightingDefinition? highlighting;
+            if (theme == ApplicationTheme.Dark)
             {
-                var uri = new Uri("pack://application:,,,/Assets/AvalonEditThemes/CSharp-Dark.xshd");
-                var resourceInfo = Application.GetResourceStream(uri);
-                if (resourceInfo != null)
+                if (definitionName == "C#")
                 {
-                    using var stream = resourceInfo.Stream;
-                    using var reader = new XmlTextReader(stream);
-                    highlighting = HighlightingLoader.Load(reader, HighlightingManager.Instance);
+                    highlighting = null;
+                    var uri = new Uri("pack://application:,,,/Assets/AvalonEditThemes/CSharp-Dark.xshd");
+                    var resourceInfo = Application.GetResourceStream(uri);
+                    if (resourceInfo != null)
+                    {
+                        using var stream = resourceInfo.Stream;
+                        using var reader = new XmlTextReader(stream);
+                        highlighting = HighlightingLoader.Load(reader, HighlightingManager.Instance);
+                    }
+                    // If dark theme fails to load, fall back to default C# highlighting
+                    SyntaxHighlighting = highlighting ?? HighlightingManager.Instance.GetDefinition(definitionName);
+                }
+                else
+                {
+                    // Disable highlighting for other languages in dark mode to avoid bad default colors.
+                    SyntaxHighlighting = null;
                 }
             }
-
-            SyntaxHighlighting = highlighting ?? HighlightingManager.Instance.GetDefinition(definitionName);
+            else
+            {
+                // Light theme uses default highlighting
+                SyntaxHighlighting = HighlightingManager.Instance.GetDefinition(definitionName);
+            }
             OnPropertyChanged(nameof(SyntaxHighlighting));
         }
 
