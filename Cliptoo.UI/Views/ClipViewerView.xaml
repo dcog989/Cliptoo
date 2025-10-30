@@ -50,10 +50,10 @@
             HorizontalAlignment="Right"
             Orientation="Horizontal">
             <ui:Button
+                Appearance="Primary"
                 Command="{Binding SaveChangesCommand}"
                 Content="Save Changes"
-                IsDefault="True"
-                Style="{StaticResource PrimaryDialogButton}" />
+                IsDefault="True" />
             <ui:Button
                 Margin="10,0,0,0"
                 Appearance="Secondary"
