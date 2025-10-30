@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.Encodings.Web;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Cliptoo.Core.Database;
@@ -11,7 +13,7 @@ using Cliptoo.Core.Logging;
 
 namespace Cliptoo.Core.Services
 {
-    public class DatabaseService : IDatabaseService
+    public class DatabaseService : IDatabaseService, IDisposable
     {
         private readonly IDbManager _dbManager;
         private readonly IThumbnailService _thumbnailService;
@@ -22,6 +24,18 @@ namespace Cliptoo.Core.Services
         private readonly string _clipboardImageCachePath;
         private readonly string _tempPath;
         private readonly SemaphoreSlim _maintenanceLock = new(1, 1);
+        private bool _disposedValue;
+
+        private static readonly JsonSerializerOptions _exportJsonOptions = new()
+        {
+            WriteIndented = true,
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        };
+
+        private static readonly JsonSerializerOptions _importJsonOptions = new()
+        {
+            PropertyNameCaseInsensitive = true,
+        };
 
         public event EventHandler? CachesCleared;
         public event EventHandler? HistoryCleared;
@@ -155,23 +169,14 @@ namespace Cliptoo.Core.Services
                 clips.Add(clip);
             }
 
-            var options = new System.Text.Json.JsonSerializerOptions
-            {
-                WriteIndented = true,
-                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-            };
-            return System.Text.Json.JsonSerializer.Serialize(clips, options);
+            return JsonSerializer.Serialize(clips, _exportJsonOptions);
         }
 
         public async Task<int> ImportFromJsonAsync(string jsonContent)
         {
             try
             {
-                var options = new System.Text.Json.JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true,
-                };
-                var clips = System.Text.Json.JsonSerializer.Deserialize<List<Clip>>(jsonContent, options);
+                var clips = JsonSerializer.Deserialize<List<Clip>>(jsonContent, _importJsonOptions);
 
                 if (clips == null || clips.Count == 0)
                 {
@@ -186,7 +191,7 @@ namespace Cliptoo.Core.Services
                 }
                 return importedCount;
             }
-            catch (System.Text.Json.JsonException ex)
+            catch (JsonException ex)
             {
                 LogManager.LogCritical(ex, "Failed to deserialize JSON during import.");
                 throw; // Re-throw to be caught by the ViewModel
@@ -317,5 +322,23 @@ namespace Cliptoo.Core.Services
             }
         }
 
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!_disposedValue)
+            {
+                if (disposing)
+                {
+                    _maintenanceLock.Dispose();
+                }
+
+                _disposedValue = true;
+            }
+        }
+
+        public void Dispose()
+        {
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
+        }
     }
 }
