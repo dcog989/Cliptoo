@@ -170,7 +170,7 @@ namespace Cliptoo.UI.ViewModels
                 _fontProvider,
                 _serviceProvider.GetRequiredService<ISyntaxHighlighter>()
             );
-            viewerViewModel.OnClipUpdated += () => _clipDisplayService.RefreshClipList();
+            viewerViewModel.OnClipUpdated += (_, _) => _clipDisplayService.RefreshClipList();
 
             var viewerWindow = _serviceProvider.GetRequiredService<Views.ClipViewerWindow>();
             viewerWindow.Owner = Application.Current.MainWindow;

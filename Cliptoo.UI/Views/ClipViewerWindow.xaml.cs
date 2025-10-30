@@ -53,7 +53,7 @@ namespace Cliptoo.UI.Views
             }
         }
 
-        private void OnRequestClose()
+        private void OnRequestClose(object? sender, EventArgs e)
         {
             Close();
         }
@@ -80,5 +80,6 @@ namespace Cliptoo.UI.Views
             }
             base.OnClosed(e);
         }
+
     }
 }
