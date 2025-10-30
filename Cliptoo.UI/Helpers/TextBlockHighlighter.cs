@@ -20,11 +20,13 @@ namespace Cliptoo.UI.Helpers
 
         public static string GetFormattedText(DependencyObject obj)
         {
+            ArgumentNullException.ThrowIfNull(obj);
             return (string)obj.GetValue(FormattedTextProperty);
         }
 
         public static void SetFormattedText(DependencyObject obj, string value)
         {
+            ArgumentNullException.ThrowIfNull(obj);
             obj.SetValue(FormattedTextProperty, value);
         }
 
