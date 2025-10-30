@@ -178,6 +178,8 @@ namespace Cliptoo.UI.ViewModels
             IFontProvider fontProvider,
             IPreviewManager previewManager)
         {
+            ArgumentNullException.ThrowIfNull(clip);
+            ArgumentNullException.ThrowIfNull(fontProvider);
             _clip = clip;
             _clipDetailsLoader = clipDetailsLoader;
             _isPinned = clip.IsPinned;
@@ -224,6 +226,7 @@ namespace Cliptoo.UI.ViewModels
 
         public void UpdateClip(Clip clip, string theme)
         {
+            ArgumentNullException.ThrowIfNull(clip);
             _clip = clip;
             _theme = theme;
             IsPinned = clip.IsPinned;
@@ -307,7 +310,7 @@ namespace Cliptoo.UI.ViewModels
             {
                 string context = _clip.MatchContext.ReplaceLineEndings(" ");
 
-                string contextWithoutTags = context.Replace(startTag, "").Replace(endTag, "");
+                string contextWithoutTags = context.Replace(startTag, "", StringComparison.Ordinal).Replace(endTag, "", StringComparison.Ordinal);
 
                 int firstHighlightStart = context.IndexOf(startTag, StringComparison.Ordinal);
 
