@@ -32,10 +32,10 @@ namespace Cliptoo.UI.ViewModels
             {
                 if (CurrentSettings.MoveClipToTopOnPaste)
                 {
-                    await _clipDataService.MoveClipToTopAsync(clipVM.Id).ConfigureAwait(false);
+                    await _clipDataService.MoveClipToTopAsync(clipVM.Id);
                 }
 
-                var clip = await _clipDataService.GetClipByIdAsync(clipVM.Id).ConfigureAwait(false);
+                var clip = await _clipDataService.GetClipByIdAsync(clipVM.Id);
                 if (clip == null) return;
 
                 bool wasOnTop = IsAlwaysOnTop;
@@ -51,11 +51,11 @@ namespace Cliptoo.UI.ViewModels
                     HideWindow();
                 }
 
-                await pasteAction(clip).ConfigureAwait(false);
-                await _clipDataService.IncrementPasteCountAsync(clip.Id).ConfigureAwait(false);
-                await _clipboardService.UpdatePasteCountAsync().ConfigureAwait(false);
+                await pasteAction(clip);
+                await _clipDataService.IncrementPasteCountAsync(clip.Id);
+                await _clipboardService.UpdatePasteCountAsync();
 
-                await _clipDisplayService.LoadClipsAsync(true).ConfigureAwait(false);
+                await _clipDisplayService.LoadClipsAsync(true);
 
                 if (wasOnTop)
                 {
@@ -83,7 +83,7 @@ namespace Cliptoo.UI.ViewModels
         {
             if (parameter is ClipViewModel clipVM)
             {
-                await PerformPasteAction(clipVM, clip => _pastingService.PasteClipAsync(clip, forcePlainText)).ConfigureAwait(false);
+                await PerformPasteAction(clipVM, clip => _pastingService.PasteClipAsync(clip, forcePlainText));
             }
         }
 
@@ -94,13 +94,13 @@ namespace Cliptoo.UI.ViewModels
 
             await PerformPasteAction(clipVM, async clip =>
             {
-                string contentToTransform = (clip.ClipType == Core.AppConstants.ClipTypeRtf
+                string contentToTransform = (clip.ClipType == AppConstants.ClipTypeRtf
                     ? RtfUtils.ToPlainText(clip.Content ?? string.Empty)
                     : clip.Content) ?? string.Empty;
 
                 var transformedContent = _clipboardService.TransformText(contentToTransform, transformType);
-                await _pastingService.PasteTextAsync(transformedContent).ConfigureAwait(false);
-            }).ConfigureAwait(false);
+                await _pastingService.PasteTextAsync(transformedContent);
+            });
         }
 
         private void OpenSettingsWindow()
@@ -117,7 +117,7 @@ namespace Cliptoo.UI.ViewModels
 
             clipVM.IsFavorite = isFavorite;
             LogManager.LogInfo($"Toggling favorite for clip: ID={clipVM.Id}, NewState={(clipVM.IsFavorite ? "Favorite" : "Not Favorite")}.");
-            await _clipDataService.ToggleFavoriteAsync(clipVM.Id, clipVM.IsFavorite).ConfigureAwait(false);
+            await _clipDataService.ToggleFavoriteAsync(clipVM.Id, clipVM.IsFavorite);
 
             if (SelectedFilter.Key == AppConstants.FilterKeyFavorite && !clipVM.IsFavorite)
             {
@@ -133,12 +133,12 @@ namespace Cliptoo.UI.ViewModels
             LogManager.LogInfo($"Deleting clip: ID={clipVM.Id}.");
             clipVM.IsDeleting = true;
 
-            await Task.Delay(300).ConfigureAwait(false);
+            await Task.Delay(300);
 
             try
             {
-                var fullClip = await clipVM.GetFullClipAsync().ConfigureAwait(false);
-                await _clipDataService.DeleteClipAsync(fullClip ?? clipVM._clip).ConfigureAwait(false);
+                var fullClip = await clipVM.GetFullClipAsync();
+                await _clipDataService.DeleteClipAsync(fullClip ?? clipVM._clip);
 
                 await Application.Current.Dispatcher.InvokeAsync(() => Clips.Remove(clipVM));
             }
@@ -197,13 +197,46 @@ namespace Cliptoo.UI.ViewModels
             var clipVM = Clips.FirstOrDefault(c => c.Id == clipId);
             if (clipVM == null) return;
 
-            await _clipDataService.MoveClipToTopAsync(clipVM.Id).ConfigureAwait(false);
-            var clip = await _clipDataService.GetClipByIdAsync(clipVM.Id).ConfigureAwait(false);
-            if (clip != null)
+            // Trigger the animation and wait for it to complete.
+            clipVM.IsMoving = true;
+            await Task.Delay(300);
+
+            // Perform the data operation.
+            await _clipDataService.MoveClipToTopAsync(clipId);
+
+            // Get the updated clip data (with new timestamp).
+            var updatedClip = await _clipDataService.GetPreviewClipByIdAsync(clipId);
+
+            // Update the UI collection on the UI thread.
+            Clips.Remove(clipVM);
+
+            if (updatedClip != null)
             {
-                await _pastingService.SetClipboardContentAsync(clip, forcePlainText: null).ConfigureAwait(false);
+                // Create a new view model for the updated clip data to avoid state issues.
+                var newClipVM = _clipViewModelFactory.Create(updatedClip, CurrentThemeString);
+                Clips.Insert(0, newClipVM);
+
+                // Ensure the new top item is visible and selected.
+                var mainWindow = Application.Current.MainWindow as MainWindow;
+                var listView = mainWindow?.ClipListViewControl;
+                if (listView != null)
+                {
+                    listView.SelectedItem = newClipVM;
+                    listView.ScrollIntoView(newClipVM);
+                }
             }
-            await _clipDisplayService.LoadClipsAsync(false).ConfigureAwait(false);
+            else
+            {
+                // Failsafe in case we can't get the updated clip for some reason.
+                _clipDisplayService.RefreshClipList();
+            }
+
+            // Also update the system clipboard to reflect the moved item.
+            var fullClip = await _clipDataService.GetClipByIdAsync(clipId);
+            if (fullClip != null)
+            {
+                await _pastingService.SetClipboardContentAsync(fullClip, forcePlainText: null);
+            }
         }
 
         private async Task ExecuteOpen(int clipId)
@@ -211,7 +244,7 @@ namespace Cliptoo.UI.ViewModels
             var clipVM = Clips.FirstOrDefault(c => c.Id == clipId);
             if (clipVM == null) return;
 
-            var fullClip = await clipVM.GetFullClipAsync().ConfigureAwait(false);
+            var fullClip = await clipVM.GetFullClipAsync();
             if (fullClip?.Content == null) return;
             try
             {
@@ -233,7 +266,7 @@ namespace Cliptoo.UI.ViewModels
 
         private async Task ExecuteCompareWithSelectedRight(int clipId)
         {
-            var result = await _comparisonStateService.CompareWithRightClipAsync(clipId).ConfigureAwait(false);
+            var result = await _comparisonStateService.CompareWithRightClipAsync(clipId);
             if (!result.success)
             {
                 _notificationService.Show("Compare Failed", result.message, ControlAppearance.Danger, SymbolRegular.ErrorCircle24);
@@ -246,7 +279,7 @@ namespace Cliptoo.UI.ViewModels
             if (clipVM == null || target == null) return;
 
             LogManager.LogDebug($"SENDTO_DIAG: ExecuteSendTo called for target: {target.Name} ({target.Path})");
-            var clip = await clipVM.GetFullClipAsync().ConfigureAwait(false);
+            var clip = await clipVM.GetFullClipAsync();
             if (clip?.Content == null)
             {
                 LogManager.LogDebug("SENDTO_DIAG: Clip content is null, aborting.");
@@ -267,7 +300,7 @@ namespace Cliptoo.UI.ViewModels
                     _ => ".txt"
                 };
                 var tempFilePath = Path.Combine(Path.GetTempPath(), $"cliptoo_sendto_{Guid.NewGuid()}{extension}");
-                await File.WriteAllTextAsync(tempFilePath, clip.Content).ConfigureAwait(false);
+                await File.WriteAllTextAsync(tempFilePath, clip.Content);
                 contentPath = tempFilePath;
             }
 

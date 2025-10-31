@@ -38,6 +38,7 @@ namespace Cliptoo.UI.ViewModels
         private readonly IUiSharedResources _uiSharedResources;
         private readonly IEventAggregator _eventAggregator;
         private readonly IListViewInteractionService _listViewInteractionService;
+        private readonly IClipViewModelFactory _clipViewModelFactory;
         private readonly DispatcherTimer _clearClipsTimer;
         private bool _isAlwaysOnTop;
         private Settings _currentSettings;
@@ -167,7 +168,8 @@ namespace Cliptoo.UI.ViewModels
             IClipDisplayService clipDisplayService,
             IUiSharedResources uiSharedResources,
             IEventAggregator eventAggregator,
-            IListViewInteractionService listViewInteractionService)
+            IListViewInteractionService listViewInteractionService,
+            IClipViewModelFactory clipViewModelFactory)
         {
             _clipDataService = clipDataService;
             _clipboardService = clipboardService;
@@ -184,6 +186,7 @@ namespace Cliptoo.UI.ViewModels
             _uiSharedResources = uiSharedResources;
             _eventAggregator = eventAggregator;
             _listViewInteractionService = listViewInteractionService;
+            _clipViewModelFactory = clipViewModelFactory;
 
             _currentSettings = _settingsService.Settings;
             _currentSettings.PropertyChanged += CurrentSettings_PropertyChanged;

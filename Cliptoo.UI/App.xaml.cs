@@ -214,8 +214,8 @@ namespace Cliptoo.UI
 
                 Services = _host.Services;
 
-                // Replace the temporary logger with the singleton from the DI container
                 var logger = Services.GetRequiredService<ILogger>();
+                logger.Initialize(AppDataRoamingPath);
                 LogManager.Initialize(logger);
 
                 LogManager.LogDebug("Host built and services configured.");

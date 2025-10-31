@@ -84,6 +84,9 @@ namespace Cliptoo.UI.ViewModels
         private bool _isDeleting;
         public bool IsDeleting { get => _isDeleting; set => SetProperty(ref _isDeleting, value); }
 
+        private bool _isMoving;
+        public bool IsMoving { get => _isMoving; set => SetProperty(ref _isMoving, value); }
+
         public string Preview { get; private set; } = string.Empty;
 
         public ICommand ToggleFavoriteCommand { get; }

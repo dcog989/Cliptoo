@@ -34,6 +34,11 @@ namespace Cliptoo.Core.Services
             return _dbManager.GetClipByIdAsync(id);
         }
 
+        public Task<Clip?> GetPreviewClipByIdAsync(int id)
+        {
+            return _dbManager.GetPreviewClipByIdAsync(id);
+        }
+
         public async Task<int> AddClipAsync(string content, string clipType, string? sourceApp, bool wasTrimmed)
         {
             var clipId = await _dbManager.AddClipAsync(content, clipType, sourceApp, wasTrimmed).ConfigureAwait(false);
