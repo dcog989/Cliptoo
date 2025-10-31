@@ -175,7 +175,7 @@ namespace Cliptoo.UI.ViewModels
             MoveSendToTargetUpCommand = new RelayCommand(ExecuteMoveSendToTargetUp, CanExecuteMoveSendToTargetUp);
             MoveSendToTargetDownCommand = new RelayCommand(ExecuteMoveSendToTargetDown, CanExecuteMoveSendToTargetDown);
             ExportAllCommand = new RelayCommand(async _ => await ExecuteExport(false), _ => !IsBusy);
-            ExportPinnedCommand = new RelayCommand(async _ => await ExecuteExport(true), _ => !IsBusy);
+            ExportFavoriteCommand = new RelayCommand(async _ => await ExecuteExport(true), _ => !IsBusy);
             ImportCommand = new RelayCommand(async _ => await ExecuteImport(), _ => !IsBusy);
             AddBlacklistedAppCommand = new RelayCommand(p => ExecuteAddBlacklistedApp(p as string));
             RemoveBlacklistedAppCommand = new RelayCommand(p => ExecuteRemoveBlacklistedApp(p as string));
@@ -264,8 +264,8 @@ namespace Cliptoo.UI.ViewModels
             {
                 if (Stats == null) return "Loading stats...";
                 var favoriteText = Stats.FavoriteClips > 0 ? $" (+{Stats.FavoriteClips:N0} favorited)" : "";
-                var totalUnpinned = Stats.TotalClips - Stats.FavoriteClips;
-                return $"{totalUnpinned:N0} clips{favoriteText} in database using {Stats.DatabaseSizeMb} MB.";
+                var totalNonFavorite = Stats.TotalClips - Stats.FavoriteClips;
+                return $"{totalNonFavorite:N0} clips{favoriteText} in database using {Stats.DatabaseSizeMb} MB.";
             }
         }
 

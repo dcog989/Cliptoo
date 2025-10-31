@@ -32,7 +32,7 @@ namespace Cliptoo.UI.ViewModels
         public ICommand MoveSendToTargetUpCommand { get; }
         public ICommand MoveSendToTargetDownCommand { get; }
         public ICommand ExportAllCommand { get; }
-        public ICommand ExportPinnedCommand { get; }
+        public ICommand ExportFavoriteCommand { get; }
         public ICommand ImportCommand { get; }
         public ICommand AddBlacklistedAppCommand { get; }
         public ICommand RemoveBlacklistedAppCommand { get; }
