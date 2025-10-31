@@ -9,7 +9,7 @@ Cliptoo will turn your clipboard history in to a quick-access library of the thi
 > [!NOTE]
 > For now, there is only a build for x64 Windows systems.
 
-[Download the latest release of Cliptoo](./Cliptoo/releases/latest/).
+[Download the latest release of Cliptoo](https://github.com/dcog989/Cliptoo/releases/latest).
 
 [![License](https://img.shields.io/github/license/dcog989/cliptoo?style=for-the-badge)](LICENSE)
 [![Latest Release](https://img.shields.io/github/v/release/dcog989/cliptoo?style=for-the-badge)](./Cliptoo/releases/latest/)
