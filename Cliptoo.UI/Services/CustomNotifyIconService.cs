@@ -2,18 +2,18 @@ using Wpf.Ui.Tray;
 
 namespace Cliptoo.UI.Services
 {
-    public class CustomNotifyIconService : NotifyIconService
+    internal class CustomNotifyIconService : NotifyIconService
     {
-        public event Action? LeftClicked;
-        public event Action? DoubleClicked;
+        public event EventHandler? LeftClicked;
+        public event EventHandler? DoubleClicked;
 
         protected override void OnLeftClick()
-        { LeftClicked?.Invoke(); }
+        { LeftClicked?.Invoke(this, EventArgs.Empty); }
 
         protected override void OnLeftDoubleClick()
         {
             base.OnLeftDoubleClick();
-            DoubleClicked?.Invoke();
+            DoubleClicked?.Invoke(this, EventArgs.Empty);
         }
     }
 }

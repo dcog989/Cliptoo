@@ -126,7 +126,7 @@ namespace Cliptoo.UI.Services
             }
         }
 
-        private void OnTrayLeftClicked() => ToggleVisibilityRequested?.Invoke(this, true);
+        private void OnTrayLeftClicked(object? sender, EventArgs e) => ToggleVisibilityRequested?.Invoke(this, true);
 
         public void OnTaskbarCreated()
         {
