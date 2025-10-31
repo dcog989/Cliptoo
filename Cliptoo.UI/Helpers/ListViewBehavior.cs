@@ -4,28 +4,52 @@ using System.Windows.Input;
 
 namespace Cliptoo.UI.Helpers
 {
-    public static class ListViewBehavior
+    internal static class ListViewBehavior
     {
         // IsEnabled Attached Property (to activate the behavior)
         public static readonly DependencyProperty IsEnabledProperty =
             DependencyProperty.RegisterAttached("IsEnabled", typeof(bool), typeof(ListViewBehavior), new PropertyMetadata(false, OnIsEnabledChanged));
 
-        public static bool GetIsEnabled(DependencyObject obj) => (bool)obj.GetValue(IsEnabledProperty);
-        public static void SetIsEnabled(DependencyObject obj, bool value) => obj.SetValue(IsEnabledProperty, value);
+        public static bool GetIsEnabled(DependencyObject obj)
+        {
+            ArgumentNullException.ThrowIfNull(obj);
+            return (bool)obj.GetValue(IsEnabledProperty);
+        }
+        public static void SetIsEnabled(DependencyObject obj, bool value)
+        {
+            ArgumentNullException.ThrowIfNull(obj);
+            obj.SetValue(IsEnabledProperty, value);
+        }
 
         // LoadMoreCommand Attached Property
         public static readonly DependencyProperty LoadMoreCommandProperty =
             DependencyProperty.RegisterAttached("LoadMoreCommand", typeof(ICommand), typeof(ListViewBehavior), new PropertyMetadata(null));
 
-        public static ICommand? GetLoadMoreCommand(DependencyObject obj) => (ICommand?)obj.GetValue(LoadMoreCommandProperty);
-        public static void SetLoadMoreCommand(DependencyObject obj, ICommand? value) => obj.SetValue(LoadMoreCommandProperty, value);
+        public static ICommand? GetLoadMoreCommand(DependencyObject obj)
+        {
+            ArgumentNullException.ThrowIfNull(obj);
+            return (ICommand?)obj.GetValue(LoadMoreCommandProperty);
+        }
+        public static void SetLoadMoreCommand(DependencyObject obj, ICommand? value)
+        {
+            ArgumentNullException.ThrowIfNull(obj);
+            obj.SetValue(LoadMoreCommandProperty, value);
+        }
 
         // RequestScrollToTop Attached Property
         public static readonly DependencyProperty RequestScrollToTopProperty =
             DependencyProperty.RegisterAttached("RequestScrollToTop", typeof(bool), typeof(ListViewBehavior), new PropertyMetadata(false, OnRequestScrollToTopChanged));
 
-        public static bool GetRequestScrollToTop(DependencyObject obj) => (bool)obj.GetValue(RequestScrollToTopProperty);
-        public static void SetRequestScrollToTop(DependencyObject obj, bool value) => obj.SetValue(RequestScrollToTopProperty, value);
+        public static bool GetRequestScrollToTop(DependencyObject obj)
+        {
+            ArgumentNullException.ThrowIfNull(obj);
+            return (bool)obj.GetValue(RequestScrollToTopProperty);
+        }
+        public static void SetRequestScrollToTop(DependencyObject obj, bool value)
+        {
+            ArgumentNullException.ThrowIfNull(obj);
+            obj.SetValue(RequestScrollToTopProperty, value);
+        }
 
         private static void OnIsEnabledChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
