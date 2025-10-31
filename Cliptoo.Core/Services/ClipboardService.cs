@@ -67,6 +67,8 @@ namespace Cliptoo.Core.Services
                 return (false, "No supported text comparison tool found. Configure one in Settings or install a supported tool.");
             }
 
+            string? leftFilePath = null;
+            string? rightFilePath = null;
             try
             {
                 var leftClip = await _clipDataService.GetClipByIdAsync(leftClipId).ConfigureAwait(false);
@@ -77,8 +79,8 @@ namespace Cliptoo.Core.Services
                     return (false, "One or both of the clips to compare could not be found.");
                 }
 
-                var leftFilePath = Path.Combine(_tempPath, $"cliptoo_compare_left_{Guid.NewGuid()}.txt");
-                var rightFilePath = Path.Combine(_tempPath, $"cliptoo_compare_right_{Guid.NewGuid()}.txt");
+                leftFilePath = Path.Combine(_tempPath, $"cliptoo_compare_left_{Guid.NewGuid()}.txt");
+                rightFilePath = Path.Combine(_tempPath, $"cliptoo_compare_right_{Guid.NewGuid()}.txt");
 
                 await File.WriteAllTextAsync(leftFilePath, leftClip.Content ?? "").ConfigureAwait(false);
                 await File.WriteAllTextAsync(rightFilePath, rightClip.Content ?? "").ConfigureAwait(false);
@@ -87,8 +89,9 @@ namespace Cliptoo.Core.Services
                 {
                     process.StartInfo.FileName = toolPath;
                     process.StartInfo.Arguments = $"{toolArgs} \"{leftFilePath}\" \"{rightFilePath}\"";
-                    process.StartInfo.UseShellExecute = true;
+                    process.StartInfo.UseShellExecute = false;
                     process.Start();
+                    await process.WaitForExitAsync().ConfigureAwait(false);
                 }
 
                 return (true, "Comparison tool launched.");
@@ -97,6 +100,24 @@ namespace Cliptoo.Core.Services
             {
                 LogManager.LogCritical(ex, "Failed to execute clip comparison.");
                 return (false, "An error occurred while launching the comparison tool.");
+            }
+            finally
+            {
+                try
+                {
+                    if (leftFilePath != null && File.Exists(leftFilePath))
+                    {
+                        File.Delete(leftFilePath);
+                    }
+                    if (rightFilePath != null && File.Exists(rightFilePath))
+                    {
+                        File.Delete(rightFilePath);
+                    }
+                }
+                catch (IOException ex)
+                {
+                    LogManager.LogWarning($"Failed to delete temporary compare files: {ex.Message}");
+                }
             }
         }
 
