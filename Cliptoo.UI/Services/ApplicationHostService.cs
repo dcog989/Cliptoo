@@ -94,6 +94,8 @@ namespace Cliptoo.UI.Services
             try
             {
                 await InitializeCoreServicesAsync();
+                await PreloadCommonIconsAsync(cancellationToken);
+                if (cancellationToken.IsCancellationRequested) return;
                 await Application.Current.Dispatcher.InvokeAsync(async () =>
                 {
                     try
@@ -299,6 +301,63 @@ namespace Cliptoo.UI.Services
         private void OnProcessingFailed(object? sender, ProcessingFailedEventArgs e)
         {
             _notificationService.Show(e.Title, e.Message, ControlAppearance.Danger, SymbolRegular.ErrorCircle24, 5);
+        }
+
+        private async Task PreloadCommonIconsAsync(CancellationToken cancellationToken)
+        {
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            var iconProvider = _serviceProvider.GetRequiredService<IIconProvider>();
+
+            var commonIconKeys = new List<(string key, int size)>
+    {
+        // From UiSharedResources
+        (AppConstants.IconKeys.Logo, 24),
+        (AppConstants.IconKeys.List, 28),
+        (AppConstants.IconKeys.WasTrimmed, 20),
+        (AppConstants.IconKeys.Multiline, 20),
+        (AppConstants.IconKeys.Favorite, 20),
+        (AppConstants.IconKeys.Favorite, 16),
+        (AppConstants.IconKeys.Error, 32),
+        (AppConstants.IconKeys.Trash, 16),
+
+        // Filter icons from ClipDisplayService
+        (AppConstants.FilterKeys.All, 20),
+        (AppConstants.ClipTypes.Archive, 20),
+        (AppConstants.ClipTypes.Audio, 20),
+        (AppConstants.ClipTypes.CodeSnippet, 20),
+        (AppConstants.ClipTypes.Color, 20),
+        (AppConstants.ClipTypes.Danger, 20),
+        (AppConstants.ClipTypes.Database, 20),
+        (AppConstants.ClipTypes.Dev, 20),
+        (AppConstants.ClipTypes.Document, 20),
+        (AppConstants.ClipTypes.Folder, 20),
+        (AppConstants.ClipTypes.Font, 20),
+        (AppConstants.ClipTypes.Generic, 20),
+        (AppConstants.ClipTypes.Image, 20),
+        (AppConstants.ClipTypes.Link, 20),
+        (AppConstants.ClipTypes.System, 20),
+        (AppConstants.ClipTypes.Text, 20),
+        (AppConstants.ClipTypes.FileText, 20),
+        (AppConstants.ClipTypes.Rtf, 20),
+        (AppConstants.ClipTypes.Video, 20),
+
+        // Other common icons
+        (AppConstants.ClipTypes.FileLink, 20),
+
+        // Quick Paste icons
+        ("1", 32), ("2", 32), ("3", 32), ("4", 32), ("5", 32),
+        ("6", 32), ("7", 32), ("8", 32), ("9", 32),
+    };
+
+            var tasks = new List<Task>();
+            foreach (var (key, size) in commonIconKeys.Distinct())
+            {
+                if (cancellationToken.IsCancellationRequested) return;
+                tasks.Add(iconProvider.GetIconAsync(key, size));
+            }
+            await Task.WhenAll(tasks);
+            stopwatch.Stop();
+            LogManager.LogDebug($"PERF_DIAG: Pre-loaded {tasks.Count} common icons in {stopwatch.ElapsedMilliseconds}ms.");
         }
 
     }
