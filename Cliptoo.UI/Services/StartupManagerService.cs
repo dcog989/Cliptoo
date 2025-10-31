@@ -3,7 +3,7 @@ using Microsoft.Win32;
 
 namespace Cliptoo.UI.Services
 {
-    public class StartupManagerService : IStartupManagerService
+    internal class StartupManagerService : IStartupManagerService
     {
         private const string AppName = "Cliptoo";
         private readonly string _exePath;
@@ -33,7 +33,7 @@ namespace Cliptoo.UI.Services
                     _startupKey.DeleteValue(AppName, false);
                 }
             }
-            catch (Exception)
+            catch (Exception ex) when (ex is System.Security.SecurityException or UnauthorizedAccessException)
             {
                 // Fails silently if registry access is denied.
             }

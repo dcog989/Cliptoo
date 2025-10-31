@@ -414,7 +414,7 @@ namespace Cliptoo.UI.ViewModels
                 SelectedFontFamily = SystemFonts.Contains(Settings.FontFamily) ? Settings.FontFamily : SystemFonts.First();
                 SelectedPreviewFontFamily = SystemFonts.Contains(Settings.PreviewFontFamily) ? Settings.PreviewFontFamily : SystemFonts.First();
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is ArgumentException or NotSupportedException)
             {
                 LogManager.LogCritical(ex, "Failed to populate system fonts. Using fallbacks.");
                 if (SystemFonts.Count == 0)
