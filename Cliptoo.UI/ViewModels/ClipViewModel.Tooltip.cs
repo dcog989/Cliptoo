@@ -14,19 +14,19 @@ namespace Cliptoo.UI.ViewModels
         private const int MaxTooltipLines = 40;
 
         private bool _isTooltipContentLoaded;
-        public bool IsImage => ClipType == AppConstants.ClipTypes.Image;
-        public bool IsRtf => ClipType == AppConstants.ClipTypes.Rtf;
-        public bool IsLinkToolTip => ClipType == AppConstants.ClipTypes.Link;
+        public bool IsImage => ClipType == AppConstants.ClipTypeImage;
+        public bool IsRtf => ClipType == AppConstants.ClipTypeRtf;
+        public bool IsLinkToolTip => ClipType == AppConstants.ClipTypeLink;
         public bool IsPreviewableAsTextFile =>
-            (ClipType is AppConstants.ClipTypes.FileText or AppConstants.ClipTypes.Dev ||
-            (ClipType == AppConstants.ClipTypes.Document &&
+            (ClipType is AppConstants.ClipTypeFileText or AppConstants.ClipTypeDev ||
+            (ClipType == AppConstants.ClipTypeDocument &&
             (Content.EndsWith(".md", StringComparison.OrdinalIgnoreCase) ||
                 Content.EndsWith(".markdown", StringComparison.OrdinalIgnoreCase) ||
                 Content.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))))
             && !string.Equals(Content, LogManager.LogFilePath, StringComparison.OrdinalIgnoreCase);
 
         public bool ShowFileInfoTooltip => IsFileBased && !IsImage && !IsPreviewableAsTextFile;
-        public bool ShowTextualTooltip => IsPreviewableAsTextFile || (!IsFileBased && !IsLinkToolTip && ClipType != AppConstants.ClipTypes.Color);
+        public bool ShowTextualTooltip => IsPreviewableAsTextFile || (!IsFileBased && !IsLinkToolTip && ClipType != AppConstants.ClipTypeColor);
 
         public async Task LoadTooltipContentAsync()
         {
@@ -103,14 +103,14 @@ namespace Cliptoo.UI.ViewModels
 
         private void GenerateTooltipProperties(Clip clipToDisplay, string? textFileContent = null)
         {
-            if (clipToDisplay.ClipType == AppConstants.ClipTypes.Image)
+            if (clipToDisplay.ClipType == AppConstants.ClipTypeImage)
             {
                 TooltipTextContent = null;
                 LineCountInfo = null;
                 return;
             }
 
-            string contentForTooltip = textFileContent ?? (clipToDisplay.ClipType == AppConstants.ClipTypes.Rtf
+            string contentForTooltip = textFileContent ?? (clipToDisplay.ClipType == AppConstants.ClipTypeRtf
                 ? RtfUtils.ToPlainText(clipToDisplay.Content ?? "")
                 : clipToDisplay.Content ?? "");
 

@@ -52,16 +52,16 @@ namespace Cliptoo.UI.Services
 
             _notifyIconService.TooltipText = "Cliptoo";
 
-            _alwaysOnTopMenuItem = new MenuItem { Header = "Always on Top", IsCheckable = true, Tag = AppConstants.UITags.AlwaysOnTop };
+            _alwaysOnTopMenuItem = new MenuItem { Header = "Always on Top", IsCheckable = true, Tag = AppConstants.UITagAlwaysOnTop };
             _alwaysOnTopMenuItem.Click += OnMenuItemClick;
 
-            _showHideMenuItem = new MenuItem { Header = "Show Cliptoo", Tag = AppConstants.UITags.ShowHide };
+            _showHideMenuItem = new MenuItem { Header = "Show Cliptoo", Tag = AppConstants.UITagShowHide };
             _showHideMenuItem.Click += OnMenuItemClick;
 
             var settingsMenuItem = new MenuItem { Header = "Settings..." };
             settingsMenuItem.Click += (s, e) => _mainViewModel.OpenSettingsCommand.Execute(null);
 
-            var quitMenuItem = new MenuItem { Header = "Quit", Tag = AppConstants.UITags.Quit };
+            var quitMenuItem = new MenuItem { Header = "Quit", Tag = AppConstants.UITagQuit };
             quitMenuItem.Click += OnMenuItemClick;
 
             var contextMenu = new ContextMenu
@@ -114,13 +114,13 @@ namespace Cliptoo.UI.Services
 
             switch (tag)
             {
-                case AppConstants.UITags.ShowHide:
+                case AppConstants.UITagShowHide:
                     ToggleVisibilityRequested?.Invoke(this, true);
                     break;
-                case AppConstants.UITags.AlwaysOnTop:
+                case AppConstants.UITagAlwaysOnTop:
                     _mainViewModel.IsAlwaysOnTop = !_mainViewModel.IsAlwaysOnTop;
                     break;
-                case AppConstants.UITags.Quit:
+                case AppConstants.UITagQuit:
                     Application.Current.Shutdown();
                     break;
             }

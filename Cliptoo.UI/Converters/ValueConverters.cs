@@ -88,7 +88,7 @@ namespace Cliptoo.UI.Converters
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
             bool flag = value is bool b && b;
-            if (parameter is string s && s.Equals(AppConstants.ConverterParameters.Inverse, StringComparison.OrdinalIgnoreCase))
+            if (parameter is string s && s.Equals(AppConstants.ConverterParameterInverse, StringComparison.OrdinalIgnoreCase))
             {
                 flag = !flag;
             }

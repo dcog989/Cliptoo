@@ -62,8 +62,8 @@ namespace Cliptoo.Core.Configuration
         }
 
         #region Appearance & Theming
-        private string _theme = AppConstants.ThemeNames.System;
-        [DefaultValue(AppConstants.ThemeNames.System)]
+        private string _theme = AppConstants.ThemeNameSystem;
+        [DefaultValue(AppConstants.ThemeNameSystem)]
         public string Theme { get => _theme; set => SetProperty(ref _theme, value); }
 
         private string _accentColor = "#007ACC";

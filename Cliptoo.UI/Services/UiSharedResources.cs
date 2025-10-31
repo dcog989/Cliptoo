@@ -39,13 +39,13 @@ namespace Cliptoo.UI.Services
 
         public async Task InitializeAsync()
         {
-            LogoIcon = await _iconProvider.GetIconAsync(AppConstants.IconKeys.Logo, 24).ConfigureAwait(true);
-            MenuIcon = await _iconProvider.GetIconAsync(AppConstants.IconKeys.List, 28).ConfigureAwait(true);
-            WasTrimmedIcon = await _iconProvider.GetIconAsync(AppConstants.IconKeys.WasTrimmed, 20).ConfigureAwait(true);
-            MultiLineIcon = await _iconProvider.GetIconAsync(AppConstants.IconKeys.Multiline, 20).ConfigureAwait(true);
-            FavoriteIcon = await _iconProvider.GetIconAsync(AppConstants.IconKeys.Favorite, 20).ConfigureAwait(true);
-            FavoriteIcon16 = await _iconProvider.GetIconAsync(AppConstants.IconKeys.Favorite, 16).ConfigureAwait(true);
-            ErrorIcon = await _iconProvider.GetIconAsync(AppConstants.IconKeys.Error, 32).ConfigureAwait(true);
+            LogoIcon = await _iconProvider.GetIconAsync(AppConstants.IconKeyLogo, 24).ConfigureAwait(true);
+            MenuIcon = await _iconProvider.GetIconAsync(AppConstants.IconKeyList, 28).ConfigureAwait(true);
+            WasTrimmedIcon = await _iconProvider.GetIconAsync(AppConstants.IconKeyWasTrimmed, 20).ConfigureAwait(true);
+            MultiLineIcon = await _iconProvider.GetIconAsync(AppConstants.IconKeyMultiline, 20).ConfigureAwait(true);
+            FavoriteIcon = await _iconProvider.GetIconAsync(AppConstants.IconKeyFavorite, 20).ConfigureAwait(true);
+            FavoriteIcon16 = await _iconProvider.GetIconAsync(AppConstants.IconKeyFavorite, 16).ConfigureAwait(true);
+            ErrorIcon = await _iconProvider.GetIconAsync(AppConstants.IconKeyError, 32).ConfigureAwait(true);
         }
 
         private void OnPropertyChanged([CallerMemberName] string? propertyName = null)

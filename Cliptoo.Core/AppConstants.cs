@@ -1,97 +1,79 @@
-#pragma warning disable CA1034
-
 namespace Cliptoo.Core
 {
+#pragma warning disable CA1034
     public static class AppConstants
     {
-        public static class ClipTypes
-        {
-            public const string Text = "text";
-            public const string Link = "link";
-            public const string Color = "color";
-            public const string CodeSnippet = "code_snippet";
-            public const string Image = "file_image";
-            public const string Video = "file_video";
-            public const string Audio = "file_audio";
-            public const string Archive = "file_archive";
-            public const string Document = "file_document";
-            public const string Dev = "file_dev";
-            public const string Danger = "file_danger";
-            public const string FileText = "file_text";
-            public const string Generic = "file_generic";
-            public const string Folder = "folder";
-            public const string Rtf = "rtf";
-            public const string Database = "file_database";
-            public const string Font = "file_font";
-            public const string FileLink = "file_link";
-            public const string System = "file_system";
-        }
+        // ClipTypes
+        public const string ClipTypeText = "text";
+        public const string ClipTypeLink = "link";
+        public const string ClipTypeColor = "color";
+        public const string ClipTypeCodeSnippet = "code_snippet";
+        public const string ClipTypeImage = "file_image";
+        public const string ClipTypeVideo = "file_video";
+        public const string ClipTypeAudio = "file_audio";
+        public const string ClipTypeArchive = "file_archive";
+        public const string ClipTypeDocument = "file_document";
+        public const string ClipTypeDev = "file_dev";
+        public const string ClipTypeDanger = "file_danger";
+        public const string ClipTypeFileText = "file_text";
+        public const string ClipTypeGeneric = "file_generic";
+        public const string ClipTypeFolder = "folder";
+        public const string ClipTypeRtf = "rtf";
+        public const string ClipTypeDatabase = "file_database";
+        public const string ClipTypeFont = "file_font";
+        public const string ClipTypeFileLink = "file_link";
+        public const string ClipTypeSystem = "file_system";
 
-        public static class FilterKeys
-        {
-            public const string All = "all";
-            public const string Favorite = "favorite";
-            public const string Text = "text";
-            public const string Link = "link";
-            public const string Image = "file_image";
-            public const string Color = "color";
-        }
+        // FilterKeys
+        public const string FilterKeyAll = "all";
+        public const string FilterKeyFavorite = "favorite";
+        public const string FilterKeyText = "text";
+        public const string FilterKeyLink = "link";
+        public const string FilterKeyImage = "file_image";
+        public const string FilterKeyColor = "color";
 
-        public static class IconKeys
-        {
-            public const string Favorite = "favorite";
-            public const string Multiline = "multiline";
-            public const string WasTrimmed = "was_trimmed";
-            public const string Logo = "logo";
-            public const string List = "list";
-            public const string Error = "error";
-            public const string Trash = "trash";
-        }
+        // IconKeys
+        public const string IconKeyFavorite = "favorite";
+        public const string IconKeyMultiline = "multiline";
+        public const string IconKeyWasTrimmed = "was_trimmed";
+        public const string IconKeyLogo = "logo";
+        public const string IconKeyList = "list";
+        public const string IconKeyError = "error";
+        public const string IconKeyTrash = "trash";
 
-        public static class TransformTypes
-        {
-            public const string Upper = "upper";
-            public const string Lower = "lower";
-            public const string Trim = "trim";
-            public const string Capitalize = "capitalize";
-            public const string Sentence = "sentence";
-            public const string Invert = "invert";
-            public const string Kebab = "kebab";
-            public const string Snake = "snake";
-            public const string Camel = "camel";
-            public const string Deslug = "deslug";
-            public const string Lf1 = "lf1";
-            public const string Lf2 = "lf2";
-            public const string RemoveLf = "remove_lf";
-            public const string Timestamp = "timestamp";
-        }
+        // TransformTypes
+        public const string TransformTypeUpper = "upper";
+        public const string TransformTypeLower = "lower";
+        public const string TransformTypeTrim = "trim";
+        public const string TransformTypeCapitalize = "capitalize";
+        public const string TransformTypeSentence = "sentence";
+        public const string TransformTypeInvert = "invert";
+        public const string TransformTypeKebab = "kebab";
+        public const string TransformTypeSnake = "snake";
+        public const string TransformTypeCamel = "camel";
+        public const string TransformTypeDeslug = "deslug";
+        public const string TransformTypeLf1 = "lf1";
+        public const string TransformTypeLf2 = "lf2";
+        public const string TransformTypeRemoveLf = "remove_lf";
+        public const string TransformTypeTimestamp = "timestamp";
 
-        public static class UITags
-        {
-            public const string AlwaysOnTop = "always_on_top";
-            public const string ShowHide = "show_hide";
-            public const string Quit = "quit";
-        }
+        // UITags
+        public const string UITagAlwaysOnTop = "always_on_top";
+        public const string UITagShowHide = "show_hide";
+        public const string UITagQuit = "quit";
 
-        public static class HotkeyTargets
-        {
-            public const string Main = "Main";
-            public const string Preview = "Preview";
-            public const string QuickPaste = "QuickPaste";
-        }
+        // HotkeyTargets
+        public const string HotkeyTargetMain = "Main";
+        public const string HotkeyTargetPreview = "Preview";
+        public const string HotkeyTargetQuickPaste = "QuickPaste";
 
-        public static class ThemeNames
-        {
-            public const string System = "System";
-            public const string Light = "Light";
-            public const string Dark = "Dark";
-        }
+        // ThemeNames
+        public const string ThemeNameSystem = "System";
+        public const string ThemeNameLight = "Light";
+        public const string ThemeNameDark = "Dark";
 
-        public static class ConverterParameters
-        {
-            public const string Inverse = "inverse";
-        }
+        // ConverterParameters
+        public const string ConverterParameterInverse = "inverse";
     }
-}
-
 #pragma warning restore CA1034
+}

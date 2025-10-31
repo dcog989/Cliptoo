@@ -228,7 +228,7 @@ namespace Cliptoo.Core.Database
                         {
                             var contentPath = clip.Content.Trim();
                             bool shouldDelete = false;
-                            if (clip.ClipType == AppConstants.ClipTypes.Folder)
+                            if (clip.ClipType == AppConstants.ClipTypeFolder)
                             {
                                 if (!Directory.Exists(contentPath)) shouldDelete = true;
                             }

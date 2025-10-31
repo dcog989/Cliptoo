@@ -73,17 +73,17 @@ namespace Cliptoo.Core.Database
                     "FROM clips c ", columns);
             }
 
-            if (filterType == AppConstants.FilterKeys.Favorite)
+            if (filterType == AppConstants.FilterKeyFavorite)
             {
                 whereConditions.Add("c.IsFavorite = 1");
             }
-            else if (filterType == AppConstants.ClipTypes.Link)
+            else if (filterType == AppConstants.ClipTypeLink)
             {
                 whereConditions.Add("(c.ClipType = @FilterTypeLink OR c.ClipType = @FilterTypeFileLink)");
-                command.Parameters.AddWithValue("@FilterTypeLink", AppConstants.ClipTypes.Link);
-                command.Parameters.AddWithValue("@FilterTypeFileLink", AppConstants.ClipTypes.FileLink);
+                command.Parameters.AddWithValue("@FilterTypeLink", AppConstants.ClipTypeLink);
+                command.Parameters.AddWithValue("@FilterTypeFileLink", AppConstants.ClipTypeFileLink);
             }
-            else if (filterType != AppConstants.FilterKeys.All)
+            else if (filterType != AppConstants.FilterKeyAll)
             {
                 whereConditions.Add("c.ClipType = @FilterType");
                 command.Parameters.AddWithValue("@FilterType", filterType);

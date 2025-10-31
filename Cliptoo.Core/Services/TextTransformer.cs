@@ -17,17 +17,17 @@ namespace Cliptoo.Core.Services
         {
             _transformations = new Dictionary<string, Func<string, string>>
         {
-            { AppConstants.TransformTypes.Upper, content => content.ToUpperInvariant() },
+            { AppConstants.TransformTypeUpper, content => content.ToUpperInvariant() },
 #pragma warning disable CA1308 // Normalize strings to uppercase
-            { AppConstants.TransformTypes.Lower, content => content.ToLowerInvariant() },
-            { AppConstants.TransformTypes.Trim, content => content.Trim() },
-            { AppConstants.TransformTypes.Capitalize, content => CultureInfo.CurrentCulture.TextInfo.ToTitleCase(content.ToLowerInvariant()) },
-            { AppConstants.TransformTypes.Sentence, content => {
+            { AppConstants.TransformTypeLower, content => content.ToLowerInvariant() },
+            { AppConstants.TransformTypeTrim, content => content.Trim() },
+            { AppConstants.TransformTypeCapitalize, content => CultureInfo.CurrentCulture.TextInfo.ToTitleCase(content.ToLowerInvariant()) },
+            { AppConstants.TransformTypeSentence, content => {
                 var sentenceRegex = new Regex(@"(^\s*\w|[.!?]\s*\w)");
                 return sentenceRegex.Replace(content.ToLowerInvariant(), m => m.Value.ToUpperInvariant());
 #pragma warning restore CA1308 // Normalize strings to uppercase
             }},
-            { AppConstants.TransformTypes.Invert, content => {
+            { AppConstants.TransformTypeInvert, content => {
                 var charArray = content.ToCharArray();
                 for (int i = 0; i < charArray.Length; i++)
                 {
@@ -38,15 +38,15 @@ namespace Cliptoo.Core.Services
                 }
                 return new string(charArray);
             }},
-            { AppConstants.TransformTypes.Kebab, content => {
+            { AppConstants.TransformTypeKebab, content => {
                 var kebabTemp = Regex.Replace(content.Trim(), @"(?<=\w)([A-Z])", "-$1");
                 return Regex.Replace(kebabTemp, @"[\s_]+", "-").ToUpperInvariant();
             }},
-            { AppConstants.TransformTypes.Snake, content => {
+            { AppConstants.TransformTypeSnake, content => {
                 var snakeTemp = Regex.Replace(content.Trim(), @"(?<=\w)([A-Z])", "_$1");
                 return Regex.Replace(snakeTemp, @"[\s-]+", "_").ToUpperInvariant();
             }},
-            { AppConstants.TransformTypes.Camel, content => {
+            { AppConstants.TransformTypeCamel, content => {
                 var words = content.Split(_camelCaseDelimiters, StringSplitOptions.RemoveEmptyEntries);
                 if (words.Length == 0) return "";
                 var camelResult = new StringBuilder(words[0].ToUpperInvariant());
@@ -56,11 +56,11 @@ namespace Cliptoo.Core.Services
                 }
                 return camelResult.ToString();
             }},
-            { AppConstants.TransformTypes.Deslug, content => content.Replace('-', ' ').Replace('_', ' ') },
-            { AppConstants.TransformTypes.Lf1, content => content + Environment.NewLine },
-            { AppConstants.TransformTypes.Lf2, content => content + Environment.NewLine + Environment.NewLine },
-            { AppConstants.TransformTypes.RemoveLf, content => content.Replace("\r\n", " ", StringComparison.Ordinal).Replace("\n", " ", StringComparison.Ordinal).Replace("\r", " ", StringComparison.Ordinal) },
-            { AppConstants.TransformTypes.Timestamp, content => DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture) + Environment.NewLine + content }
+            { AppConstants.TransformTypeDeslug, content => content.Replace('-', ' ').Replace('_', ' ') },
+            { AppConstants.TransformTypeLf1, content => content + Environment.NewLine },
+            { AppConstants.TransformTypeLf2, content => content + Environment.NewLine + Environment.NewLine },
+            { AppConstants.TransformTypeRemoveLf, content => content.Replace("\r\n", " ", StringComparison.Ordinal).Replace("\n", " ", StringComparison.Ordinal).Replace("\r", " ", StringComparison.Ordinal) },
+            { AppConstants.TransformTypeTimestamp, content => DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture) + Environment.NewLine + content }
         };
         }
 

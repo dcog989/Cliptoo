@@ -114,7 +114,7 @@
                     Style="{StaticResource SettingLabel}"
                     Text="Launch main window" />
                 <ui:TextBox
-                    helpers:HotkeyInputBehavior.HotkeyTarget="{x:Static core:AppConstants+HotkeyTargets.Main}"
+                    helpers:HotkeyInputBehavior.HotkeyTarget="{x:Static core:AppConstants.HotkeyTargetMain}"
                     helpers:HotkeyInputBehavior.IsEnabled="True"
                     Style="{StaticResource CaptureHotkeyStyle}"
                     Text="{Binding Hotkey, Mode=OneWay}" />
@@ -124,7 +124,7 @@
                     Style="{StaticResource SettingLabel}"
                     Text="Display preview tooltip" />
                 <ui:TextBox
-                    helpers:HotkeyInputBehavior.HotkeyTarget="{x:Static core:AppConstants+HotkeyTargets.Preview}"
+                    helpers:HotkeyInputBehavior.HotkeyTarget="{x:Static core:AppConstants.HotkeyTargetPreview}"
                     helpers:HotkeyInputBehavior.IsEnabled="True"
                     Style="{StaticResource CaptureHotkeyStyle}"
                     Text="{Binding PreviewHotkey, Mode=OneWay}" />
@@ -134,7 +134,7 @@
                     Style="{StaticResource SettingLabel}"
                     Text="Activate quick paste" />
                 <ui:TextBox
-                    helpers:HotkeyInputBehavior.HotkeyTarget="{x:Static core:AppConstants+HotkeyTargets.QuickPaste}"
+                    helpers:HotkeyInputBehavior.HotkeyTarget="{x:Static core:AppConstants.HotkeyTargetQuickPaste}"
                     helpers:HotkeyInputBehavior.IsEnabled="True"
                     Style="{StaticResource CaptureHotkeyStyle}"
                     Text="{Binding QuickPasteHotkey, Mode=OneWay}"

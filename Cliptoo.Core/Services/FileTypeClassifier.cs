@@ -152,7 +152,7 @@ namespace Cliptoo.Core.Services
         {
             if (string.IsNullOrWhiteSpace(filePath))
             {
-                return AppConstants.ClipTypes.Text;
+                return AppConstants.ClipTypeText;
             }
 
             var trimmedPath = filePath.Trim();
@@ -174,16 +174,16 @@ namespace Cliptoo.Core.Services
             // Fallback logic for paths without a known extension, relying on existence.
             if (Directory.Exists(trimmedPath))
             {
-                return AppConstants.ClipTypes.Folder;
+                return AppConstants.ClipTypeFolder;
             }
 
             if (File.Exists(trimmedPath))
             {
-                return AppConstants.ClipTypes.Generic;
+                return AppConstants.ClipTypeGeneric;
             }
 
             // If it doesn't exist and we couldn't classify by extension, it's likely not a file path.
-            return AppConstants.ClipTypes.Text;
+            return AppConstants.ClipTypeText;
         }
 
         private void Dispose(bool disposing)

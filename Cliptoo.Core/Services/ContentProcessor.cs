@@ -32,7 +32,7 @@ namespace Cliptoo.Core.Services
         {
             if (string.IsNullOrWhiteSpace(content))
             {
-                return new ProcessingResult(AppConstants.ClipTypes.Text, content);
+                return new ProcessingResult(AppConstants.ClipTypeText, content);
             }
 
             bool hadLeadingWhitespace = content.Length > content.TrimStart().Length;
@@ -40,20 +40,20 @@ namespace Cliptoo.Core.Services
 
             if (IsColor(trimmedContent))
             {
-                return new ProcessingResult(AppConstants.ClipTypes.Color, content, hadLeadingWhitespace);
+                return new ProcessingResult(AppConstants.ClipTypeColor, content, hadLeadingWhitespace);
             }
 
             if (Uri.TryCreate(trimmedContent, UriKind.Absolute, out var uri) && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
             {
-                return new ProcessingResult(AppConstants.ClipTypes.Link, content, hadLeadingWhitespace);
+                return new ProcessingResult(AppConstants.ClipTypeLink, content, hadLeadingWhitespace);
             }
 
             if (IsCodeSnippet(content))
             {
-                return new ProcessingResult(AppConstants.ClipTypes.CodeSnippet, content, hadLeadingWhitespace);
+                return new ProcessingResult(AppConstants.ClipTypeCodeSnippet, content, hadLeadingWhitespace);
             }
 
-            return new ProcessingResult(AppConstants.ClipTypes.Text, content, hadLeadingWhitespace);
+            return new ProcessingResult(AppConstants.ClipTypeText, content, hadLeadingWhitespace);
         }
 
         private static bool IsColor(string input)

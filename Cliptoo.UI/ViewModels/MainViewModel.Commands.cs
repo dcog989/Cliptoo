@@ -94,7 +94,7 @@ namespace Cliptoo.UI.ViewModels
 
             await PerformPasteAction(clipVM, async clip =>
             {
-                string contentToTransform = (clip.ClipType == Core.AppConstants.ClipTypes.Rtf
+                string contentToTransform = (clip.ClipType == Core.AppConstants.ClipTypeRtf
                     ? RtfUtils.ToPlainText(clip.Content ?? string.Empty)
                     : clip.Content) ?? string.Empty;
 
@@ -119,7 +119,7 @@ namespace Cliptoo.UI.ViewModels
             LogManager.LogInfo($"Toggling favorite for clip: ID={clipVM.Id}, NewState={(clipVM.IsFavorite ? "Favorite" : "Not Favorite")}.");
             await _clipDataService.ToggleFavoriteAsync(clipVM.Id, clipVM.IsFavorite).ConfigureAwait(false);
 
-            if (SelectedFilter.Key == AppConstants.FilterKeys.Favorite && !clipVM.IsFavorite)
+            if (SelectedFilter.Key == AppConstants.FilterKeyFavorite && !clipVM.IsFavorite)
             {
                 Application.Current.Dispatcher.Invoke(() => Clips.Remove(clipVM));
             }
@@ -262,8 +262,8 @@ namespace Cliptoo.UI.ViewModels
             {
                 var extension = clip.ClipType switch
                 {
-                    AppConstants.ClipTypes.CodeSnippet => ".txt",
-                    AppConstants.ClipTypes.Rtf => ".rtf",
+                    AppConstants.ClipTypeCodeSnippet => ".txt",
+                    AppConstants.ClipTypeRtf => ".rtf",
                     _ => ".txt"
                 };
                 var tempFilePath = Path.Combine(Path.GetTempPath(), $"cliptoo_sendto_{Guid.NewGuid()}{extension}");

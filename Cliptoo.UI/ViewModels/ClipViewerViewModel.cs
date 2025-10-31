@@ -108,7 +108,7 @@ namespace Cliptoo.UI.ViewModels
             _originalClipType = clip.ClipType;
 
             string? contentForInfo;
-            if (_originalClipType == AppConstants.ClipTypes.Rtf)
+            if (_originalClipType == AppConstants.ClipTypeRtf)
             {
                 contentForInfo = RtfUtils.ToPlainText(clip.Content ?? string.Empty);
             }

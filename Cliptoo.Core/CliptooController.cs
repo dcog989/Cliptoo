@@ -177,7 +177,7 @@ namespace Cliptoo.Core
 
                 if (e.IsRtf)
                 {
-                    result = new ProcessingResult(AppConstants.ClipTypes.Rtf, textContent);
+                    result = new ProcessingResult(AppConstants.ClipTypeRtf, textContent);
                 }
                 else
                 {
@@ -228,7 +228,7 @@ namespace Cliptoo.Core
                 }
 
                 await _thumbnailService.GetThumbnailAsync(imagePath, null).ConfigureAwait(false);
-                result = new ProcessingResult(AppConstants.ClipTypes.Image, imagePath);
+                result = new ProcessingResult(AppConstants.ClipTypeImage, imagePath);
             }
             else if (e.ContentType == ClipboardContentType.FileDrop)
             {
@@ -243,7 +243,7 @@ namespace Cliptoo.Core
                         var extractedUrl = ParseUrlFile(path);
                         if (!string.IsNullOrEmpty(extractedUrl))
                         {
-                            result = new ProcessingResult(AppConstants.ClipTypes.Link, extractedUrl, false, Path.GetFileName(path));
+                            result = new ProcessingResult(AppConstants.ClipTypeLink, extractedUrl, false, Path.GetFileName(path));
                         }
                     }
                     if (result == null) // If not a .url file or parsing failed

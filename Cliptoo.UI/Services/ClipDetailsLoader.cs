@@ -29,11 +29,11 @@ namespace Cliptoo.UI.Services
 
             var extension = Path.GetExtension(vm.Content)?.ToUpperInvariant() ?? string.Empty;
 
-            if (vm.ClipType == AppConstants.ClipTypes.Image)
+            if (vm.ClipType == AppConstants.ClipTypeImage)
             {
                 return await thumbnailService.GetThumbnailAsync(vm.Content, extension == ".SVG" ? theme : null).ConfigureAwait(false);
             }
-            if (vm.ClipType == AppConstants.ClipTypes.Link && Uri.TryCreate(vm.Content, UriKind.Absolute, out var uri))
+            if (vm.ClipType == AppConstants.ClipTypeLink && Uri.TryCreate(vm.Content, UriKind.Absolute, out var uri))
             {
                 return await webMetadataService.GetFaviconAsync(uri).ConfigureAwait(false);
             }

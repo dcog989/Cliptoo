@@ -38,7 +38,7 @@ namespace Cliptoo.UI.Services
             var settings = _settingsService.Settings;
             bool pasteAsPlainText = forcePlainText ?? settings.PasteAsPlainText;
             LogManager.LogDebug($"Setting clipboard content: ID={clip.Id}, AsPlainText={pasteAsPlainText}.");
-            bool isFileOperation = !pasteAsPlainText && (clip.ClipType.StartsWith("file_", StringComparison.Ordinal) || clip.ClipType == AppConstants.ClipTypes.Folder);
+            bool isFileOperation = !pasteAsPlainText && (clip.ClipType.StartsWith("file_", StringComparison.Ordinal) || clip.ClipType == AppConstants.ClipTypeFolder);
 
             if (isFileOperation)
             {
@@ -74,7 +74,7 @@ namespace Cliptoo.UI.Services
             var dataObject = new DataObject();
             if (pasteAsPlainText)
             {
-                string plainText = (clip.ClipType == AppConstants.ClipTypes.Rtf && clip.Content != null)
+                string plainText = (clip.ClipType == AppConstants.ClipTypeRtf && clip.Content != null)
                     ? RtfUtils.ToPlainText(clip.Content)
                     : clip.Content ?? "";
                 dataObject.SetText(plainText, TextDataFormat.UnicodeText);
@@ -83,7 +83,7 @@ namespace Cliptoo.UI.Services
             {
                 switch (clip.ClipType)
                 {
-                    case AppConstants.ClipTypes.Image:
+                    case AppConstants.ClipTypeImage:
                         if (File.Exists(clip.Content))
                         {
                             var bitmap = new BitmapImage();
@@ -95,7 +95,7 @@ namespace Cliptoo.UI.Services
                             dataObject.SetImage(bitmap);
                         }
                         break;
-                    case AppConstants.ClipTypes.Rtf:
+                    case AppConstants.ClipTypeRtf:
                         dataObject.SetData(DataFormats.Rtf, clip.Content);
                         dataObject.SetText(RtfUtils.ToPlainText(clip.Content ?? string.Empty), TextDataFormat.UnicodeText);
                         break;
@@ -106,7 +106,7 @@ namespace Cliptoo.UI.Services
             }
 
             var hashesToSuppress = new HashSet<ulong>();
-            if (!pasteAsPlainText && clip.ClipType == AppConstants.ClipTypes.Rtf && clip.Content is not null)
+            if (!pasteAsPlainText && clip.ClipType == AppConstants.ClipTypeRtf && clip.Content is not null)
             {
                 hashesToSuppress.Add(HashingUtils.ComputeHash(Encoding.UTF8.GetBytes(clip.Content)));
             }

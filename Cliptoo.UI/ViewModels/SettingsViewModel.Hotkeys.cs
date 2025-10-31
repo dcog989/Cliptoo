@@ -24,16 +24,16 @@ namespace Cliptoo.UI.ViewModels
             {
                 switch (target)
                 {
-                    case AppConstants.HotkeyTargets.Main: this.Hotkey = string.Empty; break;
-                    case AppConstants.HotkeyTargets.Preview: this.PreviewHotkey = string.Empty; break;
-                    case AppConstants.HotkeyTargets.QuickPaste: this.QuickPasteHotkey = string.Empty; break;
+                    case AppConstants.HotkeyTargetMain: this.Hotkey = string.Empty; break;
+                    case AppConstants.HotkeyTargetPreview: this.PreviewHotkey = string.Empty; break;
+                    case AppConstants.HotkeyTargetQuickPaste: this.QuickPasteHotkey = string.Empty; break;
                 }
                 return;
             }
 
             bool isModifierKey = key is Key.LeftCtrl or Key.RightCtrl or Key.LeftAlt or Key.RightAlt or Key.LeftShift or Key.RightShift or Key.LWin or Key.RWin or Key.None;
 
-            if (target != AppConstants.HotkeyTargets.QuickPaste && isModifierKey)
+            if (target != AppConstants.HotkeyTargetQuickPaste && isModifierKey)
             {
                 return;
             }
@@ -44,7 +44,7 @@ namespace Cliptoo.UI.ViewModels
             if (Keyboard.Modifiers.HasFlag(ModifierKeys.Shift)) hotkeyParts.Add("Shift");
             if (Keyboard.Modifiers.HasFlag(ModifierKeys.Windows)) hotkeyParts.Add("Win");
 
-            if (!isModifierKey && target != AppConstants.HotkeyTargets.QuickPaste)
+            if (!isModifierKey && target != AppConstants.HotkeyTargetQuickPaste)
             {
                 hotkeyParts.Add(key.ToString());
             }
@@ -53,13 +53,13 @@ namespace Cliptoo.UI.ViewModels
 
             switch (target)
             {
-                case AppConstants.HotkeyTargets.Main:
+                case AppConstants.HotkeyTargetMain:
                     this.Hotkey = newHotkey;
                     break;
-                case AppConstants.HotkeyTargets.Preview:
+                case AppConstants.HotkeyTargetPreview:
                     this.PreviewHotkey = newHotkey;
                     break;
-                case AppConstants.HotkeyTargets.QuickPaste:
+                case AppConstants.HotkeyTargetQuickPaste:
                     this.QuickPasteHotkey = newHotkey;
                     break;
             }
@@ -83,7 +83,7 @@ namespace Cliptoo.UI.ViewModels
 
             switch (target)
             {
-                case AppConstants.HotkeyTargets.Main:
+                case AppConstants.HotkeyTargetMain:
                     parts = this.Hotkey.Split(_plusSeparator, StringSplitOptions.RemoveEmptyEntries);
                     var mainKeyPart = parts.LastOrDefault();
                     // Must have at least one modifier and one non-modifier key
@@ -95,7 +95,7 @@ namespace Cliptoo.UI.ViewModels
                     }
                     break;
 
-                case AppConstants.HotkeyTargets.Preview:
+                case AppConstants.HotkeyTargetPreview:
                     parts = this.PreviewHotkey.Split(_plusSeparator, StringSplitOptions.RemoveEmptyEntries);
                     var previewKeyPart = parts.LastOrDefault();
                     // Must have at least one non-modifier key
@@ -107,7 +107,7 @@ namespace Cliptoo.UI.ViewModels
                     }
                     break;
 
-                case AppConstants.HotkeyTargets.QuickPaste:
+                case AppConstants.HotkeyTargetQuickPaste:
                     parts = this.QuickPasteHotkey.Split(_plusSeparator, StringSplitOptions.RemoveEmptyEntries);
                     bool allModifiers = parts.All(p => p is "Ctrl" or "Alt" or "Shift" or "Win");
                     isValid = allModifiers && parts.Length >= 2;

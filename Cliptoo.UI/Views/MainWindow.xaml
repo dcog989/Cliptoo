@@ -223,7 +223,7 @@
                                     <MenuItem.CommandParameter>
                                         <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
                                             <Binding />
-                                            <Binding Source="{x:Static core:AppConstants+TransformTypes.Trim}" />
+                                            <Binding Source="{x:Static core:AppConstants.TransformTypeTrim}" />
                                         </MultiBinding>
                                     </MenuItem.CommandParameter>
                                 </MenuItem>
@@ -234,7 +234,7 @@
                                     <MenuItem.CommandParameter>
                                         <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
                                             <Binding />
-                                            <Binding Source="{x:Static core:AppConstants+TransformTypes.Lf1}" />
+                                            <Binding Source="{x:Static core:AppConstants.TransformTypeLf1}" />
                                         </MultiBinding>
                                     </MenuItem.CommandParameter>
                                 </MenuItem>
@@ -245,7 +245,7 @@
                                     <MenuItem.CommandParameter>
                                         <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
                                             <Binding />
-                                            <Binding Source="{x:Static core:AppConstants+TransformTypes.Lf2}" />
+                                            <Binding Source="{x:Static core:AppConstants.TransformTypeLf2}" />
                                         </MultiBinding>
                                     </MenuItem.CommandParameter>
                                 </MenuItem>
@@ -256,7 +256,7 @@
                                     <MenuItem.CommandParameter>
                                         <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
                                             <Binding />
-                                            <Binding Source="{x:Static core:AppConstants+TransformTypes.RemoveLf}" />
+                                            <Binding Source="{x:Static core:AppConstants.TransformTypeRemoveLf}" />
                                         </MultiBinding>
                                     </MenuItem.CommandParameter>
                                 </MenuItem>
@@ -267,7 +267,7 @@
                                     <MenuItem.CommandParameter>
                                         <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
                                             <Binding />
-                                            <Binding Source="{x:Static core:AppConstants+TransformTypes.Timestamp}" />
+                                            <Binding Source="{x:Static core:AppConstants.TransformTypeTimestamp}" />
                                         </MultiBinding>
                                     </MenuItem.CommandParameter>
                                 </MenuItem>
@@ -280,7 +280,7 @@
                                     <MenuItem.CommandParameter>
                                         <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
                                             <Binding />
-                                            <Binding Source="{x:Static core:AppConstants+TransformTypes.Upper}" />
+                                            <Binding Source="{x:Static core:AppConstants.TransformTypeUpper}" />
                                         </MultiBinding>
                                     </MenuItem.CommandParameter>
                                 </MenuItem>
@@ -291,7 +291,7 @@
                                     <MenuItem.CommandParameter>
                                         <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
                                             <Binding />
-                                            <Binding Source="{x:Static core:AppConstants+TransformTypes.Lower}" />
+                                            <Binding Source="{x:Static core:AppConstants.TransformTypeLower}" />
                                         </MultiBinding>
                                     </MenuItem.CommandParameter>
                                 </MenuItem>
@@ -302,7 +302,7 @@
                                     <MenuItem.CommandParameter>
                                         <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
                                             <Binding />
-                                            <Binding Source="{x:Static core:AppConstants+TransformTypes.Capitalize}" />
+                                            <Binding Source="{x:Static core:AppConstants.TransformTypeCapitalize}" />
                                         </MultiBinding>
                                     </MenuItem.CommandParameter>
                                 </MenuItem>
@@ -313,7 +313,7 @@
                                     <MenuItem.CommandParameter>
                                         <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
                                             <Binding />
-                                            <Binding Source="{x:Static core:AppConstants+TransformTypes.Sentence}" />
+                                            <Binding Source="{x:Static core:AppConstants.TransformTypeSentence}" />
                                         </MultiBinding>
                                     </MenuItem.CommandParameter>
                                 </MenuItem>
@@ -324,7 +324,7 @@
                                     <MenuItem.CommandParameter>
                                         <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
                                             <Binding />
-                                            <Binding Source="{x:Static core:AppConstants+TransformTypes.Invert}" />
+                                            <Binding Source="{x:Static core:AppConstants.TransformTypeInvert}" />
                                         </MultiBinding>
                                     </MenuItem.CommandParameter>
                                 </MenuItem>
@@ -335,7 +335,7 @@
                                     <MenuItem.CommandParameter>
                                         <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
                                             <Binding />
-                                            <Binding Source="{x:Static core:AppConstants+TransformTypes.Kebab}" />
+                                            <Binding Source="{x:Static core:AppConstants.TransformTypeKebab}" />
                                         </MultiBinding>
                                     </MenuItem.CommandParameter>
                                 </MenuItem>
@@ -346,7 +346,7 @@
                                     <MenuItem.CommandParameter>
                                         <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
                                             <Binding />
-                                            <Binding Source="{x:Static core:AppConstants+TransformTypes.Snake}" />
+                                            <Binding Source="{x:Static core:AppConstants.TransformTypeSnake}" />
                                         </MultiBinding>
                                     </MenuItem.CommandParameter>
                                 </MenuItem>
@@ -357,7 +357,7 @@
                                     <MenuItem.CommandParameter>
                                         <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
                                             <Binding />
-                                            <Binding Source="{x:Static core:AppConstants+TransformTypes.Camel}" />
+                                            <Binding Source="{x:Static core:AppConstants.TransformTypeCamel}" />
                                         </MultiBinding>
                                     </MenuItem.CommandParameter>
                                 </MenuItem>
@@ -368,7 +368,7 @@
                                     <MenuItem.CommandParameter>
                                         <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
                                             <Binding />
-                                            <Binding Source="{x:Static core:AppConstants+TransformTypes.Deslug}" />
+                                            <Binding Source="{x:Static core:AppConstants.TransformTypeDeslug}" />
                                         </MultiBinding>
                                     </MenuItem.CommandParameter>
                                 </MenuItem>

@@ -258,14 +258,14 @@ namespace Cliptoo.Core.Database
         public IAsyncEnumerable<string> GetAllImageClipPathsAsync()
         {
             var sql = "SELECT Content FROM clips WHERE ClipType = @ClipType";
-            var param = new SqliteParameter("@ClipType", AppConstants.ClipTypes.Image);
+            var param = new SqliteParameter("@ClipType", AppConstants.ClipTypeImage);
             return QueryAsync(sql, reader => reader.GetString(0), default, param);
         }
 
         public IAsyncEnumerable<string> GetAllLinkClipUrlsAsync()
         {
             var sql = "SELECT DISTINCT Content FROM clips WHERE ClipType = @ClipType";
-            var param = new SqliteParameter("@ClipType", AppConstants.ClipTypes.Link);
+            var param = new SqliteParameter("@ClipType", AppConstants.ClipTypeLink);
             return QueryAsync(sql, reader => reader.GetString(0), default, param);
         }
 

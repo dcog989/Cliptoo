@@ -76,7 +76,7 @@
                             Source="{Binding ThumbnailSource}"
                             Stretch="Uniform" />
                     </Grid>
-                    <Rectangle Visibility="{Binding HasThumbnail, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter={x:Static core:AppConstants+ConverterParameters.Inverse}}">
+                    <Rectangle Visibility="{Binding HasThumbnail, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter={x:Static core:AppConstants.ConverterParameterInverse}}">
                         <Rectangle.OpacityMask>
                             <ImageBrush ImageSource="{Binding ClipTypeIcon}" Stretch="Uniform" />
                         </Rectangle.OpacityMask>

@@ -17,7 +17,7 @@
             ContentTemplate="{StaticResource FileNotFoundErrorTemplate}"
             Visibility="{Binding IsSourceMissing, Converter={StaticResource BooleanToVisibilityConverter}}" />
 
-        <Grid Visibility="{Binding IsSourceMissing, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter={x:Static core:AppConstants+ConverterParameters.Inverse}}">
+        <Grid Visibility="{Binding IsSourceMissing, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter={x:Static core:AppConstants.ConverterParameterInverse}}">
             <Grid.RowDefinitions>
                 <RowDefinition Height="*" />
                 <RowDefinition Height="Auto" />

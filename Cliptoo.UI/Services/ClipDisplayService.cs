@@ -44,7 +44,7 @@ namespace Cliptoo.UI.Services
             _settingsService = settingsService;
             _iconProvider = iconProvider;
 
-            _selectedFilter = new FilterOption("All", AppConstants.FilterKeys.All, null);
+            _selectedFilter = new FilterOption("All", AppConstants.FilterKeyAll, null);
 
             _debounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
             _debounceTimer.Tick += OnDebounceTimerElapsed;
@@ -87,7 +87,7 @@ namespace Cliptoo.UI.Services
         public async Task InitializeAsync()
         {
             await InitializeFilterOptionsAsync();
-            SelectedFilter = FilterOptions.FirstOrDefault() ?? new FilterOption("All", AppConstants.FilterKeys.All, null);
+            SelectedFilter = FilterOptions.FirstOrDefault() ?? new FilterOption("All", AppConstants.FilterKeyAll, null);
         }
 
         private async void OnDebounceTimerElapsed(object? sender, EventArgs e)
@@ -110,10 +110,10 @@ namespace Cliptoo.UI.Services
             try
             {
                 string localSearchTerm = SearchTerm;
-                string localFilterKey = SelectedFilter?.Key ?? AppConstants.FilterKeys.All;
+                string localFilterKey = SelectedFilter?.Key ?? AppConstants.FilterKeyAll;
                 string tagSearchPrefix = _settingsService.Settings.TagSearchPrefix;
 
-                if (string.IsNullOrEmpty(localFilterKey)) localFilterKey = AppConstants.FilterKeys.All;
+                if (string.IsNullOrEmpty(localFilterKey)) localFilterKey = AppConstants.FilterKeyAll;
                 if (!string.IsNullOrEmpty(localSearchTerm) && !localSearchTerm.StartsWith(tagSearchPrefix, StringComparison.Ordinal) && localSearchTerm.Length < 2)
                 {
                     _currentOffset = 0;
@@ -209,12 +209,12 @@ namespace Cliptoo.UI.Services
                 return;
             }
 
-            bool matchesFilter = SelectedFilter.Key == AppConstants.FilterKeys.All ||
-                                (SelectedFilter.Key == AppConstants.ClipTypes.Link && (newClip.ClipType == AppConstants.ClipTypes.Link || newClip.ClipType == AppConstants.ClipTypes.FileLink)) ||
+            bool matchesFilter = SelectedFilter.Key == AppConstants.FilterKeyAll ||
+                                (SelectedFilter.Key == AppConstants.ClipTypeLink && (newClip.ClipType == AppConstants.ClipTypeLink || newClip.ClipType == AppConstants.ClipTypeFileLink)) ||
                                 SelectedFilter.Key == newClip.ClipType;
 
             // A new clip cannot be a favorite, so if that filter is active, don't add.
-            if (SelectedFilter.Key == AppConstants.FilterKeys.Favorite)
+            if (SelectedFilter.Key == AppConstants.FilterKeyFavorite)
             {
                 matchesFilter = false;
             }
@@ -245,24 +245,24 @@ namespace Cliptoo.UI.Services
         {
             var filterDisplayNames = new Dictionary<string, string>
             {
-                { AppConstants.FilterKeys.All, "All" }, { AppConstants.FilterKeys.Favorite, "Favorites" },
-                { AppConstants.ClipTypes.Archive, "Archives" }, { AppConstants.ClipTypes.Audio, "Audio" },
-                { AppConstants.ClipTypes.Dev, "Dev Files" }, { AppConstants.ClipTypes.CodeSnippet, "Code Snippets" },
-                { AppConstants.ClipTypes.Color, "Colors" }, { AppConstants.ClipTypes.Danger, "Dangerous" },
-                { AppConstants.ClipTypes.Database, "Database Files" }, { AppConstants.ClipTypes.Document, "Documents" },
-                { AppConstants.ClipTypes.FileText, "Text Files" }, { AppConstants.ClipTypes.Folder, "Folders" },
-                { AppConstants.ClipTypes.Font, "Font Files" }, { AppConstants.ClipTypes.Generic, "Generic Files" },
-                { AppConstants.ClipTypes.Image, "Images" }, { AppConstants.ClipTypes.Link, "Links" },
-                { AppConstants.ClipTypes.Rtf, "Formatted Text" }, { AppConstants.ClipTypes.System, "System Files" },
-                { AppConstants.ClipTypes.Text, "Text" }, { AppConstants.ClipTypes.Video, "Video" },
+                { AppConstants.FilterKeyAll, "All" }, { AppConstants.FilterKeyFavorite, "Favorites" },
+                { AppConstants.ClipTypeArchive, "Archives" }, { AppConstants.ClipTypeAudio, "Audio" },
+                { AppConstants.ClipTypeDev, "Dev Files" }, { AppConstants.ClipTypeCodeSnippet, "Code Snippets" },
+                { AppConstants.ClipTypeColor, "Colors" }, { AppConstants.ClipTypeDanger, "Dangerous" },
+                { AppConstants.ClipTypeDatabase, "Database Files" }, { AppConstants.ClipTypeDocument, "Documents" },
+                { AppConstants.ClipTypeFileText, "Text Files" }, { AppConstants.ClipTypeFolder, "Folders" },
+                { AppConstants.ClipTypeFont, "Font Files" }, { AppConstants.ClipTypeGeneric, "Generic Files" },
+                { AppConstants.ClipTypeImage, "Images" }, { AppConstants.ClipTypeLink, "Links" },
+                { AppConstants.ClipTypeRtf, "Formatted Text" }, { AppConstants.ClipTypeSystem, "System Files" },
+                { AppConstants.ClipTypeText, "Text" }, { AppConstants.ClipTypeVideo, "Video" },
             };
             var orderedFilterKeys = new[]
             {
-                AppConstants.FilterKeys.All, AppConstants.FilterKeys.Favorite, AppConstants.ClipTypes.Archive, AppConstants.ClipTypes.Audio,
-                AppConstants.ClipTypes.CodeSnippet, AppConstants.ClipTypes.Color, AppConstants.ClipTypes.Danger, AppConstants.ClipTypes.Database,
-                AppConstants.ClipTypes.Dev, AppConstants.ClipTypes.Document, AppConstants.ClipTypes.Folder, AppConstants.ClipTypes.Font,
-                AppConstants.ClipTypes.Generic, AppConstants.ClipTypes.Image, AppConstants.ClipTypes.Link, AppConstants.ClipTypes.System,
-                AppConstants.ClipTypes.Text, AppConstants.ClipTypes.FileText, AppConstants.ClipTypes.Rtf, AppConstants.ClipTypes.Video,
+                AppConstants.FilterKeyAll, AppConstants.FilterKeyFavorite, AppConstants.ClipTypeArchive, AppConstants.ClipTypeAudio,
+                AppConstants.ClipTypeCodeSnippet, AppConstants.ClipTypeColor, AppConstants.ClipTypeDanger, AppConstants.ClipTypeDatabase,
+                AppConstants.ClipTypeDev, AppConstants.ClipTypeDocument, AppConstants.ClipTypeFolder, AppConstants.ClipTypeFont,
+                AppConstants.ClipTypeGeneric, AppConstants.ClipTypeImage, AppConstants.ClipTypeLink, AppConstants.ClipTypeSystem,
+                AppConstants.ClipTypeText, AppConstants.ClipTypeFileText, AppConstants.ClipTypeRtf, AppConstants.ClipTypeVideo,
             };
 
             FilterOptions.Clear();

@@ -65,7 +65,7 @@ namespace Cliptoo.Core.Services
             await _dbManager.DeleteClipAsync(clip.Id).ConfigureAwait(false);
             ClipDeleted?.Invoke(this, EventArgs.Empty);
 
-            if (clip.ClipType == AppConstants.ClipTypes.Link && clip.Content is not null && Uri.TryCreate(clip.Content, UriKind.Absolute, out var uri))
+            if (clip.ClipType == AppConstants.ClipTypeLink && clip.Content is not null && Uri.TryCreate(clip.Content, UriKind.Absolute, out var uri))
             {
                 _webMetadataService.ClearCacheForUrl(uri);
             }

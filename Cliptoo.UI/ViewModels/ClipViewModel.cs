@@ -100,18 +100,18 @@ namespace Cliptoo.UI.ViewModels
         public bool HasTags => !string.IsNullOrEmpty(Tags);
 
         public string DisplayContent =>
-            ClipType == AppConstants.ClipTypes.Link && !string.IsNullOrEmpty(SourceApp) && SourceApp.EndsWith(".url", StringComparison.OrdinalIgnoreCase)
+            ClipType == AppConstants.ClipTypeLink && !string.IsNullOrEmpty(SourceApp) && SourceApp.EndsWith(".url", StringComparison.OrdinalIgnoreCase)
                 ? SourceApp
                 : Content;
         public string? RtfContent => IsRtf ? Content : null;
 
         public bool CanPasteAsPlainText => IsRtf;
         public bool CanPasteAsRtf => CurrentSettings.PasteAsPlainText && IsRtf;
-        public bool IsEditable => !IsImage && !ClipType.StartsWith("file_", StringComparison.Ordinal) && ClipType != AppConstants.ClipTypes.Folder;
-        public bool IsOpenable => !IsSourceMissing && (IsImage || ClipType.StartsWith("file_", StringComparison.Ordinal) || ClipType == AppConstants.ClipTypes.Folder || ClipType == AppConstants.ClipTypes.Link);
+        public bool IsEditable => !IsImage && !ClipType.StartsWith("file_", StringComparison.Ordinal) && ClipType != AppConstants.ClipTypeFolder;
+        public bool IsOpenable => !IsSourceMissing && (IsImage || ClipType.StartsWith("file_", StringComparison.Ordinal) || ClipType == AppConstants.ClipTypeFolder || ClipType == AppConstants.ClipTypeLink);
         public static string OpenCommandHeader => "Open";
 
-        public bool IsFileBased => IsImage || ClipType.StartsWith("file_", StringComparison.Ordinal) || ClipType == AppConstants.ClipTypes.Folder;
+        public bool IsFileBased => IsImage || ClipType.StartsWith("file_", StringComparison.Ordinal) || ClipType == AppConstants.ClipTypeFolder;
         public string? FileProperties { get => _fileProperties; private set => SetProperty(ref _fileProperties, value); }
         public string? FileTypeInfo { get => _fileTypeInfo; private set => SetProperty(ref _fileTypeInfo, value); }
         public bool IsFilePropertiesLoading { get => _isFilePropertiesLoading; private set => SetProperty(ref _isFilePropertiesLoading, value); }
@@ -120,7 +120,7 @@ namespace Cliptoo.UI.ViewModels
         public ImageSource? ImagePreviewSource { get => _imagePreviewSource; private set => SetProperty(ref _imagePreviewSource, value); }
         public bool HasThumbnail { get => _hasThumbnail; private set => SetProperty(ref _hasThumbnail, value); }
 
-        public bool IsComparable => ClipType is AppConstants.ClipTypes.Text or AppConstants.ClipTypes.CodeSnippet or AppConstants.ClipTypes.Rtf or AppConstants.ClipTypes.Dev or AppConstants.ClipTypes.FileText;
+        public bool IsComparable => ClipType is AppConstants.ClipTypeText or AppConstants.ClipTypeCodeSnippet or AppConstants.ClipTypeRtf or AppConstants.ClipTypeDev or AppConstants.ClipTypeFileText;
         public string? FileName => IsFileBased ? Path.GetFileName(Content.Trim()) : null;
         public string CompareLeftHeader { get => _compareLeftHeader; set => SetProperty(ref _compareLeftHeader, value); }
         public bool ShowCompareRightOption { get => _showCompareRightOption; set => SetProperty(ref _showCompareRightOption, value); }
@@ -274,7 +274,7 @@ namespace Cliptoo.UI.ViewModels
                 isMissing = await Task.Run(() =>
                 {
                     var path = Content.Trim();
-                    if (ClipType == AppConstants.ClipTypes.Folder)
+                    if (ClipType == AppConstants.ClipTypeFolder)
                     {
                         return !Directory.Exists(path);
                     }
@@ -362,7 +362,7 @@ namespace Cliptoo.UI.ViewModels
             }
             else
             {
-                if (_clip.ClipType == AppConstants.ClipTypes.Rtf)
+                if (_clip.ClipType == AppConstants.ClipTypeRtf)
                 {
                     basePreview = RtfUtils.ToPlainText(Content);
                 }
