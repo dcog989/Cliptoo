@@ -96,6 +96,8 @@ namespace Cliptoo.UI.ViewModels
         }
         public long SizeInBytes => _clip.SizeInBytes;
         public bool IsContentTruncated => _clip.Content == null;
+        public string? Tags => _clip.Tags;
+        public bool HasTags => !string.IsNullOrEmpty(Tags);
 
         public string DisplayContent =>
             ClipType == AppConstants.ClipTypes.Link && !string.IsNullOrEmpty(SourceApp) && SourceApp.EndsWith(".url", StringComparison.OrdinalIgnoreCase)
@@ -247,6 +249,8 @@ namespace Cliptoo.UI.ViewModels
             OnPropertyChanged(nameof(DisplayContent));
             OnPropertyChanged(nameof(Timestamp));
             OnPropertyChanged(nameof(ClipType));
+            OnPropertyChanged(nameof(Tags));
+            OnPropertyChanged(nameof(HasTags));
             OnPropertyChanged(nameof(IsImage));
             OnPropertyChanged(nameof(IsRtf));
             OnPropertyChanged(nameof(RtfContent));
@@ -341,6 +345,12 @@ namespace Cliptoo.UI.ViewModels
                 basePreview = contextWithoutTags.Substring(visibleStart, visibleLength);
 
                 var terms = searchTerm.Split(_spaceSeparator, StringSplitOptions.RemoveEmptyEntries);
+                var searchPrefix = CurrentSettings.TagSearchPrefix;
+                if (searchTerm.StartsWith(searchPrefix, StringComparison.Ordinal))
+                {
+                    terms = searchTerm.Substring(searchPrefix.Length).Split(_spaceSeparator, StringSplitOptions.RemoveEmptyEntries);
+                }
+
                 foreach (var term in terms)
                 {
                     try
@@ -377,6 +387,11 @@ namespace Cliptoo.UI.ViewModels
                 if (isSearching)
                 {
                     var terms = searchTerm.Split(_spaceSeparator, StringSplitOptions.RemoveEmptyEntries);
+                    var searchPrefix = CurrentSettings.TagSearchPrefix;
+                    if (searchTerm.StartsWith(searchPrefix, StringComparison.Ordinal))
+                    {
+                        terms = searchTerm.Substring(searchPrefix.Length).Split(_spaceSeparator, StringSplitOptions.RemoveEmptyEntries);
+                    }
                     foreach (var term in terms)
                     {
                         try

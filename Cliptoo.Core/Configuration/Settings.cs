@@ -232,6 +232,10 @@ namespace Cliptoo.Core.Configuration
         [DefaultValue(true)]
         public bool MoveClipToTopOnPaste { get => _moveClipToTopOnPaste; set => SetProperty(ref _moveClipToTopOnPaste, value); }
 
+        private string _tagSearchPrefix = "##";
+        [DefaultValue("##")]
+        public string TagSearchPrefix { get => _tagSearchPrefix; set => SetProperty(ref _tagSearchPrefix, value); }
+
 #pragma warning disable CA2227 // Collection properties should be read only
         public ObservableCollection<SendToTarget> SendToTargets { get; set; } = new();
         public ObservableCollection<string> BlacklistedApps { get; set; } = new();

@@ -13,6 +13,7 @@ namespace Cliptoo.UI.Services
         private readonly IClipDataService _clipDataService;
         private readonly IClipViewModelFactory _clipViewModelFactory;
         private readonly IIconProvider _iconProvider;
+        private readonly ISettingsService _settingsService;
 
         private string _searchTerm = string.Empty;
         private FilterOption _selectedFilter;
@@ -39,6 +40,7 @@ namespace Cliptoo.UI.Services
         {
             _clipDataService = clipDataService;
             _clipViewModelFactory = clipViewModelFactory;
+            _settingsService = settingsService;
             _iconProvider = iconProvider;
 
             _selectedFilter = new FilterOption("All", AppConstants.FilterKeys.All, null);
@@ -108,16 +110,17 @@ namespace Cliptoo.UI.Services
             {
                 string localSearchTerm = SearchTerm;
                 string localFilterKey = SelectedFilter?.Key ?? AppConstants.FilterKeys.All;
+                string tagSearchPrefix = _settingsService.Settings.TagSearchPrefix;
 
                 if (string.IsNullOrEmpty(localFilterKey)) localFilterKey = AppConstants.FilterKeys.All;
-                if (!string.IsNullOrEmpty(localSearchTerm) && localSearchTerm.Length < 2)
+                if (!string.IsNullOrEmpty(localSearchTerm) && !localSearchTerm.StartsWith(tagSearchPrefix, StringComparison.Ordinal) && localSearchTerm.Length < 2)
                 {
                     _currentOffset = 0;
                     return;
                 }
                 _currentOffset = 0;
 
-                var clipsData = await _clipDataService.GetClipsAsync(PageSize, _currentOffset, localSearchTerm, localFilterKey, token);
+                var clipsData = await _clipDataService.GetClipsAsync(PageSize, _currentOffset, localSearchTerm, localFilterKey, token, tagSearchPrefix);
                 if (clipsData.Count < PageSize) _canLoadMore = false;
                 if (token.IsCancellationRequested) return;
 
@@ -150,13 +153,14 @@ namespace Cliptoo.UI.Services
         public async Task LoadMoreClipsAsync()
         {
             if (_isLoadingMore || !_canLoadMore) return;
-            if (!string.IsNullOrEmpty(SearchTerm) && SearchTerm.Length < 2) return;
+            string tagSearchPrefix = _settingsService.Settings.TagSearchPrefix;
+            if (!string.IsNullOrEmpty(SearchTerm) && !SearchTerm.StartsWith(tagSearchPrefix, StringComparison.Ordinal) && SearchTerm.Length < 2) return;
 
             var token = _loadClipsCts.Token;
             _isLoadingMore = true;
             try
             {
-                var clipsData = await _clipDataService.GetClipsAsync(PageSize, _currentOffset, SearchTerm, SelectedFilter.Key, token);
+                var clipsData = await _clipDataService.GetClipsAsync(PageSize, _currentOffset, SearchTerm, SelectedFilter.Key, token, tagSearchPrefix);
                 if (token.IsCancellationRequested) return;
 
                 if (clipsData.Count > 0)

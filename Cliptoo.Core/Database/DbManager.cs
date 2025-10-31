@@ -26,7 +26,7 @@ namespace Cliptoo.Core.Database
         }
 
         public Task InitializeAsync() => _initializer.InitializeAsync();
-        public Task<List<Clip>> GetClipsAsync(uint limit, uint offset, string searchTerm, string filterType, CancellationToken cancellationToken = default) => _clipRepository.GetClipsAsync(limit, offset, searchTerm, filterType, cancellationToken);
+        public Task<List<Clip>> GetClipsAsync(uint limit, uint offset, string searchTerm, string filterType, CancellationToken cancellationToken = default, string tagSearchPrefix = "##") => _clipRepository.GetClipsAsync(limit, offset, searchTerm, filterType, cancellationToken, tagSearchPrefix);
         public Task<Clip?> GetClipByIdAsync(int id) => _clipRepository.GetClipByIdAsync(id);
         public Task<int> AddClipAsync(string content, string clipType, string? sourceApp, bool wasTrimmed) => _clipRepository.AddClipAsync(content, clipType, sourceApp, wasTrimmed);
         public Task UpdateClipContentAsync(int id, string content) => _clipRepository.UpdateClipContentAsync(id, content);
@@ -50,6 +50,7 @@ namespace Cliptoo.Core.Database
         public Task IncrementPasteCountAsync(int clipId) => _clipRepository.IncrementPasteCountAsync(clipId);
         public IAsyncEnumerable<Clip> GetAllClipsAsync(bool favoriteOnly) => _clipRepository.GetAllClipsAsync(favoriteOnly);
         public Task<int> AddClipsAsync(IEnumerable<Clip> clips) => _clipRepository.AddClipsAsync(clips);
+        public Task UpdateClipTagsAsync(int id, string tags) => _clipRepository.UpdateClipTagsAsync(id, tags);
         public void Dispose()
         {
             // This class doesn't own any disposable resources directly.

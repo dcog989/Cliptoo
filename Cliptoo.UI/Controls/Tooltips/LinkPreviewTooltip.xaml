@@ -30,5 +30,6 @@
             Foreground="{DynamicResource TextFillColorSecondaryBrush}"
             Text="{Binding Content}"
             TextTrimming="CharacterEllipsis" />
+        <ContentControl Content="{Binding}" ContentTemplate="{StaticResource TagsTemplate}" />
     </StackPanel>
 </UserControl>

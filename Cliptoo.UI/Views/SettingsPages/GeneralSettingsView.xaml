@@ -45,6 +45,16 @@
                     ItemsSource="{Binding Source={StaticResource LogLevelEnumValues}}"
                     SelectedItem="{Binding LoggingLevel}"
                     Style="{StaticResource SettingsComboBoxStyle}" />
+
+                <TextBlock
+                    Margin="32,0,8,0"
+                    Style="{StaticResource SettingLabel}"
+                    Text="Tag search prefix" />
+                <ui:TextBox
+                    Style="{StaticResource SettingsTextBoxStyle}"
+                    Text="{Binding Settings.TagSearchPrefix, UpdateSourceTrigger=PropertyChanged}"
+                    ToolTip="Prefix used to restrict search to tags only." />
+
             </StackPanel>
 
             <UniformGrid Margin="0,8,0,8" Columns="4">

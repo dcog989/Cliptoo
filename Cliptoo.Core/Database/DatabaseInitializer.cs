@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 
@@ -7,7 +8,7 @@ namespace Cliptoo.Core.Database
 {
     public class DatabaseInitializer : RepositoryBase, IDatabaseInitializer
     {
-        private const int CurrentDbVersion = 5;
+        private const int CurrentDbVersion = 6;
         public DatabaseInitializer(string dbPath) : base(dbPath) { }
 
         [SuppressMessage("Microsoft.Security", "CA2100:Review SQL queries for security vulnerabilities", Justification = "PRAGMA user_version is a hardcoded value, not user input.")]
@@ -39,7 +40,8 @@ namespace Cliptoo.Core.Database
                             IsFavorite INTEGER NOT NULL DEFAULT 0,
                             WasTrimmed INTEGER NOT NULL DEFAULT 0,
                             SizeInBytes INTEGER NOT NULL DEFAULT 0,
-                            PasteCount INTEGER NOT NULL DEFAULT 0
+                            PasteCount INTEGER NOT NULL DEFAULT 0,
+                            Tags TEXT
                         );
                         CREATE INDEX idx_clips_timestamp ON clips(Timestamp);
                         CREATE TABLE stats (
@@ -49,6 +51,7 @@ namespace Cliptoo.Core.Database
                         );
                         CREATE VIRTUAL TABLE clips_fts USING fts5(
                             Content,
+                            Tags,
                             content='clips',
                             content_rowid='Id',
                             tokenize='unicode61 remove_diacritics 2',
@@ -56,16 +59,16 @@ namespace Cliptoo.Core.Database
                         );
 
                         CREATE TRIGGER clips_ai AFTER INSERT ON clips BEGIN
-                            INSERT INTO clips_fts(rowid, Content) VALUES (new.Id, new.Content);
+                            INSERT INTO clips_fts(rowid, Content, Tags) VALUES (new.Id, new.Content, new.Tags);
                         END;
 
                         CREATE TRIGGER clips_ad AFTER DELETE ON clips BEGIN
-                            INSERT INTO clips_fts(clips_fts, rowid, Content) VALUES ('delete', old.Id, old.Content);
+                            INSERT INTO clips_fts(clips_fts, rowid, Content, Tags) VALUES ('delete', old.Id, old.Content, old.Tags);
                         END;
 
                         CREATE TRIGGER clips_au AFTER UPDATE ON clips BEGIN
-                            INSERT INTO clips_fts(clips_fts, rowid, Content) VALUES ('delete', old.Id, old.Content);
-                            INSERT INTO clips_fts(rowid, Content) VALUES (new.Id, new.Content);
+                            INSERT INTO clips_fts(clips_fts, rowid, Content, Tags) VALUES ('delete', old.Id, old.Content, old.Tags);
+                            INSERT INTO clips_fts(rowid, Content, Tags) VALUES (new.Id, new.Content, new.Tags);
                         END;
                         ";
                     await command.ExecuteNonQueryAsync().ConfigureAwait(false);
@@ -241,6 +244,48 @@ namespace Cliptoo.Core.Database
                         {
                             if (alterCmd != null) { await alterCmd.DisposeAsync().ConfigureAwait(false); }
                         }
+                    }
+                }
+
+                if (fromVersion < 6)
+                {
+                    var alterCmd = connection.CreateCommand();
+                    alterCmd.Transaction = transaction;
+                    alterCmd.CommandText = "ALTER TABLE clips ADD COLUMN Tags TEXT;";
+                    await alterCmd.ExecuteNonQueryAsync(CancellationToken.None).ConfigureAwait(false);
+
+                    var cmds = new[]
+                    {
+                        "DROP TABLE IF EXISTS clips_fts;",
+                        "DROP TRIGGER IF EXISTS clips_ai;",
+                        "DROP TRIGGER IF EXISTS clips_ad;",
+                        "DROP TRIGGER IF EXISTS clips_au;",
+                        @"CREATE VIRTUAL TABLE clips_fts USING fts5(
+                            Content,
+                            Tags,
+                            content='clips',
+                            content_rowid='Id',
+                            tokenize='unicode61 remove_diacritics 2',
+                            prefix=2
+                        );",
+                        @"CREATE TRIGGER clips_ai AFTER INSERT ON clips BEGIN
+                            INSERT INTO clips_fts(rowid, Content, Tags) VALUES (new.Id, new.Content, new.Tags);
+                        END;",
+                        @"CREATE TRIGGER clips_ad AFTER DELETE ON clips BEGIN
+                            INSERT INTO clips_fts(clips_fts, rowid, Content, Tags) VALUES ('delete', old.Id, old.Content, old.Tags);
+                        END;",
+                        @"CREATE TRIGGER clips_au AFTER UPDATE ON clips BEGIN
+                            INSERT INTO clips_fts(clips_fts, rowid, Content, Tags) VALUES ('delete', old.Id, old.Content, old.Tags);
+                            INSERT INTO clips_fts(rowid, Content, Tags) VALUES (new.Id, new.Content, new.Tags);
+                        END;",
+                        "INSERT INTO clips_fts(rowid, Content, Tags) SELECT Id, Content, Tags FROM clips;"
+                    };
+                    foreach (var cmdText in cmds)
+                    {
+                        var cmd = connection.CreateCommand();
+                        cmd.Transaction = transaction;
+                        cmd.CommandText = cmdText;
+                        await cmd.ExecuteNonQueryAsync(CancellationToken.None).ConfigureAwait(false);
                     }
                 }
 

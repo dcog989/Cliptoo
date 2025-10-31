@@ -9,7 +9,7 @@ namespace Cliptoo.Core.Database
     public interface IDbManager : IDisposable
     {
         Task InitializeAsync();
-        Task<List<Clip>> GetClipsAsync(uint limit, uint offset, string searchTerm, string filterType, CancellationToken cancellationToken = default);
+        Task<List<Clip>> GetClipsAsync(uint limit, uint offset, string searchTerm, string filterType, CancellationToken cancellationToken = default, string tagSearchPrefix = "##");
         Task<Clip?> GetClipByIdAsync(int id);
         Task<int> AddClipAsync(string content, string clipType, string? sourceApp, bool wasTrimmed);
         Task UpdateClipContentAsync(int id, string content);
@@ -32,5 +32,6 @@ namespace Cliptoo.Core.Database
         Task IncrementPasteCountAsync(int clipId);
         IAsyncEnumerable<Clip> GetAllClipsAsync(bool favoriteOnly);
         Task<int> AddClipsAsync(IEnumerable<Clip> clips);
+        Task UpdateClipTagsAsync(int id, string tags);
     }
 }

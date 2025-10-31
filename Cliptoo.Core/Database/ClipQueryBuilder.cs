@@ -13,19 +13,21 @@ namespace Cliptoo.Core.Database
     internal static class ClipQueryBuilder
     {
         private static readonly char[] _spaceSeparator = [' '];
-        private const string columns = "c.Id, c.Timestamp, c.ClipType, c.SourceApp, c.IsFavorite, c.WasTrimmed, c.SizeInBytes, c.PreviewContent, c.PasteCount";
+        private const string columns = "c.Id, c.Timestamp, c.ClipType, c.SourceApp, c.IsFavorite, c.WasTrimmed, c.SizeInBytes, c.PreviewContent, c.PasteCount, c.Tags";
         private static readonly Regex FtsSpecialCharsRegex = new("[^a-zA-Z0-9_]");
 
         [SuppressMessage("Microsoft.Security", "CA2100:Review SQL queries for security vulnerabilities", Justification = "OrderBy clause is constructed from hardcoded, non-user-input strings.")]
-        public static void BuildGetClipsQuery(SqliteCommand command, uint limit, uint offset, string searchTerm, string filterType)
+        public static void BuildGetClipsQuery(SqliteCommand command, uint limit, uint offset, string searchTerm, string filterType, string tagSearchPrefix)
         {
             var queryBuilder = new StringBuilder();
             var whereConditions = new List<string>();
+            var isTagSearch = !string.IsNullOrEmpty(tagSearchPrefix) && searchTerm.StartsWith(tagSearchPrefix, StringComparison.Ordinal);
+            var actualSearchTerm = isTagSearch ? searchTerm.Substring(tagSearchPrefix.Length) : searchTerm;
 
             var sanitizedTerms = new List<string>();
-            if (!string.IsNullOrWhiteSpace(searchTerm))
+            if (!string.IsNullOrWhiteSpace(actualSearchTerm))
             {
-                var terms = searchTerm.Split(_spaceSeparator, StringSplitOptions.RemoveEmptyEntries);
+                var terms = actualSearchTerm.Split(_spaceSeparator, StringSplitOptions.RemoveEmptyEntries);
                 foreach (var term in terms)
                 {
                     // Escape double quotes within the term for FTS5
@@ -46,12 +48,17 @@ namespace Cliptoo.Core.Database
             if (sanitizedTerms.Count > 0)
             {
                 var ftsQuery = string.Join(" ", sanitizedTerms.Select(term => $"{term}*"));
+                if (isTagSearch)
+                {
+                    ftsQuery = $"Tags : ({ftsQuery})";
+                }
                 command.Parameters.AddWithValue("@FtsSearchTerm", ftsQuery);
 
+                var snippetColumn = isTagSearch ? "1" : "0";
                 queryBuilder.AppendFormat(CultureInfo.InvariantCulture,
-                    "SELECT {0}, snippet(clips_fts, 0, '[HL]', '[/HL]', '...', 60) as MatchContext, " +
+                    "SELECT {0}, snippet(clips_fts, {1}, '[HL]', '[/HL]', '...', 60) as MatchContext, " +
                     "(c.PasteCount + 1.0) / (MAX(0.0, (julianday('now') - julianday(c.Timestamp)) * 24.0) + 2.0) AS Hotness ",
-                    columns);
+                    columns, snippetColumn);
 
                 queryBuilder.Append("FROM clips c JOIN clips_fts ON c.Id = clips_fts.rowid ");
 

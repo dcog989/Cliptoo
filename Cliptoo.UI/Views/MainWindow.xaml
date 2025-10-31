@@ -139,7 +139,7 @@
                                 Header="Preview" />
                             <MenuItem
                                 Command="{Binding EditClipCommand}"
-                                Header="Edit"
+                                Header="Edit / Tags"
                                 Visibility="{Binding IsEditable, Converter={StaticResource BooleanToVisibilityConverter}}" />
                             <MenuItem
                                 Command="{Binding OpenCommand}"

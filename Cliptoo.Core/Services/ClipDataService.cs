@@ -26,9 +26,9 @@ namespace Cliptoo.Core.Services
             _clipCache = new LruCache<int, Clip>(ClipCacheSize);
         }
 
-        public Task<List<Clip>> GetClipsAsync(uint limit = 100, uint offset = 0, string searchTerm = "", string filterType = "all", CancellationToken cancellationToken = default)
+        public Task<List<Clip>> GetClipsAsync(uint limit = 100, uint offset = 0, string searchTerm = "", string filterType = "all", CancellationToken cancellationToken = default, string tagSearchPrefix = "##")
         {
-            return _dbManager.GetClipsAsync(limit, offset, searchTerm, filterType, cancellationToken);
+            return _dbManager.GetClipsAsync(limit, offset, searchTerm, filterType, cancellationToken, tagSearchPrefix);
         }
 
         public async Task<Clip?> GetClipByIdAsync(int id)
@@ -93,6 +93,12 @@ namespace Cliptoo.Core.Services
         {
             _clipCache.Remove(clipId);
             return _dbManager.IncrementPasteCountAsync(clipId);
+        }
+
+        public async Task UpdateClipTagsAsync(int id, string tags)
+        {
+            await _dbManager.UpdateClipTagsAsync(id, tags).ConfigureAwait(false);
+            _clipCache.Remove(id);
         }
     }
 }

@@ -8,7 +8,7 @@ namespace Cliptoo.Core.Interfaces
 {
     public interface IClipDataService
     {
-        Task<List<Clip>> GetClipsAsync(uint limit = 100, uint offset = 0, string searchTerm = "", string filterType = "all", CancellationToken cancellationToken = default);
+        Task<List<Clip>> GetClipsAsync(uint limit = 100, uint offset = 0, string searchTerm = "", string filterType = "all", CancellationToken cancellationToken = default, string tagSearchPrefix = "##");
         Task<Clip?> GetClipByIdAsync(int id);
         Task<int> AddClipAsync(string content, string clipType, string? sourceApp, bool wasTrimmed);
         Task UpdateClipContentAsync(int id, string newContent);
@@ -19,5 +19,6 @@ namespace Cliptoo.Core.Interfaces
         Task IncrementPasteCountAsync(int clipId);
         event EventHandler? NewClipAdded;
         event EventHandler? ClipDeleted;
+        Task UpdateClipTagsAsync(int id, string tags);
     }
 }

@@ -71,6 +71,7 @@
                     Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                     Text="{Binding LineCountInfo}"
                     Visibility="{Binding LineCountInfo, Converter={StaticResource NullToVisibilityConverter}}" />
+                <ContentControl Content="{Binding}" ContentTemplate="{StaticResource TagsTemplate}" />
             </StackPanel>
         </Grid>
     </Grid>

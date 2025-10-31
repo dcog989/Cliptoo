@@ -19,6 +19,7 @@
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
         <Grid Grid.Row="0" Margin="12,0,12,0">
             <avalonedit:TextEditor
@@ -37,15 +38,21 @@
 
         <Border
             Grid.Row="1"
-            Margin="12,0,12,0"
+            Margin="12,8,12,0"
             Padding="5"
             BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
             BorderThickness="0,1,0,0">
             <TextBlock Foreground="{DynamicResource TextFillColorSecondaryBrush}" Text="{Binding ClipInfo}" />
         </Border>
 
-        <StackPanel
+        <ui:TextBox
             Grid.Row="2"
+            Margin="12,8,12,0"
+            PlaceholderText="Add tags, separated by space or comma"
+            Text="{Binding Tags, UpdateSourceTrigger=PropertyChanged}" />
+
+        <StackPanel
+            Grid.Row="3"
             Margin="12"
             HorizontalAlignment="Right"
             Orientation="Horizontal">

@@ -15,5 +15,6 @@ namespace Cliptoo.Core.Database.Models
         public string? MatchContext { get; set; }
         public long SizeInBytes { get; set; }
         public int PasteCount { get; set; }
+        public string? Tags { get; set; }
     }
 }

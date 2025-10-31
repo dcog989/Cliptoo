@@ -25,6 +25,8 @@ namespace Cliptoo.UI.ViewModels
         private string _documentContent = string.Empty;
         private string _clipInfo = string.Empty;
         private string _originalContent = string.Empty;
+        private string _tags = string.Empty;
+        private string _originalTags = string.Empty;
 
         public event EventHandler? OnRequestClose;
         public event EventHandler? OnClipUpdated;
@@ -35,6 +37,12 @@ namespace Cliptoo.UI.ViewModels
         {
             get => _documentContent;
             set => SetProperty(ref _documentContent, value);
+        }
+
+        public string Tags
+        {
+            get => _tags;
+            set => SetProperty(ref _tags, value);
         }
 
         public string ClipInfo { get => _clipInfo; set => SetProperty(ref _clipInfo, value); }
@@ -93,6 +101,8 @@ namespace Cliptoo.UI.ViewModels
 
             _originalContent = contentForInfo ?? string.Empty;
             DocumentContent = contentForInfo ?? string.Empty;
+            _originalTags = clip.Tags ?? string.Empty;
+            Tags = clip.Tags ?? string.Empty;
 
             var lineCount = string.IsNullOrEmpty(contentForInfo) ? 0 : contentForInfo.Split('\n').Length;
             var formattedSize = FormatUtils.FormatBytes(clip.SizeInBytes);
@@ -131,8 +141,7 @@ namespace Cliptoo.UI.ViewModels
                         using var reader = new XmlTextReader(stream);
                         highlighting = HighlightingLoader.Load(reader, HighlightingManager.Instance);
                     }
-                    // If dark theme fails to load, fall back to default C# highlighting
-                    SyntaxHighlighting = highlighting ?? HighlightingManager.Instance.GetDefinition(definitionName);
+                    SyntaxHighlighting = highlighting;
                 }
                 else
                 {
@@ -150,9 +159,21 @@ namespace Cliptoo.UI.ViewModels
 
         private async Task ExecuteSaveChanges()
         {
-            if (DocumentContent != _originalContent)
+            bool contentChanged = DocumentContent != _originalContent;
+            bool tagsChanged = Tags != _originalTags;
+
+            if (contentChanged)
             {
                 await _clipDataService.UpdateClipContentAsync(_clipId, DocumentContent);
+            }
+
+            if (tagsChanged)
+            {
+                await _clipDataService.UpdateClipTagsAsync(_clipId, Tags);
+            }
+
+            if (contentChanged || tagsChanged)
+            {
                 OnClipUpdated?.Invoke(this, EventArgs.Empty);
             }
             OnRequestClose?.Invoke(this, EventArgs.Empty);

@@ -71,6 +71,7 @@
                     Text="{Binding FileTypeInfo}"
                     TextWrapping="Wrap" />
             </StackPanel>
+            <ContentControl Content="{Binding}" ContentTemplate="{StaticResource TagsTemplate}" />
         </StackPanel>
     </StackPanel>
 </UserControl>

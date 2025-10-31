@@ -42,6 +42,7 @@ namespace Cliptoo.Core.Database
                 SizeInBytes = reader.GetOrdinal("SizeInBytes"),
                 PreviewContent = reader.GetOrdinal("PreviewContent"),
                 PasteCount = reader.GetOrdinal("PasteCount"),
+                Tags = reader.GetOrdinal("Tags"),
                 MatchContext = HasColumn(reader, "MatchContext") ? reader.GetOrdinal("MatchContext") : -1
             };
 
@@ -56,12 +57,13 @@ namespace Cliptoo.Core.Database
                 SizeInBytes = reader.GetInt64(ordinals.SizeInBytes),
                 PreviewContent = reader.IsDBNull(ordinals.PreviewContent) ? null : reader.GetString(ordinals.PreviewContent),
                 PasteCount = reader.GetInt32(ordinals.PasteCount),
+                Tags = reader.IsDBNull(ordinals.Tags) ? null : reader.GetString(ordinals.Tags),
                 MatchContext = ordinals.MatchContext != -1 && !reader.IsDBNull(ordinals.MatchContext) ? reader.GetString(ordinals.MatchContext) : null
             };
         }
 
         [SuppressMessage("Microsoft.Security", "CA2100:Review SQL queries for security vulnerabilities", Justification = "OrderBy clause is constructed from hardcoded strings, not user input.")]
-        public async Task<List<Clip>> GetClipsAsync(uint limit, uint offset, string searchTerm, string filterType, CancellationToken cancellationToken)
+        public async Task<List<Clip>> GetClipsAsync(uint limit, uint offset, string searchTerm, string filterType, CancellationToken cancellationToken, string tagSearchPrefix)
         {
             ArgumentNullException.ThrowIfNull(searchTerm);
             ArgumentNullException.ThrowIfNull(filterType);
@@ -75,7 +77,7 @@ namespace Cliptoo.Core.Database
                 connection = await GetOpenConnectionAsync().ConfigureAwait(false);
                 command = connection.CreateCommand();
 
-                ClipQueryBuilder.BuildGetClipsQuery(command, limit, offset, searchTerm, filterType);
+                ClipQueryBuilder.BuildGetClipsQuery(command, limit, offset, searchTerm, filterType, tagSearchPrefix);
 
                 reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
 
@@ -317,7 +319,8 @@ namespace Cliptoo.Core.Database
                 IsFavorite = reader.GetInt64(reader.GetOrdinal("IsFavorite")) == 1,
                 WasTrimmed = reader.GetInt64(reader.GetOrdinal("WasTrimmed")) == 1,
                 SizeInBytes = reader.GetInt64(reader.GetOrdinal("SizeInBytes")),
-                PasteCount = reader.GetInt32(reader.GetOrdinal("PasteCount"))
+                PasteCount = reader.GetInt32(reader.GetOrdinal("PasteCount")),
+                Tags = reader.IsDBNull(reader.GetOrdinal("Tags")) ? null : reader.GetString(reader.GetOrdinal("Tags"))
             };
         }
 
@@ -415,8 +418,8 @@ namespace Cliptoo.Core.Database
                     using var command = connection.CreateCommand();
                     command.Transaction = (SqliteTransaction)transaction;
                     command.CommandText = @"
-                INSERT OR IGNORE INTO clips (Content, ContentHash, PreviewContent, ClipType, SourceApp, Timestamp, IsFavorite, WasTrimmed, SizeInBytes, PasteCount)
-                VALUES (@Content, @ContentHash, @PreviewContent, @ClipType, @SourceApp, @Timestamp, @IsFavorite, @WasTrimmed, @SizeInBytes, @PasteCount);
+                INSERT OR IGNORE INTO clips (Content, ContentHash, PreviewContent, ClipType, SourceApp, Timestamp, IsFavorite, WasTrimmed, SizeInBytes, PasteCount, Tags)
+                VALUES (@Content, @ContentHash, @PreviewContent, @ClipType, @SourceApp, @Timestamp, @IsFavorite, @WasTrimmed, @SizeInBytes, @PasteCount, @Tags);
             ";
                     command.Parameters.AddWithValue("@Content", clip.Content ?? (object)DBNull.Value);
                     command.Parameters.AddWithValue("@ContentHash", hash);
@@ -428,6 +431,7 @@ namespace Cliptoo.Core.Database
                     command.Parameters.AddWithValue("@WasTrimmed", clip.WasTrimmed ? 1 : 0);
                     command.Parameters.AddWithValue("@SizeInBytes", contentSize);
                     command.Parameters.AddWithValue("@PasteCount", clip.PasteCount);
+                    command.Parameters.AddWithValue("@Tags", clip.Tags ?? (object)DBNull.Value);
 
                     var rowsAffected = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                     if (rowsAffected > 0)
@@ -449,5 +453,15 @@ namespace Cliptoo.Core.Database
             return importedCount;
         }
 
+        public Task UpdateClipTagsAsync(int id, string tags)
+        {
+            var sql = "UPDATE clips SET Tags = @Tags WHERE Id = @Id";
+            var parameters = new[]
+            {
+                new SqliteParameter("@Tags", string.IsNullOrWhiteSpace(tags) ? (object)DBNull.Value : tags),
+                new SqliteParameter("@Id", id)
+            };
+            return ExecuteNonQueryAsync(sql, parameters);
+        }
     }
 }

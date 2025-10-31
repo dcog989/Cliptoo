@@ -53,6 +53,7 @@
                         Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                         Text="{Binding FileTypeInfo}" />
                 </StackPanel>
+                <ContentControl Content="{Binding}" ContentTemplate="{StaticResource TagsTemplate}" />
             </StackPanel>
         </StackPanel>
     </StackPanel>
