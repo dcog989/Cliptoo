@@ -8,7 +8,7 @@ namespace Cliptoo.Core.Interfaces
 {
     public interface IClipDataService
     {
-        Task<List<Clip>> GetClipsAsync(uint limit = 100, uint offset = 0, string searchTerm = "", string filterType = "all", CancellationToken cancellationToken = default, string tagSearchPrefix = "##");
+        Task<List<Clip>> GetClipsAsync(uint limit = 100, uint offset = 0, string searchTerm = "", string filterType = "all", string tagSearchPrefix = "##", CancellationToken cancellationToken = default);
         Task<Clip?> GetClipByIdAsync(int id);
         Task<int> AddClipAsync(string content, string clipType, string? sourceApp, bool wasTrimmed);
         Task UpdateClipContentAsync(int id, string newContent);

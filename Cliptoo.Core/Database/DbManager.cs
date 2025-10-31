@@ -26,7 +26,7 @@ namespace Cliptoo.Core.Database
         }
 
         public Task InitializeAsync() => _initializer.InitializeAsync();
-        public Task<List<Clip>> GetClipsAsync(uint limit, uint offset, string searchTerm, string filterType, CancellationToken cancellationToken = default, string tagSearchPrefix = "##") => _clipRepository.GetClipsAsync(limit, offset, searchTerm, filterType, cancellationToken, tagSearchPrefix);
+        public Task<List<Clip>> GetClipsAsync(uint limit, uint offset, string searchTerm, string filterType, string tagSearchPrefix = "##", CancellationToken cancellationToken = default) => _clipRepository.GetClipsAsync(limit, offset, searchTerm, filterType, tagSearchPrefix, cancellationToken);
         public Task<Clip?> GetClipByIdAsync(int id) => _clipRepository.GetClipByIdAsync(id);
         public Task<int> AddClipAsync(string content, string clipType, string? sourceApp, bool wasTrimmed) => _clipRepository.AddClipAsync(content, clipType, sourceApp, wasTrimmed);
         public Task UpdateClipContentAsync(int id, string content) => _clipRepository.UpdateClipContentAsync(id, content);

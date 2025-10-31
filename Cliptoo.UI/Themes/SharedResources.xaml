@@ -7,6 +7,7 @@
     <SolidColorBrush x:Key="ErrorTextBrush" Color="{DynamicResource SystemFillColorCritical}" />
     <SolidColorBrush x:Key="HyperlinkBlueBrush" Color="#4E96CE" />
     <SolidColorBrush x:Key="HyperlinkBlueBrushHover" Color="#7CAED4" />
+    <SolidColorBrush x:Key="TagTextBrush" Color="#666666" />
 
     <DrawingBrush
         x:Key="CheckerboardBrush"

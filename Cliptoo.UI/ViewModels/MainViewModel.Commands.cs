@@ -11,6 +11,7 @@ using Cliptoo.UI.Helpers;
 using Cliptoo.UI.Views;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
+using Wpf.Ui;
 using Wpf.Ui.Controls;
 
 namespace Cliptoo.UI.ViewModels
@@ -169,7 +170,8 @@ namespace Cliptoo.UI.ViewModels
                 _clipDataService,
                 _settingsService,
                 _fontProvider,
-                _serviceProvider.GetRequiredService<ISyntaxHighlighter>()
+                _serviceProvider.GetRequiredService<ISyntaxHighlighter>(),
+                _serviceProvider.GetRequiredService<IContentDialogService>()
             );
             viewerViewModel.OnClipUpdated += (_, _) => _clipDisplayService.RefreshClipList();
 

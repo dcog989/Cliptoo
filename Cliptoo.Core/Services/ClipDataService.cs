@@ -26,9 +26,9 @@ namespace Cliptoo.Core.Services
             _clipCache = new LruCache<int, Clip>(ClipCacheSize);
         }
 
-        public Task<List<Clip>> GetClipsAsync(uint limit = 100, uint offset = 0, string searchTerm = "", string filterType = "all", CancellationToken cancellationToken = default, string tagSearchPrefix = "##")
+        public Task<List<Clip>> GetClipsAsync(uint limit = 100, uint offset = 0, string searchTerm = "", string filterType = "all", string tagSearchPrefix = "##", CancellationToken cancellationToken = default)
         {
-            return _dbManager.GetClipsAsync(limit, offset, searchTerm, filterType, cancellationToken, tagSearchPrefix);
+            return _dbManager.GetClipsAsync(limit, offset, searchTerm, filterType, tagSearchPrefix, cancellationToken);
         }
 
         public async Task<Clip?> GetClipByIdAsync(int id)

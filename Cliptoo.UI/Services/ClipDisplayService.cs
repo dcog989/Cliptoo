@@ -120,7 +120,7 @@ namespace Cliptoo.UI.Services
                 }
                 _currentOffset = 0;
 
-                var clipsData = await _clipDataService.GetClipsAsync(PageSize, _currentOffset, localSearchTerm, localFilterKey, token, tagSearchPrefix);
+                var clipsData = await _clipDataService.GetClipsAsync(PageSize, _currentOffset, localSearchTerm, localFilterKey, tagSearchPrefix, token);
                 if (clipsData.Count < PageSize) _canLoadMore = false;
                 if (token.IsCancellationRequested) return;
 
@@ -160,7 +160,7 @@ namespace Cliptoo.UI.Services
             _isLoadingMore = true;
             try
             {
-                var clipsData = await _clipDataService.GetClipsAsync(PageSize, _currentOffset, SearchTerm, SelectedFilter.Key, token, tagSearchPrefix);
+                var clipsData = await _clipDataService.GetClipsAsync(PageSize, _currentOffset, SearchTerm, SelectedFilter.Key, tagSearchPrefix, token);
                 if (token.IsCancellationRequested) return;
 
                 if (clipsData.Count > 0)

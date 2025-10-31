@@ -7,7 +7,7 @@ namespace Cliptoo.Core.Database
 {
     public interface IClipRepository
     {
-        Task<List<Clip>> GetClipsAsync(uint limit, uint offset, string searchTerm, string filterType, CancellationToken cancellationToken, string tagSearchPrefix);
+        Task<List<Clip>> GetClipsAsync(uint limit, uint offset, string searchTerm, string filterType, string tagSearchPrefix, CancellationToken cancellationToken);
         Task<Clip?> GetClipByIdAsync(int id);
         Task<int> AddClipAsync(string content, string clipType, string? sourceApp, bool wasTrimmed);
         Task UpdateClipContentAsync(int id, string content);

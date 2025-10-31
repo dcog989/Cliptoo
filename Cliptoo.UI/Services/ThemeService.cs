@@ -70,16 +70,21 @@ namespace Cliptoo.UI.Services
                 ApplicationThemeManager.Apply(wpfuiTheme, WindowBackdropType.Mica, false);
             }
 
+            var tagBrush = new SolidColorBrush();
             if (finalTheme == ApplicationTheme.Dark)
             {
                 Application.Current.Resources["HyperlinkBlueBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#5599FF"));
                 Application.Current.Resources["HyperlinkBlueBrushHover"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#88BBFF"));
+                tagBrush.Color = (Color)ColorConverter.ConvertFromString("#aaaaaa");
             }
             else
             {
                 Application.Current.Resources["HyperlinkBlueBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#0078D4"));
                 Application.Current.Resources["HyperlinkBlueBrushHover"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#005A9E"));
+                tagBrush.Color = (Color)ColorConverter.ConvertFromString("#666666");
             }
+            tagBrush.Freeze();
+            Application.Current.Resources["TagTextBrush"] = tagBrush;
 
             try
             {

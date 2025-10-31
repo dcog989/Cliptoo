@@ -63,7 +63,7 @@ namespace Cliptoo.Core.Database
         }
 
         [SuppressMessage("Microsoft.Security", "CA2100:Review SQL queries for security vulnerabilities", Justification = "OrderBy clause is constructed from hardcoded strings, not user input.")]
-        public async Task<List<Clip>> GetClipsAsync(uint limit, uint offset, string searchTerm, string filterType, CancellationToken cancellationToken, string tagSearchPrefix)
+        public async Task<List<Clip>> GetClipsAsync(uint limit, uint offset, string searchTerm, string filterType, string tagSearchPrefix, CancellationToken cancellationToken)
         {
             ArgumentNullException.ThrowIfNull(searchTerm);
             ArgumentNullException.ThrowIfNull(filterType);

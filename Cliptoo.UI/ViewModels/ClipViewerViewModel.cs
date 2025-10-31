@@ -11,6 +11,9 @@ using ICSharpCode.AvalonEdit.Highlighting;
 using ICSharpCode.AvalonEdit.Highlighting.Xshd;
 using System.Xml;
 using Wpf.Ui.Appearance;
+using Microsoft.Data.Sqlite;
+using Wpf.Ui;
+using Wpf.Ui.Controls;
 
 namespace Cliptoo.UI.ViewModels
 {
@@ -19,6 +22,7 @@ namespace Cliptoo.UI.ViewModels
         private readonly int _clipId;
         private readonly IClipDataService _clipDataService;
         private readonly ISyntaxHighlighter _syntaxHighlighter;
+        private readonly IContentDialogService _contentDialogService;
         private readonly FontFamily _editorFontFamily;
         private readonly double _editorFontSize;
         private string _originalClipType = string.Empty;
@@ -56,17 +60,19 @@ namespace Cliptoo.UI.ViewModels
         public ICommand SaveChangesCommand { get; }
         public ICommand CancelCommand { get; }
 
-        public ClipViewerViewModel(int clipId, IClipDataService clipDataService, ISettingsService settingsService, IFontProvider fontProvider, ISyntaxHighlighter syntaxHighlighter)
+        public ClipViewerViewModel(int clipId, IClipDataService clipDataService, ISettingsService settingsService, IFontProvider fontProvider, ISyntaxHighlighter syntaxHighlighter, IContentDialogService contentDialogService)
         {
             ArgumentNullException.ThrowIfNull(clipDataService);
             ArgumentNullException.ThrowIfNull(settingsService);
             ArgumentNullException.ThrowIfNull(fontProvider);
             ArgumentNullException.ThrowIfNull(syntaxHighlighter);
+            ArgumentNullException.ThrowIfNull(contentDialogService);
 
             _clipId = clipId;
             _clipDataService = clipDataService;
             SettingsService = settingsService;
             _syntaxHighlighter = syntaxHighlighter;
+            _contentDialogService = contentDialogService;
 
             SaveChangesCommand = new RelayCommand(async _ => await ExecuteSaveChanges());
             CancelCommand = new RelayCommand(_ => OnRequestClose?.Invoke(this, EventArgs.Empty));
@@ -130,7 +136,7 @@ namespace Cliptoo.UI.ViewModels
             IHighlightingDefinition? highlighting;
             if (theme == ApplicationTheme.Dark)
             {
-                if (definitionName == "C#")
+                if (definitionName is "C#" or "XML" or "JavaScript")
                 {
                     highlighting = null;
                     var uri = new Uri("pack://application:,,,/Assets/AvalonEditThemes/CSharp-Dark.xshd");
@@ -141,7 +147,8 @@ namespace Cliptoo.UI.ViewModels
                         using var reader = new XmlTextReader(stream);
                         highlighting = HighlightingLoader.Load(reader, HighlightingManager.Instance);
                     }
-                    SyntaxHighlighting = highlighting;
+                    // If dark theme fails to load, fall back to default, which might look bad but is better than nothing.
+                    SyntaxHighlighting = highlighting ?? HighlightingManager.Instance.GetDefinition(definitionName);
                 }
                 else
                 {
@@ -159,24 +166,37 @@ namespace Cliptoo.UI.ViewModels
 
         private async Task ExecuteSaveChanges()
         {
-            bool contentChanged = DocumentContent != _originalContent;
-            bool tagsChanged = Tags != _originalTags;
-
-            if (contentChanged)
+            try
             {
-                await _clipDataService.UpdateClipContentAsync(_clipId, DocumentContent);
-            }
+                bool contentChanged = DocumentContent != _originalContent;
+                bool tagsChanged = Tags != _originalTags;
 
-            if (tagsChanged)
-            {
-                await _clipDataService.UpdateClipTagsAsync(_clipId, Tags);
-            }
+                if (contentChanged)
+                {
+                    await _clipDataService.UpdateClipContentAsync(_clipId, DocumentContent);
+                }
 
-            if (contentChanged || tagsChanged)
-            {
-                OnClipUpdated?.Invoke(this, EventArgs.Empty);
+                if (tagsChanged)
+                {
+                    await _clipDataService.UpdateClipTagsAsync(_clipId, Tags);
+                }
+
+                if (contentChanged || tagsChanged)
+                {
+                    OnClipUpdated?.Invoke(this, EventArgs.Empty);
+                }
+                OnRequestClose?.Invoke(this, EventArgs.Empty);
             }
-            OnRequestClose?.Invoke(this, EventArgs.Empty);
+            catch (SqliteException ex) when (ex.SqliteErrorCode == 19 && ex.Message.Contains("ContentHash", StringComparison.Ordinal)) // UNIQUE constraint failed
+            {
+                var dialog = new ContentDialog
+                {
+                    Title = "Save Failed",
+                    Content = "A clip with this exact content already exists. Please modify the content to be unique.",
+                    CloseButtonText = "OK"
+                };
+                await _contentDialogService.ShowAsync(dialog, CancellationToken.None);
+            }
         }
     }
 }

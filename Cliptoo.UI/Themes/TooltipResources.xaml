@@ -44,22 +44,23 @@
     </DataTemplate>
 
     <DataTemplate x:Key="TagsTemplate">
-        <StackPanel
-            Margin="0,4,0,0"
-            Orientation="Horizontal"
-            Visibility="{Binding HasTags, Converter={StaticResource BooleanToVisibilityConverter}}">
-            <ui:SymbolIcon
-                Margin="0,0,5,0"
-                VerticalAlignment="Center"
-                FontSize="16"
-                Symbol="Tag24" />
-            <TextBlock
-                VerticalAlignment="Center"
-                FontFamily="{Binding MainViewModel.PreviewFont}"
-                FontSize="{Binding MainViewModel.CurrentSettings.PreviewFontSize}"
-                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                Text="{Binding Tags}"
-                TextWrapping="Wrap" />
+        <StackPanel Visibility="{Binding HasTags, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <Separator Margin="0,4,0,4" />
+            <StackPanel Orientation="Horizontal">
+                <ui:SymbolIcon
+                    Margin="0,0,5,0"
+                    VerticalAlignment="Center"
+                    FontSize="18"
+                    Foreground="{DynamicResource TagTextBrush}"
+                    Symbol="Tag24" />
+                <TextBlock
+                    VerticalAlignment="Center"
+                    FontFamily="{Binding MainViewModel.PreviewFont}"
+                    FontSize="16"
+                    Foreground="{DynamicResource TagTextBrush}"
+                    Text="{Binding Tags}"
+                    TextWrapping="Wrap" />
+            </StackPanel>
         </StackPanel>
     </DataTemplate>
 
