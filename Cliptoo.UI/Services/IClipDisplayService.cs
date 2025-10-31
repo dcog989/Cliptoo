@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using Cliptoo.Core.Database.Models;
 using Cliptoo.UI.ViewModels;
 
 namespace Cliptoo.UI.Services
@@ -17,6 +18,7 @@ namespace Cliptoo.UI.Services
         Task LoadClipsAsync(bool scrollToTop = false);
         Task LoadMoreClipsAsync();
         void RefreshClipList();
+        void HandleNewClip(Clip newClip);
         void ClearClipsForHiding();
     }
 }

@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Threading;
 using Cliptoo.Core;
+using Cliptoo.Core.Database.Models;
 using Cliptoo.Core.Interfaces;
 using Cliptoo.Core.Logging;
 using Cliptoo.UI.ViewModels;
@@ -195,6 +196,43 @@ namespace Cliptoo.UI.Services
         public void RefreshClipList()
         {
             Application.Current.Dispatcher.InvokeAsync(async () => await LoadClipsAsync(true));
+        }
+
+        public void HandleNewClip(Clip newClip)
+        {
+            ArgumentNullException.ThrowIfNull(newClip);
+
+            // If a search is active, fall back to a full refresh to get correct ranking and filtering.
+            if (!string.IsNullOrEmpty(SearchTerm))
+            {
+                RefreshClipList();
+                return;
+            }
+
+            bool matchesFilter = SelectedFilter.Key == AppConstants.FilterKeys.All ||
+                                (SelectedFilter.Key == AppConstants.ClipTypes.Link && (newClip.ClipType == AppConstants.ClipTypes.Link || newClip.ClipType == AppConstants.ClipTypes.FileLink)) ||
+                                SelectedFilter.Key == newClip.ClipType;
+
+            // A new clip cannot be a favorite, so if that filter is active, don't add.
+            if (SelectedFilter.Key == AppConstants.FilterKeys.Favorite)
+            {
+                matchesFilter = false;
+            }
+
+            if (!matchesFilter)
+            {
+                // New clip doesn't match the current view, do nothing.
+                LogManager.LogDebug($"New clip (type: {newClip.ClipType}) does not match active filter ({SelectedFilter.Key}). UI not updated.");
+                return;
+            }
+
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                var theme = MainViewModel.CurrentThemeString;
+                var viewModel = _clipViewModelFactory.Create(newClip, theme);
+                Clips.Insert(0, viewModel);
+                _currentOffset++; // Increment offset to keep paging correct if user scrolls down later.
+            });
         }
 
         public void ClearClipsForHiding()

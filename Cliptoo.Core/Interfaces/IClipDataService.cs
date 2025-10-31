@@ -6,6 +6,12 @@ using Cliptoo.Core.Database.Models;
 
 namespace Cliptoo.Core.Interfaces
 {
+    public class ClipAddedEventArgs : EventArgs
+    {
+        public Clip NewClip { get; }
+        public ClipAddedEventArgs(Clip newClip) { NewClip = newClip; }
+    }
+
     public interface IClipDataService
     {
         Task<List<Clip>> GetClipsAsync(uint limit = 100, uint offset = 0, string searchTerm = "", string filterType = "all", string tagSearchPrefix = "##", CancellationToken cancellationToken = default);
@@ -16,7 +22,7 @@ namespace Cliptoo.Core.Interfaces
         Task ToggleFavoriteAsync(int id, bool isFavorite);
         Task MoveClipToTopAsync(int id);
         Task IncrementPasteCountAsync(int clipId);
-        event EventHandler? NewClipAdded;
+        event EventHandler<ClipAddedEventArgs>? NewClipAdded;
         event EventHandler? ClipDeleted;
         Task UpdateClipTagsAsync(int id, string tags);
     }

@@ -14,7 +14,7 @@ namespace Cliptoo.Core.Services
         private readonly IDbManager _dbManager;
         private readonly IWebMetadataService _webMetadataService;
 
-        public event EventHandler? NewClipAdded;
+        public event EventHandler<ClipAddedEventArgs>? NewClipAdded;
         public event EventHandler? ClipDeleted;
 
         public ClipDataService(IDbManager dbManager, IWebMetadataService webMetadataService)
@@ -37,7 +37,19 @@ namespace Cliptoo.Core.Services
         public async Task<int> AddClipAsync(string content, string clipType, string? sourceApp, bool wasTrimmed)
         {
             var clipId = await _dbManager.AddClipAsync(content, clipType, sourceApp, wasTrimmed).ConfigureAwait(false);
-            NewClipAdded?.Invoke(this, EventArgs.Empty);
+
+            // Get the preview version of the newly added clip to broadcast to the UI
+            var newClip = await _dbManager.GetPreviewClipByIdAsync(clipId).ConfigureAwait(false);
+            if (newClip != null)
+            {
+                NewClipAdded?.Invoke(this, new ClipAddedEventArgs(newClip));
+            }
+            else
+            {
+                // This should realistically never happen if the add succeeded.
+                LogManager.LogWarning($"Could not retrieve newly added clip with ID {clipId} to update the UI.");
+            }
+
             return clipId;
         }
 
@@ -78,6 +90,5 @@ namespace Cliptoo.Core.Services
         {
             return _dbManager.UpdateClipTagsAsync(id, tags);
         }
-
     }
 }

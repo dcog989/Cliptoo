@@ -332,6 +332,14 @@ namespace Cliptoo.Core.Database
             return await QuerySingleOrDefaultAsync(sql, MapFullClipFromReader, default, param).ConfigureAwait(false);
         }
 
+        public async Task<Clip?> GetPreviewClipByIdAsync(int id)
+        {
+            var sql = "SELECT c.Id, c.Timestamp, c.ClipType, c.SourceApp, c.IsFavorite, c.WasTrimmed, c.SizeInBytes, c.PreviewContent, c.PasteCount, c.Tags, NULL as MatchContext FROM clips c WHERE Id = @Id";
+            var param = new SqliteParameter("@Id", id);
+
+            return await QuerySingleOrDefaultAsync(sql, MapPreviewClipFromReader, default, param).ConfigureAwait(false);
+        }
+
         private static bool HasColumn(SqliteDataReader reader, string columnName)
         {
             for (int i = 0; i < reader.FieldCount; i++)
