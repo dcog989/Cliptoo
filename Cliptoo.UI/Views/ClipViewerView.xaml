@@ -48,6 +48,7 @@
         <ui:TextBox
             Grid.Row="2"
             Margin="12,8,12,0"
+            Icon="{ui:SymbolIcon Tag24}"
             PlaceholderText="Add tags, separated by space or comma"
             Text="{Binding Tags, UpdateSourceTrigger=PropertyChanged}" />
 
