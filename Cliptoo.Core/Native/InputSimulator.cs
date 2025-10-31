@@ -89,6 +89,15 @@ namespace Cliptoo.Core.Native
         [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool IsWindowEnabled(IntPtr hWnd);
 
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
+
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+        [DllImport("kernel32.dll")]
+        private static extern uint GetCurrentThreadId();
+
         private static INPUT CreateKeyInput(ushort virtualKeyCode, uint flags)
         {
             return new INPUT
@@ -114,7 +123,7 @@ namespace Cliptoo.Core.Native
             while (stopwatch.ElapsedMilliseconds < PastePollingTimeoutMs)
             {
                 IntPtr hwnd = GetForegroundWindow();
-                _ = GetWindowThreadProcessId(hwnd, out uint foregroundProcessId);
+                uint foregroundThreadId = GetWindowThreadProcessId(hwnd, out uint foregroundProcessId);
 
                 // Check if the foreground window is not Cliptoo and is ready for input.
                 if (foregroundProcessId != 0 && foregroundProcessId != currentProcessId && IsWindowVisible(hwnd) && IsWindowEnabled(hwnd))
@@ -133,7 +142,7 @@ namespace Cliptoo.Core.Native
             }
 
             // Log final state for diagnostics.
-            _ = GetWindowThreadProcessId(targetHwnd, out uint finalPid);
+            uint targetThreadId = GetWindowThreadProcessId(targetHwnd, out uint finalPid);
             var finalProcessName = ProcessUtils.GetForegroundWindowProcessName();
             var finalBuffer = new char[256];
             _ = GetWindowText(targetHwnd, finalBuffer, finalBuffer.Length);
@@ -141,44 +150,79 @@ namespace Cliptoo.Core.Native
             LogManager.LogDebug($"PASTE_DIAG: Found target window in {stopwatch.ElapsedMilliseconds}ms.");
             LogManager.LogDebug($"PASTE_DIAG: Target HWND: {targetHwnd}, PID: {finalPid}, Process: '{finalProcessName ?? "Unknown"}', Title: '{finalWindowTitle}'");
 
-            // A small final delay to allow the target application's message queue to process the focus change.
-            await Task.Delay(FinalDelayBeforePasteMs).ConfigureAwait(false);
 
-            // Temporarily release any modifier keys the user is holding for Quick Paste
-            var modifierReleaseInputs = new List<INPUT>();
-            if (KeyboardUtils.IsControlPressed()) modifierReleaseInputs.Add(CreateKeyInput(VK_CONTROL, KEYEVENTF_KEYUP));
-            if (KeyboardUtils.IsAltPressed()) modifierReleaseInputs.Add(CreateKeyInput(VK_MENU, KEYEVENTF_KEYUP));
-            if (KeyboardUtils.IsShiftPressed()) modifierReleaseInputs.Add(CreateKeyInput(VK_SHIFT, KEYEVENTF_KEYUP));
-
-            if (modifierReleaseInputs.Count > 0)
+            uint currentThreadId = GetCurrentThreadId();
+            bool attached = false;
+            try
             {
-                uint releaseResult = SendInput((uint)modifierReleaseInputs.Count, modifierReleaseInputs.ToArray(), Marshal.SizeOf<INPUT>());
-                if (releaseResult == 0)
+                // Attach to the target window's input thread. This helps ensure the input goes to the right place.
+                attached = AttachThreadInput(currentThreadId, targetThreadId, true);
+                if (attached)
+                {
+                    LogManager.LogDebug("PASTE_DIAG: Successfully attached thread input.");
+                }
+                else
                 {
                     int errorCode = Marshal.GetLastWin32Error();
-                    LogManager.LogError($"PASTE_DIAG: ERROR - InputSimulator: Modifier key release SendInput failed with Win32 error code: {errorCode}");
+                    LogManager.LogWarning($"PASTE_DIAG: Failed to attach thread input with Win32 error code: {errorCode}. Proceeding without attachment.");
                 }
-                await Task.Delay(ModifierReleaseDelayMs).ConfigureAwait(false); // Give a moment for the OS to process the key-up events
-            }
 
-            INPUT[] pasteInputs =
-            {
-                CreateKeyInput(VK_CONTROL, 0),              // Ctrl down
-                CreateKeyInput(VK_V, 0),                    // V down
-                CreateKeyInput(VK_V, KEYEVENTF_KEYUP),      // V up
+
+                // A small final delay to allow the target application's message queue to process the focus change.
+                await Task.Delay(FinalDelayBeforePasteMs).ConfigureAwait(false);
+
+                // Temporarily release any modifier keys the user is holding for Quick Paste
+                var modifierReleaseInputs = new List<INPUT>();
+                if (KeyboardUtils.IsControlPressed()) modifierReleaseInputs.Add(CreateKeyInput(VK_CONTROL, KEYEVENTF_KEYUP));
+                if (KeyboardUtils.IsAltPressed()) modifierReleaseInputs.Add(CreateKeyInput(VK_MENU, KEYEVENTF_KEYUP));
+                if (KeyboardUtils.IsShiftPressed()) modifierReleaseInputs.Add(CreateKeyInput(VK_SHIFT, KEYEVENTF_KEYUP));
+
+                if (modifierReleaseInputs.Count > 0)
+                {
+                    uint releaseResult = SendInput((uint)modifierReleaseInputs.Count, modifierReleaseInputs.ToArray(), Marshal.SizeOf<INPUT>());
+                    if (releaseResult == 0)
+                    {
+                        int errorCode = Marshal.GetLastWin32Error();
+                        LogManager.LogError($"PASTE_DIAG: ERROR - InputSimulator: Modifier key release SendInput failed with Win32 error code: {errorCode}");
+                    }
+                    await Task.Delay(ModifierReleaseDelayMs).ConfigureAwait(false); // Give a moment for the OS to process the key-up events
+                }
+
+                INPUT[] pasteInputs =
+                {
+                CreateKeyInput(VK_CONTROL, 0),          // Ctrl down
+                CreateKeyInput(VK_V, 0),                // V down
+                CreateKeyInput(VK_V, KEYEVENTF_KEYUP),  // V up
                 CreateKeyInput(VK_CONTROL, KEYEVENTF_KEYUP) // Ctrl up
             };
 
-            LogManager.LogDebug("InputSimulator: Sending Ctrl+V input.");
-            uint result = SendInput((uint)pasteInputs.Length, pasteInputs, Marshal.SizeOf<INPUT>());
-            if (result == 0)
-            {
-                int errorCode = Marshal.GetLastWin32Error();
-                LogManager.LogError($"PASTE_DIAG: ERROR - InputSimulator: SendInput failed with Win32 error code: {errorCode}");
+                LogManager.LogDebug("InputSimulator: Sending Ctrl+V input.");
+                uint result = SendInput((uint)pasteInputs.Length, pasteInputs, Marshal.SizeOf<INPUT>());
+                if (result == 0)
+                {
+                    int errorCode = Marshal.GetLastWin32Error();
+                    LogManager.LogError($"PASTE_DIAG: ERROR - InputSimulator: SendInput failed with Win32 error code: {errorCode}");
+                }
+                else
+                {
+                    LogManager.LogDebug("InputSimulator: SendInput call successful.");
+                }
             }
-            else
+            finally
             {
-                LogManager.LogDebug("InputSimulator: SendInput call successful.");
+                if (attached)
+                {
+                    if (!AttachThreadInput(currentThreadId, targetThreadId, false))
+                    {
+                        // Log if detach fails, but don't treat it as a critical error.
+                        int errorCode = Marshal.GetLastWin32Error();
+                        LogManager.LogWarning($"PASTE_DIAG: Failed to detach thread input with Win32 error code: {errorCode}");
+                    }
+                    else
+                    {
+                        LogManager.LogDebug("PASTE_DIAG: Successfully detached thread input.");
+                    }
+                }
             }
         }
 
