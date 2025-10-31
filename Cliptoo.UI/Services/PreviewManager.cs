@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Threading;
 using Cliptoo.Core.Interfaces;
@@ -10,7 +7,7 @@ using Cliptoo.UI.ViewModels.Base;
 
 namespace Cliptoo.UI.Services
 {
-    public class PreviewManager : ViewModelBase, IPreviewManager
+    internal class PreviewManager : ViewModelBase, IPreviewManager
     {
         private readonly ISettingsService _settingsService;
         private readonly DispatcherTimer _showPreviewTimer;
@@ -80,6 +77,8 @@ namespace Cliptoo.UI.Services
 
         public void TogglePreviewForSelection(ClipViewModel selectedVm, UIElement? placementTarget)
         {
+            ArgumentNullException.ThrowIfNull(selectedVm);
+
             if (IsPreviewOpen && PreviewClip?.Id == selectedVm.Id)
             {
                 RequestHidePreview();

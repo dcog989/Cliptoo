@@ -3,7 +3,7 @@ using ICSharpCode.AvalonEdit;
 
 namespace Cliptoo.UI.Helpers
 {
-    public static class AvalonEditHelper
+    internal static class AvalonEditHelper
     {
         public static readonly DependencyProperty DocumentTextProperty =
             DependencyProperty.RegisterAttached("DocumentText", typeof(string), typeof(AvalonEditHelper),
@@ -11,11 +11,13 @@ namespace Cliptoo.UI.Helpers
 
         public static string GetDocumentText(DependencyObject obj)
         {
+            ArgumentNullException.ThrowIfNull(obj);
             return (string)obj.GetValue(DocumentTextProperty);
         }
 
         public static void SetDocumentText(DependencyObject obj, string value)
         {
+            ArgumentNullException.ThrowIfNull(obj);
             obj.SetValue(DocumentTextProperty, value);
         }
 

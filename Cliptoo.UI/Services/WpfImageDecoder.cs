@@ -5,7 +5,7 @@ using SixLabors.ImageSharp;
 
 namespace Cliptoo.UI.Services
 {
-    public class WpfImageDecoder : IImageDecoder
+    internal class WpfImageDecoder : IImageDecoder
     {
         private readonly IImageDecoder _baseDecoder;
 
@@ -16,6 +16,8 @@ namespace Cliptoo.UI.Services
 
         public async Task<Image?> DecodeAsync(Stream stream, string extension)
         {
+            ArgumentNullException.ThrowIfNull(stream);
+
             if (extension == ".ICO")
             {
                 var image = await DecodeIcoAsync(stream);
@@ -54,7 +56,7 @@ namespace Cliptoo.UI.Services
                     ms.Position = 0;
                     return await Image.LoadAsync(ms).ConfigureAwait(false);
                 }
-                catch (System.Exception)
+                catch (Exception ex) when (ex is NotSupportedException or ArgumentException or FileFormatException)
                 {
                     return null;
                 }
