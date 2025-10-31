@@ -9,6 +9,7 @@ using Cliptoo.Core.Logging;
 using Cliptoo.UI.Services;
 using Cliptoo.UI.ViewModels.Base;
 using Wpf.Ui.Appearance;
+using Cliptoo.UI.Views;
 
 namespace Cliptoo.UI.ViewModels
 {
@@ -201,7 +202,6 @@ namespace Cliptoo.UI.ViewModels
             _clipDataService.NewClipAdded += OnNewClipAdded;
             _databaseService.HistoryCleared += OnHistoryCleared;
             _settingsService.SettingsChanged += OnSettingsChanged;
-            _databaseService.CachesCleared += OnCachesCleared;
             _comparisonStateService.ComparisonStateChanged += OnComparisonStateChanged;
             _clipDisplayService.ListScrolledToTopRequest += (s, e) => ListScrolledToTopRequest?.Invoke(s, e);
 
@@ -229,6 +229,7 @@ namespace Cliptoo.UI.ViewModels
                 }
             });
             _eventAggregator.Subscribe<ClipTransformAndPasteRequested>(async msg => await ExecuteTransformAndPaste(msg.ClipId, msg.TransformType));
+            _eventAggregator.Subscribe<CachesClearedMessage>(_ => OnCachesCleared());
         }
 
         private void OnComparisonStateChanged(object? sender, ComparisonStateChangedEventArgs e)
@@ -342,7 +343,6 @@ namespace Cliptoo.UI.ViewModels
             _clipDataService.NewClipAdded -= OnNewClipAdded;
             _databaseService.HistoryCleared -= OnHistoryCleared;
             _settingsService.SettingsChanged -= OnSettingsChanged;
-            _databaseService.CachesCleared -= OnCachesCleared;
             _clearClipsTimer.Tick -= OnClearClipsTimerElapsed;
             _comparisonStateService.ComparisonStateChanged -= OnComparisonStateChanged;
             if (_clipDisplayService is IDisposable disposable)
@@ -367,7 +367,7 @@ namespace Cliptoo.UI.ViewModels
             _clipDisplayService.RefreshClipList();
         }
         private void OnHistoryCleared(object? sender, EventArgs e) => _clipDisplayService.RefreshClipList();
-        private void OnCachesCleared(object? sender, EventArgs e) => _clipDisplayService.RefreshClipList();
+        private void OnCachesCleared() => _clipDisplayService.RefreshClipList();
         public int SelectedIndex
         {
             get => _selectedIndex;
@@ -428,7 +428,7 @@ namespace Cliptoo.UI.ViewModels
         public void RequestHidePreview() => _previewManager.RequestHidePreview();
         public void TogglePreviewForSelection(UIElement? placementTarget)
         {
-            var listView = (Application.Current.MainWindow as Views.MainWindow)?.ClipListView;
+            var listView = (Application.Current.MainWindow as MainWindow)?.ClipListViewControl;
             if (listView?.SelectedItem is not ClipViewModel selectedVm) return;
             _previewManager.TogglePreviewForSelection(selectedVm, placementTarget);
         }

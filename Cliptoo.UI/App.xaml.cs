@@ -194,7 +194,8 @@ namespace Cliptoo.UI
                             sp,
                             sp.GetRequiredService<IFontProvider>(),
                             sp.GetRequiredService<IIconProvider>(),
-                            sp.GetRequiredService<Cliptoo.UI.Services.IThemeService>()
+                            sp.GetRequiredService<Cliptoo.UI.Services.IThemeService>(),
+                            sp.GetRequiredService<IEventAggregator>()
                         ));
 
                         services.AddSingleton<MainWindow>();

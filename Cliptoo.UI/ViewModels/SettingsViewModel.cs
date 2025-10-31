@@ -17,7 +17,12 @@ using Cliptoo.UI.ViewModels.Base;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 using Wpf.Ui;
+using System.Globalization;
+using System.Windows.Input;
+using Cliptoo.UI.Views;
+using Microsoft.Win32;
 using Wpf.Ui.Controls;
+using System.Text.Json;
 
 
 namespace Cliptoo.UI.ViewModels
@@ -33,6 +38,7 @@ namespace Cliptoo.UI.ViewModels
         private readonly IIconProvider _iconProvider;
         private readonly Cliptoo.UI.Services.IThemeService _themeService;
         private readonly System.Timers.Timer _saveDebounceTimer;
+        private readonly IEventAggregator _eventAggregator;
         private Settings _settings = null!;
         private DbStats _stats = null!;
         private string _selectedFontFamily;
@@ -49,7 +55,7 @@ namespace Cliptoo.UI.ViewModels
         public static Uri GitHubUrl { get; } = new("https://github.com/dcgog989/Cliptoo");
         public ObservableCollection<SendToTarget> SendToTargets => Settings.SendToTargets;
 
-        public SettingsViewModel(IDatabaseService databaseService, ISettingsService settingsService, IContentDialogService contentDialogService, IStartupManagerService startupManagerService, IServiceProvider serviceProvider, IFontProvider fontProvider, IIconProvider iconProvider, Cliptoo.UI.Services.IThemeService themeService)
+        public SettingsViewModel(IDatabaseService databaseService, ISettingsService settingsService, IContentDialogService contentDialogService, IStartupManagerService startupManagerService, IServiceProvider serviceProvider, IFontProvider fontProvider, IIconProvider iconProvider, Cliptoo.UI.Services.IThemeService themeService, IEventAggregator eventAggregator)
         {
             _databaseService = databaseService;
             _settingsService = settingsService;
@@ -59,6 +65,7 @@ namespace Cliptoo.UI.ViewModels
             _fontProvider = fontProvider;
             _iconProvider = iconProvider;
             _themeService = themeService;
+            _eventAggregator = eventAggregator;
             Settings = _settingsService.Settings;
             Settings.PropertyChanged += OnSettingsPropertyChanged;
             _selectedFontFamily = Settings.FontFamily;
@@ -81,8 +88,12 @@ namespace Cliptoo.UI.ViewModels
                 IsBusy = true;
                 try
                 {
-                    await Task.Run(() => _databaseService.ClearCaches()).ConfigureAwait(true);
-                    await ShowInformationDialogAsync("Caches Cleared", new System.Windows.Controls.TextBlock { Text = "All cached thumbnails and temporary files have been deleted." }).ConfigureAwait(true);
+                    await Task.Run(() => _databaseService.ClearCaches()).ConfigureAwait(false);
+                    _eventAggregator.Publish(new CachesClearedMessage());
+                    await Application.Current.Dispatcher.InvokeAsync(async () =>
+                    {
+                        await ShowInformationDialogAsync("Caches Cleared", new System.Windows.Controls.TextBlock { Text = "All cached thumbnails and temporary files have been deleted." });
+                    });
                 }
                 finally
                 {
@@ -96,50 +107,53 @@ namespace Cliptoo.UI.ViewModels
                 IsBusy = true;
                 try
                 {
-                    var result = await _databaseService.RunHeavyMaintenanceNowAsync();
-                    await InitializeAsync().ConfigureAwait(true);
+                    var result = await _databaseService.RunHeavyMaintenanceNowAsync().ConfigureAwait(false);
+                    await InitializeAsync().ConfigureAwait(false);
 
-                    var results = new List<string>
+                    await Application.Current.Dispatcher.InvokeAsync(async () =>
                     {
-                        $"- Removed {result.DbClipsCleaned} old clips.",
-                        $"- Pruned {result.ImageCachePruned} orphaned image previews.",
-                        $"- Pruned {result.FaviconCachePruned} orphaned favicons.",
-                        $"- Pruned {result.IconCachePruned} old icons.",
-                        $"- Pruned {result.ClipboardImagesPruned} clipboard images.",
-                        $"- Re-classified {result.ReclassifiedClips} file types.",
-                        $"- Cleaned {result.TempFilesCleaned} temporary files."
-                    };
+                        var results = new List<string>
+                        {
+                            $"- Removed {result.DbClipsCleaned} old clips.",
+                            $"- Pruned {result.ImageCachePruned} orphaned image previews.",
+                            $"- Pruned {result.FaviconCachePruned} orphaned favicons.",
+                            $"- Pruned {result.IconCachePruned} old icons.",
+                            $"- Pruned {result.ClipboardImagesPruned} clipboard images.",
+                            $"- Re-classified {result.ReclassifiedClips} file types.",
+                            $"- Cleaned {result.TempFilesCleaned} temporary files."
+                        };
 
-                    if (result.DatabaseSizeChangeMb > 0.0)
-                    {
-                        results.Add($"- Database compacted, reclaiming {result.DatabaseSizeChangeMb:F2} MB of space.");
-                    }
-                    else if (result.DatabaseSizeChangeMb < 0.0)
-                    {
-                        results.Add($"- Database compacted. Size changed by {result.DatabaseSizeChangeMb:F2} MB.");
-                    }
-                    else
-                    {
-                        results.Add("- Database compacted. Size did not change.");
-                    }
+                        if (result.DatabaseSizeChangeMb > 0.0)
+                        {
+                            results.Add($"- Database compacted, reclaiming {result.DatabaseSizeChangeMb:F2} MB of space.");
+                        }
+                        else if (result.DatabaseSizeChangeMb < 0.0)
+                        {
+                            results.Add($"- Database compacted. Size changed by {result.DatabaseSizeChangeMb:F2} MB.");
+                        }
+                        else
+                        {
+                            results.Add("- Database compacted. Size did not change.");
+                        }
 
-                    var stackPanel = new StackPanel();
-                    stackPanel.Children.Add(new System.Windows.Controls.TextBlock { Text = "Maintenance routine completed.", Margin = new Thickness(0, 0, 0, 10) });
-                    foreach (var line in results)
-                    {
-                        stackPanel.Children.Add(new System.Windows.Controls.TextBlock { Text = line });
-                    }
+                        var stackPanel = new StackPanel();
+                        stackPanel.Children.Add(new System.Windows.Controls.TextBlock { Text = "Maintenance routine completed.", Margin = new Thickness(0, 0, 0, 10) });
+                        foreach (var line in results)
+                        {
+                            stackPanel.Children.Add(new System.Windows.Controls.TextBlock { Text = line });
+                        }
 
-                    stackPanel.Children.Add(new Separator { Margin = new Thickness(0, 10, 0, 10) });
-                    stackPanel.Children.Add(new System.Windows.Controls.TextBlock
-                    {
-                        Text = "Note: This maintenance process also runs automatically approximately every 24 hours when the application is idle.",
-                        TextWrapping = TextWrapping.Wrap,
-                        FontStyle = FontStyles.Italic,
-                        Foreground = (Brush)Application.Current.FindResource("TextFillColorSecondaryBrush")
+                        stackPanel.Children.Add(new Separator { Margin = new Thickness(0, 10, 0, 10) });
+                        stackPanel.Children.Add(new System.Windows.Controls.TextBlock
+                        {
+                            Text = "Note: This maintenance process also runs automatically approximately every 24 hours when the application is idle.",
+                            TextWrapping = TextWrapping.Wrap,
+                            FontStyle = FontStyles.Italic,
+                            Foreground = (Brush)Application.Current.FindResource("TextFillColorSecondaryBrush")
+                        });
+
+                        await ShowInformationDialogAsync("Maintenance Complete", stackPanel);
                     });
-
-                    await ShowInformationDialogAsync("Maintenance Complete", stackPanel).ConfigureAwait(true);
                 }
                 finally
                 {
@@ -166,7 +180,7 @@ namespace Cliptoo.UI.ViewModels
             MoveSendToTargetUpCommand = new RelayCommand(ExecuteMoveSendToTargetUp, CanExecuteMoveSendToTargetUp);
             MoveSendToTargetDownCommand = new RelayCommand(ExecuteMoveSendToTargetDown, CanExecuteMoveSendToTargetDown);
             ExportAllCommand = new RelayCommand(async _ => await ExecuteExport(false), _ => !IsBusy);
-            ExportFavoriteCommand = new RelayCommand(async _ => await ExecuteExport(true), _ => !IsBusy);
+            ExportPinnedCommand = new RelayCommand(async _ => await ExecuteExport(true), _ => !IsBusy);
             ImportCommand = new RelayCommand(async _ => await ExecuteImport(), _ => !IsBusy);
             AddBlacklistedAppCommand = new RelayCommand(p => ExecuteAddBlacklistedApp(p as string));
             RemoveBlacklistedAppCommand = new RelayCommand(p => ExecuteRemoveBlacklistedApp(p as string));
@@ -255,8 +269,8 @@ namespace Cliptoo.UI.ViewModels
             {
                 if (Stats == null) return "Loading stats...";
                 var favoriteText = Stats.FavoriteClips > 0 ? $" (+{Stats.FavoriteClips:N0} favorited)" : "";
-                var totalNotFavorite = Stats.TotalClips - Stats.FavoriteClips;
-                return $"{totalNotFavorite:N0} clips{favoriteText} in database using {Stats.DatabaseSizeMb} MB.";
+                var totalUnpinned = Stats.TotalClips - Stats.FavoriteClips;
+                return $"{totalUnpinned:N0} clips{favoriteText} in database using {Stats.DatabaseSizeMb} MB.";
             }
         }
 
@@ -264,7 +278,7 @@ namespace Cliptoo.UI.ViewModels
         {
             try
             {
-                Stats = await _databaseService.GetStatsAsync().ConfigureAwait(true);
+                Stats = await _databaseService.GetStatsAsync().ConfigureAwait(false);
                 OnPropertyChanged(nameof(StatsSummary));
             }
             catch (SqliteException ex)
@@ -305,31 +319,32 @@ namespace Cliptoo.UI.ViewModels
             {
                 if (viewModel.DeleteFavorite && viewModel.DeleteOtherClips)
                 {
-                    await _databaseService.ClearAllHistoryAsync();
+                    await _databaseService.ClearAllHistoryAsync().ConfigureAwait(false);
                 }
                 else
                 {
                     if (viewModel.DeleteFavorite)
                     {
-                        await _databaseService.ClearFavoriteClipsAsync();
+                        await _databaseService.ClearFavoriteClipsAsync().ConfigureAwait(false);
                     }
                     if (viewModel.DeleteOtherClips)
                     {
-                        await _databaseService.ClearHistoryAsync();
+                        await _databaseService.ClearHistoryAsync().ConfigureAwait(false);
                     }
                 }
 
                 if (viewModel.DeleteLogs)
                 {
-                    await Task.Run(() => LogManager.ClearLogs());
+                    await Task.Run(() => LogManager.ClearLogs()).ConfigureAwait(false);
                 }
-                await InitializeAsync();
+                await InitializeAsync().ConfigureAwait(false);
             }
             finally
             {
                 IsBusy = false;
             }
         }
+
 
         private void OnSendToTargetsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
         {
@@ -485,6 +500,6 @@ namespace Cliptoo.UI.ViewModels
         }
 
         public bool IsAnyOptionSelected => DeleteFavorite || DeleteLogs || DeleteOtherClips;
-    }
 
+    }
 }

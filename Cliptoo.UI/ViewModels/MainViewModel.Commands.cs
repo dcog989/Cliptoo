@@ -9,6 +9,7 @@ using Cliptoo.Core.Logging;
 using Cliptoo.Core.Services;
 using Cliptoo.UI.Helpers;
 using Cliptoo.UI.Views;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 using Wpf.Ui.Controls;
 
@@ -49,11 +50,11 @@ namespace Cliptoo.UI.ViewModels
                     HideWindow();
                 }
 
-                await pasteAction(clip);
+                await pasteAction(clip).ConfigureAwait(false);
                 await _clipDataService.IncrementPasteCountAsync(clip.Id).ConfigureAwait(false);
                 await _clipboardService.UpdatePasteCountAsync().ConfigureAwait(false);
 
-                await _clipDisplayService.LoadClipsAsync(true);
+                await _clipDisplayService.LoadClipsAsync(true).ConfigureAwait(false);
 
                 if (wasOnTop)
                 {
@@ -66,7 +67,7 @@ namespace Cliptoo.UI.ViewModels
                     _needsRefreshOnShow = false;
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is IOException or System.ComponentModel.Win32Exception or SqliteException or InvalidOperationException)
             {
                 LogManager.LogError($"Paste action failed. Error: {ex.Message}");
                 _notificationService.Show("Paste Failed", "Could not paste the selected item. The clipboard may be in use by another application.", ControlAppearance.Danger, SymbolRegular.ErrorCircle24);
@@ -81,7 +82,7 @@ namespace Cliptoo.UI.ViewModels
         {
             if (parameter is ClipViewModel clipVM)
             {
-                await PerformPasteAction(clipVM, clip => _pastingService.PasteClipAsync(clip, forcePlainText));
+                await PerformPasteAction(clipVM, clip => _pastingService.PasteClipAsync(clip, forcePlainText)).ConfigureAwait(false);
             }
         }
 
@@ -98,7 +99,7 @@ namespace Cliptoo.UI.ViewModels
 
                 var transformedContent = _clipboardService.TransformText(contentToTransform, transformType);
                 await _pastingService.PasteTextAsync(transformedContent).ConfigureAwait(false);
-            });
+            }).ConfigureAwait(false);
         }
 
         private void OpenSettingsWindow()
@@ -131,7 +132,7 @@ namespace Cliptoo.UI.ViewModels
             LogManager.LogInfo($"Deleting clip: ID={clipVM.Id}.");
             clipVM.IsDeleting = true;
 
-            await Task.Delay(300);
+            await Task.Delay(300).ConfigureAwait(false);
 
             try
             {
@@ -140,7 +141,7 @@ namespace Cliptoo.UI.ViewModels
 
                 await Application.Current.Dispatcher.InvokeAsync(() => Clips.Remove(clipVM));
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is SqliteException or IOException)
             {
                 LogManager.LogError($"Failed to delete clip ID={clipVM.Id}. Error: {ex.Message}");
 
@@ -194,13 +195,13 @@ namespace Cliptoo.UI.ViewModels
             var clipVM = Clips.FirstOrDefault(c => c.Id == clipId);
             if (clipVM == null) return;
 
-            await _clipDataService.MoveClipToTopAsync(clipVM.Id);
-            var clip = await _clipDataService.GetClipByIdAsync(clipVM.Id);
+            await _clipDataService.MoveClipToTopAsync(clipVM.Id).ConfigureAwait(false);
+            var clip = await _clipDataService.GetClipByIdAsync(clipVM.Id).ConfigureAwait(false);
             if (clip != null)
             {
-                await _pastingService.SetClipboardContentAsync(clip, forcePlainText: null);
+                await _pastingService.SetClipboardContentAsync(clip, forcePlainText: null).ConfigureAwait(false);
             }
-            await _clipDisplayService.LoadClipsAsync(false);
+            await _clipDisplayService.LoadClipsAsync(false).ConfigureAwait(false);
         }
 
         private async Task ExecuteOpen(int clipId)
@@ -230,7 +231,7 @@ namespace Cliptoo.UI.ViewModels
 
         private async Task ExecuteCompareWithSelectedRight(int clipId)
         {
-            var result = await _comparisonStateService.CompareWithRightClipAsync(clipId);
+            var result = await _comparisonStateService.CompareWithRightClipAsync(clipId).ConfigureAwait(false);
             if (!result.success)
             {
                 _notificationService.Show("Compare Failed", result.message, ControlAppearance.Danger, SymbolRegular.ErrorCircle24);

@@ -37,7 +37,6 @@ namespace Cliptoo.Core.Services
             PropertyNameCaseInsensitive = true,
         };
 
-        public event EventHandler? CachesCleared;
         public event EventHandler? HistoryCleared;
 
         public DatabaseService(
@@ -88,7 +87,6 @@ namespace Cliptoo.Core.Services
             _iconCacheManager.ClearCache();
             ServiceUtils.DeleteDirectoryContents(_clipboardImageCachePath);
             CleanupTempFiles();
-            CachesCleared?.Invoke(this, EventArgs.Empty);
         }
 
         public async Task<MaintenanceResult> RunHeavyMaintenanceNowAsync()

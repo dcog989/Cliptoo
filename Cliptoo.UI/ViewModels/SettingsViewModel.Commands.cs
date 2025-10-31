@@ -32,7 +32,7 @@ namespace Cliptoo.UI.ViewModels
         public ICommand MoveSendToTargetUpCommand { get; }
         public ICommand MoveSendToTargetDownCommand { get; }
         public ICommand ExportAllCommand { get; }
-        public ICommand ExportFavoriteCommand { get; }
+        public ICommand ExportPinnedCommand { get; }
         public ICommand ImportCommand { get; }
         public ICommand AddBlacklistedAppCommand { get; }
         public ICommand RemoveBlacklistedAppCommand { get; }
@@ -74,9 +74,12 @@ namespace Cliptoo.UI.ViewModels
             IsBusy = true;
             try
             {
-                int count = await _databaseService.ClearOversizedClipsAsync(viewModel.SizeMb);
-                await InitializeAsync();
-                await ShowInformationDialogAsync("Oversized Clips Removed", new System.Windows.Controls.TextBlock { Text = string.Format(CultureInfo.CurrentCulture, "{0} clip(s) larger than {1} MB have been removed.", count, viewModel.SizeMb) });
+                int count = await _databaseService.ClearOversizedClipsAsync(viewModel.SizeMb).ConfigureAwait(false);
+                await InitializeAsync().ConfigureAwait(false);
+                await Application.Current.Dispatcher.InvokeAsync(async () =>
+                {
+                    await ShowInformationDialogAsync("Oversized Clips Removed", new System.Windows.Controls.TextBlock { Text = string.Format(CultureInfo.CurrentCulture, "{0} clip(s) larger than {1} MB have been removed.", count, viewModel.SizeMb) });
+                });
             }
             finally
             {
@@ -90,9 +93,12 @@ namespace Cliptoo.UI.ViewModels
             IsBusy = true;
             try
             {
-                int count = await _databaseService.RemoveDeadheadClipsAsync();
-                await InitializeAsync();
-                await ShowInformationDialogAsync("Deadhead Clips Removed", new System.Windows.Controls.TextBlock { Text = string.Format(CultureInfo.CurrentCulture, "{0} clip(s) pointing to non-existent files or folders have been removed.", count) });
+                int count = await _databaseService.RemoveDeadheadClipsAsync().ConfigureAwait(false);
+                await InitializeAsync().ConfigureAwait(false);
+                await Application.Current.Dispatcher.InvokeAsync(async () =>
+                {
+                    await ShowInformationDialogAsync("Deadhead Clips Removed", new System.Windows.Controls.TextBlock { Text = string.Format(CultureInfo.CurrentCulture, "{0} clip(s) pointing to non-existent files or folders have been removed.", count) });
+                });
             }
             finally
             {
@@ -147,14 +153,20 @@ namespace Cliptoo.UI.ViewModels
             IsBusy = true;
             try
             {
-                var jsonContent = await _databaseService.ExportToJsonStringAsync(favoriteOnly).ConfigureAwait(true);
-                await File.WriteAllTextAsync(dialog.FileName, jsonContent).ConfigureAwait(true);
-                await ShowInformationDialogAsync("Export Complete", new System.Windows.Controls.TextBlock { Text = $"Successfully exported clips to:\n{dialog.FileName}" });
+                var jsonContent = await _databaseService.ExportToJsonStringAsync(favoriteOnly).ConfigureAwait(false);
+                await File.WriteAllTextAsync(dialog.FileName, jsonContent).ConfigureAwait(false);
+                await Application.Current.Dispatcher.InvokeAsync(async () =>
+                {
+                    await ShowInformationDialogAsync("Export Complete", new System.Windows.Controls.TextBlock { Text = $"Successfully exported clips to:\n{dialog.FileName}" });
+                });
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 LogManager.LogCritical(ex, "Failed to export clips.");
-                await ShowInformationDialogAsync("Export Failed", new System.Windows.Controls.TextBlock { Text = $"An error occurred during export: {ex.Message}" });
+                await Application.Current.Dispatcher.InvokeAsync(async () =>
+                {
+                    await ShowInformationDialogAsync("Export Failed", new System.Windows.Controls.TextBlock { Text = $"An error occurred during export: {ex.Message}" });
+                });
             }
             finally
             {
@@ -186,15 +198,21 @@ namespace Cliptoo.UI.ViewModels
             IsBusy = true;
             try
             {
-                var jsonContent = await File.ReadAllTextAsync(dialog.FileName).ConfigureAwait(true);
-                int importedCount = await _databaseService.ImportFromJsonAsync(jsonContent).ConfigureAwait(true);
-                await InitializeAsync().ConfigureAwait(true);
-                await ShowInformationDialogAsync("Import Complete", new System.Windows.Controls.TextBlock { Text = $"{importedCount} new clips were successfully imported." });
+                var jsonContent = await File.ReadAllTextAsync(dialog.FileName).ConfigureAwait(false);
+                int importedCount = await _databaseService.ImportFromJsonAsync(jsonContent).ConfigureAwait(false);
+                await InitializeAsync().ConfigureAwait(false);
+                await Application.Current.Dispatcher.InvokeAsync(async () =>
+                {
+                    await ShowInformationDialogAsync("Import Complete", new System.Windows.Controls.TextBlock { Text = $"{importedCount} new clips were successfully imported." });
+                });
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
             {
                 LogManager.LogCritical(ex, "Failed to import clips.");
-                await ShowInformationDialogAsync("Import Failed", new System.Windows.Controls.TextBlock { Text = $"An error occurred during import. The file may be corrupt or in an invalid format.\n\nError: {ex.Message}" });
+                await Application.Current.Dispatcher.InvokeAsync(async () =>
+                {
+                    await ShowInformationDialogAsync("Import Failed", new System.Windows.Controls.TextBlock { Text = $"An error occurred during import. The file may be corrupt or in an invalid format.\n\nError: {ex.Message}" });
+                });
             }
             finally
             {

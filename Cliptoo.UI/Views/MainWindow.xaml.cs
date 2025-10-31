@@ -39,6 +39,7 @@ namespace Cliptoo.UI.Views
         }
 
         public SnackbarPresenter SnackbarPresenter => RootSnackbarPresenter;
+        public System.Windows.Controls.ListView ClipListViewControl => ClipListView;
 
         private void OnWindowResizedOrMoved(object? sender, EventArgs e)
         {
