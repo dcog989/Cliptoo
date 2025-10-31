@@ -100,55 +100,49 @@ namespace Cliptoo.Core.Native
 
         public static async Task SendPasteAsync()
         {
-            LogManager.LogDebug("PASTE_DIAG: Polling for focus change...");
+            const int PastePollingTimeoutMs = 1000;
+            const int PollingIntervalMs = 30;
+            const int FinalDelayBeforePasteMs = 50;
+            const int ModifierReleaseDelayMs = 30;
+
+            LogManager.LogDebug("PASTE_DIAG: Waiting for a valid paste target window...");
             var stopwatch = Stopwatch.StartNew();
             uint currentProcessId = (uint)Environment.ProcessId;
+            IntPtr targetHwnd = IntPtr.Zero;
 
-            while (stopwatch.ElapsedMilliseconds < 500)
+            // Poll for up to 1 second to find a suitable window to paste into.
+            while (stopwatch.ElapsedMilliseconds < PastePollingTimeoutMs)
             {
                 IntPtr hwnd = GetForegroundWindow();
                 _ = GetWindowThreadProcessId(hwnd, out uint foregroundProcessId);
-                if (foregroundProcessId != 0 && foregroundProcessId != currentProcessId)
+
+                // Check if the foreground window is not Cliptoo and is ready for input.
+                if (foregroundProcessId != 0 && foregroundProcessId != currentProcessId && IsWindowVisible(hwnd) && IsWindowEnabled(hwnd))
                 {
-                    break; // Focus has changed to another process.
+                    targetHwnd = hwnd;
+                    break; // Found a valid, ready target.
                 }
-
-                await Task.Delay(20).ConfigureAwait(false);
-            }
-            stopwatch.Stop();
-            LogManager.LogDebug($"PASTE_DIAG: Focus change polling finished after {stopwatch.ElapsedMilliseconds}ms.");
-
-            IntPtr finalHwnd = GetForegroundWindow();
-
-            // Wait for the new window to be ready for input.
-            stopwatch.Restart();
-            while (stopwatch.ElapsedMilliseconds < 300)
-            {
-                if (IsWindowVisible(finalHwnd) && IsWindowEnabled(finalHwnd))
-                {
-                    break;
-                }
-                await Task.Delay(30).ConfigureAwait(false);
+                await Task.Delay(PollingIntervalMs).ConfigureAwait(false);
             }
             stopwatch.Stop();
 
-            bool isVisible = IsWindowVisible(finalHwnd);
-            bool isEnabled = IsWindowEnabled(finalHwnd);
-
-            // Log final state for diagnostics.
-            _ = GetWindowThreadProcessId(finalHwnd, out uint finalPid);
-            var finalProcessName = ProcessUtils.GetForegroundWindowProcessName();
-            var finalBuffer = new char[256];
-            _ = GetWindowText(finalHwnd, finalBuffer, finalBuffer.Length);
-            var finalWindowTitle = new string(finalBuffer).TrimEnd('\0');
-            LogManager.LogDebug($"PASTE_DIAG: Waited {stopwatch.ElapsedMilliseconds}ms for target window to be ready.");
-            LogManager.LogDebug($"PASTE_DIAG: Target HWND: {finalHwnd}, PID: {finalPid}, Process: '{finalProcessName ?? "Unknown"}', Title: '{finalWindowTitle}', Visible: {isVisible}, Enabled: {isEnabled}");
-
-            if (!isEnabled || !isVisible)
+            if (targetHwnd == IntPtr.Zero)
             {
-                LogManager.LogWarning("PASTE_DIAG: Paste aborted. Target window is not visible or not enabled after waiting.");
+                LogManager.LogWarning($"PASTE_DIAG: Paste aborted. No valid target window found after polling for {stopwatch.ElapsedMilliseconds}ms.");
                 return;
             }
+
+            // Log final state for diagnostics.
+            _ = GetWindowThreadProcessId(targetHwnd, out uint finalPid);
+            var finalProcessName = ProcessUtils.GetForegroundWindowProcessName();
+            var finalBuffer = new char[256];
+            _ = GetWindowText(targetHwnd, finalBuffer, finalBuffer.Length);
+            var finalWindowTitle = new string(finalBuffer).TrimEnd('\0');
+            LogManager.LogDebug($"PASTE_DIAG: Found target window in {stopwatch.ElapsedMilliseconds}ms.");
+            LogManager.LogDebug($"PASTE_DIAG: Target HWND: {targetHwnd}, PID: {finalPid}, Process: '{finalProcessName ?? "Unknown"}', Title: '{finalWindowTitle}'");
+
+            // A small final delay to allow the target application's message queue to process the focus change.
+            await Task.Delay(FinalDelayBeforePasteMs).ConfigureAwait(false);
 
             // Temporarily release any modifier keys the user is holding for Quick Paste
             var modifierReleaseInputs = new List<INPUT>();
@@ -164,16 +158,16 @@ namespace Cliptoo.Core.Native
                     int errorCode = Marshal.GetLastWin32Error();
                     LogManager.LogError($"PASTE_DIAG: ERROR - InputSimulator: Modifier key release SendInput failed with Win32 error code: {errorCode}");
                 }
-                await Task.Delay(30).ConfigureAwait(false); // Give a moment for the OS to process the key-up events
+                await Task.Delay(ModifierReleaseDelayMs).ConfigureAwait(false); // Give a moment for the OS to process the key-up events
             }
 
             INPUT[] pasteInputs =
             {
-                CreateKeyInput(VK_CONTROL, 0),          // Ctrl down
-                CreateKeyInput(VK_V, 0),                // V down
-                CreateKeyInput(VK_V, KEYEVENTF_KEYUP),  // V up
-                CreateKeyInput(VK_CONTROL, KEYEVENTF_KEYUP) // Ctrl up
-            };
+        CreateKeyInput(VK_CONTROL, 0),          // Ctrl down
+        CreateKeyInput(VK_V, 0),                // V down
+        CreateKeyInput(VK_V, KEYEVENTF_KEYUP),  // V up
+        CreateKeyInput(VK_CONTROL, KEYEVENTF_KEYUP) // Ctrl up
+    };
 
             LogManager.LogDebug("InputSimulator: Sending Ctrl+V input.");
             uint result = SendInput((uint)pasteInputs.Length, pasteInputs, Marshal.SizeOf<INPUT>());
