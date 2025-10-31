@@ -12,6 +12,7 @@ using Cliptoo.UI.Native;
 using Cliptoo.UI.Services;
 using Cliptoo.UI.ViewModels;
 using Cliptoo.UI.Views;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Velopack;
@@ -45,7 +46,7 @@ namespace Cliptoo.UI
                 // It's important to Run() as early as possible in app startup.
                 VelopackApp.Build().Run();
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
             {
                 MessageBox.Show($"A critical error occurred with the application updater. Please report this issue.\n\nError: {ex.Message}", "Cliptoo Update Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 Environment.Exit(1);
@@ -75,11 +76,13 @@ namespace Cliptoo.UI
 
             try
             {
-                var app = new App();
-                app.InitializeComponent();
-                app.Run();
+                using (var app = new App())
+                {
+                    app.InitializeComponent();
+                    app.Run();
+                }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
             {
                 LogManager.LogCritical(ex, "A fatal error occurred during application startup after Velopack initialization.");
                 var logFolder = Path.Combine(AppDataRoamingPath, "Cliptoo", "Logs");
@@ -212,7 +215,7 @@ namespace Cliptoo.UI
                 await _host.StartAsync().ConfigureAwait(false);
                 LogManager.LogDebug("Host started.");
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is IOException or SqliteException or InvalidOperationException)
             {
                 LogManager.LogCritical(ex, "A fatal error occurred during application startup.");
                 MessageBox.Show($"A fatal error occurred during application startup and has been logged. The application will now exit.\n\nError: {ex.Message}", "Cliptoo Startup Error", MessageBoxButton.OK, MessageBoxImage.Error);
@@ -234,6 +237,7 @@ namespace Cliptoo.UI
             Dispose();
         }
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "This is a top-level exception handler.")]
         private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
         {
             try
