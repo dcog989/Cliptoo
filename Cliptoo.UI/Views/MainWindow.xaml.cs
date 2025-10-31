@@ -27,7 +27,6 @@ namespace Cliptoo.UI.Views
             DataContext = _viewModel;
 
             _viewModel.IsWindowVisible = IsVisible;
-            _viewModel.ListScrolledToTopRequest += OnListScrolledToTopRequest;
 
             _saveStateDebounceTimer = new DispatcherTimer
             {
@@ -58,58 +57,6 @@ namespace Cliptoo.UI.Views
                 settings.FixedX = (int)Math.Round(this.Left);
                 settings.FixedY = (int)Math.Round(this.Top);
                 _settingsService.SaveSettings();
-            }
-        }
-
-        private void OnListScrolledToTopRequest(object? sender, EventArgs e)
-        {
-            Dispatcher.BeginInvoke(DispatcherPriority.ContextIdle, new Action(() =>
-            {
-                if (ClipListView.Items.Count > 0)
-                {
-                    ClipListView.ScrollIntoView(ClipListView.Items[0]);
-                    ClipListView.SelectedIndex = 0;
-                    if (!SearchTextBox.IsKeyboardFocusWithin)
-                    {
-                        var firstItem = ClipListView.ItemContainerGenerator.ContainerFromIndex(0) as System.Windows.Controls.ListViewItem;
-                        firstItem?.Focus();
-                    }
-                }
-            }));
-        }
-
-        private void ClipListView_PreviewKeyDown(object sender, KeyEventArgs e)
-        {
-            if (sender is not System.Windows.Controls.ListView listView || listView.Items.Count == 0) return;
-
-            switch (e.Key)
-            {
-                case Key.Down:
-                    e.Handled = true;
-                    if (listView.SelectedIndex < listView.Items.Count - 1)
-                    {
-                        listView.SelectedIndex++;
-                        listView.ScrollIntoView(listView.SelectedItem);
-                    }
-                    break;
-                case Key.Up:
-                    e.Handled = true;
-                    if (listView.SelectedIndex > 0)
-                    {
-                        listView.SelectedIndex--;
-                        listView.ScrollIntoView(listView.SelectedItem);
-                    }
-                    break;
-                case Key.Home:
-                    e.Handled = true;
-                    listView.SelectedIndex = 0;
-                    listView.ScrollIntoView(listView.SelectedItem);
-                    break;
-                case Key.End:
-                    e.Handled = true;
-                    listView.SelectedIndex = listView.Items.Count - 1;
-                    listView.ScrollIntoView(listView.SelectedItem);
-                    break;
             }
         }
 
@@ -159,8 +106,6 @@ namespace Cliptoo.UI.Views
             {
                 _saveStateDebounceTimer.Tick -= SaveWindowState_Tick;
             }
-
-            _viewModel.ListScrolledToTopRequest -= OnListScrolledToTopRequest;
 
             // Save final state on graceful close, in case a change was made within the debounce interval.
             SaveWindowState_Tick(null, EventArgs.Empty);
@@ -254,36 +199,6 @@ namespace Cliptoo.UI.Views
             }
         }
 
-        private void MainWindow_Activated(object? sender, EventArgs e)
-        {
-            if (Mouse.LeftButton == MouseButtonState.Pressed)
-            {
-                return;
-            }
-
-            if (SearchTextBox.IsKeyboardFocusWithin || ClipListView.IsKeyboardFocusWithin)
-            {
-                return;
-            }
-            FocusFirstClipItem();
-        }
-
-        private void FocusFirstClipItem()
-        {
-            if (ClipListView.Items.Count > 0)
-            {
-                Dispatcher.BeginInvoke(DispatcherPriority.ContextIdle, new Action(() =>
-                {
-                    if (ClipListView.Items.Count > 0)
-                    {
-                        ClipListView.SelectedIndex = 0;
-                        var firstItem = ClipListView.ItemContainerGenerator.ContainerFromIndex(0) as System.Windows.Controls.ListViewItem;
-                        firstItem?.Focus();
-                    }
-                }));
-            }
-        }
-
         private void ClipListView_MouseLeave(object sender, MouseEventArgs e)
         {
             _viewModel.RequestHidePreview();
@@ -311,22 +226,6 @@ namespace Cliptoo.UI.Views
             {
                 _viewModel.RequestHidePreview();
             }
-
-            if (e.VerticalChange <= 0)
-            {
-                return;
-            }
-
-            if (e.ExtentHeight <= e.ViewportHeight)
-            {
-                return;
-            }
-
-            if (e.VerticalOffset + e.ViewportHeight >= e.ExtentHeight - 10)
-            {
-                _viewModel.LoadMoreClipsCommand.Execute(null);
-            }
         }
-
     }
 }

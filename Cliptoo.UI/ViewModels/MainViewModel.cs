@@ -53,7 +53,8 @@ namespace Cliptoo.UI.ViewModels
         private bool _isReadyForEvents; // Start false, ApplicationHostService will set it to true.
         public bool IsReadyForEvents { get => _isReadyForEvents; set => _isReadyForEvents = value; }
         public event EventHandler<BoolEventArgs>? AlwaysOnTopChanged;
-        public event EventHandler? ListScrolledToTopRequest;
+        private bool _requestScrollToTop;
+        public bool RequestScrollToTop { get => _requestScrollToTop; set => SetProperty(ref _requestScrollToTop, value); }
         public IPreviewManager PreviewManager => _previewManager;
         public ObservableCollection<ClipViewModel> Clips => _clipDisplayService.Clips;
         public ObservableCollection<FilterOption> FilterOptions => _clipDisplayService.FilterOptions;
@@ -203,7 +204,7 @@ namespace Cliptoo.UI.ViewModels
             _databaseService.HistoryCleared += OnHistoryCleared;
             _settingsService.SettingsChanged += OnSettingsChanged;
             _comparisonStateService.ComparisonStateChanged += OnComparisonStateChanged;
-            _clipDisplayService.ListScrolledToTopRequest += (s, e) => ListScrolledToTopRequest?.Invoke(s, e);
+            _clipDisplayService.ListScrolledToTopRequest += (s, e) => RequestScrollToTop = true;
 
             _clearClipsTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
             _clearClipsTimer.Tick += OnClearClipsTimerElapsed;

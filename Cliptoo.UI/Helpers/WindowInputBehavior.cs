@@ -59,12 +59,47 @@ namespace Cliptoo.UI.Helpers
                 window.KeyUp += OnKeyUp;
                 window.PreviewKeyDown += OnPreviewKeyDown;
                 window.PreviewTextInput += OnPreviewTextInput;
+                window.Activated += OnWindowActivated;
             }
             else
             {
                 window.KeyUp -= OnKeyUp;
                 window.PreviewKeyDown -= OnPreviewKeyDown;
                 window.PreviewTextInput -= OnPreviewTextInput;
+                window.Activated -= OnWindowActivated;
+            }
+        }
+
+        private static void OnWindowActivated(object? sender, EventArgs e)
+        {
+            if (sender is not Window window) return;
+
+            // Prevent focus change if user is clicking
+            if (Mouse.LeftButton == MouseButtonState.Pressed)
+            {
+                return;
+            }
+
+            var searchTextBox = GetSearchTextBox(window);
+            var clipListView = GetClipListView(window);
+
+            // Don't change focus if it's already in the search box or list view
+            if (searchTextBox?.IsKeyboardFocusWithin == true || clipListView?.IsKeyboardFocusWithin == true)
+            {
+                return;
+            }
+
+            if (clipListView?.Items.Count > 0)
+            {
+                clipListView.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.ContextIdle, new Action(() =>
+                {
+                    if (clipListView.Items.Count > 0)
+                    {
+                        clipListView.SelectedIndex = 0;
+                        var firstItem = clipListView.ItemContainerGenerator.ContainerFromIndex(0) as ListViewItem;
+                        firstItem?.Focus();
+                    }
+                }));
             }
         }
 
