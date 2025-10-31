@@ -54,9 +54,9 @@ namespace Cliptoo.UI.ViewModels
         {
             var vm = new ClipViewModel(
                 clip,
+                _clipDataService,
                 _clipDetailsLoader,
                 _iconProvider,
-                _clipDataService,
                 _thumbnailService,
                 _webMetadataService,
                 _eventAggregator,

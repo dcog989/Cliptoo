@@ -54,5 +54,6 @@
         <Page Include="App.xaml" />
         <Compile Remove="Views\SettingsPages\KeyboardSettingsView.xaml.cs" />
         <Page Remove="Views\SettingsPages\KeyboardSettingsView.xaml" />
+        <Compile Remove="ViewModels\ClipViewModel.Tooltip.cs" />
     </ItemGroup>
 </Project>
