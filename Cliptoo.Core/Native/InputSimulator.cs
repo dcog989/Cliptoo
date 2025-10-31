@@ -163,11 +163,11 @@ namespace Cliptoo.Core.Native
 
             INPUT[] pasteInputs =
             {
-        CreateKeyInput(VK_CONTROL, 0),          // Ctrl down
-        CreateKeyInput(VK_V, 0),                // V down
-        CreateKeyInput(VK_V, KEYEVENTF_KEYUP),  // V up
-        CreateKeyInput(VK_CONTROL, KEYEVENTF_KEYUP) // Ctrl up
-    };
+                CreateKeyInput(VK_CONTROL, 0),              // Ctrl down
+                CreateKeyInput(VK_V, 0),                    // V down
+                CreateKeyInput(VK_V, KEYEVENTF_KEYUP),      // V up
+                CreateKeyInput(VK_CONTROL, KEYEVENTF_KEYUP) // Ctrl up
+            };
 
             LogManager.LogDebug("InputSimulator: Sending Ctrl+V input.");
             uint result = SendInput((uint)pasteInputs.Length, pasteInputs, Marshal.SizeOf<INPUT>());
