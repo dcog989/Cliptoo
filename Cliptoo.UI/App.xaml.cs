@@ -1,4 +1,5 @@
 using System.IO;
+using System.Reflection;
 using System.Windows;
 using System.Windows.Threading;
 using Cliptoo.Core;
@@ -101,7 +102,8 @@ namespace Cliptoo.UI
 
         protected override async void OnStartup(StartupEventArgs e)
         {
-            _mutex = new Mutex(true, "{CAEEC8DB-0AC3-45E2-BDAF-4B5BB2F47531}-Cliptoo", out bool createdNew);
+            var assemblyName = Assembly.GetExecutingAssembly().GetName().Name;
+            _mutex = new Mutex(true, $"{{CAEEC8DB-0AC3-45E2-BDAF-4B5BB2F47531}}-{assemblyName}", out bool createdNew);
 
             if (!createdNew)
             {
@@ -132,14 +134,14 @@ namespace Cliptoo.UI
                         services.AddSingleton<IClipboardService, ClipboardService>();
 
                         services.AddSingleton<IDatabaseService>(sp => new DatabaseService(
-                           sp.GetRequiredService<IDbManager>(),
-                           sp.GetRequiredService<IThumbnailService>(),
-                           sp.GetRequiredService<IWebMetadataService>(),
-                           sp.GetRequiredService<Core.Services.IIconCacheManager>(),
-                           sp.GetRequiredService<IFileTypeClassifier>(),
-                           sp.GetRequiredService<ISettingsService>(),
-                           AppDataLocalPath
-                       ));
+                            sp.GetRequiredService<IDbManager>(),
+                            sp.GetRequiredService<IThumbnailService>(),
+                            sp.GetRequiredService<IWebMetadataService>(),
+                            sp.GetRequiredService<Core.Services.IIconCacheManager>(),
+                            sp.GetRequiredService<IFileTypeClassifier>(),
+                            sp.GetRequiredService<ISettingsService>(),
+                            AppDataLocalPath
+                        ));
 
                         services.AddSingleton<IAppInteractionService, AppInteractionService>();
                         services.AddSingleton<CliptooController>();
