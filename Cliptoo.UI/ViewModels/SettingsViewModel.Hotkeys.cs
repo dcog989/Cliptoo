@@ -118,6 +118,7 @@ namespace Cliptoo.UI.ViewModels
                     }
                     break;
             }
+            _settingsService.SaveSettings();
         }
 
     }
