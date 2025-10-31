@@ -20,12 +20,12 @@ namespace Cliptoo.Core.Services
             { AppConstants.TransformTypes.Upper, content => content.ToUpperInvariant() },
 #pragma warning disable CA1308 // Normalize strings to uppercase
             { AppConstants.TransformTypes.Lower, content => content.ToLowerInvariant() },
-#pragma warning restore CA1308 // Normalize strings to uppercase
             { AppConstants.TransformTypes.Trim, content => content.Trim() },
-            { AppConstants.TransformTypes.Capitalize, content => CultureInfo.CurrentCulture.TextInfo.ToTitleCase(content.ToUpperInvariant()) },
+            { AppConstants.TransformTypes.Capitalize, content => CultureInfo.CurrentCulture.TextInfo.ToTitleCase(content.ToLowerInvariant()) },
             { AppConstants.TransformTypes.Sentence, content => {
                 var sentenceRegex = new Regex(@"(^\s*\w|[.!?]\s*\w)");
-                return sentenceRegex.Replace(content.ToUpperInvariant(), m => m.Value.ToUpperInvariant());
+                return sentenceRegex.Replace(content.ToLowerInvariant(), m => m.Value.ToUpperInvariant());
+#pragma warning restore CA1308 // Normalize strings to uppercase
             }},
             { AppConstants.TransformTypes.Invert, content => {
                 var charArray = content.ToCharArray();
@@ -81,6 +81,6 @@ namespace Cliptoo.Core.Services
             }
             return content;
         }
-    }
 
+    }
 }
