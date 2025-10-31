@@ -17,12 +17,7 @@ using Cliptoo.UI.ViewModels.Base;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 using Wpf.Ui;
-using System.Globalization;
-using System.Windows.Input;
-using Cliptoo.UI.Views;
-using Microsoft.Win32;
 using Wpf.Ui.Controls;
-using System.Text.Json;
 
 
 namespace Cliptoo.UI.ViewModels
