@@ -56,6 +56,18 @@ namespace Cliptoo.UI.ViewModels
         public FontFamily EditorFontFamily => _editorFontFamily;
 
         public double EditorFontSize => _editorFontSize;
+        public bool IsDarkMode
+        {
+            get
+            {
+                var theme = ApplicationThemeManager.GetAppTheme();
+                if (theme == ApplicationTheme.Unknown)
+                {
+                    theme = ApplicationThemeManager.GetSystemTheme() == SystemTheme.Dark ? ApplicationTheme.Dark : ApplicationTheme.Light;
+                }
+                return theme == ApplicationTheme.Dark;
+            }
+        }
 
         public ICommand SaveChangesCommand { get; }
         public ICommand CancelCommand { get; }
@@ -147,7 +159,7 @@ namespace Cliptoo.UI.ViewModels
                         using var reader = new XmlTextReader(stream);
                         highlighting = HighlightingLoader.Load(reader, HighlightingManager.Instance);
                     }
-                    // If dark theme fails to load, fall back to default, which might look bad but is better than nothing.
+                    // If dark theme fails to load, fall back to default C# highlighting
                     SyntaxHighlighting = highlighting ?? HighlightingManager.Instance.GetDefinition(definitionName);
                 }
                 else
