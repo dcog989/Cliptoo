@@ -14,7 +14,7 @@ namespace Cliptoo.UI.Services
         private readonly INotifyIconService _notifyIconService;
         private readonly MainViewModel _mainViewModel;
         private readonly ISettingsService _settingsService;
-        private MainWindow? MainWindow => Application.Current.MainWindow as MainWindow;
+        private static MainWindow? MainWindow => Application.Current.MainWindow as MainWindow;
 
         private MenuItem? _alwaysOnTopMenuItem;
         private MenuItem? _showHideMenuItem;
@@ -89,8 +89,7 @@ namespace Cliptoo.UI.Services
 
             _mainViewModel.AlwaysOnTopChanged += OnViewModelAlwaysOnTopChanged;
             _mainViewModel.IsAlwaysOnTop = _settingsService.Settings.IsAlwaysOnTop;
-            if (_alwaysOnTopMenuItem != null)
-                _alwaysOnTopMenuItem.IsChecked = _settingsService.Settings.IsAlwaysOnTop;
+            _alwaysOnTopMenuItem.IsChecked = _settingsService.Settings.IsAlwaysOnTop;
         }
 
         private void OnContextMenuOpened(object sender, RoutedEventArgs e)
