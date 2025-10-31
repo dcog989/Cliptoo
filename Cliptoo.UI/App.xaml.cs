@@ -122,6 +122,7 @@ namespace Cliptoo.UI
                         Directory.CreateDirectory(dbFolder);
                         var dbPath = Path.Combine(dbFolder, "cliptoo_history.db");
 
+                        services.AddSingleton<ILogger, Logger>();
                         services.AddSingleton<IDatabaseInitializer>(new DatabaseInitializer(dbPath));
                         services.AddSingleton<IClipRepository>(new ClipRepository(dbPath));
                         services.AddSingleton<IDatabaseMaintenanceService>(new DatabaseMaintenanceService(dbPath));
@@ -134,14 +135,14 @@ namespace Cliptoo.UI
                         services.AddSingleton<IClipboardService, ClipboardService>();
 
                         services.AddSingleton<IDatabaseService>(sp => new DatabaseService(
-                            sp.GetRequiredService<IDbManager>(),
-                            sp.GetRequiredService<IThumbnailService>(),
-                            sp.GetRequiredService<IWebMetadataService>(),
-                            sp.GetRequiredService<Core.Services.IIconCacheManager>(),
-                            sp.GetRequiredService<IFileTypeClassifier>(),
-                            sp.GetRequiredService<ISettingsService>(),
-                            AppDataLocalPath
-                        ));
+                           sp.GetRequiredService<IDbManager>(),
+                           sp.GetRequiredService<IThumbnailService>(),
+                           sp.GetRequiredService<IWebMetadataService>(),
+                           sp.GetRequiredService<Core.Services.IIconCacheManager>(),
+                           sp.GetRequiredService<IFileTypeClassifier>(),
+                           sp.GetRequiredService<ISettingsService>(),
+                           AppDataLocalPath
+                       ));
 
                         services.AddSingleton<IAppInteractionService, AppInteractionService>();
                         services.AddSingleton<CliptooController>();
@@ -185,11 +186,11 @@ namespace Cliptoo.UI
 
                         services.AddSingleton<MainViewModel>();
                         services.AddSingleton<IClipDisplayService>(sp => new ClipDisplayService(
-                           sp.GetRequiredService<IClipDataService>(),
-                           sp.GetRequiredService<IClipViewModelFactory>(),
-                           sp.GetRequiredService<ISettingsService>(),
-                           sp.GetRequiredService<IIconProvider>()
-                       ));
+                            sp.GetRequiredService<IClipDataService>(),
+                            sp.GetRequiredService<IClipViewModelFactory>(),
+                            sp.GetRequiredService<ISettingsService>(),
+                            sp.GetRequiredService<IIconProvider>()
+                        ));
 
                         services.AddTransient<SettingsViewModel>(sp => new SettingsViewModel(
                             sp.GetRequiredService<IDatabaseService>(),
@@ -212,6 +213,11 @@ namespace Cliptoo.UI
                     }).Build();
 
                 Services = _host.Services;
+
+                // Replace the temporary logger with the singleton from the DI container
+                var logger = Services.GetRequiredService<ILogger>();
+                LogManager.Initialize(logger);
+
                 LogManager.LogDebug("Host built and services configured.");
 
                 await _host.StartAsync().ConfigureAwait(false);
