@@ -15,7 +15,6 @@ namespace Cliptoo.Core.Interfaces
         Task DeleteClipAsync(Clip clip);
         Task ToggleFavoriteAsync(int id, bool isFavorite);
         Task MoveClipToTopAsync(int id);
-        void ClearCache();
         Task IncrementPasteCountAsync(int clipId);
         event EventHandler? NewClipAdded;
         event EventHandler? ClipDeleted;
