@@ -10,9 +10,6 @@ using Cliptoo.Core.Logging;
 using Cliptoo.Core.Native.Models;
 using Cliptoo.Core.Services;
 using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats.Png;
-using SixLabors.ImageSharp.Processing;
-using SixLabors.ImageSharp.Processing.Processors.Quantization;
 
 namespace Cliptoo.Core.Native
 {
@@ -235,23 +232,8 @@ namespace Cliptoo.Core.Native
                         var wpfEncoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
                         wpfEncoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(imageSource));
                         wpfEncoder.Save(wpfStream);
-                        wpfStream.Position = 0;
-
-                        using (var image = Image.Load(wpfStream))
-                        {
-                            using (var outputStream = new MemoryStream())
-                            {
-                                var pngEncoder = new PngEncoder()
-                                {
-                                    CompressionLevel = PngCompressionLevel.BestCompression,
-                                    ColorType = PngColorType.Palette,
-                                    Quantizer = new OctreeQuantizer(new QuantizerOptions { MaxColors = 255, Dither = KnownDitherings.FloydSteinberg })
-                                };
-                                image.Save(outputStream, pngEncoder);
-                                var bytes = outputStream.ToArray();
-                                availableData["Image"] = (bytes, HashingUtils.ComputeHash(bytes));
-                            }
-                        }
+                        var bytes = wpfStream.ToArray();
+                        availableData["Image"] = (bytes, HashingUtils.ComputeHash(bytes));
                     }
                 }
             }
@@ -296,5 +278,6 @@ namespace Cliptoo.Core.Native
             _lastImageHash = 0;
             _lastFileDropHash = 0;
         }
+
     }
 }

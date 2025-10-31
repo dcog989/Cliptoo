@@ -11,6 +11,9 @@ using Cliptoo.Core.Services;
 using Cliptoo.Core.Services.Models;
 using Microsoft.Data.Sqlite;
 using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats.Png;
+using SixLabors.ImageSharp.Processing;
+using SixLabors.ImageSharp.Processing.Processors.Quantization;
 
 namespace Cliptoo.Core
 {
@@ -193,19 +196,35 @@ namespace Cliptoo.Core
             }
             else if (e.ContentType == ClipboardContentType.Image)
             {
-                var imageBytes = (byte[])e.Content;
-                if (imageBytes.Length > maxBytes)
+                var rawImageBytes = (byte[])e.Content;
+                byte[] finalImageBytes;
+
+                using (var inputStream = new MemoryStream(rawImageBytes))
+                using (var image = await Image.LoadAsync(inputStream).ConfigureAwait(false))
+                using (var outputStream = new MemoryStream())
                 {
-                    LogManager.LogWarning($"Image clip of size {imageBytes.Length} bytes exceeds limit of {maxBytes} bytes. Clip will be ignored.");
+                    var pngEncoder = new PngEncoder()
+                    {
+                        CompressionLevel = PngCompressionLevel.BestCompression,
+                        ColorType = PngColorType.Palette,
+                        Quantizer = new OctreeQuantizer(new QuantizerOptions { MaxColors = 255, Dither = KnownDitherings.FloydSteinberg })
+                    };
+                    await image.SaveAsync(outputStream, pngEncoder).ConfigureAwait(false);
+                    finalImageBytes = outputStream.ToArray();
+                }
+
+                if (finalImageBytes.Length > maxBytes)
+                {
+                    LogManager.LogWarning($"Image clip of size {finalImageBytes.Length} bytes exceeds limit of {maxBytes} bytes. Clip will be ignored.");
                     return;
                 }
 
-                var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(imageBytes)).ToUpperInvariant();
+                var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(finalImageBytes)).ToUpperInvariant();
                 var imagePath = Path.Combine(_clipboardImageCachePath, $"{hash}.png");
 
                 if (!File.Exists(imagePath))
                 {
-                    await File.WriteAllBytesAsync(imagePath, imageBytes).ConfigureAwait(false);
+                    await File.WriteAllBytesAsync(imagePath, finalImageBytes).ConfigureAwait(false);
                 }
 
                 await _thumbnailService.GetThumbnailAsync(imagePath, null).ConfigureAwait(false);
