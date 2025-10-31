@@ -54,7 +54,9 @@ namespace Cliptoo.Core.Database
                 }
                 command.Parameters.AddWithValue("@FtsSearchTerm", ftsQuery);
 
-                var snippetColumn = isTagSearch ? "1" : "0";
+                // The snippet should always be generated from the main content (column 0),
+                // even during a tag search. The MATCH clause still correctly filters by tag.
+                const string snippetColumn = "0";
                 queryBuilder.AppendFormat(CultureInfo.InvariantCulture,
                     "SELECT {0}, snippet(clips_fts, {1}, '[HL]', '[/HL]', '...', 60) as MatchContext, " +
                     "(c.PasteCount + 1.0) / (MAX(0.0, (julianday('now') - julianday(c.Timestamp)) * 24.0) + 2.0) AS Hotness ",
@@ -66,9 +68,9 @@ namespace Cliptoo.Core.Database
             }
             else
             {
-                // For the default view, we don't need the Hotness score for sorting,
-                // but we select it to keep the result schema consistent with the search query.
+                // For the default view (no search term), keep the result schema consistent.
                 queryBuilder.AppendFormat(CultureInfo.InvariantCulture, "SELECT {0}, " +
+                    "NULL AS MatchContext, " +
                     "0 AS Hotness " +
                     "FROM clips c ", columns);
             }
