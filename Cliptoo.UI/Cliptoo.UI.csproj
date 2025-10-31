@@ -14,7 +14,7 @@
         <AssemblyName>Cliptoo</AssemblyName>
         <Company>dcog989</Company>
         <Authors>dcog989</Authors>
-        <NoWarn>$(NoWarn);1591</NoWarn>
+        <NoWarn>$(NoWarn);1591;CA1812;CA1852;CA2007;CA1859</NoWarn>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
         <AnalysisLevel>latest-All</AnalysisLevel>
