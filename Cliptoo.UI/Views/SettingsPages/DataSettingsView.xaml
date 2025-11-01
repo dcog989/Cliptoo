@@ -17,6 +17,9 @@
                     Text="Maximum" />
                 <ui:NumberBox
                     ClearButtonEnabled="False"
+                    Maximum="9990"
+                    Minimum="10"
+                    SmallChange="10"
                     Style="{StaticResource SettingsNumberBoxStyle}"
                     ToolTip="0 = no limit."
                     Value="{Binding MaxClipsTotal, UpdateSourceTrigger=PropertyChanged}" />
@@ -31,6 +34,8 @@
                     Text="Maximum age" />
                 <ui:NumberBox
                     ClearButtonEnabled="False"
+                    Maximum="9999"
+                    Minimum="0"
                     Style="{StaticResource SettingsNumberBoxStyle}"
                     ToolTip="0 = no limit."
                     Value="{Binding CleanupAgeDays, UpdateSourceTrigger=PropertyChanged}" />
@@ -46,6 +51,7 @@
                     Text="Maximum size" />
                 <ui:NumberBox
                     ClearButtonEnabled="False"
+                    Maximum="9999"
                     Minimum="1"
                     Style="{StaticResource SettingsNumberBoxStyle}"
                     Value="{Binding MaxClipSizeMb, UpdateSourceTrigger=PropertyChanged}" />

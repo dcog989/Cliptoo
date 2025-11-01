@@ -121,7 +121,8 @@
                     Text="Delay before showing" />
                 <ui:NumberBox
                     ClearButtonEnabled="False"
-                    Minimum="0"
+                    Maximum="9990"
+                    Minimum="10"
                     SmallChange="50"
                     Style="{StaticResource SettingsNumberBoxStyle}"
                     ToolTip="0 disables, hotkey always shows."
@@ -167,6 +168,7 @@
                     Text="Text preview max width" />
                 <ui:NumberBox
                     ClearButtonEnabled="False"
+                    Maximum="9990"
                     Minimum="200"
                     SmallChange="10"
                     Style="{StaticResource SettingsNumberBoxStyle}"
@@ -183,6 +185,7 @@
                     Text="Image preview max size" />
                 <ui:NumberBox
                     ClearButtonEnabled="False"
+                    Maximum="9990"
                     Minimum="100"
                     SmallChange="10"
                     Style="{StaticResource SettingsNumberBoxStyle}"
