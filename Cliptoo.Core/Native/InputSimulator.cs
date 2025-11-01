@@ -111,8 +111,8 @@ namespace Cliptoo.Core.Native
         {
             const int PastePollingTimeoutMs = 1000;
             const int PollingIntervalMs = 30;
-            const int DelayForFocusChangeMs = 75;
-            const int DelayForModifierReleaseMs = 50;
+            const int DelayAfterModifierReleaseMs = 75;
+            const int FinalDelayBeforePasteMs = 100;
 
             LogManager.LogDebug("PASTE_DIAG: Waiting for a valid paste target window...");
             var stopwatch = Stopwatch.StartNew();
@@ -123,7 +123,7 @@ namespace Cliptoo.Core.Native
             while (stopwatch.ElapsedMilliseconds < PastePollingTimeoutMs)
             {
                 IntPtr hwnd = GetForegroundWindow();
-                _ = GetWindowThreadProcessId(hwnd, out uint foregroundProcessId);
+                uint foregroundThreadId = GetWindowThreadProcessId(hwnd, out uint foregroundProcessId);
 
                 // Check if the foreground window is not Cliptoo and is ready for input.
                 if (foregroundProcessId != 0 && foregroundProcessId != currentProcessId && IsWindowVisible(hwnd) && IsWindowEnabled(hwnd))
@@ -182,11 +182,11 @@ namespace Cliptoo.Core.Native
                         int errorCode = Marshal.GetLastWin32Error();
                         LogManager.LogError($"PASTE_DIAG: ERROR - InputSimulator: Modifier key release SendInput failed with Win32 error code: {errorCode}");
                     }
-                    await Task.Delay(DelayForModifierReleaseMs).ConfigureAwait(false); // Give a moment for the OS to process the key-up events
+                    await Task.Delay(DelayAfterModifierReleaseMs).ConfigureAwait(false); // Give a moment for the OS to process the key-up events
                 }
 
                 // A small final delay to allow the target application's message queue to process the focus change.
-                await Task.Delay(DelayForFocusChangeMs).ConfigureAwait(false);
+                await Task.Delay(FinalDelayBeforePasteMs).ConfigureAwait(false);
 
                 INPUT[] pasteInputs =
                 {
