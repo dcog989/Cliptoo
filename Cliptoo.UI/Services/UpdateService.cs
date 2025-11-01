@@ -1,6 +1,7 @@
 using Cliptoo.Core.Interfaces;
 using Cliptoo.Core.Logging;
 using Velopack;
+using Velopack.Sources;
 
 namespace Cliptoo.UI.Services
 {
@@ -24,7 +25,8 @@ namespace Cliptoo.UI.Services
             LogManager.LogInfo("Auto-update is enabled. Checking for updates...");
             try
             {
-                var um = new UpdateManager("https://github.com/dcog989/cliptoo");
+                var source = new GithubSource("https://github.com/dcog989/cliptoo", null, false);
+                var um = new UpdateManager(source);
 
                 if (um.IsPortable)
                 {
