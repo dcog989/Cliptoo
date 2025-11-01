@@ -6,6 +6,8 @@ using Cliptoo.Core.Interfaces;
 using Cliptoo.Core.Logging;
 using Cliptoo.Core.Services;
 using SixLabors.ImageSharp;
+using System.Collections.Concurrent;
+using System.Globalization;
 
 namespace Cliptoo.UI.Services
 {
@@ -15,6 +17,7 @@ namespace Cliptoo.UI.Services
         private const int MaxCacheSize = 500;
         private readonly ISettingsService _settingsService;
         private readonly string _iconCachePath;
+        private readonly ConcurrentDictionary<string, Task<ImageSource?>> _ongoingGenerations = new();
 
         private static readonly Dictionary<string, string> _iconMap = new(StringComparer.OrdinalIgnoreCase)
         {
@@ -53,70 +56,110 @@ namespace Cliptoo.UI.Services
             Directory.CreateDirectory(_iconCachePath);
             _cache = new LruCache<string, ImageSource>(MaxCacheSize);
         }
-        public async Task<ImageSource?> GetIconAsync(string key, int size = 20)
+        public Task<ImageSource?> GetIconAsync(string key, int size = 20)
         {
-            if (string.IsNullOrEmpty(key)) return null;
+            if (string.IsNullOrEmpty(key)) return Task.FromResult<ImageSource?>(null);
 
             var dpiScale = GetDpiScale();
 
-            var cacheKey = $"{key}_{size}_{dpiScale}";
+            var cacheKey = $"{key}_{size}_{dpiScale.ToString(CultureInfo.InvariantCulture)}";
 
             if (int.TryParse(key, out _))
             {
                 var settings = _settingsService.Settings;
-                cacheKey = $"{key}_{size}_{dpiScale}_{settings.AccentColor}";
+                cacheKey = $"{key}_{size}_{dpiScale.ToString(CultureInfo.InvariantCulture)}_{settings.AccentColor}";
             }
 
             if (_cache.TryGetValue(cacheKey, out var cachedImage) && cachedImage != null)
             {
-                return cachedImage;
+                return Task.FromResult<ImageSource?>(cachedImage);
             }
 
-            var cacheFilePath = ServiceUtils.GetCachePath(cacheKey, _iconCachePath, ".png");
-            byte[]? iconBytes = null;
+            return _ongoingGenerations.GetOrAdd(cacheKey, GenerateAndCacheIconAsync);
+        }
 
-            if (File.Exists(cacheFilePath))
+        private async Task<ImageSource?> GenerateAndCacheIconAsync(string cacheKey)
+        {
+            try
             {
-                LogManager.LogDebug($"ICON_CACHE_DIAG: On-disk hit for key '{cacheKey}'.");
-                try
+                var cacheFilePath = ServiceUtils.GetCachePath(cacheKey, _iconCachePath, ".png");
+                byte[]? iconBytes = null;
+
+                if (File.Exists(cacheFilePath))
                 {
-                    iconBytes = await File.ReadAllBytesAsync(cacheFilePath).ConfigureAwait(false);
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                {
-                    LogManager.LogWarning($"Failed to read cached icon file: {cacheFilePath}. Error: {ex.Message}");
-                }
-            }
-            else
-            {
-                LogManager.LogDebug($"ICON_CACHE_DIAG: Miss for key '{cacheKey}'. Generating new icon.");
-                iconBytes = await GenerateIconBytesAsync(key, size, dpiScale).ConfigureAwait(false);
-                if (iconBytes != null)
-                {
+                    LogManager.LogDebug($"ICON_CACHE_DIAG: On-disk hit for key '{cacheKey}'.");
                     try
                     {
-                        await File.WriteAllBytesAsync(cacheFilePath, iconBytes).ConfigureAwait(false);
+                        iconBytes = await File.ReadAllBytesAsync(cacheFilePath).ConfigureAwait(false);
                     }
                     catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                     {
-                        LogManager.LogWarning($"Failed to save icon to cache: {cacheFilePath}. Error: {ex.Message}");
+                        LogManager.LogWarning($"Failed to read cached icon file: {cacheFilePath}. Error: {ex.Message}");
                     }
                 }
+                else
+                {
+                    LogManager.LogDebug($"ICON_CACHE_DIAG: Miss for key '{cacheKey}'. Generating new icon.");
+
+                    var parts = cacheKey.Split('_');
+                    string key;
+                    int size;
+                    double dpiScale;
+
+                    if (parts.Last().StartsWith('#'))
+                    {
+                        // Format: {key}_{size}_{dpiScale}_{accentColor}
+                        if (parts.Length < 4) throw new ArgumentException($"Invalid cacheKey format for accent color icon: {cacheKey}", nameof(cacheKey));
+                        dpiScale = double.Parse(parts[parts.Length - 2], CultureInfo.InvariantCulture);
+                        size = int.Parse(parts[parts.Length - 3], CultureInfo.InvariantCulture);
+                        key = string.Join("_", parts.Take(parts.Length - 3));
+                    }
+                    else
+                    {
+                        // Format: {key}_{size}_{dpiScale}
+                        if (parts.Length < 3) throw new ArgumentException($"Invalid cacheKey format for standard icon: {cacheKey}", nameof(cacheKey));
+                        dpiScale = double.Parse(parts.Last(), CultureInfo.InvariantCulture);
+                        size = int.Parse(parts[parts.Length - 2], CultureInfo.InvariantCulture);
+                        key = string.Join("_", parts.Take(parts.Length - 2));
+                    }
+
+
+                    iconBytes = await GenerateIconBytesAsync(key, size, dpiScale).ConfigureAwait(false);
+                    if (iconBytes != null)
+                    {
+                        try
+                        {
+                            await File.WriteAllBytesAsync(cacheFilePath, iconBytes).ConfigureAwait(false);
+                        }
+                        catch (IOException ex)
+                        {
+                            LogManager.LogDebug($"Could not write icon cache file (may be a harmless race condition): {cacheFilePath}. Error: {ex.Message}");
+                        }
+                        catch (Exception ex) when (ex is UnauthorizedAccessException)
+                        {
+                            LogManager.LogWarning($"Failed to save icon to cache: {cacheFilePath}. Error: {ex.Message}");
+                        }
+                    }
+                }
+
+                if (iconBytes == null) return null;
+
+                var bitmapImage = new BitmapImage();
+                using (var ms = new MemoryStream(iconBytes))
+                {
+                    bitmapImage.BeginInit();
+                    bitmapImage.StreamSource = ms;
+                    bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
+                    bitmapImage.EndInit();
+                }
+                bitmapImage.Freeze();
+                _cache.Add(cacheKey, bitmapImage);
+                return bitmapImage;
             }
-
-            if (iconBytes == null) return null;
-
-            var bitmapImage = new BitmapImage();
-            using (var ms = new MemoryStream(iconBytes))
+            finally
             {
-                bitmapImage.BeginInit();
-                bitmapImage.StreamSource = ms;
-                bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
-                bitmapImage.EndInit();
+                _ongoingGenerations.TryRemove(cacheKey, out _);
             }
-            bitmapImage.Freeze();
-            _cache.Add(cacheKey, bitmapImage);
-            return bitmapImage;
         }
 
         private async Task<byte[]?> GenerateIconBytesAsync(string key, int size, double dpiScale)

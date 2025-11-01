@@ -10,7 +10,20 @@ namespace Cliptoo.UI.Controls
         public ClipItemControl()
         {
             InitializeComponent();
+            DataContextChanged += OnDataContextChanged;
             Unloaded += OnUnloaded;
+        }
+
+        private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
+        {
+            if (e.OldValue is ClipViewModel oldVm)
+            {
+                oldVm.ReleaseThumbnail();
+            }
+            if (e.NewValue is ClipViewModel newVm)
+            {
+                _ = newVm.LoadThumbnailAsync();
+            }
         }
 
         private void OnUnloaded(object sender, RoutedEventArgs e)

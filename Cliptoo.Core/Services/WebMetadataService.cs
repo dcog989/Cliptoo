@@ -83,6 +83,7 @@ namespace Cliptoo.Core.Services
                         if (DateTime.TryParse(timestampText, null, System.Globalization.DateTimeStyles.RoundtripKind, out var timestamp) && (DateTime.UtcNow - timestamp) < FailureCacheDuration)
                         {
                             _failedFaviconUrls.TryAdd(urlString, true);
+                            LogManager.LogDebug($"FAVICON_CACHE_DIAG: Hit recent failure cache for '{urlString}'. Skipping fetch.");
                             return null;
                         }
                     }
@@ -359,17 +360,12 @@ namespace Cliptoo.Core.Services
                     return false;
                 }
 
-                using var headRequest = new HttpRequestMessage(HttpMethod.Head, faviconUri);
-                var headResponse = await _httpClient.SendAsync(headRequest, cancellationToken).ConfigureAwait(false);
-
-                if (!headResponse.IsSuccessStatusCode || headResponse.Content.Headers.ContentType?.MediaType?.StartsWith("image/", StringComparison.OrdinalIgnoreCase) != true)
+                var response = await _httpClient.GetAsync(faviconUri, cancellationToken).ConfigureAwait(false);
+                if (!response.IsSuccessStatusCode)
                 {
-                    LogManager.LogDebug($"Favicon HEAD request failed or content-type is not image for {faviconUrl}. Status: {headResponse.StatusCode}, Type: {headResponse.Content.Headers.ContentType?.MediaType}");
+                    LogManager.LogDebug($"Favicon GET request for {faviconUrl} failed with status code {response.StatusCode}.");
                     return false;
                 }
-
-                var response = await _httpClient.GetAsync(faviconUri, cancellationToken).ConfigureAwait(false);
-                if (!response.IsSuccessStatusCode) return false;
 
                 byte[]? outputBytes = null;
                 var extension = Path.GetExtension(faviconUri.AbsolutePath).ToUpperInvariant();

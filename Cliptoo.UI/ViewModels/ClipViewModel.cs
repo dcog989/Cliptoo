@@ -342,6 +342,8 @@ namespace Cliptoo.UI.ViewModels
             OnPropertyChanged(nameof(Preview));
         }
 
+        public Task LoadThumbnailAsync() => _details.LoadThumbnailAsync();
+
         public void ReleaseThumbnail()
         {
             _details.ReleaseThumbnail();
