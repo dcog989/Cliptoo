@@ -111,8 +111,8 @@ namespace Cliptoo.Core.Native
         {
             const int PastePollingTimeoutMs = 1000;
             const int PollingIntervalMs = 30;
-            const int FinalDelayBeforePasteMs = 50;
-            const int ModifierReleaseDelayMs = 30;
+            const int DelayForFocusChangeMs = 75;
+            const int DelayForModifierReleaseMs = 50;
 
             LogManager.LogDebug("PASTE_DIAG: Waiting for a valid paste target window...");
             var stopwatch = Stopwatch.StartNew();
@@ -123,7 +123,7 @@ namespace Cliptoo.Core.Native
             while (stopwatch.ElapsedMilliseconds < PastePollingTimeoutMs)
             {
                 IntPtr hwnd = GetForegroundWindow();
-                uint foregroundThreadId = GetWindowThreadProcessId(hwnd, out uint foregroundProcessId);
+                _ = GetWindowThreadProcessId(hwnd, out uint foregroundProcessId);
 
                 // Check if the foreground window is not Cliptoo and is ready for input.
                 if (foregroundProcessId != 0 && foregroundProcessId != currentProcessId && IsWindowVisible(hwnd) && IsWindowEnabled(hwnd))
@@ -168,9 +168,6 @@ namespace Cliptoo.Core.Native
                 }
 
 
-                // A small final delay to allow the target application's message queue to process the focus change.
-                await Task.Delay(FinalDelayBeforePasteMs).ConfigureAwait(false);
-
                 // Temporarily release any modifier keys the user is holding for Quick Paste
                 var modifierReleaseInputs = new List<INPUT>();
                 if (KeyboardUtils.IsControlPressed()) modifierReleaseInputs.Add(CreateKeyInput(VK_CONTROL, KEYEVENTF_KEYUP));
@@ -185,16 +182,19 @@ namespace Cliptoo.Core.Native
                         int errorCode = Marshal.GetLastWin32Error();
                         LogManager.LogError($"PASTE_DIAG: ERROR - InputSimulator: Modifier key release SendInput failed with Win32 error code: {errorCode}");
                     }
-                    await Task.Delay(ModifierReleaseDelayMs).ConfigureAwait(false); // Give a moment for the OS to process the key-up events
+                    await Task.Delay(DelayForModifierReleaseMs).ConfigureAwait(false); // Give a moment for the OS to process the key-up events
                 }
+
+                // A small final delay to allow the target application's message queue to process the focus change.
+                await Task.Delay(DelayForFocusChangeMs).ConfigureAwait(false);
 
                 INPUT[] pasteInputs =
                 {
-                CreateKeyInput(VK_CONTROL, 0),          // Ctrl down
-                CreateKeyInput(VK_V, 0),                // V down
-                CreateKeyInput(VK_V, KEYEVENTF_KEYUP),  // V up
-                CreateKeyInput(VK_CONTROL, KEYEVENTF_KEYUP) // Ctrl up
-            };
+            CreateKeyInput(VK_CONTROL, 0),          // Ctrl down
+            CreateKeyInput(VK_V, 0),                // V down
+            CreateKeyInput(VK_V, KEYEVENTF_KEYUP),  // V up
+            CreateKeyInput(VK_CONTROL, KEYEVENTF_KEYUP) // Ctrl up
+        };
 
                 LogManager.LogDebug("InputSimulator: Sending Ctrl+V input.");
                 uint result = SendInput((uint)pasteInputs.Length, pasteInputs, Marshal.SizeOf<INPUT>());
