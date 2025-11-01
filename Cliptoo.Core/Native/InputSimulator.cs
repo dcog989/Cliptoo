@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
@@ -111,8 +110,7 @@ namespace Cliptoo.Core.Native
         {
             const int PastePollingTimeoutMs = 1000;
             const int PollingIntervalMs = 30;
-            const int DelayAfterModifierReleaseMs = 75;
-            const int FinalDelayBeforePasteMs = 100;
+            const int DelayForStateResetMs = 100;
 
             LogManager.LogDebug("PASTE_DIAG: Waiting for a valid paste target window...");
             var stopwatch = Stopwatch.StartNew();
@@ -167,26 +165,23 @@ namespace Cliptoo.Core.Native
                     LogManager.LogWarning($"PASTE_DIAG: Failed to attach thread input with Win32 error code: {errorCode}. Proceeding without attachment.");
                 }
 
-
-                // Temporarily release any modifier keys the user is holding for Quick Paste
-                var modifierReleaseInputs = new List<INPUT>();
-                if (KeyboardUtils.IsControlPressed()) modifierReleaseInputs.Add(CreateKeyInput(VK_CONTROL, KEYEVENTF_KEYUP));
-                if (KeyboardUtils.IsAltPressed()) modifierReleaseInputs.Add(CreateKeyInput(VK_MENU, KEYEVENTF_KEYUP));
-                if (KeyboardUtils.IsShiftPressed()) modifierReleaseInputs.Add(CreateKeyInput(VK_SHIFT, KEYEVENTF_KEYUP));
-
-                if (modifierReleaseInputs.Count > 0)
+                // Force-release all modifier keys to ensure a clean state before pasting.
+                // This helps prevent conflicts with keys the user might still be holding (e.g., for Quick Paste).
+                var resetInputs = new INPUT[]
                 {
-                    uint releaseResult = SendInput((uint)modifierReleaseInputs.Count, modifierReleaseInputs.ToArray(), Marshal.SizeOf<INPUT>());
-                    if (releaseResult == 0)
-                    {
-                        int errorCode = Marshal.GetLastWin32Error();
-                        LogManager.LogError($"PASTE_DIAG: ERROR - InputSimulator: Modifier key release SendInput failed with Win32 error code: {errorCode}");
-                    }
-                    await Task.Delay(DelayAfterModifierReleaseMs).ConfigureAwait(false); // Give a moment for the OS to process the key-up events
+            CreateKeyInput(VK_CONTROL, KEYEVENTF_KEYUP),
+            CreateKeyInput(VK_MENU, KEYEVENTF_KEYUP),
+            CreateKeyInput(VK_SHIFT, KEYEVENTF_KEYUP)
+                };
+                if (SendInput((uint)resetInputs.Length, resetInputs, Marshal.SizeOf<INPUT>()) == 0)
+                {
+                    int errorCode = Marshal.GetLastWin32Error();
+                    LogManager.LogError($"PASTE_DIAG: ERROR - InputSimulator: Modifier key reset SendInput failed with Win32 error code: {errorCode}");
                 }
 
-                // A small final delay to allow the target application's message queue to process the focus change.
-                await Task.Delay(FinalDelayBeforePasteMs).ConfigureAwait(false);
+                // Wait for the system to process the key releases. This is crucial.
+                await Task.Delay(DelayForStateResetMs).ConfigureAwait(false);
+
 
                 INPUT[] pasteInputs =
                 {
@@ -196,7 +191,7 @@ namespace Cliptoo.Core.Native
             CreateKeyInput(VK_CONTROL, KEYEVENTF_KEYUP) // Ctrl up
         };
 
-                LogManager.LogDebug("InputSimulator: Sending Ctrl+V input.");
+                LogManager.LogDebug("InputSimulator: Sending Ctrl+V input block.");
                 uint result = SendInput((uint)pasteInputs.Length, pasteInputs, Marshal.SizeOf<INPUT>());
                 if (result == 0)
                 {
