@@ -263,7 +263,7 @@ namespace Cliptoo.UI.ViewModels
             get
             {
                 if (Stats == null) return "Loading stats...";
-                var favoriteText = Stats.FavoriteClips > 0 ? $" (+{Stats.FavoriteClips:N0} favorited)" : "";
+                var favoriteText = Stats.FavoriteClips > 0 ? $" (+{Stats.FavoriteClips:N0} favorites)" : "";
                 var totalNonFavorite = Stats.TotalClips - Stats.FavoriteClips;
                 return $"{totalNonFavorite:N0} clips{favoriteText} in database using {Stats.DatabaseSizeMb} MB.";
             }
