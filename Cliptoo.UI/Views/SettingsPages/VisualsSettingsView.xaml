@@ -122,7 +122,7 @@
                 <ui:NumberBox
                     ClearButtonEnabled="False"
                     Maximum="9990"
-                    Minimum="10"
+                    Minimum="0"
                     SmallChange="50"
                     Style="{StaticResource SettingsNumberBoxStyle}"
                     ToolTip="0 disables, hotkey always shows."
