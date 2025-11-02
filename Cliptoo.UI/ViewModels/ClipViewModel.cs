@@ -297,26 +297,29 @@ namespace Cliptoo.UI.ViewModels
             }
             else
             {
+                string textForPreview;
                 if (_clip.ClipType == AppConstants.ClipTypeRtf)
                 {
-                    basePreview = RtfUtils.ToPlainText(Content);
+                    textForPreview = RtfUtils.ToPlainText(Content);
                 }
                 else
                 {
-                    using (var reader = new StringReader(DisplayContent))
+                    textForPreview = DisplayContent;
+                }
+
+                using (var reader = new StringReader(textForPreview))
+                {
+                    string? firstLine = string.Empty;
+                    string? currentLine;
+                    while ((currentLine = reader.ReadLine()) != null)
                     {
-                        string? firstLine = string.Empty;
-                        string? currentLine;
-                        while ((currentLine = reader.ReadLine()) != null)
+                        if (!string.IsNullOrWhiteSpace(currentLine))
                         {
-                            if (!string.IsNullOrWhiteSpace(currentLine))
-                            {
-                                firstLine = currentLine.Trim();
-                                break;
-                            }
+                            firstLine = currentLine.Trim();
+                            break;
                         }
-                        basePreview = firstLine ?? string.Empty;
                     }
+                    basePreview = firstLine ?? string.Empty;
                 }
 
                 if (isSearching)
