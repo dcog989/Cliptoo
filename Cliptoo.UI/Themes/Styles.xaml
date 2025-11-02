@@ -21,7 +21,6 @@
                         <Border
                             x:Name="Bd"
                             Padding="{TemplateBinding Padding}"
-                            Background="Transparent"
                             CornerRadius="4"
                             SnapsToDevicePixels="true">
                             <ContentPresenter />
@@ -40,6 +39,9 @@
                         </Grid>
                     </Grid>
                     <ControlTemplate.Triggers>
+                        <Trigger Property="ItemsControl.AlternationIndex" Value="0">
+                            <Setter TargetName="Bd" Property="Background" Value="Transparent" />
+                        </Trigger>
                         <Trigger Property="ItemsControl.AlternationIndex" Value="1">
                             <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SystemFillColorSolidAttentionBackgroundBrush}" />
                         </Trigger>
