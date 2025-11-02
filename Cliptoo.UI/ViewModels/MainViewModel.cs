@@ -303,6 +303,7 @@ namespace Cliptoo.UI.ViewModels
 
         public void HideWindow()
         {
+            _appInteractionService.IsUiInteractive = false;
             IsHidingExplicitly = true;
             IsFilterPopupOpen = false;
             _clearClipsTimer.Start();
@@ -323,6 +324,7 @@ namespace Cliptoo.UI.ViewModels
 
         public void HandleWindowShown()
         {
+            _appInteractionService.IsUiInteractive = true;
             GCSettings.LatencyMode = GCLatencyMode.Interactive;
             LogManager.LogDebug("GC mode restored to Interactive.");
             _clearClipsTimer.Stop();

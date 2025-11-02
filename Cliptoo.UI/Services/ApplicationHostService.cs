@@ -208,12 +208,10 @@ namespace Cliptoo.UI.Services
                 Application.Current.Dispatcher.BeginInvoke(new Action(() =>
                 {
                     _mainViewModel?.HideWindow();
-                    _appInteractionService.IsUiInteractive = false;
                 }));
             }
             else
             {
-                _appInteractionService.IsUiInteractive = true;
                 _appInteractionService.NotifyUiActivity();
                 _windowPositioner.PositionWindow(_mainWindow, _settingsService.Settings, isTrayRequest);
                 _mainWindow.Show();
