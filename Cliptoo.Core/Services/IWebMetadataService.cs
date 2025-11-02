@@ -5,7 +5,7 @@ namespace Cliptoo.Core.Services
 {
     public interface IWebMetadataService
     {
-        Task<string?> GetFaviconAsync(Uri url);
+        Task<string?> GetFaviconAsync(Uri url, string? theme);
         Task<string?> GetPageTitleAsync(Uri url);
         void ClearCache();
         void ClearCacheForUrl(Uri url);

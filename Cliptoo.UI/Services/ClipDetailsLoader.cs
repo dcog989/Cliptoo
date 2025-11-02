@@ -35,7 +35,7 @@ namespace Cliptoo.UI.Services
             }
             if (vm.ClipType == AppConstants.ClipTypeLink && Uri.TryCreate(vm.Content, UriKind.Absolute, out var uri))
             {
-                return await webMetadataService.GetFaviconAsync(uri).ConfigureAwait(false);
+                return await webMetadataService.GetFaviconAsync(uri, theme).ConfigureAwait(false);
             }
             return null;
         }
