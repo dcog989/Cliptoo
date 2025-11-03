@@ -68,7 +68,7 @@ namespace Cliptoo.Core.Services
         {
             ArgumentNullException.ThrowIfNull(content);
 
-            const int maxLogLength = 200;
+            const int maxLogLength = 100;
             var truncatedInput = content.Length > maxLogLength ? string.Concat(content.AsSpan(0, maxLogLength), "...") : content;
 
             LogManager.LogDebug($"TRANSFORM_DIAG (Transformer): Applying '{transformType}'. Input: '{truncatedInput}'.");
