@@ -307,45 +307,45 @@ namespace Cliptoo.UI.Services
             var iconProvider = _serviceProvider.GetRequiredService<IIconProvider>();
 
             var commonIconKeys = new List<(string key, int size)>
-    {
-        // From UiSharedResources
-        (AppConstants.IconKeyLogo, 24),
-        (AppConstants.IconKeyList, 28),
-        (AppConstants.IconKeyWasTrimmed, 20),
-        (AppConstants.IconKeyMultiline, 20),
-        (AppConstants.IconKeyFavorite, 20),
-        (AppConstants.IconKeyFavorite, 16),
-        (AppConstants.IconKeyError, 32),
-        (AppConstants.IconKeyTrash, 16),
+            {
+                // From UiSharedResources
+                (AppConstants.IconKeyLogo, 24),
+                (AppConstants.IconKeyList, 28),
+                (AppConstants.IconKeyWasTrimmed, 20),
+                (AppConstants.IconKeyMultiline, 20),
+                (AppConstants.IconKeyFavorite, 20),
+                (AppConstants.IconKeyFavorite, 16),
+                (AppConstants.IconKeyError, 32),
+                (AppConstants.IconKeyTrash, 16),
 
-        // Filter icons from ClipDisplayService
-        (AppConstants.FilterKeyAll, 20),
-        (AppConstants.ClipTypeArchive, 20),
-        (AppConstants.ClipTypeAudio, 20),
-        (AppConstants.ClipTypeCodeSnippet, 20),
-        (AppConstants.ClipTypeColor, 20),
-        (AppConstants.ClipTypeDanger, 20),
-        (AppConstants.ClipTypeDatabase, 20),
-        (AppConstants.ClipTypeDev, 20),
-        (AppConstants.ClipTypeDocument, 20),
-        (AppConstants.ClipTypeFolder, 20),
-        (AppConstants.ClipTypeFont, 20),
-        (AppConstants.ClipTypeGeneric, 20),
-        (AppConstants.ClipTypeImage, 20),
-        (AppConstants.ClipTypeLink, 20),
-        (AppConstants.ClipTypeSystem, 20),
-        (AppConstants.ClipTypeText, 20),
-        (AppConstants.ClipTypeFileText, 20),
-        (AppConstants.ClipTypeRtf, 20),
-        (AppConstants.ClipTypeVideo, 20),
+                // Filter icons from ClipDisplayService
+                (AppConstants.FilterKeyAll, 20),
+                (AppConstants.ClipTypeArchive, 20),
+                (AppConstants.ClipTypeAudio, 20),
+                (AppConstants.ClipTypeCodeSnippet, 20),
+                (AppConstants.ClipTypeColor, 20),
+                (AppConstants.ClipTypeDanger, 20),
+                (AppConstants.ClipTypeDatabase, 20),
+                (AppConstants.ClipTypeDev, 20),
+                (AppConstants.ClipTypeDocument, 20),
+                (AppConstants.ClipTypeFolder, 20),
+                (AppConstants.ClipTypeFont, 20),
+                (AppConstants.ClipTypeGeneric, 20),
+                (AppConstants.ClipTypeImage, 20),
+                (AppConstants.ClipTypeLink, 20),
+                (AppConstants.ClipTypeSystem, 20),
+                (AppConstants.ClipTypeText, 20),
+                (AppConstants.ClipTypeFileText, 20),
+                (AppConstants.ClipTypeRtf, 20),
+                (AppConstants.ClipTypeVideo, 20),
 
-        // Other common icons
-        (AppConstants.ClipTypeFileLink, 20),
+                // Other common icons
+                (AppConstants.ClipTypeFileLink, 20),
 
-        // Quick Paste icons
-        ("1", 32), ("2", 32), ("3", 32), ("4", 32), ("5", 32),
-        ("6", 32), ("7", 32), ("8", 32), ("9", 32),
-    };
+                // Quick Paste icons
+                ("1", 32), ("2", 32), ("3", 32), ("4", 32), ("5", 32),
+                ("6", 32), ("7", 32), ("8", 32), ("9", 32),
+            };
 
             var tasks = new List<Task>();
             foreach (var (key, size) in commonIconKeys.Distinct())
