@@ -18,6 +18,10 @@ namespace Cliptoo.UI.ViewModels
 {
     public partial class MainViewModel
     {
+        // The delay (in ms) to wait after showing the "Copied" notification
+        // from a tray activation before hiding the main window. This gives the user time to read the message.
+        private const int HideWindowAfterNotificationDelayMs = 5000;
+
         public ICommand PasteClipCommand { get; }
         public ICommand OpenSettingsCommand { get; }
         public ICommand HideWindowCommand { get; }
@@ -81,9 +85,51 @@ namespace Cliptoo.UI.ViewModels
 
         private async Task ExecutePasteClip(object? parameter, bool? forcePlainText)
         {
-            if (parameter is ClipViewModel clipVM)
+            if (parameter is not ClipViewModel clipVM) return;
+
+            if (ActivationSourceIsTray)
+            {
+                await CopyToClipboardAndNotify(clipVM, forcePlainText);
+            }
+            else
             {
                 await PerformPasteAction(clipVM, clip => _pastingService.PasteClipAsync(clip, forcePlainText));
+            }
+        }
+
+        private async Task CopyToClipboardAndNotify(ClipViewModel clipVM, bool? forcePlainText)
+        {
+            if (IsPasting) return;
+            IsPasting = true;
+            try
+            {
+                if (CurrentSettings.MoveClipToTopOnPaste)
+                {
+                    await _clipDataService.MoveClipToTopAsync(clipVM.Id);
+                    _needsRefreshOnShow = true; // Refresh needed to show moved clip next time
+                }
+
+                var clip = await _clipDataService.GetClipByIdAsync(clipVM.Id);
+                if (clip == null) return;
+
+                await _pastingService.SetClipboardContentAsync(clip, forcePlainText);
+                await _clipDataService.IncrementPasteCountAsync(clip.Id);
+                await _clipboardService.UpdatePasteCountAsync();
+
+                var notificationTimeoutSeconds = (int)Math.Ceiling(HideWindowAfterNotificationDelayMs / 1000.0);
+                _notificationService.Show("Copied to Clipboard", "Ready to paste in your target application.", ControlAppearance.Primary, SymbolRegular.Copy24, notificationTimeoutSeconds);
+
+                await Task.Delay(HideWindowAfterNotificationDelayMs);
+                HideWindow();
+            }
+            catch (Exception ex) when (ex is IOException or System.ComponentModel.Win32Exception or SqliteException or InvalidOperationException)
+            {
+                LogManager.LogError($"Copy-to-clipboard action failed. Error: {ex.Message}");
+                _notificationService.Show("Copy Failed", "Could not copy the selected item.", ControlAppearance.Danger, SymbolRegular.ErrorCircle24);
+            }
+            finally
+            {
+                IsPasting = false;
             }
         }
 

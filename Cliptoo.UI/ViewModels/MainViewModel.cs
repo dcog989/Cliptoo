@@ -61,6 +61,7 @@ namespace Cliptoo.UI.ViewModels
         public ObservableCollection<FilterOption> FilterOptions => _clipDisplayService.FilterOptions;
         public bool IsCompareToolAvailable => _comparisonStateService.IsCompareToolAvailable;
         public bool IsHidingExplicitly { get; set; }
+        public bool ActivationSourceIsTray { get; set; }
         public bool IsInitializing { get; set; } = true;
         public Settings CurrentSettings { get => _currentSettings; private set => SetProperty(ref _currentSettings, value); }
         public FontFamily MainFont { get => _mainFont; private set => SetProperty(ref _mainFont, value); }

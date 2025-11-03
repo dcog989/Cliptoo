@@ -212,6 +212,7 @@ namespace Cliptoo.UI.Services
             }
             else
             {
+                if (_mainViewModel != null) _mainViewModel.ActivationSourceIsTray = isTrayRequest;
                 _appInteractionService.NotifyUiActivity();
                 _windowPositioner.PositionWindow(_mainWindow, _settingsService.Settings, isTrayRequest);
                 _mainWindow.Show();
