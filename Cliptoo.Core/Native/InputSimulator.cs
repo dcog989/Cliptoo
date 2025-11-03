@@ -13,6 +13,8 @@ namespace Cliptoo.Core.Native
         private const ushort VK_CONTROL = 0x11;
         private const ushort VK_MENU = 0x12;
         private const ushort VK_SHIFT = 0x10;
+        private const ushort VK_LWIN = 0x5B;
+        private const ushort VK_RWIN = 0x5C;
         private const ushort VK_V = 0x56;
 
         [StructLayout(LayoutKind.Sequential)]
@@ -109,117 +111,83 @@ namespace Cliptoo.Core.Native
         public static async Task SendPasteAsync()
         {
             const int PastePollingTimeoutMs = 1000;
-            const int PollingIntervalMs = 30;
+            const int PollingIntervalMs = 20;
+            const int FocusSettleDelayMs = 50;
             const int DelayForStateResetMs = 100;
+            const int DelayForCtrlRegistrationMs = 30;
 
-            LogManager.LogDebug("PASTE_DIAG: Waiting for a valid paste target window...");
             var stopwatch = Stopwatch.StartNew();
             uint currentProcessId = (uint)Environment.ProcessId;
             IntPtr targetHwnd = IntPtr.Zero;
 
-            // Poll for up to 1 second to find a suitable window to paste into.
             while (stopwatch.ElapsedMilliseconds < PastePollingTimeoutMs)
             {
-                IntPtr hwnd = GetForegroundWindow();
-                uint foregroundThreadId = GetWindowThreadProcessId(hwnd, out uint foregroundProcessId);
+                IntPtr candidateHwnd = GetForegroundWindow();
+                _ = GetWindowThreadProcessId(candidateHwnd, out uint candidateProcessId);
 
-                // Check if the foreground window is not Cliptoo and is ready for input.
-                if (foregroundProcessId != 0 && foregroundProcessId != currentProcessId && IsWindowVisible(hwnd) && IsWindowEnabled(hwnd))
+                if (candidateProcessId != 0 && candidateProcessId != currentProcessId && IsWindowVisible(candidateHwnd) && IsWindowEnabled(candidateHwnd))
                 {
-                    targetHwnd = hwnd;
-                    break; // Found a valid, ready target.
+                    // Found a potential target. Wait a moment to see if focus settles on it.
+                    await Task.Delay(FocusSettleDelayMs).ConfigureAwait(false);
+                    IntPtr finalHwnd = GetForegroundWindow();
+
+                    if (finalHwnd == candidateHwnd)
+                    {
+                        targetHwnd = finalHwnd;
+                        break; // Focus is stable on the target window.
+                    }
                 }
+
                 await Task.Delay(PollingIntervalMs).ConfigureAwait(false);
             }
             stopwatch.Stop();
 
             if (targetHwnd == IntPtr.Zero)
             {
-                LogManager.LogWarning($"PASTE_DIAG: Paste aborted. No valid target window found after polling for {stopwatch.ElapsedMilliseconds}ms.");
+                LogManager.LogWarning($"PASTE_DIAG: Paste aborted. No stable target window found after polling for {stopwatch.ElapsedMilliseconds}ms.");
                 return;
             }
 
-            // Log final state for diagnostics.
-            uint targetThreadId = GetWindowThreadProcessId(targetHwnd, out uint finalPid);
-            var finalProcessName = ProcessUtils.GetForegroundWindowProcessName();
-            var finalBuffer = new char[256];
-            _ = GetWindowText(targetHwnd, finalBuffer, finalBuffer.Length);
-            var finalWindowTitle = new string(finalBuffer).TrimEnd('\0');
-            LogManager.LogDebug($"PASTE_DIAG: Found target window in {stopwatch.ElapsedMilliseconds}ms.");
-            LogManager.LogDebug($"PASTE_DIAG: Target HWND: {targetHwnd}, PID: {finalPid}, Process: '{finalProcessName ?? "Unknown"}', Title: '{finalWindowTitle}'");
-
-
+            uint targetThreadId = GetWindowThreadProcessId(targetHwnd, out _);
             uint currentThreadId = GetCurrentThreadId();
             bool attached = false;
             try
             {
-                // Attach to the target window's input thread. This helps ensure the input goes to the right place.
                 attached = AttachThreadInput(currentThreadId, targetThreadId, true);
-                if (attached)
-                {
-                    LogManager.LogDebug("PASTE_DIAG: Successfully attached thread input.");
-                }
-                else
-                {
-                    int errorCode = Marshal.GetLastWin32Error();
-                    LogManager.LogWarning($"PASTE_DIAG: Failed to attach thread input with Win32 error code: {errorCode}. Proceeding without attachment.");
-                }
 
-                // Force-release all modifier keys to ensure a clean state before pasting.
-                // This helps prevent conflicts with keys the user might still be holding (e.g., for Quick Paste).
                 var resetInputs = new INPUT[]
                 {
-            CreateKeyInput(VK_CONTROL, KEYEVENTF_KEYUP),
-            CreateKeyInput(VK_MENU, KEYEVENTF_KEYUP),
-            CreateKeyInput(VK_SHIFT, KEYEVENTF_KEYUP)
+                    CreateKeyInput(VK_CONTROL, KEYEVENTF_KEYUP),
+                    CreateKeyInput(VK_MENU, KEYEVENTF_KEYUP),
+                    CreateKeyInput(VK_SHIFT, KEYEVENTF_KEYUP),
+                    CreateKeyInput(VK_LWIN, KEYEVENTF_KEYUP),
+                    CreateKeyInput(VK_RWIN, KEYEVENTF_KEYUP)
                 };
-                if (SendInput((uint)resetInputs.Length, resetInputs, Marshal.SizeOf<INPUT>()) == 0)
-                {
-                    int errorCode = Marshal.GetLastWin32Error();
-                    LogManager.LogError($"PASTE_DIAG: ERROR - InputSimulator: Modifier key reset SendInput failed with Win32 error code: {errorCode}");
-                }
+                _ = SendInput((uint)resetInputs.Length, resetInputs, Marshal.SizeOf<INPUT>());
 
-                // Wait for the system to process the key releases. This is crucial.
                 await Task.Delay(DelayForStateResetMs).ConfigureAwait(false);
 
+                var inputs = new INPUT[]
+                {
+                    CreateKeyInput(VK_CONTROL, 0),
+                    CreateKeyInput(VK_V, 0),
+                    CreateKeyInput(VK_V, KEYEVENTF_KEYUP),
+                    CreateKeyInput(VK_CONTROL, KEYEVENTF_KEYUP)
+                };
 
-                INPUT[] pasteInputs =
-                {
-            CreateKeyInput(VK_CONTROL, 0),          // Ctrl down
-            CreateKeyInput(VK_V, 0),                // V down
-            CreateKeyInput(VK_V, KEYEVENTF_KEYUP),  // V up
-            CreateKeyInput(VK_CONTROL, KEYEVENTF_KEYUP) // Ctrl up
-        };
-
-                LogManager.LogDebug("InputSimulator: Sending Ctrl+V input block.");
-                uint result = SendInput((uint)pasteInputs.Length, pasteInputs, Marshal.SizeOf<INPUT>());
-                if (result == 0)
-                {
-                    int errorCode = Marshal.GetLastWin32Error();
-                    LogManager.LogError($"PASTE_DIAG: ERROR - InputSimulator: SendInput failed with Win32 error code: {errorCode}");
-                }
-                else
-                {
-                    LogManager.LogDebug("InputSimulator: SendInput call successful.");
-                }
+                // Send Ctrl+V in timed sequence for reliability.
+                _ = SendInput(1, new[] { inputs[0] }, Marshal.SizeOf<INPUT>()); // Ctrl down
+                await Task.Delay(DelayForCtrlRegistrationMs).ConfigureAwait(false);
+                _ = SendInput(2, new[] { inputs[1], inputs[2] }, Marshal.SizeOf<INPUT>()); // V down, V up
+                _ = SendInput(1, new[] { inputs[3] }, Marshal.SizeOf<INPUT>()); // Ctrl up
             }
             finally
             {
                 if (attached)
                 {
-                    if (!AttachThreadInput(currentThreadId, targetThreadId, false))
-                    {
-                        // Log if detach fails, but don't treat it as a critical error.
-                        int errorCode = Marshal.GetLastWin32Error();
-                        LogManager.LogWarning($"PASTE_DIAG: Failed to detach thread input with Win32 error code: {errorCode}");
-                    }
-                    else
-                    {
-                        LogManager.LogDebug("PASTE_DIAG: Successfully detached thread input.");
-                    }
+                    _ = AttachThreadInput(currentThreadId, targetThreadId, false);
                 }
             }
         }
-
     }
 }
