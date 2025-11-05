@@ -1,41 +1,44 @@
-# .NET Builder Toolbox
+# Builder Toolbox for .NET Apps
 # Clean, build, and manage .NET solutions.
-# version: 1.13.0
-# ---------------------------------------------------------------------
+# version: 1.14.0
+# -----------------------------------------------------------------------------
+# * Edit these settings...
+# -----------------------------------------------------------------------------
+$Script:PackageTitle = "Cliptoo"                    # user-facing name of the application.
+$Script:MainProjectName = "Cliptoo.UI"              # name of the main .csproj file (without the extension).
+$Script:SolutionFileName = "Cliptoo.sln"            # name of the .sln file.
+$Script:SolutionSubFolder = ""                      # folder containing the .sln file, relative to repo root. Set to "" if .sln is at the root.
+$Script:MainProjectSourcePath = "Cliptoo.UI"        # path from the solution folder to the main project's folder.
+$Script:PackageAuthors = "dcog989"                  # author's name.
+$Script:RequiredDotNetVersion = "9"                 # major version number.
+$Script:TargetFramework = "net9.0-windows"          # from project `.csproj` file.
+$Script:BuildPlatform = "x64"                       # target build platform (e.g., x64, AnyCPU).
+$Script:PublishRuntimeId = "win-x64"                # target runtime for publishing.
 
-# --- Global Variables ---
 
-# --- Core Project Configuration (EDIT THESE FOR YOUR PROJECT) ---
-$Script:PackageTitle = "Cliptoo"                    # The user-facing name of the application.
-$Script:MainProjectName = "Cliptoo.UI"              # The name of the main .csproj file (without the extension).
-$Script:SolutionFileName = "Cliptoo.sln"            # The name of the .sln file.
-$Script:PackageAuthors = "dcog989"                  # The author's name.
-$Script:RequiredDotNetVersion = "9"                 # Major version number.
-$Script:TargetFramework = "net9.0-windows"          # From project `.csproj` file.
-$Script:BuildPlatform = "x64"                       # The target build platform (e.g., x64, AnyCPU).
-$Script:PublishRuntimeId = "win-x64"                # The target runtime for publishing.
+# -----------------------------------------------------------------------------
+# ! No edits past this point - hopefully.
+# -----------------------------------------------------------------------------
 
-# ---------------------------------------------------------------------
-# You probably do not need to edit anything past this point. 
-
-# These variables are constructed from the core configuration above.
-$Script:SolutionRoot = (Get-Item $PSScriptRoot).Parent.FullName
+# Core project settings
+$Script:RepoRoot = (Get-Item $PSScriptRoot).Parent.FullName
+$Script:SolutionRoot = if (-not [string]::IsNullOrEmpty($Script:SolutionSubFolder)) { Join-Path $Script:RepoRoot $Script:SolutionSubFolder } else { $Script:RepoRoot }
 $Script:SolutionFile = Join-Path $Script:SolutionRoot $Script:SolutionFileName
-$Script:MainProjectFile = Join-Path $Script:SolutionRoot $Script:MainProjectName "$($Script:MainProjectName).csproj"
-$Script:AppName = $Script:PackageTitle
-$Script:ProcessNameForTermination = $Script:PackageTitle
+
+$Script:MainProjectDir = Join-Path $Script:SolutionRoot $Script:MainProjectSourcePath
+$Script:MainProjectFile = Join-Path $Script:MainProjectDir "$($Script:MainProjectName).csproj"
 
 # Velopack settings
 $Script:PackageId = $Script:PackageTitle
-$Script:PackageIconPath = Join-Path $Script:SolutionRoot $Script:MainProjectName "Assets/Icons/$($Script:PackageTitle.ToLower()).ico"
-$Script:MainExeName = "$($Script:PackageTitle).exe"
+$Script:PackageIconPath = Join-Path $Script:MainProjectDir "Assets/Icons/$($Script:PackageTitle.ToLower()).ico"
+$Script:MainExeName = "$($Script:MainProjectName).exe"
 $Script:AppDataFolderName = $Script:PackageTitle
 
 # Package naming and markers
 $Script:PortableMarkerFile = "$($Script:PackageTitle.ToLower()).portable"
-$Script:StandardArchiveFormat = "{0}-Windows-x64-v{1}.7z"       # Param 0: PackageTitle, Param 1: Version
-$Script:PortableArchiveFormat = "{0}-Windows-x64-Portable-v{1}.7z" # Param 0: PackageTitle, Param 1: Version
-$Script:LogFileFormat = "{0}.build.{1}.log"                       # Param 0: PackageTitle, Param 1: Timestamp
+$Script:StandardArchiveFormat = "{0}-Windows-x64-v{1}.7z"           # Param 0: PackageTitle, Param 1: Version
+$Script:PortableArchiveFormat = "{0}-Windows-x64-Portable-v{1}.7z"  # Param 0: PackageTitle, Param 1: Version
+$Script:LogFileFormat = "{0}.build.{1}.log"                         # Param 0: PackageTitle, Param 1: Timestamp
 
 # Post-build customization
 $Script:RemoveCreateDump = $true # Remove createdump.exe from deps.json
@@ -46,13 +49,13 @@ $Script:SevenZipPath = Join-Path $PSScriptRoot "7z/7za.exe"
 
 # Cached values
 $Script:BuildVersion = $null
+$Script:AppNameCache = $null
 $Script:LogFile = $null
 $Script:SdkVersion = "N/A"
 $Script:GitBranch = ""
 $Script:GitCommit = ""
 $Script:GitInfoCache = $null
 
-# Menu item definitions for layout and logging
 # Menu item definitions for layout and logging
 $Script:MenuItems = [ordered]@{
     "1" = @{ Description = "Build & Run (Debug)"; Action = { Start-BuildAndRun -Configuration "Debug" }; Response = "WaitForEnter" }
@@ -64,7 +67,7 @@ $Script:MenuItems = [ordered]@{
     "7" = @{ Description = "Produce Changelog"; Action = { New-ChangelogFromGit }; Response = "WaitForEnter" }
     "8" = @{ Description = "Publish Portable Package"; Action = { Publish-Portable }; Response = "WaitForEnter" }
     "9" = @{ Description = "Publish Production Package"; Action = { Build-ProductionPackage }; Response = "WaitForEnter" }
-    
+
     "A" = @{ Description = "Change Version Number"; Action = { Update-VersionNumber }; Response = "WaitForEnter" }
     "B" = @{ Description = "Open Solution in IDE"; Action = { Open-SolutionInIDE }; Response = "PauseBriefly" }
     "C" = @{ Description = "Clean Solution"; Action = { Remove-BuildOutput }; Response = "PauseBriefly" }
@@ -80,26 +83,26 @@ class CommandResult {
     [string]$Message
     [int]$ExitCode
     [object]$Data
-    
+
     CommandResult([bool]$success, [string]$message, [int]$exitCode, [object]$data) {
         $this.Success = $success
         $this.Message = $message
         $this.ExitCode = $exitCode
         $this.Data = $data
     }
-    
+
     static [CommandResult]Ok([string]$message, [object]$data) {
         return [CommandResult]::new($true, $message, 0, $data)
     }
-    
+
     static [CommandResult]Ok([string]$message) {
         return [CommandResult]::new($true, $message, 0, $null)
     }
-    
+
     static [CommandResult]Fail([string]$message, [int]$exitCode) {
         return [CommandResult]::new($false, $message, $exitCode, $null)
     }
-    
+
     static [CommandResult]Fail([string]$message) {
         return [CommandResult]::new($false, $message, -1, $null)
     }
@@ -126,6 +129,35 @@ function Test-Prerequisites {
     }
 }
 
+function Get-EffectiveAppName {
+    if ($null -ne $Script:AppNameCache) {
+        return $Script:AppNameCache
+    }
+
+    $appName = $Script:MainProjectName # Default value
+
+    if (Test-Path $Script:MainProjectFile) {
+        try {
+            $csprojContent = [xml](Get-Content $Script:MainProjectFile -Raw)
+            $assemblyNameNode = $csprojContent.SelectSingleNode("//PropertyGroup/AssemblyName")
+
+            if ($null -ne $assemblyNameNode -and -not [string]::IsNullOrWhiteSpace($assemblyNameNode.InnerText)) {
+                $appName = $assemblyNameNode.InnerText.Trim()
+                Write-Log "Found AssemblyName in project file: $appName" "DEBUG"
+            }
+            else {
+                Write-Log "AssemblyName not found in project file, defaulting to MainProjectName: $appName" "DEBUG"
+            }
+        }
+        catch {
+            Write-Log "Error parsing AssemblyName from project file: $_. Using default: $appName" "WARN"
+        }
+    }
+
+    $Script:AppNameCache = $appName
+    return $appName
+}
+
 function Get-CachedBuildVersion {
     if ($null -eq $Script:BuildVersion) {
         $versionResult = Get-BuildVersion
@@ -147,17 +179,17 @@ function Clear-BuildVersionCache {
 }
 
 function Get-GitInfo {
-    if ($null -ne $Script:GitInfoCache) { 
-        return $Script:GitInfoCache 
+    if ($null -ne $Script:GitInfoCache) {
+        return $Script:GitInfoCache
     }
-    
+
     $gitInfo = @{ Branch = "N/A"; Commit = "N/A" }
-    
+
     if (Get-Command git -ErrorAction SilentlyContinue) {
         try {
-            $gitInfo.Branch = (git -C $Script:SolutionRoot rev-parse --abbrev-ref HEAD 2>$null).Trim()
-            $gitInfo.Commit = (git -C $Script:SolutionRoot rev-parse --short HEAD 2>$null).Trim()
-            
+            $gitInfo.Branch = (git -C $Script:RepoRoot rev-parse --abbrev-ref HEAD 2>$null).Trim()
+            $gitInfo.Commit = (git -C $Script:RepoRoot rev-parse --short HEAD 2>$null).Trim()
+
             if ([string]::IsNullOrWhiteSpace($gitInfo.Branch)) { $gitInfo.Branch = "N/A" }
             if ([string]::IsNullOrWhiteSpace($gitInfo.Commit)) { $gitInfo.Commit = "N/A" }
         }
@@ -168,14 +200,14 @@ function Get-GitInfo {
     else {
         Write-Log "Git not found in PATH" "WARN"
     }
-    
+
     $Script:GitInfoCache = $gitInfo
     return $gitInfo
 }
 
 function Test-PathExists {
     param([string]$Path, [string]$Description)
-    
+
     if (-not (Test-Path $Path)) {
         Write-Log "$Description not found: $Path" "ERROR"
         return $false
@@ -185,7 +217,7 @@ function Test-PathExists {
 
 function Remove-FilesByPattern {
     param([string]$Path, [string[]]$Patterns)
-    
+
     $files = Get-ChildItem -Path $Path -Include $Patterns -Recurse -File -ErrorAction SilentlyContinue
     if ($files) {
         $files | Remove-Item -Force -ErrorAction SilentlyContinue
@@ -201,7 +233,7 @@ function Invoke-WithStandardErrorHandling {
         [string]$FailureMessage,
         [bool]$LogError = $true
     )
-    
+
     $result = & $Action
     if ($result.Success) {
         if ($SuccessMessage) { Write-Log $SuccessMessage "SUCCESS" }
@@ -261,32 +293,32 @@ function Start-Logging {
     if (-not (Test-Path $logDir)) {
         New-Item -ItemType Directory -Path $logDir -Force | Out-Null
     }
-    
+
     $timestamp = (Get-Date).ToString('yyyyMMdd.HHmmss')
     $logFileName = [string]::Format($Script:LogFileFormat, $Script:PackageTitle, $timestamp)
     $logFile = Join-Path $logDir $logFileName
-    $appVersion = Get-CachedBuildVersion
+    $appVersion = "N/A" # Defer version lookup to avoid recursion
 
     $header = @"
 ***************************************
-$($Script:PackageTitle), version = $(if ($appVersion) { $appVersion } else { "N/A" })
+$($Script:PackageTitle), version = $($appVersion)
 Log Start: $((Get-Date).ToString('yyyyMMddHHmmss'))
 Username:   $($env:USERDOMAIN)\$($env:USERNAME)
 ***************************************
 "@
-    
+
     Set-Content -Path $logFile -Value $header
     return $logFile
 }
 
 function Write-Log {
     param([string]$Message, [string]$Level = "INFO")
-    
+
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     $logEntry = "[$timestamp] [$Level] $Message"
-    
+
     Add-Content -Path (Get-LogFile) -Value $logEntry
-    
+
     # Only write specific levels to the console. INFO is now log-only.
     switch ($Level) {
         "ERROR" { Write-Host $Message -ForegroundColor Red }
@@ -299,13 +331,13 @@ function Write-Log {
 function Clear-Logs {
     Write-Log "Cleaning logs..." "CONSOLE"
     $logDir = Join-Path $PSScriptRoot "Logs"
-    
+
     if (Test-Path $logDir) {
         $logFiles = Get-ChildItem -Path $logDir -Filter "*.log" -File
         $currentLog = Get-LogFile
-        
+
         $oldLogs = $logFiles | Where-Object { $_.FullName -ne $currentLog }
-        
+
         if ($oldLogs.Count -gt 0) {
             Write-Log "Removing $($oldLogs.Count) old log files from $logDir"
             $oldLogs | Remove-Item -Force -ErrorAction SilentlyContinue
@@ -349,15 +381,15 @@ function Invoke-DotnetCommand {
         [string]$Verbosity = "normal",
         [switch]$IgnoreErrors
     )
-    
+
     $fullArgs = "$Command $Arguments --verbosity $Verbosity"
     $result = Invoke-ExternalCommand -ExecutablePath "dotnet" -Arguments $fullArgs -IgnoreErrors:$IgnoreErrors
-    
+
     if ($result.Success -or $IgnoreErrors) {
         return [CommandResult]::Ok("Dotnet command successful", $result)
     }
     else {
-        return [CommandResult]::Fail("Dotnet command failed: $($result.Error)", $result.ExitCode)
+        return [CommandResult]::Fail("Dotnet command failed: $($result.Message)", $result.ExitCode)
     }
 }
 
@@ -371,10 +403,10 @@ function Invoke-ExternalCommand {
         [string]$WorkingDirectory = "",
         [switch]$IgnoreErrors
     )
-    
+
     $logFile = Get-LogFile
     Write-Log "Executing: $ExecutablePath $Arguments"
-    
+
     $processInfo = New-Object System.Diagnostics.ProcessStartInfo
     $processInfo.FileName = $ExecutablePath
     $processInfo.Arguments = $Arguments
@@ -382,51 +414,68 @@ function Invoke-ExternalCommand {
     $processInfo.RedirectStandardError = $true
     $processInfo.UseShellExecute = $false
     $processInfo.CreateNoWindow = $true
-    
+
     if (-not [string]::IsNullOrEmpty($WorkingDirectory)) {
         $processInfo.WorkingDirectory = $WorkingDirectory
     }
 
     $process = $null
+    $stdOutEvent = $null
+    $stdErrEvent = $null
 
     try {
-        $process = [System.Diagnostics.Process]::Start($processInfo)
-        
-        # Synchronously read all output after the process completes. This is more reliable than async events.
-        $output = $process.StandardOutput.ReadToEnd()
-        $errors = $process.StandardError.ReadToEnd()
-        
+        $process = New-Object System.Diagnostics.Process
+        $process.StartInfo = $processInfo
+
+        $stdOutHandler = {
+            if (-not [string]::IsNullOrEmpty($EventArgs.Data)) {
+                Add-Content -Path $logFile -Value $EventArgs.Data
+            }
+        }
+        $stdErrHandler = {
+            if (-not [string]::IsNullOrEmpty($EventArgs.Data)) {
+                Add-Content -Path $logFile -Value "ERROR: $($EventArgs.Data)"
+            }
+        }
+
+        $stdOutEvent = Register-ObjectEvent -InputObject $process -EventName "OutputDataReceived" -Action $stdOutHandler
+        $stdErrEvent = Register-ObjectEvent -InputObject $process -EventName "ErrorDataReceived" -Action $stdErrHandler
+
+        $process.Start() | Out-Null
+        $process.BeginOutputReadLine()
+        $process.BeginErrorReadLine()
+
+        while (-not $process.HasExited) {
+            Start-Sleep -Seconds 1
+        }
+
         $process.WaitForExit()
 
-        # Log the full output
-        if (-not [string]::IsNullOrWhiteSpace($output)) {
-            Add-Content -Path $logFile -Value $output
-        }
-        if (-not [string]::IsNullOrWhiteSpace($errors)) {
-            Add-Content -Path $logFile -Value "ERROR: $errors"
-        }
+        # Adding a brief delay to ensure async stream readers have time to process final events before they are unregistered in the finally block.
+        Start-Sleep -Milliseconds 250
 
         if ($process.ExitCode -eq 0 -or $IgnoreErrors) {
             return [CommandResult]::Ok("External command successful", @{ ExitCode = $process.ExitCode })
         }
         else {
-            $errorMessage = "Process exited with code $($process.ExitCode)."
-            # Use the captured error text directly in the failure message.
-            if (-not [string]::IsNullOrWhiteSpace($errors)) {
-                $errorMessage += " Details: $($errors.Trim())"
-            }
-            return [CommandResult]::Fail($errorMessage, $process.ExitCode)
+            return [CommandResult]::Fail("Process exited with code $($process.ExitCode)", $process.ExitCode)
         }
     }
     catch {
         return [CommandResult]::Fail("Error starting process: $($_.Exception.Message)")
     }
     finally {
-        if ($process) { 
-            if (!$process.HasExited) { 
-                $process.Kill() 
+        if ($stdOutEvent) {
+            $stdOutEvent | Unregister-Event -Force -ErrorAction SilentlyContinue
+        }
+        if ($stdErrEvent) {
+            $stdErrEvent | Unregister-Event -Force -ErrorAction SilentlyContinue
+        }
+        if ($process) {
+            if (!$process.HasExited) {
+                $process.Kill()
             }
-            $process.Dispose() 
+            $process.Dispose()
         }
     }
 }
@@ -456,14 +505,14 @@ function Confirm-IdeShutdown {
     $ideList = $runningIdes -join ', '
     $prompt = "The following IDE(s) are running: $ideList. Continuing may cause file lock errors. Continue anyway? (y/n)"
     Write-Log "IDE(s) running: $ideList. This may cause the '$Action' operation to fail." "WARN"
-    
+
     $choice = Read-Host -Prompt $prompt
-    
+
     if ($choice.ToLower() -eq 'y') {
         Write-Log "User chose to proceed despite running IDEs."
         return $true
     }
-    
+
     Write-Log "$Action aborted by user due to running IDEs." "ERROR"
     return $false
 }
@@ -472,15 +521,15 @@ function Get-BuildVersion {
     if (-not (Test-Path $Script:MainProjectFile)) {
         return [CommandResult]::Fail("Main project file not found at '$Script:MainProjectFile'")
     }
-    
+
     try {
         $csprojContent = [xml](Get-Content $Script:MainProjectFile -Raw)
         $versionNode = $csprojContent.SelectSingleNode("//PropertyGroup/Version")
-        
+
         if ($null -ne $versionNode) {
             return [CommandResult]::Ok("Version retrieved", $versionNode.InnerText.Trim())
         }
-        
+
         return [CommandResult]::Fail("Version node not found in project file")
     }
     catch {
@@ -493,7 +542,7 @@ function Stop-ProcessForcefully {
         [string]$ProcessName,
         [int]$TimeoutSeconds = 10
     )
-    
+
     $processes = Get-Process -Name $ProcessName -ErrorAction SilentlyContinue
     if ($processes.Count -eq 0) { return $true }
 
@@ -508,14 +557,14 @@ function Stop-ProcessGracefully {
         [int]$GracefulTimeoutSeconds = 3,
         [int]$ForcefulTimeoutSeconds = 7
     )
-    
+
     $processes = Get-Process -Name $ProcessName -ErrorAction SilentlyContinue
     if ($processes.Count -eq 0) {
         return $true
     }
-    
+
     Write-Log "Attempting graceful termination of $ProcessName..."
-    
+
     # Try graceful close first
     foreach ($process in $processes) {
         try {
@@ -525,7 +574,7 @@ function Stop-ProcessGracefully {
             Write-Log "Could not send close signal to PID $($process.Id): $_" "DEBUG"
         }
     }
-    
+
     $gracefulStart = Get-Date
     while (((Get-Date) - $gracefulStart).TotalSeconds -lt $GracefulTimeoutSeconds) {
         $remaining = Get-Process -Name $ProcessName -ErrorAction SilentlyContinue
@@ -535,7 +584,7 @@ function Stop-ProcessGracefully {
         }
         Start-Sleep -Milliseconds 250
     }
-    
+
     # Fall back to forceful termination
     Write-Log "Graceful termination failed, using force..." "WARN"
     return Stop-ProcessForcefully -ProcessName $ProcessName -TimeoutSeconds $ForcefulTimeoutSeconds
@@ -589,7 +638,7 @@ function Invoke-ItemSafely {
         [string]$Path,
         [string]$ItemType = "Item"
     )
-    
+
     if (-not (Test-Path $Path)) {
         Write-Log "Could not find $ItemType at '$Path'." "ERROR"
         Write-Host "Could not find $ItemType at '$Path'." -ForegroundColor Red
@@ -712,15 +761,15 @@ function Compress-With7Zip {
         [Parameter(Mandatory = $true)]
         [string]$ArchivePath
     )
-    
+
     if (-not (Test-Path $Script:SevenZipPath)) {
         Write-Log "7-Zip not found at '$Script:SevenZipPath'. Using Compress-Archive instead." "WARN"
-        
+
         $parentDir = Split-Path $ArchivePath -Parent
         if (-not (Test-Path $parentDir)) {
             New-Item -ItemType Directory -Path $parentDir -Force | Out-Null
         }
-        
+
         try {
             Compress-Archive -Path "$SourceDir\*" -DestinationPath $ArchivePath -Force
             return [CommandResult]::Ok("Archive created using Compress-Archive", $ArchivePath)
@@ -729,10 +778,10 @@ function Compress-With7Zip {
             return [CommandResult]::Fail("Compress-Archive failed: $_")
         }
     }
-    
+
     $sevenZipArgs = "a -t7z -mx=3 `"$ArchivePath`" `"$SourceDir\*`""
     $result = Invoke-ExternalCommand -ExecutablePath $Script:SevenZipPath -Arguments $sevenZipArgs
-    
+
     if ($result.Success) {
         return [CommandResult]::Ok("7-Zip archive created at", $ArchivePath)
     }
@@ -774,7 +823,7 @@ function Remove-CreateDumpReference {
 # --- Core Functions (Menu Actions) ---
 function Get-OutdatedPackages {
     Write-Log "Ensuring packages are restored first..." "CONSOLE"
-    
+
     $restoreResult = Invoke-DotnetCommand -Command "restore" -Arguments "`"$Script:SolutionFile`""
     if (-not $restoreResult.Success) {
         Write-Log "Package restore failed: $($restoreResult.Message)" "ERROR"
@@ -782,12 +831,12 @@ function Get-OutdatedPackages {
     }
 
     Write-Log "Checking for outdated NuGet packages..." "CONSOLE"
-    
+
     $process = $null
     try {
         $logFile = Get-LogFile
         $arguments = "list `"$($Script:SolutionFile)`" package --outdated"
-        
+
         Write-Log "Executing: dotnet $arguments"
 
         # Use synchronous process execution to avoid race conditions with log file writing.
@@ -803,14 +852,14 @@ function Get-OutdatedPackages {
         $output = $process.StandardOutput.ReadToEnd()
         $stdError = $process.StandardError.ReadToEnd()
         $process.WaitForExit()
-        
+
         if (-not [string]::IsNullOrWhiteSpace($output)) {
             Add-Content -Path $logFile -Value $output
         }
         if (-not [string]::IsNullOrWhiteSpace($stdError)) {
             Add-Content -Path $logFile -Value "ERROR: $($stdError)"
         }
-        
+
         # Display a filtered summary to the user for immediate feedback
         if (-not [string]::IsNullOrWhiteSpace($output)) {
             $outputLines = $output.Split([Environment]::NewLine)
@@ -851,11 +900,11 @@ function Get-OutdatedPackages {
 
 function Start-BuildAndRun {
     param([string]$Configuration)
-    
+
     if (-not (Confirm-ProcessTermination)) { return }
 
     Write-Log "Building solution in $Configuration mode for $($Script:BuildPlatform) platform..." "CONSOLE"
-    
+
     $arguments = "`"$Script:SolutionFile`" -c $Configuration -p:Platform=$($Script:BuildPlatform)"
     $buildResult = Invoke-DotnetCommand -Command "build" -Arguments $arguments
     if (-not $buildResult.Success) {
@@ -864,10 +913,10 @@ function Start-BuildAndRun {
     }
 
     Write-Log "Build successful. Starting application..." "SUCCESS"
-    
+
     $mainProjectDir = Split-Path -Path $Script:MainProjectFile -Parent
     $exePath = Join-Path $mainProjectDir "bin\$($Script:BuildPlatform)\$Configuration\$($Script:TargetFramework)\$($Script:PublishRuntimeId)\$($Script:AppName).exe"
-    
+
     if (Test-Path $exePath) {
         Start-Process -FilePath $exePath
         Write-Log "Application started." "SUCCESS"
@@ -879,22 +928,22 @@ function Start-BuildAndRun {
 
 function Watch-And-Run {
     if (-not (Confirm-ProcessTermination)) { return }
-    
+
     Write-Log "Starting dotnet watch. Press CTRL+C in the new window to stop." "CONSOLE"
     $arguments = @("watch", "--project", "`"$($Script:MainProjectFile)`"", "run")
-    
+
     Start-Process -FilePath "dotnet" -ArgumentList $arguments
 }
 
 function Restore-NuGetPackages {
     if (-not (Confirm-IdeShutdown -Action "Restore NuGet Packages")) { return }
-    
+
     Write-Log "Restoring NuGet packages..." "CONSOLE"
-    
+
     $result = Invoke-DotnetCommand -Command "restore" -Arguments "`"$Script:SolutionFile`""
 
     Clear-BuildVersionCache
-    
+
     if ($result.Success) {
         Write-Log "NuGet packages restored." "SUCCESS"
     }
@@ -913,56 +962,60 @@ function Publish-Portable {
     $packageDir = Join-Path $baseOutputDir "packages"
 
     Remove-BuildOutput -NoConfirm
-    
+
     if (Test-Path $publishDir) {
         Remove-Item $publishDir -Recurse -Force -ErrorAction SilentlyContinue
     }
-    
+
     $arguments = "`"$Script:MainProjectFile`" -c Release -r $Script:PublishRuntimeId --self-contained true"
     $result = Invoke-DotnetCommand -Command "publish" -Arguments $arguments
-    
+
     if (-not $result.Success) {
         Write-Log $result.Message "ERROR"
         return
     }
 
     Write-Log "Post-build processing..." "CONSOLE"
-    
+
     if ($Script:RemoveCreateDump) {
         Remove-CreateDumpReference -Path $publishDir
     }
-    
+
     if ($Script:RemoveXmlFiles) {
         $removedCount = Remove-FilesByPattern -Path $publishDir -Patterns @("*.xml")
         Write-Log "Removed $removedCount documentation files (*.xml)."
     }
 
+    Write-Log "Adding portable mode marker..."
+    $portableMarkerPath = Join-Path $publishDir $Script:PortableMarkerFile
+    Set-Content -Path $portableMarkerPath -Value "This file enables portable mode. Do not delete."
+
     $removedPdbCount = Remove-FilesByPattern -Path $publishDir -Patterns @("*.pdb")
     Write-Log "Removed $removedPdbCount debug symbols (*.pdb)."
 
     Write-Log "Archiving portable package..." "CONSOLE"
-    
-    if (-not (Test-Path $packageDir)) { 
-        New-Item -ItemType Directory -Path $packageDir -Force | Out-Null 
+
+    if (-not (Test-Path $packageDir)) {
+        New-Item -ItemType Directory -Path $packageDir -Force | Out-Null
     }
-    
+
     $version = Get-CachedBuildVersion
     if ([string]::IsNullOrEmpty($version)) { $version = "1.0.0" }
     $archiveFileName = [string]::Format($Script:PortableArchiveFormat, $Script:PackageTitle, $version)
     $destinationArchive = Join-Path $packageDir $archiveFileName
-    
-    if (Test-Path $destinationArchive) { 
-        Remove-Item $destinationArchive -Force 
+
+    if (Test-Path $destinationArchive) {
+        Remove-Item $destinationArchive -Force
     }
-    
+
     $archiveResult = Compress-With7Zip -SourceDir $publishDir -ArchivePath $destinationArchive
     if (-not $archiveResult.Success) {
         Write-Log "7-Zip archiving failed: $($archiveResult.Message)" "ERROR"
         return
     }
-    
+
     New-ChangelogFromGit -OutputDir $packageDir
-    
+
     Write-Log "Portable archive created: $destinationArchive" "SUCCESS"
     Invoke-ItemSafely -Path $packageDir -ItemType "Output directory"
 }
@@ -1012,13 +1065,13 @@ function Build-ProductionPackage {
         $portableFile = Get-ChildItem -Path $releaseDir -Filter "*-portable.zip" | Select-Object -First 1
         
         if ($setupFile) {
-            $newSetupName = "Cliptoo-Windows-x64-Setup-v$($version).exe"
+            $newSetupName = "$($Script:PackageTitle)-Windows-x64-Setup-v$($version).exe"
             Rename-Item -Path $setupFile.FullName -NewName $newSetupName
             Write-Log "Renamed installer to $newSetupName"
         }
 
         if ($portableFile) {
-            $newPortableName = "Cliptoo-Windows-x64-Portable-v$($version).zip"
+            $newPortableName = "$($Script:PackageTitle)-Windows-x64-Portable-v$($version).zip"
             Rename-Item -Path $portableFile.FullName -NewName $newPortableName
             Write-Log "Renamed portable package to $newPortableName"
         }
@@ -1077,7 +1130,7 @@ function Update-VersionNumber {
         Write-Log "Project file not found at: $($Script:MainProjectFile)" "ERROR"
         return
     }
-    
+
     $currentVersion = Get-CachedBuildVersion
     Write-Log "Current version: $currentVersion" "CONSOLE"
 
@@ -1091,11 +1144,11 @@ function Update-VersionNumber {
         if ($newVersion -notmatch '^\d+\.\d+\.\d+(-[a-zA-Z0-9.-]+)?$') {
             throw "Invalid version format. Use Semantic Versioning (e.g., 1.2.3 or 1.2.3-beta1)."
         }
-        
+
         $csprojContent = Get-Content $Script:MainProjectFile -Raw
         $csproj = [xml]$csprojContent
         $propertyGroup = $csproj.SelectSingleNode("//PropertyGroup[Version]")
-        
+
         if ($null -eq $propertyGroup) {
             $propertyGroup = $csproj.SelectSingleNode("//PropertyGroup[1]")
         }
@@ -1108,7 +1161,7 @@ function Update-VersionNumber {
             $versionElement.InnerText = $newVersion
             $propertyGroup.AppendChild($versionElement) | Out-Null
         }
-        
+
         # Detect existing indentation to preserve file formatting.
         $indentChars = "    " # Default to 4 spaces
         $match = $csprojContent | Select-String -Pattern '(?m)^(\s+)<PropertyGroup>'
@@ -1124,7 +1177,7 @@ function Update-VersionNumber {
         $writerSettings.Indent = $true
         $writerSettings.IndentChars = $indentChars
         $writerSettings.Encoding = [System.Text.UTF8Encoding]::new($false) # UTF-8 without BOM
-        
+
         $xmlWriter = $null
         try {
             $xmlWriter = [System.Xml.XmlWriter]::Create($Script:MainProjectFile, $writerSettings)
@@ -1135,7 +1188,7 @@ function Update-VersionNumber {
                 $xmlWriter.Close()
             }
         }
-        
+
         $Script:BuildVersion = $newVersion
         Write-Log "Version updated to $newVersion in $($Script:MainProjectFile)" "SUCCESS"
     }
@@ -1146,12 +1199,12 @@ function Update-VersionNumber {
 
 function Open-LatestLogFile {
     $logDir = Join-Path $PSScriptRoot "Logs"
-    
+
     if (Test-Path $logDir) {
-        $latestLog = Get-ChildItem -Path $logDir -Filter "*.log" -File | 
-        Sort-Object LastWriteTime -Descending | 
+        $latestLog = Get-ChildItem -Path $logDir -Filter "*.log" -File |
+        Sort-Object LastWriteTime -Descending |
         Select-Object -First 1
-        
+
         if ($latestLog) {
             $success = Invoke-ItemSafely -Path $latestLog.FullName -ItemType "Log file"
             if (-not $success) {
@@ -1171,18 +1224,18 @@ function Open-LatestLogFile {
 
 function Open-UserDataFolder {
     $mainProjectDir = Split-Path -Path $Script:MainProjectFile -Parent
-    
+
     # The portable version is staged in the 'publish' subdirectory during a portable build.
     $publishPath = Join-Path $mainProjectDir "bin\$($Script:BuildPlatform)\Release\$($Script:TargetFramework)\$($Script:PublishRuntimeId)\publish"
     $portableMarkerPath = Join-Path $publishPath $Script:PortableMarkerFile
-    
+
     $userDataPath = if (Test-Path $portableMarkerPath) {
         Join-Path $publishPath "Data"
     }
     else {
         Join-Path $env:APPDATA $Script:AppDataFolderName
     }
-    
+
     $success = Invoke-ItemSafely -Path $userDataPath -ItemType "User data folder"
     if (-not $success) {
         return
@@ -1207,9 +1260,9 @@ function Open-SolutionInIDE {
 
 function Invoke-UnitTests {
     Write-Log "Running unit tests for solution..." "CONSOLE"
-    
+
     $result = Invoke-DotnetCommand -Command "test" -Arguments "`"$Script:SolutionFile`""
-    
+
     if ($result.Success) {
         Write-Log "Test run successful. Check log for details (e.g., if no tests were found)." "SUCCESS"
     }
@@ -1222,30 +1275,30 @@ function Invoke-UnitTests {
 # --- Menu Display ---
 function Show-Menu {
     $appVersion = Get-CachedBuildVersion  # Use cached version
-    if ([string]::IsNullOrEmpty($appVersion)) { 
-        $appVersion = "N/A (check $($Script:MainProjectFile))" 
+    if ([string]::IsNullOrEmpty($appVersion)) {
+        $appVersion = "N/A (check $($Script:MainProjectFile))"
     }
-    
-    $logFileName = if ($Script:LogFile) { 
-        Split-Path $Script:LogFile -Leaf 
+
+    $logFileName = if ($Script:LogFile) {
+        Split-Path $Script:LogFile -Leaf
     }
-    else { 
+    else {
         "Not created yet."
     }
-    
-    Write-Host "-----------------------------------------------------------------------" -ForegroundColor Green
+
+    Write-Host "-------------------------------------------------------------------------------" -ForegroundColor Green
     Write-Host "              .NET Builder Toolbox for $($Script:PackageTitle)" -ForegroundColor Green
-    Write-Host "-----------------------------------------------------------------------" -ForegroundColor Green
+    Write-Host "-------------------------------------------------------------------------------" -ForegroundColor Green
     Write-Host "Solution: $($Script:SolutionFile)" -ForegroundColor DarkGray
-    
+
     if ($Script:GitBranch -ne "N/A" -and $Script:GitCommit -ne "N/A") {
         Write-Host "Branch:   $($Script:GitBranch) ($($Script:GitCommit))" -ForegroundColor DarkGray
     }
-    
+
     Write-Host "Version:  $appVersion" -ForegroundColor DarkGray
     Write-Host "SDK:      $($Script:SdkVersion)" -ForegroundColor DarkGray
     Write-Host "Logging:  $logFileName" -ForegroundColor DarkGray
-    Write-Host "-----------------------------------------------------------------------" -ForegroundColor Green
+    Write-Host "-------------------------------------------------------------------------------" -ForegroundColor Green
 
     $numericKeys = $Script:MenuItems.Keys | Where-Object { $_ -match '^\d+$' } | Sort-Object
     $alphaKeys = $Script:MenuItems.Keys | Where-Object { $_ -match '^[A-Z]$' } | Sort-Object
@@ -1265,11 +1318,11 @@ function Show-Menu {
         }
         [PSCustomObject]@{ Left = $left; Right = $right }
     }
-    
+
     ($menuTable | Format-Table -HideTableHeaders -AutoSize | Out-String).Trim() | Write-Host
-    
+
     Write-Host "Q. Quit" -ForegroundColor Magenta
-    Write-Host "-----------------------------------------------------------------------" -ForegroundColor Green
+    Write-Host "-------------------------------------------------------------------------------" -ForegroundColor Green
 }
 
 function Invoke-MenuChoice {
@@ -1279,7 +1332,7 @@ function Invoke-MenuChoice {
     )
 
     $choiceKey = $Choice.ToUpper()
-    
+
     if ($choiceKey -eq 'Q') {
         $ExitRef.Value = $true
         return "NoPause"
@@ -1299,7 +1352,7 @@ function Invoke-MenuChoice {
 
 function Invoke-MenuResponse {
     param([string]$ResponseType)
-    
+
     switch ($ResponseType) {
         "WaitForEnter" {
             Read-Host "ENTER to continue"
@@ -1319,22 +1372,22 @@ function Invoke-MenuResponse {
 
 function Wait-ProcessTermination {
     param(
-        [string]$ProcessName, 
+        [string]$ProcessName,
         [int]$TimeoutSeconds = 10,
         [int]$CheckIntervalMs = 500
     )
-    
+
     Write-Log "Waiting for $ProcessName to terminate (timeout: ${TimeoutSeconds}s)..."
     $startTime = Get-Date
     $attempt = 0
-    
+
     while ($true) {
         $processes = Get-Process -Name $ProcessName -ErrorAction SilentlyContinue
         if ($processes.Count -eq 0) {
             Write-Log "$ProcessName terminated after $attempt attempts"
             return $true
         }
-        
+
         $elapsed = (Get-Date) - $startTime
         if ($elapsed.TotalSeconds -ge $TimeoutSeconds) {
             $pids = $processes.Id -join ', '
@@ -1342,7 +1395,7 @@ function Wait-ProcessTermination {
             Write-Log "Processes still running (PIDs: $pids)" "WARN"
             return $false
         }
-        
+
         $attempt++
         Start-Sleep -Milliseconds $CheckIntervalMs
     }
@@ -1354,6 +1407,11 @@ function Main {
     try {
         Test-Prerequisites
         
+        # Determine the effective application name for use throughout the script.
+        $Script:AppName = Get-EffectiveAppName
+        $Script:ProcessNameForTermination = $Script:AppName
+        Write-Log "Effective App Name set to: $($Script:AppName)"
+
         $gitInfo = Get-GitInfo
         $Script:GitBranch = $gitInfo.Branch
         $Script:GitCommit = $gitInfo.Commit
