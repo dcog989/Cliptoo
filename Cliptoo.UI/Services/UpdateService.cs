@@ -25,7 +25,7 @@ namespace Cliptoo.UI.Services
             LogManager.LogInfo("Auto-update is enabled. Checking for updates...");
             try
             {
-                var source = new GithubSource("https://github.com/dcog989/cliptoo", null, false);
+                var source = new GithubSource("https://github.com/dcog989/cliptoo/releases", null, false);
                 var um = new UpdateManager(source);
 
                 if (um.IsPortable)
