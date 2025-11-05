@@ -64,8 +64,6 @@ namespace Cliptoo.Core
         public Task InitializeAsync()
         {
             LogManager.LogDebug("Controller initializing...");
-            var settings = _settingsService.Settings;
-            LogManager.Configure(settings.LoggingLevel, settings.LogRetentionDays);
             _databaseService.CleanupTempFiles();
 
             ClipboardMonitor.ClipboardChanged += OnClipboardChangedAsync;

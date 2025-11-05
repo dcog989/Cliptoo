@@ -85,6 +85,10 @@ namespace Cliptoo.UI.Services
             var fvi = FileVersionInfo.GetVersionInfo(assembly.Location);
             var fullVersion = fvi.ProductVersion ?? fvi.FileVersion ?? assembly.GetName().Version?.ToString(3) ?? "0.0.0";
             var appVersion = fullVersion.Split('+')[0];
+
+            var settings = _settingsService.Settings;
+            LogManager.Configure(settings.LoggingLevel, settings.LogRetentionDays);
+
             LogManager.LogInfo($"Cliptoo v{appVersion} starting up...");
             LogManager.LogDebug("ApplicationHostService starting...");
 
