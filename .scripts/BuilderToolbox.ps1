@@ -1,6 +1,6 @@
 # Builder Toolbox for .NET Apps
 # Clean, build, and manage .NET solutions.
-# version: 1.14.0
+# version: 1.15.0
 # -----------------------------------------------------------------------------
 # * Edit these settings...
 # -----------------------------------------------------------------------------
