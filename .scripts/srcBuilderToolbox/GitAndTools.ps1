@@ -210,14 +210,44 @@ function Remove-CreateDumpReference {
 
     if (Test-Path $depjsonPath) {
         try {
-            $depjson = Get-Content $depjsonPath -Raw
-            $pattern = '(?s)("createdump\.exe":\s*\{[^}]*\},?\s*)'
-            $cleanedJson = $depjson -replace $pattern, ''
-            Set-Content -Path $depjsonPath -Value $cleanedJson -Encoding UTF8
-            Write-Log "Createdump reference removed from deps.json"
+            $depjson = Get-Content $depjsonPath -Raw | ConvertFrom-Json
+            $modified = $false
+
+            # The createdump.exe reference is typically found within the native assets of a runtime package.
+            # This logic navigates the complex structure to find and remove it safely.
+            if ($depjson.targets) {
+                foreach ($targetProperty in $depjson.targets.PSObject.Properties) {
+                    $libraries = $targetProperty.Value
+                    foreach ($libraryProperty in $libraries.PSObject.Properties) {
+                        $library = $libraryProperty.Value
+                        if ($library.PSObject.Properties['native']) {
+                            $nativeAssets = $library.native
+                            if ($nativeAssets.PSObject.Properties['createdump.exe']) {
+                                $nativeAssets.PSObject.Properties.Remove('createdump.exe')
+                                Write-Log "Removed 'createdump.exe' from native assets under '$($libraryProperty.Name)'"
+                                $modified = $true
+
+                                # If the 'native' object is now empty, remove it for cleanliness.
+                                if ($nativeAssets.PSObject.Properties.Count -eq 0) {
+                                    $library.PSObject.Properties.Remove('native')
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if ($modified) {
+                # Convert back to JSON and write to file. Depth is important for complex objects.
+                $depjson | ConvertTo-Json -Depth 100 | Set-Content -Path $depjsonPath -Encoding UTF8
+                Write-Log "Createdump reference removed from deps.json"
+            }
+            else {
+                Write-Log "No createdump reference found in deps.json to remove."
+            }
         }
         catch {
-            Write-Log "Failed to remove createdump reference: $_" "ERROR"
+            Write-Log "Failed to process deps.json for createdump reference: $_" "ERROR"
         }
     }
 

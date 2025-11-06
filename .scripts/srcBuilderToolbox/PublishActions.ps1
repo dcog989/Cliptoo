@@ -1,22 +1,58 @@
-# Builder Toolbox - Publishing and Packaging Actions
+function Initialize-PublishContext {
+    param(
+        [string]$ActionName
+    )
+    if (-not (Test-ProjectFilesExist)) { return $null }
+    if (-not (Confirm-IdeShutdown -Action $ActionName)) { return $null }
+    if (-not (Confirm-ProcessTermination -Action $ActionName)) { return $null }
 
-function Publish-Portable {
-    if (-not (Test-ProjectFilesExist)) { return }
-    if (-not (Confirm-IdeShutdown -Action "Publish Portable Package")) { return }
-    if (-not (Confirm-ProcessTermination -Action "Publish")) { return }
+    $version = Get-CachedBuildVersion
+    if ([string]::IsNullOrEmpty($version)) {
+        Write-Log "Could not determine package version from csproj. Please set it first." "ERROR"
+        return $null
+    }
 
     $mainProjectDir = Split-Path -Path $Script:MainProjectFile -Parent
     $baseOutputDir = Join-Path $mainProjectDir "bin\Release\$($Script:TargetFramework)\$($Script:PublishRuntimeId)"
-    $publishDir = Join-Path $baseOutputDir "publish"
-    $packageDir = Join-Path $baseOutputDir "packages"
 
+    # Pre-clean the solution before building
     Remove-BuildOutput -NoConfirm
 
-    if (Test-Path $publishDir) {
-        Remove-Item $publishDir -Recurse -Force -ErrorAction SilentlyContinue
+    return [PSCustomObject]@{
+        BaseOutputDir = $baseOutputDir
+        PublishDir    = (Join-Path $baseOutputDir "publish")
+        Version       = $version
+    }
+}
+
+function Perform-PostPublishCleanup {
+    param(
+        [string]$PublishDir
+    )
+    Write-Log "Post-build processing..." "CONSOLE"
+
+    if ($Script:RemoveCreateDump) {
+        Remove-CreateDumpReference -Path $PublishDir
     }
 
-    $arguments = "`"$Script:MainProjectFile`" -c Release -r $Script:PublishRuntimeId --self-contained true"
+    if ($Script:RemoveXmlFiles) {
+        $removedCount = Remove-FilesByPattern -Path $PublishDir -Patterns @("*.xml")
+        Write-Log "Removed $removedCount documentation files (*.xml)."
+    }
+
+    $removedPdbCount = Remove-FilesByPattern -Path $PublishDir -Patterns @("*.pdb")
+    Write-Log "Removed $removedPdbCount debug symbols (*.pdb)."
+}
+
+function Publish-Portable {
+    $context = Initialize-PublishContext -ActionName "Publish Portable Package"
+    if (-not $context) { return }
+
+    $packageDir = Join-Path $context.BaseOutputDir "packages"
+    if (Test-Path $packageDir) { Remove-Item $packageDir -Recurse -Force -ErrorAction SilentlyContinue }
+    New-Item -ItemType Directory -Path $packageDir -Force | Out-Null
+
+    $arguments = "`"$Script:MainProjectFile`" -c Release -r $Script:PublishRuntimeId --self-contained true -o `"$($context.PublishDir)`""
     $result = Invoke-DotnetCommand -Command "publish" -Arguments $arguments
 
     if (-not $result.Success) {
@@ -24,42 +60,24 @@ function Publish-Portable {
         return
     }
 
-    Write-Log "Post-build processing..." "CONSOLE"
-
-    if ($Script:RemoveCreateDump) {
-        Remove-CreateDumpReference -Path $publishDir
-    }
-
-    if ($Script:RemoveXmlFiles) {
-        $removedCount = Remove-FilesByPattern -Path $publishDir -Patterns @("*.xml")
-        Write-Log "Removed $removedCount documentation files (*.xml)."
-    }
+    Perform-PostPublishCleanup -PublishDir $context.PublishDir
 
     Write-Log "Adding portable mode marker..."
-    $portableMarkerPath = Join-Path $publishDir $Script:PortableMarkerFile
+    $portableMarkerPath = Join-Path $context.PublishDir $Script:PortableMarkerFile
     Set-Content -Path $portableMarkerPath -Value "This file enables portable mode. Do not delete."
-
-    $removedPdbCount = Remove-FilesByPattern -Path $publishDir -Patterns @("*.pdb")
-    Write-Log "Removed $removedPdbCount debug symbols (*.pdb)."
 
     Write-Log "Archiving portable package..." "CONSOLE"
 
     if (-not $Script:SevenZipPath) { $Script:SevenZipPath = Find-7ZipExecutable }
 
-    if (-not (Test-Path $packageDir)) {
-        New-Item -ItemType Directory -Path $packageDir -Force | Out-Null
-    }
-
-    $version = Get-CachedBuildVersion
-    if ([string]::IsNullOrEmpty($version)) { $version = "1.0.0" }
-    $archiveFileName = [string]::Format($Script:PortableArchiveFormat, $Script:PackageTitle, $version)
+    $archiveFileName = [string]::Format($Script:PortableArchiveFormat, $Script:PackageTitle, $context.Version)
     $destinationArchive = Join-Path $packageDir $archiveFileName
 
     if (Test-Path $destinationArchive) {
         Remove-Item $destinationArchive -Force
     }
 
-    $archiveResult = Compress-With7Zip -SourceDir $publishDir -ArchivePath $destinationArchive
+    $archiveResult = Compress-With7Zip -SourceDir $context.PublishDir -ArchivePath $destinationArchive
     if (-not $archiveResult.Success) {
         Write-Log "7-Zip archiving failed: $($archiveResult.Message)" "ERROR"
         return
@@ -72,34 +90,24 @@ function Publish-Portable {
 }
 
 function New-ProductionPackage {
-    if (-not (Test-ProjectFilesExist)) { return }
-    if (-not (Confirm-IdeShutdown -Action "Production Build")) { return }
-    if (-not (Confirm-ProcessTermination -Action "Production Build")) { return }
+    $context = Initialize-PublishContext -ActionName "Production Build"
+    if (-not $context) { return }
 
     if ($Script:UseVelopack) {
         # --- Velopack Build Path ---
-        $mainProjectDir = Split-Path -Path $Script:MainProjectFile -Parent
-        $baseOutputDir = Join-Path $mainProjectDir "bin\Release\$($Script:TargetFramework)\$($Script:PublishRuntimeId)"
-        $publishDir = Join-Path $baseOutputDir "publish"
         $releaseDir = Join-Path $Script:SolutionRoot "Releases"
 
         # Clean previous output
-        if (Test-Path $publishDir) { Remove-Item -Recurse -Force $publishDir -ErrorAction SilentlyContinue }
+        if (Test-Path $context.PublishDir) { Remove-Item -Recurse -Force $context.PublishDir -ErrorAction SilentlyContinue }
         if (Test-Path $releaseDir) { Remove-Item -Recurse -Force $releaseDir -ErrorAction SilentlyContinue }
-        New-Item -ItemType Directory -Path $publishDir -Force | Out-Null
+        New-Item -ItemType Directory -Path $context.PublishDir -Force | Out-Null
 
         # Publish the application (Velopack works best with self-contained apps)
         Write-Log "Publishing self-contained application for Velopack..." "CONSOLE"
-        $publishArgs = "`"$Script:MainProjectFile`" -c Release -r $Script:PublishRuntimeId --self-contained true -o `"$publishDir`""
+        $publishArgs = "`"$Script:MainProjectFile`" -c Release -r $Script:PublishRuntimeId --self-contained true -o `"$($context.PublishDir)`""
         $buildResult = Invoke-DotnetCommand -Command "publish" -Arguments $publishArgs
         if (-not $buildResult.Success) {
             Write-Log "Release publish failed: $($buildResult.Message)" "ERROR"
-            return
-        }
-
-        $version = Get-CachedBuildVersion
-        if ([string]::IsNullOrEmpty($version)) {
-            Write-Log "Could not determine package version from csproj." "ERROR"
             return
         }
 
@@ -121,7 +129,7 @@ function New-ProductionPackage {
 
         # Package with Velopack. This single command creates the installer, portable, and update packages.
         Write-Log "Packaging with Velopack..." "CONSOLE"
-        $velopackArgs = "pack --packId `"$($Script:PackageId)`" --packVersion $version --packDir `"$publishDir`" -o `"$releaseDir`" $iconArg $channelArg --verbose"
+        $velopackArgs = "pack --packId `"$($Script:PackageId)`" --packVersion $($context.Version) --packDir `"$($context.PublishDir)`" -o `"$releaseDir`" $iconArg $channelArg --verbose"
 
         # --- DIAGNOSTIC STEP ---
         # Log the exact command being run to diagnose parsing issues.
@@ -140,13 +148,13 @@ function New-ProductionPackage {
             $portableFile = Get-ChildItem -Path $releaseDir -Filter "*-portable.zip" | Select-Object -First 1
 
             if ($setupFile) {
-                $newSetupName = "$($Script:PackageTitle)-Windows-x64-Setup-v$($version).exe"
+                $newSetupName = "$($Script:PackageTitle)-Windows-x64-Setup-v$($context.Version).exe"
                 Rename-Item -Path $setupFile.FullName -NewName $newSetupName
                 Write-Log "Renamed installer to $newSetupName"
             }
 
             if ($portableFile) {
-                $newPortableName = "$($Script:PackageTitle)-Windows-x64-Portable-v$($version).zip"
+                $newPortableName = "$($Script:PackageTitle)-Windows-x64-Portable-v$($context.Version).zip"
                 Rename-Item -Path $portableFile.FullName -NewName $newPortableName
                 Write-Log "Renamed portable package to $newPortableName"
             }
@@ -164,10 +172,8 @@ function New-ProductionPackage {
         # --- 7-Zip Build Path ---
         if (-not $Script:SevenZipPath) { $Script:SevenZipPath = Find-7ZipExecutable }
 
-        $mainProjectDir = Split-Path -Path $Script:MainProjectFile -Parent
-        $baseOutputDir = Join-Path $mainProjectDir "bin\Release\$($Script:TargetFramework)\$($Script:PublishRuntimeId)"
-        $releaseDir = Join-Path $baseOutputDir "release_packages"
-        $stagingDir = Join-Path $baseOutputDir "production_staging"
+        $releaseDir = Join-Path $context.BaseOutputDir "release_packages"
+        $stagingDir = Join-Path $context.BaseOutputDir "production_staging"
 
         # Clean previous output
         if (Test-Path $releaseDir) { Remove-Item -Recurse -Force $releaseDir -ErrorAction SilentlyContinue }
@@ -185,15 +191,11 @@ function New-ProductionPackage {
         }
 
         # Post-build cleanup
-        $removedPdbCount = Remove-FilesByPattern -Path $stagingDir -Patterns @("*.pdb")
-        Write-Log "Removed $removedPdbCount debug symbols"
-
-        $version = Get-CachedBuildVersion
-        if ([string]::IsNullOrEmpty($version)) { $version = "1.0.0" }
+        Perform-PostPublishCleanup -PublishDir $stagingDir
 
         # Create standard package
         Write-Log "Archiving standard package..." "CONSOLE"
-        $stdArchiveName = [string]::Format($Script:StandardArchiveFormat, $Script:PackageTitle, $version)
+        $stdArchiveName = [string]::Format($Script:StandardArchiveFormat, $Script:PackageTitle, $context.Version)
         $stdArchivePath = Join-Path $releaseDir $stdArchiveName
         $archiveResult = Compress-With7Zip -SourceDir $stagingDir -ArchivePath $stdArchivePath
         if (-not $archiveResult.Success) {
@@ -206,7 +208,7 @@ function New-ProductionPackage {
         $portableMarkerPath = Join-Path $stagingDir $Script:PortableMarkerFile
         Set-Content -Path $portableMarkerPath -Value "This file enables portable mode. Do not delete."
 
-        $portableArchiveName = [string]::Format($Script:PortableArchiveFormat, $Script:PackageTitle, $version)
+        $portableArchiveName = [string]::Format($Script:PortableArchiveFormat, $Script:PackageTitle, $context.Version)
         $portableArchivePath = Join-Path $releaseDir $portableArchiveName
         $portableArchiveResult = Compress-With7Zip -SourceDir $stagingDir -ArchivePath $portableArchivePath
         if (-not $portableArchiveResult.Success) {

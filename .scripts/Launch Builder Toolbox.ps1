@@ -3,7 +3,7 @@
 # allowing the root directory to remain clean.
 
 # Construct the path to the main script inside the 'src' directory.
-$mainScriptPath = Join-Path $PSScriptRoot "src\BuilderToolbox.ps1"
+$mainScriptPath = Join-Path $PSScriptRoot "srcBuilderToolbox\BuilderToolbox.ps1"
 
 if (-not (Test-Path $mainScriptPath)) {
     Write-Host "FATAL ERROR: The main script could not be found at '$mainScriptPath'." -ForegroundColor Red

@@ -54,7 +54,18 @@ function Show-Menu {
     $alphaKeys = $Script:MenuItems.Keys | Where-Object { $_ -match '^[A-Z]$' } | Sort-Object
     $maxRows = [math]::Max($numericKeys.Count, $alphaKeys.Count)
 
-    $menuTable = for ($i = 0; $i -lt $maxRows; $i++) {
+    # Calculate padding for the left column
+    $leftColumnItems = @()
+    foreach ($key in $numericKeys) {
+        $leftColumnItems += "$key. $($Script:MenuItems[$key].Description)"
+    }
+    $maxLeftWidth = 0
+    if ($leftColumnItems.Count -gt 0) {
+        $maxLeftWidth = ($leftColumnItems | Measure-Object -Property Length -Maximum).Maximum
+    }
+    $columnPadding = $maxLeftWidth + 4 # 4 spaces for gutter
+
+    for ($i = 0; $i -lt $maxRows; $i++) {
         $left = ""
         if ($i -lt $numericKeys.Count) {
             $key = $numericKeys[$i]
@@ -66,10 +77,9 @@ function Show-Menu {
             $key = $alphaKeys[$i]
             $right = "$key. $($Script:MenuItems[$key].Description)"
         }
-        [PSCustomObject]@{ Left = $left; Right = $right }
-    }
 
-    ($menuTable | Format-Table -HideTableHeaders -AutoSize | Out-String).Trim() | Write-Host
+        Write-Host ($left.PadRight($columnPadding) + $right)
+    }
 
     Write-Host "Q. Quit" -ForegroundColor Magenta
     Write-Host "-------------------------------------------------------------------------------" -ForegroundColor Green
@@ -157,6 +167,7 @@ function Main {
     }
     finally {
         Write-Log "Exiting script."
+        Sync-LogBuffer
     }
 }
 

@@ -10,8 +10,18 @@ function Remove-BuildOutput {
 
     Write-Log "Cleaning build files..." "CONSOLE"
 
-    $buildDirs = Get-ChildItem -Path $Script:SolutionRoot -Include "bin", "obj" -Recurse -Directory -ErrorAction SilentlyContinue
-    if ($buildDirs) {
+    # Optimized search: Find all project files, then look for bin/obj in their parent directories.
+    # This avoids a deep recursive search across the entire repository.
+    $projectFiles = Get-ChildItem -Path $Script:SolutionRoot -Filter "*.csproj" -Recurse -File -ErrorAction SilentlyContinue
+    $projectParentDirs = $projectFiles | Select-Object -ExpandProperty DirectoryName | Get-Unique
+
+    $buildDirs = @()
+    if ($projectParentDirs.Count -gt 0) {
+        Write-Log "Found $($projectParentDirs.Count) project directories. Searching for 'bin' and 'obj' folders within them."
+        $buildDirs = Get-ChildItem -Path $projectParentDirs -Include "bin", "obj" -Directory -ErrorAction SilentlyContinue
+    }
+
+    if ($buildDirs.Count -gt 0) {
         $counter = 0
         $total = $buildDirs.Count
         foreach ($dir in $buildDirs) {
@@ -24,6 +34,9 @@ function Remove-BuildOutput {
         # Small delay to let PowerShell process the completion
         Start-Sleep -Milliseconds 50
         Write-Log "Removed $($buildDirs.Count) build directories"
+    }
+    else {
+        Write-Log "No 'bin' or 'obj' directories found to clean."
     }
 
     if ($Script:UseVelopack) {

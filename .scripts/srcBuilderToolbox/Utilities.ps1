@@ -201,9 +201,7 @@ function Confirm-ProcessTermination {
         [bool]$UseGracefulTermination = $true
     )
 
-    # Use a wildcard search to address potential bug with process name matching
-    $processFilter = "$($Script:ProcessNameForTermination)*"
-    $processes = Get-Process -Name $processFilter -ErrorAction SilentlyContinue
+    $processes = Get-Process -Name $Script:ProcessNameForTermination -ErrorAction SilentlyContinue
     if ($processes.Count -eq 0) {
         return $true
     }

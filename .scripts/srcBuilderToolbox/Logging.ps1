@@ -37,7 +37,11 @@ function Write-Log {
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     $logEntry = "[$timestamp] [$Level] $Message"
 
-    Add-Content -Path (Get-LogFile) -Value $logEntry
+    $Script:LogBuffer.Add($logEntry)
+
+    if ($Script:LogBuffer.Count -ge $Script:LogBufferFlushThreshold) {
+        Sync-LogBuffer
+    }
 
     # Only write specific levels to the console. INFO is now log-only.
     switch ($Level) {
@@ -45,6 +49,14 @@ function Write-Log {
         "WARN" { Write-Host $Message -ForegroundColor Yellow }
         "SUCCESS" { Write-Host $Message -ForegroundColor Green }
         "CONSOLE" { Write-Host $Message }
+    }
+}
+
+function Sync-LogBuffer {
+    if ($Script:LogBuffer.Count -gt 0) {
+        $logFile = Get-LogFile
+        Add-Content -Path $logFile -Value $Script:LogBuffer
+        $Script:LogBuffer.Clear()
     }
 }
 
