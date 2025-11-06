@@ -88,8 +88,9 @@ namespace Cliptoo.UI.Services
 
             var settings = _settingsService.Settings;
             LogManager.Configure(settings.LoggingLevel, settings.LogRetentionDays);
-
+            LogManager.LogInfo($"##########################################################");
             LogManager.LogInfo($"Cliptoo v{appVersion} starting up...");
+            LogManager.LogInfo($"##########################################################");
             LogManager.LogDebug("ApplicationHostService starting...");
 
             await _updateService.CheckForUpdatesAsync(cancellationToken);
