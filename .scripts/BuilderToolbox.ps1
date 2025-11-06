@@ -47,7 +47,7 @@ $Script:RemoveCreateDump = $true # Remove createdump.exe from deps.json
 $Script:RemoveXmlFiles = $true # Remove *.xml doc files from output
 
 # 7-Zip
-$Script:SevenZipPath = Join-Path $PSScriptRoot "7z/7za.exe"
+$Script:SevenZipPath = $null
 
 # Cached values
 $Script:BuildVersion = $null
@@ -111,6 +111,33 @@ class CommandResult {
 }
 
 # --- Utility Functions ---
+function Find-7ZipExecutable {
+    # 1. Check PATH
+    $sevenZipInPath = Get-Command 7za.exe -ErrorAction SilentlyContinue
+    if ($null -ne $sevenZipInPath) {
+        Write-Log "Found 7za.exe in PATH: $($sevenZipInPath.Source)"
+        return $sevenZipInPath.Source
+    }
+
+    # 2. Check script root
+    $sevenZipAtRoot = Join-Path $PSScriptRoot "7za.exe"
+    if (Test-Path $sevenZipAtRoot) {
+        Write-Log "Found 7za.exe in script root: $sevenZipAtRoot"
+        return $sevenZipAtRoot
+    }
+
+    # 3. Check 7z subdirectory
+    $sevenZipInSubDir = Join-Path $PSScriptRoot "7z/7za.exe"
+    if (Test-Path $sevenZipInSubDir) {
+        Write-Log "Found 7za.exe in 7z subdirectory: $sevenZipInSubDir"
+        return $sevenZipInSubDir
+    }
+    
+    # Not found
+    Write-Log "7za.exe not found. Will fall back to PowerShell's Compress-Archive for packaging." "WARN"
+    return $null
+}
+
 function Test-Prerequisites {
     if (-not (Test-Path $Script:SolutionFile)) {
         throw "Solution file not found at '$($Script:SolutionFile)'. Ensure this script is in the correct project directory."
@@ -753,8 +780,8 @@ function Compress-With7Zip {
         [string]$ArchivePath
     )
 
-    if (-not (Test-Path $Script:SevenZipPath)) {
-        Write-Log "7-Zip not found at '$Script:SevenZipPath'. Using Compress-Archive instead." "WARN"
+    if ([string]::IsNullOrEmpty($Script:SevenZipPath)) {
+        Write-Log "7-Zip not found. Using Compress-Archive instead." "WARN"
 
         $parentDir = Split-Path $ArchivePath -Parent
         if (-not (Test-Path $parentDir)) {
@@ -1485,9 +1512,10 @@ function Wait-ProcessTermination {
 function Main {
     try {
         Test-Prerequisites
+        $Script:SevenZipPath = Find-7ZipExecutable
         
         # Determine the effective application name for use throughout the script.
-        $Script:AppName = Get-EffectiveAppName
+        $Script:AppName = Get-EffectiveAppName```
         $Script:ProcessNameForTermination = $Script:AppName
         Write-Log "Effective App Name set to: $($Script:AppName)"
 
