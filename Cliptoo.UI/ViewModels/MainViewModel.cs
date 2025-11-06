@@ -1,11 +1,8 @@
-using System.Runtime;
 using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Media;
-using System.Windows.Threading;
 using Cliptoo.Core.Configuration;
 using Cliptoo.Core.Interfaces;
-using Cliptoo.Core.Logging;
 using Cliptoo.UI.Services;
 using Cliptoo.UI.ViewModels.Base;
 using Wpf.Ui.Appearance;
@@ -39,7 +36,6 @@ namespace Cliptoo.UI.ViewModels
         private readonly IEventAggregator _eventAggregator;
         private readonly IListViewInteractionService _listViewInteractionService;
         private readonly IClipViewModelFactory _clipViewModelFactory;
-        private readonly DispatcherTimer _clearClipsTimer;
         private bool _isAlwaysOnTop;
         private Settings _currentSettings;
         private bool _isFilterPopupOpen;
@@ -209,9 +205,6 @@ namespace Cliptoo.UI.ViewModels
             _settingsService.SettingsChanged += OnSettingsChanged;
             _comparisonStateService.ComparisonStateChanged += OnComparisonStateChanged;
             _clipDisplayService.ListScrolledToTopRequest += (s, e) => RequestScrollToTop = true;
-
-            _clearClipsTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
-            _clearClipsTimer.Tick += OnClearClipsTimerElapsed;
         }
 
         private void SubscribeToEvents()
@@ -292,22 +285,11 @@ namespace Cliptoo.UI.ViewModels
             });
         }
 
-        private void OnClearClipsTimerElapsed(object? sender, EventArgs e)
-        {
-            _clearClipsTimer.Stop();
-            if (!IsWindowVisible && Clips.Count > 0)
-            {
-                LogManager.LogInfo("Delayed timer elapsed. Clearing clips collection to conserve memory.");
-                _clipDisplayService.ClearClipsForHiding();
-            }
-        }
-
         public void HideWindow()
         {
             _appInteractionService.IsUiInteractive = false;
             IsHidingExplicitly = true;
             IsFilterPopupOpen = false;
-            _clearClipsTimer.Start();
             _needsRefreshOnShow = true;
             var settings = _settingsService.Settings;
             if (!settings.RememberSearchInput)
@@ -324,7 +306,6 @@ namespace Cliptoo.UI.ViewModels
         public void HandleWindowShown()
         {
             _appInteractionService.IsUiInteractive = true;
-            _clearClipsTimer.Stop();
             if (IsInitializing)
             {
                 return;
@@ -346,7 +327,6 @@ namespace Cliptoo.UI.ViewModels
             _clipDataService.NewClipAdded -= OnNewClipAdded;
             _databaseService.HistoryCleared -= OnHistoryCleared;
             _settingsService.SettingsChanged -= OnSettingsChanged;
-            _clearClipsTimer.Tick -= OnClearClipsTimerElapsed;
             _comparisonStateService.ComparisonStateChanged -= OnComparisonStateChanged;
             if (_clipDisplayService is IDisposable disposable)
             {

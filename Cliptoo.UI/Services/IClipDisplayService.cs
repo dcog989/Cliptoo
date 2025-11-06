@@ -19,6 +19,5 @@ namespace Cliptoo.UI.Services
         Task LoadMoreClipsAsync();
         void RefreshClipList();
         void HandleNewClip(Clip newClip);
-        void ClearClipsForHiding();
     }
 }
