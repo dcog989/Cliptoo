@@ -319,15 +319,11 @@ namespace Cliptoo.UI.ViewModels
                 SelectedFilter = FilterOptions.First();
             }
             Application.Current.MainWindow?.Hide();
-            GCSettings.LatencyMode = GCLatencyMode.SustainedLowLatency;
-            LogManager.LogDebug("GC mode set to SustainedLowLatency.");
         }
 
         public void HandleWindowShown()
         {
             _appInteractionService.IsUiInteractive = true;
-            GCSettings.LatencyMode = GCLatencyMode.Interactive;
-            LogManager.LogDebug("GC mode restored to Interactive.");
             _clearClipsTimer.Stop();
             if (IsInitializing)
             {
