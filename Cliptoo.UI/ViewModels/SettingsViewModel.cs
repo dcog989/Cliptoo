@@ -34,6 +34,7 @@ namespace Cliptoo.UI.ViewModels
         private readonly Cliptoo.UI.Services.IThemeService _themeService;
         private readonly System.Timers.Timer _saveDebounceTimer;
         private readonly IEventAggregator _eventAggregator;
+        private bool _isDirty;
         private Settings _settings = null!;
         private DbStats _stats = null!;
         private string _selectedFontFamily;
@@ -213,6 +214,7 @@ namespace Cliptoo.UI.ViewModels
 
         private void OnSettingsPropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
+            _isDirty = true;
             OnPropertyChanged(e.PropertyName);
 
             switch (e.PropertyName)
@@ -380,7 +382,11 @@ namespace Cliptoo.UI.ViewModels
 
         private void SyncAndSaveSettings()
         {
-            _settingsService.SaveSettings();
+            if (_isDirty)
+            {
+                _settingsService.SaveSettings();
+                _isDirty = false;
+            }
         }
 
         private void DebounceSave()

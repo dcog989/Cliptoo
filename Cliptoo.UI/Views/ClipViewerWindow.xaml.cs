@@ -71,11 +71,20 @@ namespace Cliptoo.UI.Views
                 if (this.WindowState == WindowState.Normal)
                 {
                     var settings = vm.SettingsService.Settings;
-                    settings.EditorWindowWidth = Math.Round(this.Width);
-                    settings.EditorWindowHeight = Math.Round(this.Height);
-                    settings.EditorWindowX = Math.Round(this.Left);
-                    settings.EditorWindowY = Math.Round(this.Top);
-                    vm.SettingsService.SaveSettings();
+                    bool changed =
+                        Math.Round(settings.EditorWindowWidth) != Math.Round(this.Width) ||
+                        Math.Round(settings.EditorWindowHeight) != Math.Round(this.Height) ||
+                        Math.Round(settings.EditorWindowX) != Math.Round(this.Left) ||
+                        Math.Round(settings.EditorWindowY) != Math.Round(this.Top);
+
+                    if (changed)
+                    {
+                        settings.EditorWindowWidth = Math.Round(this.Width);
+                        settings.EditorWindowHeight = Math.Round(this.Height);
+                        settings.EditorWindowX = Math.Round(this.Left);
+                        settings.EditorWindowY = Math.Round(this.Top);
+                        vm.SettingsService.SaveSettings();
+                    }
                 }
             }
             base.OnClosed(e);

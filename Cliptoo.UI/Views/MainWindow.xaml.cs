@@ -52,11 +52,29 @@ namespace Cliptoo.UI.Views
             if (this.WindowState == WindowState.Normal)
             {
                 var settings = _settingsService.Settings;
-                settings.WindowWidth = Math.Round(this.Width);
-                settings.WindowHeight = Math.Round(this.Height);
-                settings.FixedX = (int)Math.Round(this.Left);
-                settings.FixedY = (int)Math.Round(this.Top);
-                _settingsService.SaveSettings();
+                bool sizeChanged = Math.Round(settings.WindowWidth) != Math.Round(this.Width) || Math.Round(settings.WindowHeight) != Math.Round(this.Height);
+
+                bool positionChanged = false;
+                // Only save position if the mode is Fixed, otherwise we overwrite dynamic positions like 'Cursor'
+                if (settings.LaunchPosition.Equals("Fixed", StringComparison.OrdinalIgnoreCase))
+                {
+                    positionChanged = settings.FixedX != (int)Math.Round(this.Left) || settings.FixedY != (int)Math.Round(this.Top);
+                }
+
+                if (sizeChanged || positionChanged)
+                {
+                    if (sizeChanged)
+                    {
+                        settings.WindowWidth = Math.Round(this.Width);
+                        settings.WindowHeight = Math.Round(this.Height);
+                    }
+                    if (positionChanged)
+                    {
+                        settings.FixedX = (int)Math.Round(this.Left);
+                        settings.FixedY = (int)Math.Round(this.Top);
+                    }
+                    _settingsService.SaveSettings();
+                }
             }
         }
 
