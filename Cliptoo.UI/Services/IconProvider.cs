@@ -8,6 +8,7 @@ using Cliptoo.Core.Services;
 using SixLabors.ImageSharp;
 using System.Collections.Concurrent;
 using System.Globalization;
+using System.Windows.Resources;
 
 namespace Cliptoo.UI.Services
 {
@@ -169,17 +170,28 @@ namespace Cliptoo.UI.Services
 
             try
             {
-                string? svgContent = await Application.Current.Dispatcher.InvokeAsync(() =>
+                StreamResourceInfo? streamInfo = await Application.Current.Dispatcher.InvokeAsync(() =>
                 {
                     var uri = new Uri($"pack://application:,,,/Assets/Icons/{iconName}");
-                    var streamInfo = Application.GetResourceStream(uri);
-                    if (streamInfo == null) return null;
-                    using var stream = streamInfo.Stream;
-                    using var reader = new StreamReader(stream);
-                    return reader.ReadToEnd();
+                    return Application.GetResourceStream(uri);
                 });
 
-                if (svgContent == null) return null;
+                if (streamInfo is null)
+                {
+                    return null;
+                }
+
+                string svgContent;
+                using (var stream = streamInfo.Stream)
+                using (var reader = new StreamReader(stream))
+                {
+                    svgContent = await reader.ReadToEndAsync().ConfigureAwait(false);
+                }
+
+                if (string.IsNullOrEmpty(svgContent))
+                {
+                    return null;
+                }
 
                 if (int.TryParse(key, out _))
                 {
