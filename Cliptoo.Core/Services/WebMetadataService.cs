@@ -272,43 +272,55 @@ namespace Cliptoo.Core.Services
 
         private static async Task<string?> ReadHeadContentAsync(Stream stream)
         {
-            const int maxBytesToRead = 777 * 1024;
-            using var memoryStream = new MemoryStream();
-            Memory<byte> buffer = new byte[8192];
-            long totalBytesRead = 0;
+            const int maxCharsToRead = 333 * 1024;
+            const string headTag = "</head>";
 
-            while (totalBytesRead < maxBytesToRead)
+            // Use a StreamReader to handle character encoding correctly.
+            // leaveOpen: true is important as the HttpClient owns the underlying network stream.
+            using var reader = new StreamReader(stream, Encoding.UTF8, true, 1024, leaveOpen: true);
+
+            var contentBuilder = new StringBuilder();
+            var buffer = new char[4096];
+            int totalCharsRead = 0;
+
+            while (totalCharsRead < maxCharsToRead)
             {
-                var bytesToRead = (int)Math.Min(buffer.Length, maxBytesToRead - totalBytesRead);
-                var bytesRead = await stream.ReadAsync(buffer.Slice(0, bytesToRead)).ConfigureAwait(false);
-                if (bytesRead == 0)
+                int charsRead = await reader.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false);
+                if (charsRead == 0)
                 {
-                    break;
+                    break; // End of stream
                 }
-                await memoryStream.WriteAsync(buffer.Slice(0, bytesRead)).ConfigureAwait(false);
-                totalBytesRead += bytesRead;
+
+                contentBuilder.Append(buffer, 0, charsRead);
+                totalCharsRead += charsRead;
+
+                // This is a trade-off. We create a string, but the loop should exit very early.
+                // The performance gain from not reading the whole page body far outweighs this.
+                string currentContent = contentBuilder.ToString();
+                int headEndIndex = currentContent.IndexOf(headTag, StringComparison.OrdinalIgnoreCase);
+
+                if (headEndIndex != -1)
+                {
+                    // Found the tag, return the relevant part.
+                    return currentContent.Substring(0, headEndIndex + headTag.Length);
+                }
             }
 
-            memoryStream.Position = 0;
-            if (memoryStream.Length == 0) return null;
-
-            using var reader = new StreamReader(memoryStream, Encoding.UTF8, true);
-            var content = await reader.ReadToEndAsync().ConfigureAwait(false);
-
-            if (string.IsNullOrEmpty(content))
+            var finalContent = contentBuilder.ToString();
+            if (string.IsNullOrEmpty(finalContent))
             {
                 return null;
             }
 
-            const string headTag = "</head>";
-            int headEndIndex = content.IndexOf(headTag, StringComparison.OrdinalIgnoreCase);
-            if (headEndIndex != -1)
+            // One last check in case the tag was split across reads.
+            int finalHeadEndIndex = finalContent.IndexOf(headTag, StringComparison.OrdinalIgnoreCase);
+            if (finalHeadEndIndex != -1)
             {
-                return content.Substring(0, headEndIndex + headTag.Length);
+                return finalContent.Substring(0, finalHeadEndIndex + headTag.Length);
             }
 
-            LogManager.LogDebug($"HTML </head> tag not found within the first {maxBytesToRead / 1024}KB. Using partial content for discovery.");
-            return content;
+            LogManager.LogDebug($"HTML </head> tag not found within the first {maxCharsToRead / 1024}KB. Using partial content for discovery.");
+            return finalContent;
         }
 
 
