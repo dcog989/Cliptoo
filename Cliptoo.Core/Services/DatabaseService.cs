@@ -196,6 +196,11 @@ namespace Cliptoo.Core.Services
             }
         }
 
+        public void ClearLogs()
+        {
+            LogManager.ClearLogs();
+        }
+
         private async Task<MaintenanceResult> RunHeavyMaintenanceAsync()
         {
             LogManager.LogInfo("Starting heavy maintenance routine...");

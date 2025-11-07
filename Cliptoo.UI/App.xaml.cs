@@ -174,6 +174,8 @@ namespace Cliptoo.UI
                         services.AddSingleton<Cliptoo.UI.Services.IThemeService, Cliptoo.UI.Services.ThemeService>();
                         services.AddSingleton<INotifyIconService, CustomNotifyIconService>();
                         services.AddSingleton<IContentDialogService, ContentDialogService>();
+                        services.AddSingleton<IDialogService, DialogService>();
+                        services.AddSingleton<IProcessService, ProcessService>();
                         services.AddSingleton<IPreviewManager, PreviewManager>();
                         services.AddSingleton<IListViewInteractionService, ListViewInteractionService>();
 
@@ -195,16 +197,18 @@ namespace Cliptoo.UI
                         ));
 
                         services.AddTransient<SettingsViewModel>(sp => new SettingsViewModel(
-                            sp.GetRequiredService<IDatabaseService>(),
-                            sp.GetRequiredService<ISettingsService>(),
-                            sp.GetRequiredService<IContentDialogService>(),
-                            sp.GetRequiredService<IStartupManagerService>(),
-                            sp,
-                            sp.GetRequiredService<IFontProvider>(),
-                            sp.GetRequiredService<IIconProvider>(),
-                            sp.GetRequiredService<Cliptoo.UI.Services.IThemeService>(),
-                            sp.GetRequiredService<IEventAggregator>()
-                        ));
+                                                                sp.GetRequiredService<IDatabaseService>(),
+                                                                sp.GetRequiredService<ISettingsService>(),
+                                                                sp.GetRequiredService<IContentDialogService>(),
+                                                                sp.GetRequiredService<IStartupManagerService>(),
+                                                                sp,
+                                                                sp.GetRequiredService<IFontProvider>(),
+                                                                sp.GetRequiredService<IIconProvider>(),
+                                                                sp.GetRequiredService<Cliptoo.UI.Services.IThemeService>(),
+                                                                sp.GetRequiredService<IEventAggregator>(),
+                                                                sp.GetRequiredService<IDialogService>(),
+                                                                sp.GetRequiredService<IProcessService>()
+                                                            ));
 
                         services.AddSingleton<MainWindow>();
                         services.AddTransient<SettingsWindow>();

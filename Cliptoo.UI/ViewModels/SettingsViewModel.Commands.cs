@@ -7,7 +7,6 @@ using Cliptoo.Core.Configuration;
 using Cliptoo.Core.Logging;
 using Cliptoo.UI.Views;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Win32;
 using Wpf.Ui.Controls;
 
 namespace Cliptoo.UI.ViewModels
@@ -40,15 +39,10 @@ namespace Cliptoo.UI.ViewModels
 
         private void ExecuteBrowseCompareTool()
         {
-            var openFileDialog = new OpenFileDialog
+            var fileName = _dialogService.ShowOpenFileDialog("Select a comparison program", "Executable files (*.exe)|*.exe|All files (*.*)|*.*");
+            if (!string.IsNullOrEmpty(fileName))
             {
-                Filter = "Executable files (*.exe)|*.exe|All files (*.*)|*.*",
-                Title = "Select a comparison program"
-            };
-
-            if (openFileDialog.ShowDialog() == true)
-            {
-                CompareToolPath = openFileDialog.FileName;
+                CompareToolPath = fileName;
             }
         }
 
@@ -140,24 +134,22 @@ namespace Cliptoo.UI.ViewModels
             string baseFileName = favoriteOnly ? "cliptoo_favorites_export" : "cliptoo_export";
             string fileName = $"{baseFileName}_{timestamp}.json";
 
-            var dialog = new SaveFileDialog
-            {
-                Filter = "JSON files (*.json)|*.json",
-                Title = favoriteOnly ? "Export Favorite Clips" : "Export All Clips",
-                InitialDirectory = downloadsPath,
-                FileName = fileName
-            };
+            var filePath = _dialogService.ShowSaveFileDialog(
+                favoriteOnly ? "Export Favorite Clips" : "Export All Clips",
+                "JSON files (*.json)|*.json",
+                downloadsPath,
+                fileName);
 
-            if (dialog.ShowDialog() != true) return;
+            if (string.IsNullOrEmpty(filePath)) return;
 
             IsBusy = true;
             try
             {
                 var jsonContent = await _databaseService.ExportToJsonStringAsync(favoriteOnly).ConfigureAwait(false);
-                await File.WriteAllTextAsync(dialog.FileName, jsonContent).ConfigureAwait(false);
+                await File.WriteAllTextAsync(filePath, jsonContent).ConfigureAwait(false);
                 await Application.Current.Dispatcher.InvokeAsync(async () =>
                 {
-                    await ShowInformationDialogAsync("Export Complete", new System.Windows.Controls.TextBlock { Text = $"Successfully exported clips to:\n{dialog.FileName}" });
+                    await ShowInformationDialogAsync("Export Complete", new System.Windows.Controls.TextBlock { Text = $"Successfully exported clips to:\n{filePath}" });
                 });
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -176,13 +168,8 @@ namespace Cliptoo.UI.ViewModels
 
         private async Task ExecuteImport()
         {
-            var dialog = new OpenFileDialog
-            {
-                Filter = "JSON files (*.json)|*.json",
-                Title = "Import Clips"
-            };
-
-            if (dialog.ShowDialog() != true) return;
+            var filePath = _dialogService.ShowOpenFileDialog("Import Clips", "JSON files (*.json)|*.json");
+            if (string.IsNullOrEmpty(filePath)) return;
 
             var confirmDialog = new ContentDialog
             {
@@ -198,7 +185,7 @@ namespace Cliptoo.UI.ViewModels
             IsBusy = true;
             try
             {
-                var jsonContent = await File.ReadAllTextAsync(dialog.FileName).ConfigureAwait(false);
+                var jsonContent = await File.ReadAllTextAsync(filePath).ConfigureAwait(false);
                 int importedCount = await _databaseService.ImportFromJsonAsync(jsonContent).ConfigureAwait(false);
                 await InitializeAsync().ConfigureAwait(false);
                 await Application.Current.Dispatcher.InvokeAsync(async () =>
@@ -222,18 +209,14 @@ namespace Cliptoo.UI.ViewModels
 
         private void ExecuteAddSendToTarget()
         {
-            var openFileDialog = new OpenFileDialog
-            {
-                Filter = "Executable files (*.exe)|*.exe|All files (*.*)|*.*",
-                Title = "Select an Application"
-            };
+            var filePath = _dialogService.ShowOpenFileDialog("Select an Application", "Executable files (*.exe)|*.exe|All files (*.*)|*.*");
 
-            if (openFileDialog.ShowDialog() == true)
+            if (!string.IsNullOrEmpty(filePath))
             {
                 var newTarget = new SendToTarget
                 {
-                    Path = openFileDialog.FileName,
-                    Name = Path.GetFileNameWithoutExtension(openFileDialog.FileName),
+                    Path = filePath,
+                    Name = Path.GetFileNameWithoutExtension(filePath),
                     Arguments = "\"{0}\""
                 };
                 SendToTargets.Add(newTarget);
@@ -315,15 +298,11 @@ namespace Cliptoo.UI.ViewModels
 
         private void ExecuteBrowseAndAddBlacklistedApp()
         {
-            var openFileDialog = new OpenFileDialog
-            {
-                Filter = "Executable files (*.exe)|*.exe|All files (*.*)|*.*",
-                Title = "Select an Application to Blacklist"
-            };
+            var filePath = _dialogService.ShowOpenFileDialog("Select an Application to Blacklist", "Executable files (*.exe)|*.exe|All files (*.*)|*.*");
 
-            if (openFileDialog.ShowDialog() == true)
+            if (!string.IsNullOrEmpty(filePath))
             {
-                var appName = Path.GetFileName(openFileDialog.FileName);
+                var appName = Path.GetFileName(filePath);
                 ExecuteAddBlacklistedApp(appName);
             }
         }

@@ -34,6 +34,8 @@ namespace Cliptoo.UI.ViewModels
         private readonly Cliptoo.UI.Services.IThemeService _themeService;
         private readonly System.Timers.Timer _saveDebounceTimer;
         private readonly IEventAggregator _eventAggregator;
+        private readonly IDialogService _dialogService;
+        private readonly IProcessService _processService;
         private bool _isDirty;
         private Settings _settings = null!;
         private DbStats _stats = null!;
@@ -51,7 +53,7 @@ namespace Cliptoo.UI.ViewModels
         public static Uri GitHubUrl { get; } = new("https://github.com/dcgog989/Cliptoo");
         public ObservableCollection<SendToTarget> SendToTargets => Settings.SendToTargets;
 
-        public SettingsViewModel(IDatabaseService databaseService, ISettingsService settingsService, IContentDialogService contentDialogService, IStartupManagerService startupManagerService, IServiceProvider serviceProvider, IFontProvider fontProvider, IIconProvider iconProvider, Cliptoo.UI.Services.IThemeService themeService, IEventAggregator eventAggregator)
+        public SettingsViewModel(IDatabaseService databaseService, ISettingsService settingsService, IContentDialogService contentDialogService, IStartupManagerService startupManagerService, IServiceProvider serviceProvider, IFontProvider fontProvider, IIconProvider iconProvider, Cliptoo.UI.Services.IThemeService themeService, IEventAggregator eventAggregator, IDialogService dialogService, IProcessService processService)
         {
             _databaseService = databaseService;
             _settingsService = settingsService;
@@ -62,6 +64,8 @@ namespace Cliptoo.UI.ViewModels
             _iconProvider = iconProvider;
             _themeService = themeService;
             _eventAggregator = eventAggregator;
+            _dialogService = dialogService;
+            _processService = processService;
             Settings = _settingsService.Settings;
             Settings.PropertyChanged += OnSettingsPropertyChanged;
             _selectedFontFamily = Settings.FontFamily;
@@ -165,11 +169,11 @@ namespace Cliptoo.UI.ViewModels
             SettingsFolderPath = Path.Combine(App.AppDataRoamingPath, "Cliptoo");
             TempDataPath = Path.Combine(App.AppDataLocalPath, "Cliptoo");
 
-            OpenGitHubUrlCommand = new RelayCommand(_ => Process.Start(new ProcessStartInfo(GitHubUrl.AbsoluteUri) { UseShellExecute = true }));
-            OpenSettingsFolderCommand = new RelayCommand(_ => Process.Start(new ProcessStartInfo(SettingsFolderPath) { UseShellExecute = true }));
-            OpenTempDataFolderCommand = new RelayCommand(_ => Process.Start(new ProcessStartInfo(TempDataPath) { UseShellExecute = true }));
+            OpenGitHubUrlCommand = new RelayCommand(_ => _processService.OpenUrl(GitHubUrl));
+            OpenSettingsFolderCommand = new RelayCommand(_ => _processService.OpenFolder(SettingsFolderPath));
+            OpenTempDataFolderCommand = new RelayCommand(_ => _processService.OpenFolder(TempDataPath));
             OpenAcknowledgementsWindowCommand = new RelayCommand(ShowAcknowledgementsWindow);
-            OpenExeFolderCommand = new RelayCommand(_ => Process.Start(new ProcessStartInfo(ExePathDir) { UseShellExecute = true }));
+            OpenExeFolderCommand = new RelayCommand(_ => _processService.OpenFolder(ExePathDir));
             BrowseCompareToolCommand = new RelayCommand(_ => ExecuteBrowseCompareTool());
             AddSendToTargetCommand = new RelayCommand(_ => ExecuteAddSendToTarget());
             RemoveSendToTargetCommand = new RelayCommand(param => ExecuteRemoveSendToTarget(param as SendToTarget));

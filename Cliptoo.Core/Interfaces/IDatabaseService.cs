@@ -29,6 +29,7 @@ namespace Cliptoo.Core.Interfaces
         int CleanupTempFiles();
         Task<string> ExportToJsonStringAsync(bool favoriteOnly);
         Task<int> ImportFromJsonAsync(string jsonContent);
+        void ClearLogs();
         event EventHandler? HistoryCleared;
     }
 }
