@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Globalization;
 using System.IO;
 using System.Net.Http;
@@ -15,6 +16,8 @@ namespace Cliptoo.UI.Services
     internal class ClipDetailsLoader : IClipDetailsLoader
     {
         private readonly IImageDecoder _imageDecoder;
+        private readonly ConcurrentDictionary<string, (DateTime Timestamp, (long Size, int FileCount, int FolderCount, bool WasLimited) Result)> _directorySizeCache = new();
+        private static readonly TimeSpan CacheDuration = TimeSpan.FromSeconds(30);
 
         public ClipDetailsLoader(IImageDecoder imageDecoder)
         {
@@ -111,14 +114,24 @@ namespace Cliptoo.UI.Services
                         fileTypeInfo = FormatUtils.GetFriendlyClipTypeName(vm.ClipType);
                         try
                         {
-                            DebugUtils.LogMemoryUsage("GetFilePropertiesAsync - Before CalculateDirectorySize");
-                            var (size, fileCount, folderCount, wasLimited) = await Task.Run(() => CalculateDirectorySize(dirInfo, token), token).ConfigureAwait(false);
-                            DebugUtils.LogMemoryUsage("GetFilePropertiesAsync - After CalculateDirectorySize");
-                            if (token.IsCancellationRequested) return;
+                            (long size, int fileCount, int folderCount, bool wasLimited) dirStats;
+                            if (_directorySizeCache.TryGetValue(path, out var cachedEntry) && (DateTime.UtcNow - cachedEntry.Timestamp) < CacheDuration)
+                            {
+                                dirStats = cachedEntry.Result;
+                                DebugUtils.LogMemoryUsage("GetFilePropertiesAsync - Directory size cache hit");
+                            }
+                            else
+                            {
+                                DebugUtils.LogMemoryUsage("GetFilePropertiesAsync - Before CalculateDirectorySize");
+                                dirStats = await Task.Run(() => CalculateDirectorySize(dirInfo, token), token).ConfigureAwait(false);
+                                DebugUtils.LogMemoryUsage("GetFilePropertiesAsync - After CalculateDirectorySize");
+                                if (token.IsCancellationRequested) return;
+                                _directorySizeCache[path] = (DateTime.UtcNow, dirStats);
+                            }
 
-                            var sizeString = wasLimited ? $"> {FormatUtils.FormatBytes(size)}" : FormatUtils.FormatBytes(size);
+                            var sizeString = dirStats.wasLimited ? $"> {FormatUtils.FormatBytes(dirStats.size)}" : FormatUtils.FormatBytes(dirStats.size);
                             sb.AppendLine(CultureInfo.InvariantCulture, $"Size: {sizeString}");
-                            sb.AppendLine(CultureInfo.InvariantCulture, $"Contains: {fileCount:N0} files, {folderCount:N0} folders");
+                            sb.AppendLine(CultureInfo.InvariantCulture, $"Contains: {dirStats.fileCount:N0} files, {dirStats.folderCount:N0} folders");
                         }
                         catch (OperationCanceledException)
                         {
