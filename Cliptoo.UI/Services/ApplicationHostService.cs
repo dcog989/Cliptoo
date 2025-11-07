@@ -157,7 +157,7 @@ namespace Cliptoo.UI.Services
             return Task.CompletedTask;
         }
 
-        private void OnNewClipAdded(object? sender, EventArgs e)
+        private void OnNewClipAdded(object? sender, ClipAddedEventArgs e)
         {
             _appInteractionService.NotifyUiActivity();
         }

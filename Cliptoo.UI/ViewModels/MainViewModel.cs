@@ -356,7 +356,7 @@ namespace Cliptoo.UI.ViewModels
             Clips.Clear();
         }
 
-        private void OnNewClipAdded(object? sender, EventArgs e)
+        private void OnNewClipAdded(object? sender, ClipAddedEventArgs e)
         {
             if (!IsWindowVisible)
             {
@@ -364,10 +364,13 @@ namespace Cliptoo.UI.ViewModels
                 return;
             }
             if (!IsReadyForEvents) return;
-            _clipDisplayService.RefreshClipList();
+            _clipDisplayService.HandleNewClip(e.NewClip);
         }
+
         private void OnHistoryCleared(object? sender, EventArgs e) => _clipDisplayService.RefreshClipList();
+
         private void OnCachesCleared() => _clipDisplayService.RefreshClipList();
+
         public int SelectedIndex
         {
             get => _selectedIndex;

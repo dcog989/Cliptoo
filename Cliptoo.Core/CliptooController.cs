@@ -341,5 +341,10 @@ namespace Cliptoo.Core
             }
         }
 
+        private void OnNewClipAdded(object? sender, ClipAddedEventArgs e)
+        {
+            _appInteractionService.NotifyUiActivity();
+        }
+
     }
 }

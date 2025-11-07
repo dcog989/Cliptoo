@@ -6,6 +6,7 @@ using Cliptoo.Core.Database.Models;
 using Cliptoo.Core.Interfaces;
 using Cliptoo.Core.Logging;
 using Cliptoo.UI.ViewModels;
+using Cliptoo.UI.Helpers;
 
 namespace Cliptoo.UI.Services
 {
@@ -202,11 +203,40 @@ namespace Cliptoo.UI.Services
         {
             ArgumentNullException.ThrowIfNull(newClip);
 
-            // If a search is active, fall back to a full refresh to get correct ranking and filtering.
+            // If a search is active, we must check if the new clip matches before adding it.
             if (!string.IsNullOrEmpty(SearchTerm))
             {
-                RefreshClipList();
-                return;
+                string tagSearchPrefix = _settingsService.Settings.TagSearchPrefix;
+                bool isTagSearch = SearchTerm.StartsWith(tagSearchPrefix, StringComparison.Ordinal);
+                string actualSearchTerm = isTagSearch ? SearchTerm.Substring(tagSearchPrefix.Length) : SearchTerm;
+
+                // Only proceed if there's a real search term to check against.
+                if (!string.IsNullOrWhiteSpace(actualSearchTerm))
+                {
+                    var searchWords = actualSearchTerm.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                    bool matchesSearch;
+
+                    if (isTagSearch)
+                    {
+                        matchesSearch = !string.IsNullOrEmpty(newClip.Tags) &&
+                                        searchWords.All(word => newClip.Tags.Contains(word, StringComparison.OrdinalIgnoreCase));
+                    }
+                    else
+                    {
+                        string contentForSearch = newClip.PreviewContent ?? string.Empty;
+                        if (newClip.ClipType == AppConstants.ClipTypeRtf)
+                        {
+                            contentForSearch = RtfUtils.ToPlainText(contentForSearch);
+                        }
+                        matchesSearch = searchWords.All(word => contentForSearch.Contains(word, StringComparison.OrdinalIgnoreCase));
+                    }
+
+                    if (!matchesSearch)
+                    {
+                        LogManager.LogDebug($"New clip does not match active search term '{SearchTerm}'. UI not updated.");
+                        return; // Don't add if it doesn't match the search.
+                    }
+                }
             }
 
             bool matchesFilter = SelectedFilter.Key == AppConstants.FilterKeyAll ||
