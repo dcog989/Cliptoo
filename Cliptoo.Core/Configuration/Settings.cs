@@ -74,8 +74,8 @@ namespace Cliptoo.Core.Configuration
         [DefaultValue("Source Code Pro")]
         public string FontFamily { get => _fontFamily; set => SetProperty(ref _fontFamily, value); }
 
-        private float _fontSize = 14.0f;
-        [DefaultValue(14.0f)]
+        private float _fontSize = 15.0f;
+        [DefaultValue(15.0f)]
         public float FontSize { get => _fontSize; set => SetProperty(ref _fontSize, value); }
 
         private string _clipItemPadding = "Standard";
