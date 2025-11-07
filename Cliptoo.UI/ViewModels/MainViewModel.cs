@@ -43,6 +43,7 @@ namespace Cliptoo.UI.ViewModels
         private bool _isWindowVisible;
         private bool _needsRefreshOnShow = true;
         public bool IsWindowVisible { get => _isWindowVisible; set => SetProperty(ref _isWindowVisible, value); }
+        public int MaxPreviewLength { get; private set; }
         private FontFamily _mainFont;
         private FontFamily _previewFont;
         private int _selectedIndex;
@@ -190,6 +191,7 @@ namespace Cliptoo.UI.ViewModels
             _mainFont = _fontProvider.GetFont(CurrentSettings.FontFamily);
             _previewFont = _fontProvider.GetFont(CurrentSettings.PreviewFontFamily);
             TooltipMaxHeight = SystemParameters.WorkArea.Height * 0.9;
+            UpdateMaxPreviewLength();
 
             SendToTargets = new ObservableCollection<SendToTarget>(CurrentSettings.SendToTargets);
 
@@ -253,6 +255,7 @@ namespace Cliptoo.UI.ViewModels
             {
                 case nameof(Settings.FontFamily):
                     MainFont = _fontProvider.GetFont(CurrentSettings.FontFamily);
+                    UpdateMaxPreviewLength();
                     break;
                 case nameof(Settings.PreviewFontFamily):
                     PreviewFont = _fontProvider.GetFont(CurrentSettings.PreviewFontFamily);
@@ -263,7 +266,21 @@ namespace Cliptoo.UI.ViewModels
                 case nameof(Settings.PasteAsPlainText):
                     foreach (var clipVM in Clips) clipVM.NotifyPasteAsPropertiesChanged();
                     break;
+                case nameof(Settings.WindowWidth):
+                case nameof(Settings.FontSize):
+                    UpdateMaxPreviewLength();
+                    break;
             }
+        }
+
+        private void UpdateMaxPreviewLength()
+        {
+            double windowWidth = CurrentSettings.WindowWidth;
+            double fontSize = CurrentSettings.FontSize;
+            const double fixedWidth = 100;
+            double avgCharWidthFactor = CurrentSettings.FontFamily == "Source Code Pro" ? 0.6 : 0.55;
+            int length = (int)((windowWidth - fixedWidth) / (fontSize * avgCharWidthFactor));
+            MaxPreviewLength = length < 40 ? 40 : length;
         }
 
         public async Task InitializeAsync()

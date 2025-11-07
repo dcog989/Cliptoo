@@ -240,11 +240,11 @@ namespace Cliptoo.UI.ViewModels
         private void UpdatePreviewText()
         {
             string basePreview;
-            var searchTerm = (Application.Current.MainWindow?.DataContext as MainViewModel)?.SearchTerm ?? string.Empty;
+            var mainViewModel = (Application.Current.MainWindow?.DataContext as MainViewModel);
+            var searchTerm = mainViewModel?.SearchTerm ?? string.Empty;
             bool isSearching = !string.IsNullOrEmpty(searchTerm);
             const string startTag = "[HL]";
             const string endTag = "[/HL]";
-
             if (isSearching && !string.IsNullOrWhiteSpace(_clip.MatchContext) && _clip.MatchContext.Contains(startTag, StringComparison.Ordinal))
             {
                 string context = _clip.MatchContext.ReplaceLineEndings(" ");
@@ -253,12 +253,7 @@ namespace Cliptoo.UI.ViewModels
 
                 int firstHighlightStart = context.IndexOf(startTag, StringComparison.Ordinal);
 
-                double windowWidth = CurrentSettings.WindowWidth;
-                double fontSize = CurrentSettings.FontSize;
-                double fixedWidth = 100;
-                double avgCharWidthFactor = CurrentSettings.FontFamily == "Source Code Pro" ? 0.6 : 0.55;
-                int maxPreviewLength = (int)((windowWidth - fixedWidth) / (fontSize * avgCharWidthFactor));
-                if (maxPreviewLength < 40) maxPreviewLength = 40;
+                int maxPreviewLength = mainViewModel?.MaxPreviewLength ?? 200;
 
                 int idealStart = firstHighlightStart - (maxPreviewLength / 3);
                 int idealEnd = idealStart + maxPreviewLength;
