@@ -24,6 +24,7 @@ namespace Cliptoo.UI
 {
     public partial class App : Application, IDisposable
     {
+        private static readonly Logger _logger = new();
         private IHost? _host;
         private Mutex? _mutex;
         private bool _disposedValue;
@@ -72,7 +73,8 @@ namespace Cliptoo.UI
                 AppDataLocalPath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
             }
 
-            LogManager.Initialize(AppDataRoamingPath);
+            _logger.Initialize(AppDataRoamingPath);
+            LogManager.Initialize(_logger);
             LogManager.LogDebug($"App Main() started. Portable mode: {isPortable}");
 
             try
@@ -122,7 +124,7 @@ namespace Cliptoo.UI
                         Directory.CreateDirectory(dbFolder);
                         var dbPath = Path.Combine(dbFolder, "cliptoo_history.db");
 
-                        services.AddSingleton<ILogger, Logger>();
+                        services.AddSingleton<ILogger>(_logger);
                         services.AddSingleton<IDatabaseInitializer>(new DatabaseInitializer(dbPath));
                         services.AddSingleton<IClipRepository>(new ClipRepository(dbPath));
                         services.AddSingleton<IDatabaseMaintenanceService>(new DatabaseMaintenanceService(dbPath));
@@ -213,10 +215,6 @@ namespace Cliptoo.UI
                     }).Build();
 
                 Services = _host.Services;
-
-                var logger = Services.GetRequiredService<ILogger>();
-                logger.Initialize(AppDataRoamingPath);
-                LogManager.Initialize(logger);
 
                 LogManager.LogDebug("Host built and services configured.");
 
