@@ -1,17 +1,17 @@
 ## PROJECT SPECIFICS
-.ai-context/
+.ai/
 .archive/
 .assets/
 .config/
 .docs/
 .git/
 .repomixignore
-#.scripts/
 .test/
 .vs/
 .vscode/
 *.bak
 *.pdb
+#.scripts/
 bin/
 repomix.config.json
 
