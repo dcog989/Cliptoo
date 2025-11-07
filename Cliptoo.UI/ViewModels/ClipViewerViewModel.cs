@@ -14,15 +14,17 @@ using Wpf.Ui.Appearance;
 using Microsoft.Data.Sqlite;
 using Wpf.Ui;
 using Wpf.Ui.Controls;
+using IThemeService = Cliptoo.UI.Services.IThemeService;
 
 namespace Cliptoo.UI.ViewModels
 {
-    public class ClipViewerViewModel : ViewModelBase
+    internal class ClipViewerViewModel : ViewModelBase, IDisposable
     {
         private readonly int _clipId;
         private readonly IClipDataService _clipDataService;
         private readonly ISyntaxHighlighter _syntaxHighlighter;
         private readonly IContentDialogService _contentDialogService;
+        private readonly IThemeService _themeService;
         private readonly FontFamily _editorFontFamily;
         private readonly double _editorFontSize;
         private string _originalClipType = string.Empty;
@@ -31,6 +33,8 @@ namespace Cliptoo.UI.ViewModels
         private string _originalContent = string.Empty;
         private string _tags = string.Empty;
         private string _originalTags = string.Empty;
+        private Core.Database.Models.Clip? _loadedClip;
+        private bool _disposedValue;
 
         public event EventHandler? OnRequestClose;
         public event EventHandler? OnClipUpdated;
@@ -56,35 +60,25 @@ namespace Cliptoo.UI.ViewModels
         public FontFamily EditorFontFamily => _editorFontFamily;
 
         public double EditorFontSize => _editorFontSize;
-        public bool IsDarkMode
-        {
-            get
-            {
-                var theme = ApplicationThemeManager.GetAppTheme();
-                if (theme == ApplicationTheme.Unknown)
-                {
-                    theme = ApplicationThemeManager.GetSystemTheme() == SystemTheme.Dark ? ApplicationTheme.Dark : ApplicationTheme.Light;
-                }
-                return theme == ApplicationTheme.Dark;
-            }
-        }
 
         public ICommand SaveChangesCommand { get; }
         public ICommand CancelCommand { get; }
 
-        public ClipViewerViewModel(int clipId, IClipDataService clipDataService, ISettingsService settingsService, IFontProvider fontProvider, ISyntaxHighlighter syntaxHighlighter, IContentDialogService contentDialogService)
+        public ClipViewerViewModel(int clipId, IClipDataService clipDataService, ISettingsService settingsService, IFontProvider fontProvider, ISyntaxHighlighter syntaxHighlighter, IContentDialogService contentDialogService, IThemeService themeService)
         {
             ArgumentNullException.ThrowIfNull(clipDataService);
             ArgumentNullException.ThrowIfNull(settingsService);
             ArgumentNullException.ThrowIfNull(fontProvider);
             ArgumentNullException.ThrowIfNull(syntaxHighlighter);
             ArgumentNullException.ThrowIfNull(contentDialogService);
+            ArgumentNullException.ThrowIfNull(themeService);
 
             _clipId = clipId;
             _clipDataService = clipDataService;
             SettingsService = settingsService;
             _syntaxHighlighter = syntaxHighlighter;
             _contentDialogService = contentDialogService;
+            _themeService = themeService;
 
             SaveChangesCommand = new RelayCommand(async _ => await ExecuteSaveChanges());
             CancelCommand = new RelayCommand(_ => OnRequestClose?.Invoke(this, EventArgs.Empty));
@@ -93,40 +87,49 @@ namespace Cliptoo.UI.ViewModels
             _editorFontSize = settings.PreviewFontSize;
             _editorFontFamily = fontProvider.GetFont(settings.PreviewFontFamily);
 
+            _themeService.ThemeChanged += OnThemeChanged;
             _ = LoadClipAsync();
+        }
+
+        private void OnThemeChanged(object? sender, EventArgs e)
+        {
+            if (_loadedClip is not null)
+            {
+                LoadSyntaxHighlighting(_loadedClip);
+            }
         }
 
         private async Task LoadClipAsync()
         {
-            var clip = await _clipDataService.GetClipByIdAsync(_clipId);
-            if (clip == null)
+            _loadedClip = await _clipDataService.GetClipByIdAsync(_clipId);
+            if (_loadedClip == null)
             {
                 OnRequestClose?.Invoke(this, EventArgs.Empty);
                 return;
             }
 
-            _originalClipType = clip.ClipType;
+            _originalClipType = _loadedClip.ClipType;
 
             string? contentForInfo;
             if (_originalClipType == AppConstants.ClipTypeRtf)
             {
-                contentForInfo = RtfUtils.ToPlainText(clip.Content ?? string.Empty);
+                contentForInfo = RtfUtils.ToPlainText(_loadedClip.Content ?? string.Empty);
             }
             else
             {
-                contentForInfo = clip.Content;
+                contentForInfo = _loadedClip.Content;
             }
 
             _originalContent = contentForInfo ?? string.Empty;
             DocumentContent = contentForInfo ?? string.Empty;
-            _originalTags = clip.Tags ?? string.Empty;
-            Tags = clip.Tags ?? string.Empty;
+            _originalTags = _loadedClip.Tags ?? string.Empty;
+            Tags = _loadedClip.Tags ?? string.Empty;
 
             var lineCount = string.IsNullOrEmpty(contentForInfo) ? 0 : contentForInfo.Split('\n').Length;
-            var formattedSize = FormatUtils.FormatBytes(clip.SizeInBytes);
+            var formattedSize = FormatUtils.FormatBytes(_loadedClip.SizeInBytes);
             ClipInfo = $"Size: {formattedSize}    Lines: {lineCount}";
 
-            LoadSyntaxHighlighting(clip);
+            LoadSyntaxHighlighting(_loadedClip);
         }
 
         private void LoadSyntaxHighlighting(Core.Database.Models.Clip clip)
@@ -209,6 +212,25 @@ namespace Cliptoo.UI.ViewModels
                 };
                 await _contentDialogService.ShowAsync(dialog, CancellationToken.None);
             }
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!_disposedValue)
+            {
+                if (disposing)
+                {
+                    _themeService.ThemeChanged -= OnThemeChanged;
+                }
+
+                _disposedValue = true;
+            }
+        }
+
+        public void Dispose()
+        {
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
         }
     }
 }

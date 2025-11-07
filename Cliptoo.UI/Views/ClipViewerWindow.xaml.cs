@@ -67,6 +67,7 @@ namespace Cliptoo.UI.Views
             if (DataContext is ClipViewerViewModel vm)
             {
                 vm.OnRequestClose -= OnRequestClose;
+                (vm as IDisposable)?.Dispose();
 
                 if (this.WindowState == WindowState.Normal)
                 {

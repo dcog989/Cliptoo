@@ -28,6 +28,8 @@ namespace Cliptoo.UI.Services
         private const double LUMINANCE_B_COEFFICIENT = 0.114;
         private const int LUMINANCE_THRESHOLD = 128;
 
+        public event EventHandler? ThemeChanged;
+
 
         public ThemeService(ISettingsService settingsService)
         {
@@ -96,6 +98,7 @@ namespace Cliptoo.UI.Services
             {
                 ApplyAccentColor(240); // Default blue hue
             }
+            ThemeChanged?.Invoke(this, EventArgs.Empty);
         }
 
         public void ApplyAccentColor(double hue)

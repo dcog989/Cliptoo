@@ -7,5 +7,6 @@ namespace Cliptoo.UI.Services
         void Initialize(Window window);
         void ApplyThemeFromSettings();
         void ApplyAccentColor(double hue);
+        event EventHandler? ThemeChanged;
     }
 }
