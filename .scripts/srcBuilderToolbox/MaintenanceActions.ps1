@@ -8,37 +8,53 @@ function Remove-BuildOutput {
         if (-not (Confirm-ProcessTermination -Action "Clean")) { return }
     }
 
-    Write-Log "Cleaning build files..." "CONSOLE"
+    Write-Log "Attempting to clean build files using 'dotnet clean'..." "CONSOLE"
 
-    # Optimized search: Find all project files, then look for bin/obj in their parent directories.
-    # This avoids a deep recursive search across the entire repository.
+    # 1. Use the native dotnet clean command, which correctly handles project structure dependencies.
+    $cleanResult = Invoke-DotnetCommand -Command "clean" -Arguments "`"$Script:SolutionFile`""
+    
+    if (-not $cleanResult.Success) {
+        Write-Log "The 'dotnet clean' command failed. Proceeding with manual cleanup (this may be due to file locks)." "WARN"
+    }
+
+    # 2. Manual cleanup fallback: Find all project folders and forcefully remove bin/obj.
     $projectFiles = Get-ChildItem -Path $Script:SolutionRoot -Filter "*.csproj" -Recurse -File -ErrorAction SilentlyContinue
     $projectParentDirs = $projectFiles | Select-Object -ExpandProperty DirectoryName | Get-Unique
 
     $buildDirs = @()
     if ($projectParentDirs.Count -gt 0) {
-        Write-Log "Found $($projectParentDirs.Count) project directories. Searching for 'bin' and 'obj' folders within them."
-        $buildDirs = Get-ChildItem -Path $projectParentDirs -Include "bin", "obj" -Directory -ErrorAction SilentlyContinue
+        Write-Log "Found $($projectParentDirs.Count) project directories. Searching for 'bin' and 'obj' folders within them for forced removal."
+        # Use simple Join-Path/Test-Path to build the list of directories to remove
+        foreach ($dirPath in $projectParentDirs) {
+            $binPath = Join-Path $dirPath "bin"
+            $objPath = Join-Path $dirPath "obj"
+            if (Test-Path $binPath) { $buildDirs += $binPath }
+            if (Test-Path $objPath) { $buildDirs += $objPath }
+        }
     }
 
     if ($buildDirs.Count -gt 0) {
         $counter = 0
         $total = $buildDirs.Count
+        Write-Log "Manually removing $($buildDirs.Count) directories..."
         foreach ($dir in $buildDirs) {
             $counter++
-            Write-Progress -Activity "Cleaning build directories" -Status "Removing $($dir.Name)" -PercentComplete (($counter / $total) * 100)
-            Remove-Item -Path $dir.FullName -Recurse -Force -ErrorAction SilentlyContinue
+            Write-Progress -Activity "Cleaning build directories (Force)" -Status "Removing $($dir | Split-Path -Leaf)" -PercentComplete (($counter / $total) * 100)
+            
+            # This is the key: forcibly delete the locked directories.
+            Remove-Item -Path $dir -Recurse -Force -ErrorAction SilentlyContinue
         }
         # Ensure progress bar is completed AND cleared from display
-        Write-Progress -Activity "Cleaning build directories" -Completed
+        Write-Progress -Activity "Cleaning build directories (Force)" -Completed
         # Small delay to let PowerShell process the completion
         Start-Sleep -Milliseconds 50
-        Write-Log "Removed $($buildDirs.Count) build directories"
+        Write-Log "Manually removed $($buildDirs.Count) directories."
     }
     else {
-        Write-Log "No 'bin' or 'obj' directories found to clean."
+        Write-Log "No 'bin' or 'obj' directories found after 'dotnet clean' to manually clean."
     }
 
+    # 3. Clean Velopack releases directory if applicable
     if ($Script:UseVelopack) {
         $releaseDir = Join-Path $Script:SolutionRoot "Releases"
         if (Test-Path $releaseDir) {
