@@ -12,22 +12,22 @@ Cliptoo will turn your clipboard history in to a quick-access library of the thi
 [Download the latest release of Cliptoo](https://github.com/dcog989/Cliptoo/releases/latest).
 
 [![License](https://img.shields.io/github/license/dcog989/cliptoo?style=for-the-badge)](LICENSE)
-[![Latest Release](https://img.shields.io/github/v/release/dcog989/cliptoo?style=for-the-badge)](./Cliptoo/releases/latest/)
+[![Latest Release](https://img.shields.io/github/v/release/dcog989/cliptoo?style=for-the-badge)](https://github.com/dcog989/Cliptoo/releases/latest)
 
 ---
 
 ## Screenshots
 
-![screen 1](.assets/screen-01.webp)
-![screen 2](.assets/screen-02.webp)
-![screen 3](.assets/screen-03.webp)
-![screen 4](.assets/screen-04.webp)
-![screen 5](.assets/screen-05.webp)
-![screen 6](.assets/screen-06.webp)
-![screen 7](.assets/screen-07.webp)
-![screen 8](.assets/screen-08.webp)
-![screen 9](.assets/screen-09.webp)
-![screen 10](.assets/screen-10.webp)
+![screen 1](assets/screen-01.webp)
+![screen 2](assets/screen-02.webp)
+![screen 3](assets/screen-03.webp)
+![screen 4](assets/screen-04.webp)
+![screen 5](assets/screen-05.webp)
+![screen 6](assets/screen-06.webp)
+![screen 7](assets/screen-07.webp)
+![screen 8](assets/screen-08.webp)
+![screen 9](assets/screen-09.webp)
+![screen 10](assets/screen-10.webp)
 
 ## Features
 
