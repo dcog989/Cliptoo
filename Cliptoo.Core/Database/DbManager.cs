@@ -30,7 +30,7 @@ namespace Cliptoo.Core.Database
         public Task<Clip?> GetClipByIdAsync(int id) => _clipRepository.GetClipByIdAsync(id);
         public Task<Clip?> GetPreviewClipByIdAsync(int id) => _clipRepository.GetPreviewClipByIdAsync(id);
         public Task<int> AddClipAsync(string content, string clipType, string? sourceApp, bool wasTrimmed) => _clipRepository.AddClipAsync(content, clipType, sourceApp, wasTrimmed);
-        public Task UpdateClipContentAsync(int id, string content) => _clipRepository.UpdateClipContentAsync(id, content);
+        public Task<int> UpdateClipContentAsync(int id, string content) => _clipRepository.UpdateClipContentAsync(id, content);
         public Task DeleteClipAsync(int id) => _clipRepository.DeleteClipAsync(id);
         public Task ToggleFavoriteAsync(int id, bool isFavorite) => _clipRepository.ToggleFavoriteAsync(id, isFavorite);
         public Task UpdateTimestampAsync(int id) => _clipRepository.UpdateTimestampAsync(id);

@@ -58,9 +58,9 @@ namespace Cliptoo.Core.Services
             return clipId;
         }
 
-        public Task UpdateClipContentAsync(int id, string newContent)
+        public async Task<int> UpdateClipContentAsync(int id, string newContent)
         {
-            return _dbManager.UpdateClipContentAsync(id, newContent);
+            return await _dbManager.UpdateClipContentAsync(id, newContent);
         }
 
         public async Task DeleteClipAsync(Clip clip)

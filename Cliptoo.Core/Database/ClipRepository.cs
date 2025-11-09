@@ -192,34 +192,59 @@ namespace Cliptoo.Core.Database
         }
 
         [SuppressMessage("Microsoft.Security", "CA2100:Review SQL queries for security vulnerabilities", Justification = "The SQL query is hardcoded and uses parameters, making it safe from injection.")]
-        public async Task UpdateClipContentAsync(int id, string content)
+        public async Task<int> UpdateClipContentAsync(int id, string content)
         {
             ArgumentNullException.ThrowIfNull(content);
             var newHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(content)));
+            var finalClipId = id;
 
             await ExecuteTransactionAsync(async (connection, transaction) =>
             {
                 // Check if another clip with the same content already exists.
-                var sql = "SELECT Id FROM clips WHERE ContentHash = @ContentHash";
+                var sql = "SELECT Id, IsFavorite FROM clips WHERE ContentHash = @ContentHash";
                 var param = new SqliteParameter("@ContentHash", newHash);
 
                 int? existingClipId = null;
+                bool existingIsFavorite = false;
+
                 using (var command = connection.CreateCommand())
                 {
                     command.Transaction = (SqliteTransaction)transaction;
                     command.CommandText = sql;
                     command.Parameters.Add(param);
-                    var result = await command.ExecuteScalarAsync().ConfigureAwait(false);
-                    if (result is not null and not DBNull)
+                    using (var reader = await command.ExecuteReaderAsync().ConfigureAwait(false))
                     {
-                        existingClipId = Convert.ToInt32(result, CultureInfo.InvariantCulture);
+                        if (await reader.ReadAsync().ConfigureAwait(false))
+                        {
+                            existingClipId = reader.GetInt32(0);
+                            existingIsFavorite = reader.GetInt64(1) == 1;
+                        }
                     }
                 }
 
                 if (existingClipId.HasValue && existingClipId.Value != id)
                 {
-                    // A different clip with this content already exists.
-                    // Delete the clip being edited and update the timestamp of the existing one.
+                    // A different clip with this content already exists (MERGE case).
+                    finalClipId = existingClipId.Value;
+
+                    // 1. Get the favorite status of the clip being deleted (the one currently being edited).
+                    bool currentClipWasFavorite;
+                    using (var cmd = connection.CreateCommand())
+                    {
+                        cmd.Transaction = (SqliteTransaction)transaction;
+                        cmd.CommandText = "SELECT IsFavorite FROM clips WHERE Id = @Id";
+                        cmd.Parameters.AddWithValue("@Id", id);
+                        using (var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false))
+                        {
+                            if (!await reader.ReadAsync().ConfigureAwait(false))
+                            {
+                                throw new InvalidOperationException($"Clip with ID {id} not found during content update.");
+                            }
+                            currentClipWasFavorite = reader.GetInt64(0) == 1;
+                        }
+                    }
+
+                    // 2. Delete the clip being edited (this one).
                     using (var deleteCmd = connection.CreateCommand())
                     {
                         deleteCmd.Transaction = (SqliteTransaction)transaction;
@@ -227,18 +252,24 @@ namespace Cliptoo.Core.Database
                         deleteCmd.Parameters.AddWithValue("@Id", id);
                         await deleteCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
                     }
+
+                    // 3. Merge favorite status, then update the kept clip.
+                    var newIsFavorite = currentClipWasFavorite || existingIsFavorite;
+
+                    var updateSql = "UPDATE clips SET Timestamp = @Timestamp, IsFavorite = @IsFavorite WHERE Id = @Id";
                     using (var updateCmd = connection.CreateCommand())
                     {
                         updateCmd.Transaction = (SqliteTransaction)transaction;
-                        updateCmd.CommandText = "UPDATE clips SET Timestamp = @Timestamp WHERE Id = @Id";
+                        updateCmd.CommandText = updateSql;
                         updateCmd.Parameters.AddWithValue("@Timestamp", DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture));
+                        updateCmd.Parameters.AddWithValue("@IsFavorite", newIsFavorite ? 1 : 0);
                         updateCmd.Parameters.AddWithValue("@Id", existingClipId.Value);
                         await updateCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
                     }
                 }
                 else
                 {
-                    // No conflict. Just update the current clip.
+                    // No conflict. Just update the current clip (NO MERGE case).
                     var previewContent = CreatePreview(content);
                     using (var updateCmd = connection.CreateCommand())
                     {
@@ -251,8 +282,11 @@ namespace Cliptoo.Core.Database
                         updateCmd.Parameters.AddWithValue("@Id", id);
                         await updateCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
                     }
+                    finalClipId = id;
                 }
             }).ConfigureAwait(false);
+
+            return finalClipId;
         }
 
         public IAsyncEnumerable<string> GetAllImageClipPathsAsync()

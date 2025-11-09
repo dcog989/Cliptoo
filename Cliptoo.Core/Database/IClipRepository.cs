@@ -11,7 +11,7 @@ namespace Cliptoo.Core.Database
         Task<Clip?> GetClipByIdAsync(int id);
         Task<Clip?> GetPreviewClipByIdAsync(int id);
         Task<int> AddClipAsync(string content, string clipType, string? sourceApp, bool wasTrimmed);
-        Task UpdateClipContentAsync(int id, string content);
+        Task<int> UpdateClipContentAsync(int id, string content);
         Task DeleteClipAsync(int id);
         Task ToggleFavoriteAsync(int id, bool isFavorite);
         Task UpdateTimestampAsync(int id);

@@ -185,15 +185,16 @@ namespace Cliptoo.UI.ViewModels
             {
                 bool contentChanged = DocumentContent != _originalContent;
                 bool tagsChanged = Tags != _originalTags;
+                int finalClipId = _clipId;
 
                 if (contentChanged)
                 {
-                    await _clipDataService.UpdateClipContentAsync(_clipId, DocumentContent);
+                    finalClipId = await _clipDataService.UpdateClipContentAsync(_clipId, DocumentContent);
                 }
 
                 if (tagsChanged)
                 {
-                    await _clipDataService.UpdateClipTagsAsync(_clipId, Tags);
+                    await _clipDataService.UpdateClipTagsAsync(finalClipId, Tags);
                 }
 
                 if (contentChanged || tagsChanged)
