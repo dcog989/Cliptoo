@@ -30,60 +30,68 @@ namespace Cliptoo.Core.Database
         {
             ArgumentNullException.ThrowIfNull(command);
 
-            var queryBuilder = new StringBuilder();
-            var whereConditions = new List<string>();
-            var isTagSearch = !string.IsNullOrEmpty(tagSearchPrefix)
-                && !string.IsNullOrEmpty(searchTerm)
-                && searchTerm.StartsWith(tagSearchPrefix, StringComparison.Ordinal)
-                && searchTerm.Length > tagSearchPrefix.Length; // Ensure there's content after the prefix
-
-            var actualSearchTerm = isTagSearch
-                ? searchTerm.Substring(tagSearchPrefix.Length)
-                : searchTerm;
-
-            var sanitizedTerms = new List<string>();
-            if (!string.IsNullOrWhiteSpace(actualSearchTerm))
+            try
             {
-                var terms = actualSearchTerm.Split(_spaceSeparator, StringSplitOptions.RemoveEmptyEntries);
-                foreach (var term in terms)
+                var queryBuilder = new StringBuilder();
+                var whereConditions = new List<string>();
+                var isTagSearch = !string.IsNullOrEmpty(tagSearchPrefix)
+                    && !string.IsNullOrEmpty(searchTerm)
+                    && searchTerm.StartsWith(tagSearchPrefix, StringComparison.Ordinal)
+                    && searchTerm.Length > tagSearchPrefix.Length; // Ensure there's content after the prefix
+
+                var actualSearchTerm = isTagSearch
+                    ? searchTerm.Substring(tagSearchPrefix.Length)
+                    : searchTerm;
+
+                var sanitizedTerms = new List<string>();
+                if (!string.IsNullOrWhiteSpace(actualSearchTerm))
                 {
-                    var sanitizedTerm = SanitizeFtsSearchTerm(term);
-                    if (!string.IsNullOrEmpty(sanitizedTerm))
+                    var terms = actualSearchTerm.Split(_spaceSeparator, StringSplitOptions.RemoveEmptyEntries);
+                    foreach (var term in terms)
                     {
-                        sanitizedTerms.Add(sanitizedTerm);
+                        var sanitizedTerm = SanitizeFtsSearchTerm(term);
+                        if (!string.IsNullOrEmpty(sanitizedTerm))
+                        {
+                            sanitizedTerms.Add(sanitizedTerm);
+                        }
                     }
                 }
-            }
 
-            if (sanitizedTerms.Count > 0)
+                if (sanitizedTerms.Count > 0)
+                {
+                    BuildSearchQuery(queryBuilder, command, sanitizedTerms, isTagSearch);
+                    whereConditions.Add("clips_fts MATCH @FtsSearchTerm");
+                }
+                else
+                {
+                    BuildDefaultQuery(queryBuilder);
+                }
+
+                AddFilterConditions(whereConditions, command, filterType);
+
+                if (whereConditions.Count > 0)
+                {
+                    queryBuilder.Append("WHERE ").Append(string.Join(" AND ", whereConditions));
+                }
+
+                string orderBy = sanitizedTerms.Count > 0
+                    ? " ORDER BY c.IsFavorite DESC, (rank - Hotness * 5.0) ASC, c.Timestamp DESC"
+                    : " ORDER BY c.Timestamp DESC";
+
+                queryBuilder.Append(orderBy);
+                queryBuilder.Append(" LIMIT @Limit OFFSET @Offset");
+
+                command.Parameters.AddWithValue("@Limit", limit);
+                command.Parameters.AddWithValue("@Offset", offset);
+                command.CommandText = queryBuilder.ToString();
+
+                LogQueryIfDebug(command);
+            }
+            catch (Exception ex)
             {
-                BuildSearchQuery(queryBuilder, command, sanitizedTerms, isTagSearch);
-                whereConditions.Add("clips_fts MATCH @FtsSearchTerm");
+                LogManager.LogError($"Failed to build query for search term '{searchTerm}': {ex.Message}");
+                throw new InvalidOperationException($"Failed to build search query. Search term may contain invalid characters.", ex);
             }
-            else
-            {
-                BuildDefaultQuery(queryBuilder);
-            }
-
-            AddFilterConditions(whereConditions, command, filterType);
-
-            if (whereConditions.Count > 0)
-            {
-                queryBuilder.Append("WHERE ").Append(string.Join(" AND ", whereConditions));
-            }
-
-            string orderBy = sanitizedTerms.Count > 0
-                ? " ORDER BY c.IsFavorite DESC, (rank - Hotness * 5.0) ASC, c.Timestamp DESC"
-                : " ORDER BY c.Timestamp DESC";
-
-            queryBuilder.Append(orderBy);
-            queryBuilder.Append(" LIMIT @Limit OFFSET @Offset");
-
-            command.Parameters.AddWithValue("@Limit", limit);
-            command.Parameters.AddWithValue("@Offset", offset);
-            command.CommandText = queryBuilder.ToString();
-
-            LogQueryIfDebug(command);
         }
 
         private static string SanitizeFtsSearchTerm(string term)
@@ -91,8 +99,17 @@ namespace Cliptoo.Core.Database
             if (string.IsNullOrWhiteSpace(term))
                 return string.Empty;
 
+            // Remove or escape potentially dangerous SQL characters
+            // Double-dash (--) is a SQL comment, semicolon can terminate statements
+            var safeTerm = term
+                .Replace("--", "", StringComparison.Ordinal)  // Remove SQL comments
+                .Replace(";", "", StringComparison.Ordinal);  // Remove statement terminators
+
+            if (string.IsNullOrWhiteSpace(safeTerm))
+                return string.Empty;
+
             // Escape double quotes within the term for FTS5
-            var escapedTerm = term.Replace("\"", "\"\"", StringComparison.Ordinal);
+            var escapedTerm = safeTerm.Replace("\"", "\"\"", StringComparison.Ordinal);
 
             // If the term contains FTS5 special characters or operators,
             // it must be enclosed in double quotes to be treated as a single token.
@@ -120,7 +137,7 @@ namespace Cliptoo.Core.Database
             bool isTagSearch)
         {
             // Add prefix operator (*) only to non-quoted terms
-            var ftsQuery = string.Join(" ", sanitizedTerms.Select(term => 
+            var ftsQuery = string.Join(" ", sanitizedTerms.Select(term =>
                 term.StartsWith("\"", StringComparison.Ordinal) && term.EndsWith("\"", StringComparison.Ordinal)
                     ? term  // Already quoted - don't add *
                     : $"{term}*"  // Not quoted - add prefix operator
