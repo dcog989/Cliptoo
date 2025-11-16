@@ -210,7 +210,7 @@
                             </Separator>
                             <MenuItem
                                 Command="{Binding PasteAsPlainTextCommand}"
-                                Header="Plain Text"
+                                Header="Paste as Plain Text"
                                 Visibility="{Binding CanPasteAsPlainText, Converter={StaticResource BooleanToVisibilityConverter}}" />
                             <MenuItem Header="RTF Text" Visibility="{Binding CanPasteAsRtf, Converter={StaticResource BooleanToVisibilityConverter}}">
                                 <MenuItem.Command>
