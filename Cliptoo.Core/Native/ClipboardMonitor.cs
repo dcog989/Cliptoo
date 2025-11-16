@@ -9,7 +9,6 @@ using System.Windows;
 using Cliptoo.Core.Logging;
 using Cliptoo.Core.Native.Models;
 using Cliptoo.Core.Services;
-using SixLabors.ImageSharp;
 
 namespace Cliptoo.Core.Native
 {
@@ -26,6 +25,7 @@ namespace Cliptoo.Core.Native
         private bool _disposedValue;
         private readonly System.Timers.Timer _suppressionResetTimer;
         private readonly ManualResetEventSlim _suppressionActive = new(false);
+        private readonly object _suppressionLock = new();
 
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [DllImport("user32.dll", SetLastError = true)]
@@ -45,11 +45,14 @@ namespace Cliptoo.Core.Native
             _suppressionResetTimer = new System.Timers.Timer(250) { AutoReset = false };
             _suppressionResetTimer.Elapsed += (s, e) =>
             {
-                if (_suppressionActive.IsSet)
+                lock (_suppressionLock)
                 {
-                    LogManager.LogDebug("Suppression window closed by timer.");
-                    _hashesToSuppress.Clear();
-                    _suppressionActive.Reset();
+                    if (_suppressionActive.IsSet)
+                    {
+                        LogManager.LogDebug("Suppression window closed by timer.");
+                        _hashesToSuppress.Clear();
+                        _suppressionActive.Reset();
+                    }
                 }
             };
         }
@@ -57,20 +60,30 @@ namespace Cliptoo.Core.Native
         public void SuppressNextClip(IEnumerable<ulong> hashes)
         {
             ArgumentNullException.ThrowIfNull(hashes);
-            _suppressionResetTimer.Stop();
-            _hashesToSuppress.Clear();
-            foreach (var hash in hashes)
+            
+            lock (_suppressionLock)
             {
-                _hashesToSuppress.Add(hash);
+                _suppressionResetTimer.Stop();
+                _hashesToSuppress.Clear();
+                foreach (var hash in hashes)
+                {
+                    _hashesToSuppress.Add(hash);
+                }
+                LogManager.LogDebug($"CLIP_SUPPRESS: Suppressing hashes: {string.Join(", ", _hashesToSuppress)}");
+                _suppressionActive.Set();
+                _suppressionResetTimer.Start(); // Start the safety-net timer
             }
-            LogManager.LogDebug($"CLIP_SUPPRESS: Suppressing hashes: {string.Join(", ", _hashesToSuppress)}");
-            _suppressionActive.Set();
-            _suppressionResetTimer.Start(); // Start the safety-net timer
         }
 
         public void Start(IntPtr windowHandle)
         {
+            if (windowHandle == IntPtr.Zero)
+            {
+                throw new ArgumentException("Window handle cannot be zero.", nameof(windowHandle));
+            }
+
             if (_isStarted) return;
+            
             _windowHandle = windowHandle;
             if (!AddClipboardFormatListener(_windowHandle))
             {
@@ -82,25 +95,45 @@ namespace Cliptoo.Core.Native
         public void StopMonitoring()
         {
             if (!_isStarted) return;
+            
+            lock (_suppressionLock)
+            {
+                _suppressionResetTimer.Stop();
+            }
+            
             RemoveClipboardFormatListener(_windowHandle);
             _isStarted = false;
         }
 
         public void ProcessSystemUpdate()
         {
+            if (!_isStarted)
+            {
+                LogManager.LogWarning("ProcessSystemUpdate called before monitoring started.");
+                return;
+            }
+
             var availableData = GetAvailableClipboardData();
 
-            if (_suppressionActive.IsSet)
+            bool shouldSuppress;
+            lock (_suppressionLock)
             {
-                if (CheckForSuppressedHashes(availableData))
+                if (_suppressionActive.IsSet)
                 {
-                    return;
+                    shouldSuppress = CheckForSuppressedHashes(availableData);
+                    
+                    if (!shouldSuppress)
+                    {
+                        LogManager.LogInfo("A different clip was detected during the suppression window. Processing it.");
+                        _suppressionResetTimer.Stop();
+                        _hashesToSuppress.Clear();
+                        _suppressionActive.Reset();
+                    }
+                    else
+                    {
+                        return; // Suppressed - exit early
+                    }
                 }
-
-                LogManager.LogInfo("A different clip was detected during the suppression window. Processing it.");
-                _suppressionResetTimer.Stop();
-                _hashesToSuppress.Clear();
-                _suppressionActive.Reset();
             }
 
             (string formatKey, object content, ulong hash) bestCandidate;
@@ -179,19 +212,33 @@ namespace Cliptoo.Core.Native
 
         private bool CheckForSuppressedHashes(Dictionary<string, (object Content, ulong Hash)> availableData)
         {
+            // MUST be called within _suppressionLock
             var incomingHashes = string.Join(", ", availableData.Values.Select(v => v.Hash));
             LogManager.LogDebug($"CLIP_SUPPRESS: Checking incoming hashes: [{incomingHashes}]");
+            
             foreach (var format in availableData)
             {
                 if (_hashesToSuppress.Contains(format.Value.Hash))
                 {
                     LogManager.LogDebug($"CLIP_SUPPRESS: Match found. Suppressed self-generated clip based on format '{format.Key}' with hash {format.Value.Hash}.");
-                    if (format.Key == DataFormats.Rtf || format.Key == DataFormats.UnicodeText) _lastTextHash = format.Value.Hash;
-                    else if (format.Key == "Image") _lastImageHash = format.Value.Hash;
-                    else if (format.Key == "FileDrop") _lastFileDropHash = format.Value.Hash;
+                    
+                    // Update last hash to prevent re-processing
+                    if (format.Key == DataFormats.Rtf || format.Key == DataFormats.UnicodeText) 
+                        _lastTextHash = format.Value.Hash;
+                    else if (format.Key == "Image") 
+                        _lastImageHash = format.Value.Hash;
+                    else if (format.Key == "FileDrop") 
+                        _lastFileDropHash = format.Value.Hash;
+                    
+                    // Clear suppression state after successful match
+                    _suppressionResetTimer.Stop();
+                    _hashesToSuppress.Clear();
+                    _suppressionActive.Reset();
+                    
                     return true;
                 }
             }
+            
             LogManager.LogDebug("CLIP_SUPPRESS: No match found. Processing clip.");
             return false;
         }
@@ -199,6 +246,7 @@ namespace Cliptoo.Core.Native
         private static Dictionary<string, (object Content, ulong Hash)> GetAvailableClipboardData()
         {
             var availableData = new Dictionary<string, (object Content, ulong Hash)>();
+            
             if (ClipboardUtils.SafeGet(() => Clipboard.ContainsData(DataFormats.Rtf)) == true)
             {
                 var rtfText = ClipboardUtils.SafeGet(() => Clipboard.GetData(DataFormats.Rtf) as string);
@@ -247,6 +295,7 @@ namespace Cliptoo.Core.Native
                     availableData[DataFormats.UnicodeText] = (text, HashingUtils.ComputeHash(Encoding.UTF8.GetBytes(normalizedText)));
                 }
             }
+            
             return availableData;
         }
 
@@ -256,7 +305,10 @@ namespace Cliptoo.Core.Native
             {
                 if (disposing)
                 {
-                    _suppressionResetTimer.Dispose();
+                    lock (_suppressionLock)
+                    {
+                        _suppressionResetTimer.Dispose();
+                    }
                     _suppressionActive.Dispose();
                 }
 
@@ -278,6 +330,5 @@ namespace Cliptoo.Core.Native
             _lastImageHash = 0;
             _lastFileDropHash = 0;
         }
-
     }
 }
