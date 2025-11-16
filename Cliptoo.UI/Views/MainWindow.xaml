@@ -216,7 +216,7 @@
                                     <Binding />
                                 </MenuItem.CommandParameter>
                             </MenuItem>
-                            <MenuItem Header="Paste Transform" Visibility="{Binding IsTextTransformable, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <MenuItem Header="Transform" Visibility="{Binding IsTextTransformable, Converter={StaticResource BooleanToVisibilityConverter}}">
                                 <MenuItem Header="Trim Whitespace">
                                     <MenuItem.Command>
                                         <Binding Path="TransformAndPasteCommand" />
@@ -273,7 +273,7 @@
                                     </MenuItem.CommandParameter>
                                 </MenuItem>
                             </MenuItem>
-                            <MenuItem Header="Paste Case" Visibility="{Binding IsTextTransformable, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <MenuItem Header="Case" Visibility="{Binding IsTextTransformable, Converter={StaticResource BooleanToVisibilityConverter}}">
                                 <MenuItem Header="UPPER CASE">
                                     <MenuItem.Command>
                                         <Binding Path="TransformAndPasteCommand" />
