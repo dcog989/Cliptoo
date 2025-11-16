@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text;
 using System.Threading;
@@ -71,7 +70,7 @@ namespace Cliptoo.Core.Database
 
             var clips = new List<Clip>();
             await using var connection = await GetOpenConnectionAsync().ConfigureAwait(false);
-            await using var command = connection.CreateCommand();
+            using var command = connection.CreateCommand();
 
             ClipQueryBuilder.BuildGetClipsQuery(command, limit, offset, searchTerm, filterType, tagSearchPrefix);
 
@@ -99,7 +98,7 @@ namespace Cliptoo.Core.Database
 
             // Get the rowid before the operation.
             long initialLastInsertRowId;
-            await using (var cmd = connection.CreateCommand())
+            using (var cmd = connection.CreateCommand())
             {
                 cmd.Transaction = transaction;
                 cmd.CommandText = "SELECT last_insert_rowid();";
@@ -107,7 +106,7 @@ namespace Cliptoo.Core.Database
             }
 
             long? clipId;
-            await using (var upsertCmd = connection.CreateCommand())
+            using (var upsertCmd = connection.CreateCommand())
             {
                 upsertCmd.Transaction = transaction;
                 upsertCmd.CommandText = @"
@@ -135,7 +134,7 @@ namespace Cliptoo.Core.Database
 
             // Get the rowid after the operation. last_insert_rowid() is only updated by a true INSERT.
             long finalLastInsertRowId;
-            await using (var cmd = connection.CreateCommand())
+            using (var cmd = connection.CreateCommand())
             {
                 cmd.Transaction = transaction;
                 cmd.CommandText = "SELECT last_insert_rowid();";
@@ -146,7 +145,7 @@ namespace Cliptoo.Core.Database
 
             if (wasInserted)
             {
-                await using var statCmd = connection.CreateCommand();
+                using var statCmd = connection.CreateCommand();
                 statCmd.Transaction = transaction;
                 statCmd.CommandText = "UPDATE stats SET Value = COALESCE(Value, 0) + 1 WHERE Key = 'UniqueClipsEver'";
                 await statCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
@@ -177,7 +176,7 @@ namespace Cliptoo.Core.Database
                 int? existingClipId = null;
                 bool existingIsFavorite = false;
 
-                await using (var command = connection.CreateCommand())
+                using (var command = connection.CreateCommand())
                 {
                     command.Transaction = (SqliteTransaction)transaction;
                     command.CommandText = sql;
@@ -198,7 +197,7 @@ namespace Cliptoo.Core.Database
 
                     // 1. Get the favorite status of the clip being deleted (the one currently being edited).
                     bool currentClipWasFavorite;
-                    await using (var cmd = connection.CreateCommand())
+                    using (var cmd = connection.CreateCommand())
                     {
                         cmd.Transaction = (SqliteTransaction)transaction;
                         cmd.CommandText = "SELECT IsFavorite FROM clips WHERE Id = @Id";
@@ -213,7 +212,7 @@ namespace Cliptoo.Core.Database
                     }
 
                     // 2. Delete the clip being edited (this one).
-                    await using (var deleteCmd = connection.CreateCommand())
+                    using (var deleteCmd = connection.CreateCommand())
                     {
                         deleteCmd.Transaction = (SqliteTransaction)transaction;
                         deleteCmd.CommandText = "DELETE FROM clips WHERE Id = @Id";
@@ -224,7 +223,7 @@ namespace Cliptoo.Core.Database
                     // 3. Merge favorite status, then update the kept clip.
                     var newIsFavorite = currentClipWasFavorite || existingIsFavorite;
 
-                    await using (var updateCmd = connection.CreateCommand())
+                    using (var updateCmd = connection.CreateCommand())
                     {
                         updateCmd.Transaction = (SqliteTransaction)transaction;
                         updateCmd.CommandText = "UPDATE clips SET Timestamp = @Timestamp, IsFavorite = @IsFavorite WHERE Id = @Id";
@@ -238,7 +237,7 @@ namespace Cliptoo.Core.Database
                 {
                     // No conflict. Just update the current clip (NO MERGE case).
                     var previewContent = CreatePreview(content);
-                    await using var updateCmd = connection.CreateCommand();
+                    using var updateCmd = connection.CreateCommand();
                     updateCmd.Transaction = (SqliteTransaction)transaction;
                     updateCmd.CommandText = "UPDATE clips SET Content = @Content, ContentHash = @ContentHash, PreviewContent = @PreviewContent, SizeInBytes = @SizeInBytes WHERE Id = @Id";
                     updateCmd.Parameters.AddWithValue("@Content", content);
@@ -384,7 +383,7 @@ namespace Cliptoo.Core.Database
             {
                 foreach (var update in updates)
                 {
-                    await using var command = connection.CreateCommand();
+                    using var command = connection.CreateCommand();
                     command.Transaction = (SqliteTransaction)transaction;
                     command.CommandText = "UPDATE clips SET ClipType = @ClipType WHERE Id = @Id";
                     command.Parameters.AddWithValue("@Id", update.Key);
@@ -424,7 +423,7 @@ namespace Cliptoo.Core.Database
                     var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(clip.Content ?? string.Empty)));
                     var previewContent = CreatePreview(clip.Content ?? string.Empty);
 
-                    await using var command = connection.CreateCommand();
+                    using var command = connection.CreateCommand();
                     command.Transaction = (SqliteTransaction)transaction;
                     command.CommandText = @"
                         INSERT OR IGNORE INTO clips (Content, ContentHash, PreviewContent, ClipType, SourceApp, Timestamp, IsFavorite, WasTrimmed, SizeInBytes, PasteCount, Tags)
@@ -451,7 +450,7 @@ namespace Cliptoo.Core.Database
 
                 if (importedCount > 0)
                 {
-                    await using var statCmd = connection.CreateCommand();
+                    using var statCmd = connection.CreateCommand();
                     statCmd.Transaction = (SqliteTransaction)transaction;
                     statCmd.CommandText = "UPDATE stats SET Value = COALESCE(Value, 0) + @Count WHERE Key = 'UniqueClipsEver'";
                     statCmd.Parameters.AddWithValue("@Count", importedCount);
