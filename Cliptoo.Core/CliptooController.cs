@@ -29,6 +29,7 @@ namespace Cliptoo.Core
         private readonly System.Timers.Timer _cleanupTimer;
         private readonly string _clipboardImageCachePath;
         private bool _isInitialized;
+        private const double MaintenanceThresholdMultiplier = 1.2;
 
         public IClipboardMonitor ClipboardMonitor { get; }
 
@@ -165,7 +166,7 @@ namespace Cliptoo.Core
             ProcessingResult? result = null;
             bool wasTruncated = false;
             long maxBytes = (long)settings.MaxClipSizeMb * 1024 * 1024;
-            bool wasManuallyTrimmed = false;
+            bool wasAutoTrimmed = false;
 
             if (e.ContentType == ClipboardContentType.Text)
             {
@@ -184,7 +185,7 @@ namespace Cliptoo.Core
                         var trimmed = textContent.Trim();
                         if (trimmed.Length != textContent.Length)
                         {
-                            wasManuallyTrimmed = true;
+                            wasAutoTrimmed = true;
                         }
                         contentForProcessing = trimmed;
                     }
@@ -235,7 +236,9 @@ namespace Cliptoo.Core
                 if (paths.Length == 1)
                 {
                     var path = paths[0].Trim();
-                    if (path.EndsWith(".url", StringComparison.OrdinalIgnoreCase))
+                    
+                    // Handle Windows .url shortcut files
+                    if (path.EndsWith(".url", StringComparison.OrdinalIgnoreCase) && File.Exists(path))
                     {
                         var extractedUrl = ParseUrlFile(path);
                         if (!string.IsNullOrEmpty(extractedUrl))
@@ -243,7 +246,9 @@ namespace Cliptoo.Core
                             result = new ProcessingResult(AppConstants.ClipTypeLink, extractedUrl, false, Path.GetFileName(path));
                         }
                     }
-                    if (result == null) // If not a .url file or parsing failed
+                    
+                    // If not a .url file, parsing failed, or file doesn't exist, classify normally
+                    if (result == null)
                     {
                         var fileType = _fileTypeClassifier.Classify(path);
                         result = new ProcessingResult(fileType, content);
@@ -258,7 +263,7 @@ namespace Cliptoo.Core
 
             if (result != null)
             {
-                bool finalWasTrimmed = result.SourceHadWhitespaceTrimmed || wasTruncated || wasManuallyTrimmed;
+                bool finalWasTrimmed = result.SourceHadWhitespaceTrimmed || wasTruncated || wasAutoTrimmed;
                 string? sourceApp = result.SourceAppOverride ?? e.SourceApp;
                 await _clipDataService.AddClipAsync(
                     result.Content,
@@ -266,11 +271,13 @@ namespace Cliptoo.Core
                     sourceApp,
                     finalWasTrimmed).ConfigureAwait(false);
 
+                _appInteractionService.NotifyUiActivity();
+
                 if (settings.MaxClipsTotal > 0)
                 {
                     var stats = await _databaseService.GetStatsAsync().ConfigureAwait(false);
                     var notFavoriteCount = stats.TotalClips - stats.FavoriteClips;
-                    var threshold = (uint)(settings.MaxClipsTotal * 1.2);
+                    var threshold = (uint)(settings.MaxClipsTotal * MaintenanceThresholdMultiplier);
 
                     if (notFavoriteCount > threshold)
                     {
@@ -278,8 +285,6 @@ namespace Cliptoo.Core
                         _ = Task.Run(() => _databaseService.RunHeavyMaintenanceNowAsync());
                     }
                 }
-
-                _appInteractionService.NotifyUiActivity();
             }
             stopwatch.Stop();
             LogManager.LogDebug($"PERF_DIAG: OnClipboardChangedAsync processed in {stopwatch.ElapsedMilliseconds}ms.");
@@ -338,11 +343,5 @@ namespace Cliptoo.Core
                 ClipboardMonitor.Dispose();
             }
         }
-
-        private void OnNewClipAdded(object? sender, ClipAddedEventArgs e)
-        {
-            _appInteractionService.NotifyUiActivity();
-        }
-
     }
 }
