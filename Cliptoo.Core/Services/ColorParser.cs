@@ -55,6 +55,10 @@ namespace Cliptoo.Core.Services
         private static readonly Regex RgbLegacyRegex = new(@"^rgba?\(\s*([+\-\d.%]+)\s*,\s*([+\-\d.%]+)\s*,\s*([+\-\d.%]+)\s*(?:,\s*([+\-\d.%]+)\s*)?\)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static readonly Regex HslRegex = new(@"^hsla?\(\s*([+\-\d.%a-z°]+)\s+([+\-\d.%]+)\s+([+\-\d.%]+)\s*(?:[\/\s]\s*([+\-\d.%]+)\s*)?\)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static readonly Regex HslLegacyRegex = new(@"^hsla?\(\s*([+\-\d.%a-z°]+)\s*,\s*([+\-\d.%]+)\s*,\s*([+\-\d.%]+)\s*(?:,\s*([+\-\d.%]+)\s*)?\)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static readonly Regex CmykRegex = new(@"^cmyk\(\s*([+\-\d.%]+)\s+([+\-\d.%]+)\s+([+\-\d.%]+)\s+([+\-\d.%]+)\s*(?:[\/\s]\s*([+\-\d.%]+)\s*)?\)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static readonly Regex CmykLegacyRegex = new(@"^cmyk\(\s*([+\-\d.%]+)\s*,\s*([+\-\d.%]+)\s*,\s*([+\-\d.%]+)\s*,\s*([+\-\d.%]+)\s*(?:,\s*([+\-\d.%]+)\s*)?\)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static readonly Regex HsvRegex = new(@"^hsva?\(\s*([+\-\d.%a-z°]+)\s+([+\-\d.%]+)\s+([+\-\d.%]+)\s*(?:[\/\s]\s*([+\-\d.%]+)\s*)?\)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static readonly Regex HsvLegacyRegex = new(@"^hsva?\(\s*([+\-\d.%a-z°]+)\s*,\s*([+\-\d.%]+)\s*,\s*([+\-\d.%]+)\s*(?:,\s*([+\-\d.%]+)\s*)?\)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static readonly Regex HexRegex = new(@"^#?(?:([a-f\d]{1})([a-f\d]{1})([a-f\d]{1})([a-f\d]{1})?|([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})?)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static readonly Regex HexLegacyNumRegex = new(@"^0x(?:([a-f\d]{2}))?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static readonly Regex OklchRegex = new(@"^oklch\(\s*([+\-\d.%]+)\s+([+\-\d.%]+)\s+([+\-\d.%a-z°]+)\s*(?:[\/\s]\s*([+\-\d.%]+)\s*)?\)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
@@ -178,11 +182,46 @@ namespace Cliptoo.Core.Services
                 return true;
             }
 
+            match = CmykRegex.Match(str);
+            if (!match.Success)
+            {
+                match = CmykLegacyRegex.Match(str);
+            }
+            if (match.Success)
+            {
+                var c = ParseCmykValue(match.Groups[1].Value);
+                var m = ParseCmykValue(match.Groups[2].Value);
+                var y = ParseCmykValue(match.Groups[3].Value);
+                var k = ParseCmykValue(match.Groups[4].Value);
+                var a = match.Groups[5].Success ? ParseAlpha(match.Groups[5].Value) : 1.0;
+
+                var (r, g, b) = CmykToRgb(c, m, y, k);
+                color = new ColorData { R = r, G = g, B = b, A = (byte)(a * 255) };
+                return true;
+            }
+
+            match = HsvRegex.Match(str);
+            if (!match.Success)
+            {
+                match = HsvLegacyRegex.Match(str);
+            }
+            if (match.Success)
+            {
+                var h = ParseHue(match.Groups[1].Value);
+                var s = ParsePercentage(match.Groups[2].Value) / 100.0; // Convert to 0-1
+                var v = ParsePercentage(match.Groups[3].Value) / 100.0; // Convert to 0-1
+                var a = match.Groups[4].Success ? ParseAlpha(match.Groups[4].Value) : 1.0; // Check for alpha in group 4 now
+
+                var (r, g, b) = HsvToRgb(h, s, v);
+                color = new ColorData { R = r, G = g, B = b, A = (byte)(a * 255) };
+                return true;
+            }
+
             match = OklchRegex.Match(str);
             if (match.Success)
             {
-                var l = ParsePercentage(match.Groups[1].Value, 1.0); // L is 0-1
-                var c = double.Parse(match.Groups[2].Value, CultureInfo.InvariantCulture);
+                var l = ParseOklchValue(match.Groups[1].Value); // L is 0-1, can be percentage or decimal
+                var c = double.Parse(match.Groups[2].Value, CultureInfo.InvariantCulture); // Chroma is absolute (0-0.4)
                 var h = ParseHue(match.Groups[3].Value);
                 var a = match.Groups[4].Success ? ParseAlpha(match.Groups[4].Value) : 1.0;
                 var (r, g, b) = OklchToRgbGamutMapped(l, c, h);
@@ -345,6 +384,28 @@ namespace Cliptoo.Core.Services
             return Clamp(double.Parse(str, CultureInfo.InvariantCulture), 0, 1);
         }
 
+        private static double ParseOklchValue(string value)
+        {
+            // OKLCH lightness can be a percentage (0-100%) or a decimal (0-1)
+            var str = value.Trim();
+            if (IsPercentage(str))
+            {
+                return Clamp(double.Parse(str.TrimEnd('%'), CultureInfo.InvariantCulture) / 100.0, 0, 1);
+            }
+            return Clamp(double.Parse(str, CultureInfo.InvariantCulture), 0, 1);
+        }
+
+        private static double ParseCmykValue(string value)
+        {
+            // CMYK values can be percentages (0-100%) or decimals (0-1)
+            var str = value.Trim();
+            if (IsPercentage(str))
+            {
+                return Clamp(double.Parse(str.TrimEnd('%'), CultureInfo.InvariantCulture) / 100.0, 0, 1);
+            }
+            return Clamp(double.Parse(str, CultureInfo.InvariantCulture), 0, 1);
+        }
+
         private static double SrgbToLinear(byte c)
         {
             var cn = c / 255.0;
@@ -388,6 +449,54 @@ namespace Cliptoo.Core.Services
                 matrix[1][0] * x + matrix[1][1] * y + matrix[1][2] * z,
                 matrix[2][0] * x + matrix[2][1] * y + matrix[2][2] * z
             );
+        }
+
+        private static (byte r, byte g, byte b) CmykToRgb(double c, double m, double y, double k)
+        {
+            // Clamp CMYK values to [0, 1]
+            c = Clamp(c, 0, 1);
+            m = Clamp(m, 0, 1);
+            y = Clamp(y, 0, 1);
+            k = Clamp(k, 0, 1);
+
+            // Apply CMYK -> RGB formula (produces sRGB values 0-1)
+            var r = (1.0 - c) * (1.0 - k);
+            var g = (1.0 - m) * (1.0 - k);
+            var b = (1.0 - y) * (1.0 - k);
+
+            // Convert to byte values (0-255)
+            return ((byte)Math.Round(r * 255), (byte)Math.Round(g * 255), (byte)Math.Round(b * 255));
+        }
+
+        private static (byte r, byte g, byte b) HsvToRgb(double h, double s, double v)
+        {
+            // Clamp H to [0, 360), S and V to [0, 1]
+            h = h % 360;
+            if (h < 0) h += 360;
+            s = Clamp(s, 0, 1);
+            v = Clamp(v, 0, 1);
+
+            if (s == 0)
+            {
+                // Grayscale case
+                var gray = (byte)Math.Round(v * 255);
+                return (gray, gray, gray);
+            }
+
+            var c = v * s; // Chroma
+            var x = c * (1 - Math.Abs(((h / 60.0) % 2) - 1));
+            var m = v - c;
+
+            double r, g, b;
+            if (h >= 0 && h < 60) { r = c; g = x; b = 0; }
+            else if (h >= 60 && h < 120) { r = x; g = c; b = 0; }
+            else if (h >= 120 && h < 180) { r = 0; g = c; b = x; }
+            else if (h >= 180 && h < 240) { r = 0; g = x; b = c; }
+            else if (h >= 240 && h < 300) { r = x; g = 0; b = c; }
+            else { r = c; g = 0; b = x; } // h >= 300 && h < 360
+
+            // Add m and convert to byte values (0-255)
+            return ((byte)Math.Round((r + m) * 255), (byte)Math.Round((g + m) * 255), (byte)Math.Round((b + m) * 255));
         }
     }
 }
