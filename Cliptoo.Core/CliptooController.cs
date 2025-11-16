@@ -1,7 +1,6 @@
 using System;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using Cliptoo.Core.Interfaces;
 using Cliptoo.Core.Logging;
@@ -288,17 +287,16 @@ namespace Cliptoo.Core
 
         private static (string, bool) TruncateText(string text, long maxBytes, string logContext)
         {
-            if (Encoding.UTF8.GetByteCount(text) <= maxBytes)
+            var originalLength = text.Length;
+            var truncatedText = ServiceUtils.TruncateToUtf8ByteLimit(text, (int)maxBytes);
+
+            if (truncatedText.Length < originalLength)
             {
-                return (text, false);
+                LogManager.LogWarning($"{logContext} truncated to {maxBytes} bytes.");
+                return (truncatedText, true);
             }
 
-            var encoder = Encoding.UTF8.GetEncoder();
-            var bytes = new byte[maxBytes];
-            encoder.Convert(text.AsSpan(), bytes, true, out int charsUsed, out _, out _);
-            var truncatedText = text.Substring(0, charsUsed);
-            LogManager.LogWarning($"{logContext} truncated to {maxBytes} bytes.");
-            return (truncatedText, true);
+            return (text, false);
         }
 
         private static string? ParseUrlFile(string filePath)

@@ -152,5 +152,30 @@ namespace Cliptoo.Core.Services
             return count;
         }
 
+        public static string TruncateToUtf8ByteLimit(string text, int maxBytes)
+        {
+            ArgumentNullException.ThrowIfNull(text);
+
+            if (Encoding.UTF8.GetByteCount(text) <= maxBytes)
+            {
+                return text;
+            }
+
+            int endIndex = 0;
+            long currentBytes = 0;
+
+            foreach (var rune in text.EnumerateRunes())
+            {
+                if (currentBytes + rune.Utf8SequenceLength > maxBytes)
+                {
+                    break;
+                }
+                currentBytes += rune.Utf8SequenceLength;
+                endIndex += rune.Utf16SequenceLength;
+            }
+
+            return text.Substring(0, endIndex);
+        }
+
     }
 }

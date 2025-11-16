@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Cliptoo.Core.Database.Models;
+using Cliptoo.Core.Services;
 using Microsoft.Data.Sqlite;
 
 namespace Cliptoo.Core.Database
@@ -17,16 +18,7 @@ namespace Cliptoo.Core.Database
 
         private static string CreatePreview(string content)
         {
-            var byteCount = Encoding.UTF8.GetByteCount(content);
-            if (byteCount <= MaxPreviewBytes)
-            {
-                return content;
-            }
-
-            var encoder = Encoding.UTF8.GetEncoder();
-            var bytes = new byte[MaxPreviewBytes];
-            encoder.Convert(content.AsSpan(), bytes, flush: true, out int charsUsed, out _, out _);
-            return content[..charsUsed];
+            return ServiceUtils.TruncateToUtf8ByteLimit(content, MaxPreviewBytes);
         }
 
         private static Clip MapPreviewClipFromReader(SqliteDataReader reader)
