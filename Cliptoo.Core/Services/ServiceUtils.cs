@@ -152,8 +152,24 @@ namespace Cliptoo.Core.Services
             return count;
         }
 
+        public static bool IsValidPath(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path)) return false;
+            if (path.IndexOfAny(Path.GetInvalidPathChars()) >= 0) return false;
+            try
+            {
+                // This can catch issues like reserved names, etc.
+                _ = new FileInfo(path);
+                return true;
+            }
+            catch (ArgumentException) { return false; }
+            catch (PathTooLongException) { return false; }
+            catch (NotSupportedException) { return false; } // e.g., paths with colons like "C::"
+        }
+
         public static string TruncateToUtf8ByteLimit(string text, int maxBytes)
         {
+            ArgumentNullException.ThrowIfNull(text);
             ArgumentNullException.ThrowIfNull(text);
 
             if (Encoding.UTF8.GetByteCount(text) <= maxBytes)

@@ -157,6 +157,11 @@ namespace Cliptoo.Core.Services
 
             var trimmedPath = filePath.Trim();
 
+            if (!ServiceUtils.IsValidPath(trimmedPath))
+            {
+                return AppConstants.ClipTypeText;
+            }
+
             // Prioritize classification by extension, as it works even if the file doesn't exist.
             var extension = Path.GetExtension(trimmedPath);
             if (!string.IsNullOrEmpty(extension))

@@ -29,7 +29,7 @@ namespace Cliptoo.Core.Services
         private static readonly JsonSerializerOptions _exportJsonOptions = new()
         {
             WriteIndented = true,
-            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+            Encoder = JavaScriptEncoder.Default
         };
 
         private static readonly JsonSerializerOptions _importJsonOptions = new()
@@ -181,7 +181,20 @@ namespace Cliptoo.Core.Services
                     return 0;
                 }
 
-                var importedCount = await _dbManager.AddClipsAsync(clips).ConfigureAwait(false);
+                var validClips = new List<Clip>();
+                foreach (var clip in clips)
+                {
+                    if (clip.ClipType.StartsWith("file_", StringComparison.Ordinal) || clip.ClipType == AppConstants.ClipTypeFolder)
+                    {
+                        if (string.IsNullOrWhiteSpace(clip.Content) || !ServiceUtils.IsValidPath(clip.Content))
+                        {
+                            continue; // Skip clips with invalid file paths
+                        }
+                    }
+                    validClips.Add(clip);
+                }
+
+                var importedCount = await _dbManager.AddClipsAsync(validClips).ConfigureAwait(false);
                 if (importedCount > 0)
                 {
                     await _dbManager.CompactDbAsync().ConfigureAwait(false);

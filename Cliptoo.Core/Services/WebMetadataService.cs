@@ -58,7 +58,7 @@ namespace Cliptoo.Core.Services
 
         public Task<string?> GetFaviconAsync(Uri url, string? theme)
         {
-            if (url is null) return Task.FromResult<string?>(null);
+            if (url is null || url.IsLoopback) return Task.FromResult<string?>(null);
 
             var urlString = url.GetLeftPart(UriPartial.Authority);
             var cacheKey = $"{urlString}_{theme ?? "none"}";
@@ -327,6 +327,8 @@ namespace Cliptoo.Core.Services
         public async Task<string?> GetPageTitleAsync(Uri url)
         {
             ArgumentNullException.ThrowIfNull(url);
+            if (url.IsLoopback) return null;
+
             var urlString = url.ToString();
             if (_titleCache.TryGetValue(urlString, out var cachedTitle))
             {
@@ -369,7 +371,8 @@ namespace Cliptoo.Core.Services
                 }
 
                 if (!Uri.TryCreate(faviconUrl, UriKind.Absolute, out var faviconUri) ||
-                    (faviconUri.Scheme != Uri.UriSchemeHttp && faviconUri.Scheme != Uri.UriSchemeHttps))
+                    (faviconUri.Scheme != Uri.UriSchemeHttp && faviconUri.Scheme != Uri.UriSchemeHttps) ||
+                    faviconUri.IsLoopback)
                 {
                     LogManager.LogDebug($"Invalid or unsupported URI scheme for favicon: {faviconUrl}");
                     return false;
