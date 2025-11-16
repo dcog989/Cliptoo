@@ -228,6 +228,7 @@ namespace Cliptoo.UI.ViewModels
                     await ExecutePasteClip(clipVM, msg.ForcePlainText);
                 }
             });
+            _eventAggregator.Subscribe<ClipPasteFilePathRequested>(async msg => await ExecutePasteFilePath(msg.ClipId));
             _eventAggregator.Subscribe<ClipTransformAndPasteRequested>(async msg => await ExecuteTransformAndPaste(msg.ClipId, msg.TransformType));
             _eventAggregator.Subscribe<CachesClearedMessage>(_ => OnCachesCleared());
         }

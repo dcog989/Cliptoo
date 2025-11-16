@@ -101,6 +101,7 @@ namespace Cliptoo.UI.ViewModels
         public ICommand PasteCommand { get; }
         public ICommand PasteAsPlainTextCommand { get; }
         public ICommand TransformAndPasteCommand { get; }
+        public ICommand PasteFilePathCommand { get; }
 
         public ClipViewModel(
             Clip clip,
@@ -138,6 +139,7 @@ namespace Cliptoo.UI.ViewModels
             TogglePreviewCommand = new RelayCommand(p => _eventAggregator.Publish(new TogglePreviewForSelectionRequested(p)));
             PasteCommand = new RelayCommand(_ => _eventAggregator.Publish(new ClipPasteRequested(Id, null)));
             PasteAsPlainTextCommand = new RelayCommand(_ => _eventAggregator.Publish(new ClipPasteRequested(Id, true)));
+            PasteFilePathCommand = new RelayCommand(_ => _eventAggregator.Publish(new ClipPasteFilePathRequested(Id)));
             TransformAndPasteCommand = new RelayCommand(p =>
             {
                 if (p is object[] values && values.Length == 2 && values[1] is string transformType)

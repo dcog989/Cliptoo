@@ -134,6 +134,17 @@ namespace Cliptoo.UI.ViewModels
             }
         }
 
+        private async Task ExecutePasteFilePath(int clipId)
+        {
+            var clipVM = Clips.FirstOrDefault(c => c.Id == clipId);
+            if (clipVM == null) return;
+
+            await PerformPasteAction(clipVM, async clip =>
+            {
+                await _pastingService.PasteTextAsync(clip.Content ?? string.Empty);
+            });
+        }
+
         private async Task ExecuteTransformAndPaste(int clipId, string transformType)
         {
             var clipVM = Clips.FirstOrDefault(c => c.Id == clipId);

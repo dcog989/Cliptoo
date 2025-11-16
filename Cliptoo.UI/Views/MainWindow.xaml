@@ -146,6 +146,10 @@
                                 Command="{Binding OpenCommand}"
                                 Header="{Binding OpenCommandHeader}"
                                 Visibility="{Binding IsOpenable, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                            <MenuItem
+                                Command="{Binding PasteFilePathCommand}"
+                                Header="Paste file path"
+                                Visibility="{Binding IsFileBased, Converter={StaticResource BooleanToVisibilityConverter}}" />
                             <MenuItem Header="Send To" ItemsSource="{Binding SettingsService.Settings.SendToTargets}">
                                 <MenuItem.Style>
                                     <Style TargetType="MenuItem">

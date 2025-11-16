@@ -12,6 +12,7 @@ namespace Cliptoo.UI.Services
     public record ClipSendToRequested(int ClipId, SendToTarget Target);
     public record ClipTransformAndPasteRequested(int ClipId, string TransformType);
     public record ClipPasteRequested(int ClipId, bool? ForcePlainText);
+    public record ClipPasteFilePathRequested(int ClipId);
     public record TogglePreviewForSelectionRequested(object? PlacementTarget);
     public record CachesClearedMessage;
 }
