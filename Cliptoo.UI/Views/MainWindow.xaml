@@ -142,6 +142,7 @@
                                 Command="{Binding EditClipCommand}"
                                 Header="Edit / Tags"
                                 Visibility="{Binding IsEditable, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                            <MenuItem Command="{Binding MoveToTopCommand}" Header="Move to Top" />
                             <MenuItem
                                 Command="{Binding OpenCommand}"
                                 Header="{Binding OpenCommandHeader}"
@@ -199,7 +200,6 @@
                                         Source="{Binding SharedResources.FavoriteIcon16}" />
                                 </MenuItem.Icon>
                             </MenuItem>
-                            <MenuItem Command="{Binding MoveToTopCommand}" Header="Move to Top" />
                             <Separator Style="{StaticResource ContextMenuSeparatorStyle}">
                                 <Separator.Visibility>
                                     <MultiBinding Converter="{StaticResource AnyTrueToVisibilityConverter}">
