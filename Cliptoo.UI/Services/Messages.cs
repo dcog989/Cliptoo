@@ -2,17 +2,17 @@ using Cliptoo.Core.Configuration;
 
 namespace Cliptoo.UI.Services
 {
-    public record ClipDeletionRequested(int ClipId);
-    public record ClipFavoriteToggled(int ClipId, bool IsFavorite);
-    public record ClipMoveToTopRequested(int ClipId);
-    public record ClipEditRequested(int ClipId);
-    public record ClipOpenRequested(int ClipId);
-    public record ClipSelectForCompareLeft(int ClipId);
-    public record ClipCompareWithSelectedRight(int ClipId);
-    public record ClipSendToRequested(int ClipId, SendToTarget Target);
-    public record ClipTransformAndPasteRequested(int ClipId, string TransformType);
-    public record ClipPasteRequested(int ClipId, bool? ForcePlainText);
-    public record ClipPasteFilePathRequested(int ClipId);
-    public record TogglePreviewForSelectionRequested(object? PlacementTarget);
-    public record CachesClearedMessage;
+    internal record ClipDeletionRequested(int ClipId);
+    internal record ClipFavoriteToggled(int ClipId, bool IsFavorite);
+    internal record ClipMoveToTopRequested(int ClipId);
+    internal record ClipEditRequested(int ClipId);
+    internal record ClipOpenRequested(int ClipId);
+    internal record ClipSelectForCompareLeft(int ClipId);
+    internal record ClipCompareWithSelectedRight(int ClipId);
+    internal record ClipSendToRequested(int ClipId, SendToTarget Target);
+    internal record ClipTransformAndPasteRequested(int ClipId, string TransformType);
+    internal record ClipPasteRequested(int ClipId, bool? ForcePlainText);
+    internal record ClipPasteFilePathRequested(int ClipId);
+    internal record TogglePreviewForSelectionRequested(object? PlacementTarget);
+    internal record CachesClearedMessage;
 }
