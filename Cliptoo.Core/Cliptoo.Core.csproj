@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net9.0-windows</TargetFramework>
+        <TargetFramework>net10.0-windows</TargetFramework>
         <Nullable>enable</Nullable>
         <UseWPF>true</UseWPF>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -21,7 +21,7 @@
 
     <ItemGroup>
         <PackageReference Include="JxlNet" Version="0.11.1.2" />
-        <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.10" />
+        <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.0" />
         <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
         <PackageReference Include="SkiaSharp" Version="3.119.1" />
         <PackageReference Include="Svg.Skia" Version="3.2.1" />
