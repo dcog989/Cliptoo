@@ -3,6 +3,7 @@ using System.Buffers;
 using System.Collections.Generic;
 using System.Linq;
 using Cliptoo.Core.Services.Models;
+using System.IO;
 
 namespace Cliptoo.Core.Services
 {
@@ -52,12 +53,20 @@ namespace Cliptoo.Core.Services
             if (!content.Contains('\n', StringComparison.Ordinal))
             {
                 var classifiedType = _fileTypeClassifier.Classify(trimmedContent);
+
+                if (classifiedType.StartsWith("file_", StringComparison.Ordinal) || classifiedType == AppConstants.ClipTypeFolder)
+                {
+                    // New check: If the content looks like a file/folder but doesn't exist, treat it as text.
+                    if (!Directory.Exists(trimmedContent) && !File.Exists(trimmedContent))
+                    {
+                        classifiedType = AppConstants.ClipTypeText;
+                    }
+                }
+
                 if (classifiedType != AppConstants.ClipTypeText)
                 {
                     // If it's a path to a primarily textual file type,
                     // let it fall through to be evaluated as a code snippet or plain text.
-                    // This prevents paths to code files from being misclassified as a file clip
-                    // when the user's intent was to copy the path as text.
                     // Non-textual file types (images, videos, archives) are treated as file clips immediately.
                     bool isTextualFileType = classifiedType is AppConstants.ClipTypeDev or AppConstants.ClipTypeFileText;
 
