@@ -8,7 +8,7 @@ namespace Cliptoo.Core.Database
 {
     public class DatabaseInitializer : RepositoryBase, IDatabaseInitializer
     {
-        private const int CurrentDbVersion = 6;
+        private const int CurrentDbVersion = 7;
         public DatabaseInitializer(string dbPath) : base(dbPath) { }
 
         [SuppressMessage("Microsoft.Security", "CA2100:Review SQL queries for security vulnerabilities", Justification = "PRAGMA user_version is a hardcoded value, not user input.")]
@@ -44,6 +44,7 @@ namespace Cliptoo.Core.Database
                             Tags TEXT
                         );
                         CREATE INDEX idx_clips_timestamp ON clips(Timestamp);
+                        CREATE INDEX idx_clips_cliptype ON clips(ClipType);
                         CREATE TABLE stats (
                             Key TEXT PRIMARY KEY,
                             Value INTEGER,
@@ -287,6 +288,14 @@ namespace Cliptoo.Core.Database
                         cmd.CommandText = cmdText;
                         await cmd.ExecuteNonQueryAsync(CancellationToken.None).ConfigureAwait(false);
                     }
+                }
+
+                if (fromVersion < 7)
+                {
+                    var cmd = connection.CreateCommand();
+                    cmd.Transaction = transaction;
+                    cmd.CommandText = "CREATE INDEX IF NOT EXISTS idx_clips_cliptype ON clips(ClipType);";
+                    await cmd.ExecuteNonQueryAsync(CancellationToken.None).ConfigureAwait(false);
                 }
 
                 await transaction.CommitAsync().ConfigureAwait(false);
