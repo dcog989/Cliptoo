@@ -138,7 +138,7 @@ namespace Cliptoo.Core.Database
         {
             // Add prefix operator (*) only to non-quoted terms
             var ftsQuery = string.Join(" ", sanitizedTerms.Select(term =>
-                term.StartsWith("\"", StringComparison.Ordinal) && term.EndsWith("\"", StringComparison.Ordinal)
+                term.StartsWith('"') && term.EndsWith('"')
                     ? term  // Already quoted - don't add *
                     : $"{term}*"  // Not quoted - add prefix operator
             ));
