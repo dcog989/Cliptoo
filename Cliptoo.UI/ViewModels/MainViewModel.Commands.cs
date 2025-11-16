@@ -267,28 +267,31 @@ namespace Cliptoo.UI.ViewModels
             var updatedClip = await _clipDataService.GetPreviewClipByIdAsync(clipId);
 
             // Update the UI collection on the UI thread.
-            Clips.Remove(clipVM);
-
-            if (updatedClip != null)
+            await Application.Current.Dispatcher.InvokeAsync(() =>
             {
-                // Create a new view model for the updated clip data to avoid state issues.
-                var newClipVM = _clipViewModelFactory.Create(updatedClip, CurrentThemeString);
-                Clips.Insert(0, newClipVM);
+                Clips.Remove(clipVM);
 
-                // Ensure the new top item is visible and selected.
-                var mainWindow = Application.Current.MainWindow as MainWindow;
-                var listView = mainWindow?.ClipListViewControl;
-                if (listView != null)
+                if (updatedClip != null)
                 {
-                    listView.SelectedItem = newClipVM;
-                    listView.ScrollIntoView(newClipVM);
+                    // Create a new view model for the updated clip data to avoid state issues.
+                    var newClipVM = _clipViewModelFactory.Create(updatedClip, CurrentThemeString);
+                    Clips.Insert(0, newClipVM);
+
+                    // Ensure the new top item is visible and selected.
+                    var mainWindow = Application.Current.MainWindow as MainWindow;
+                    var listView = mainWindow?.ClipListViewControl;
+                    if (listView != null)
+                    {
+                        listView.SelectedItem = newClipVM;
+                        listView.ScrollIntoView(newClipVM);
+                    }
                 }
-            }
-            else
-            {
-                // Failsafe in case we can't get the updated clip for some reason.
-                _clipDisplayService.RefreshClipList();
-            }
+                else
+                {
+                    // Failsafe in case we can't get the updated clip for some reason.
+                    _clipDisplayService.RefreshClipList();
+                }
+            });
 
             // Also update the system clipboard to reflect the moved item.
             var fullClip = await _clipDataService.GetClipByIdAsync(clipId);

@@ -235,19 +235,22 @@ namespace Cliptoo.UI.ViewModels
 
         private void OnComparisonStateChanged(object? sender, ComparisonStateChangedEventArgs e)
         {
-            foreach (var clip in Clips)
+            Application.Current.Dispatcher.InvokeAsync(() =>
             {
-                if (e.NewLeftClipId.HasValue && clip.Id == e.NewLeftClipId.Value)
+                foreach (var clip in Clips)
                 {
-                    clip.CompareLeftHeader = "✓ Comparing with this";
-                    clip.ShowCompareRightOption = false;
+                    if (e.NewLeftClipId.HasValue && clip.Id == e.NewLeftClipId.Value)
+                    {
+                        clip.CompareLeftHeader = "✓ Comparing with this";
+                        clip.ShowCompareRightOption = false;
+                    }
+                    else
+                    {
+                        clip.CompareLeftHeader = "Compare Left";
+                        clip.ShowCompareRightOption = e.NewLeftClipId.HasValue;
+                    }
                 }
-                else
-                {
-                    clip.CompareLeftHeader = "Compare Left";
-                    clip.ShowCompareRightOption = e.NewLeftClipId.HasValue;
-                }
-            }
+            });
         }
 
         private void CurrentSettings_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
