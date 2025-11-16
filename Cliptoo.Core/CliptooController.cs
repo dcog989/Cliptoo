@@ -199,16 +199,19 @@ namespace Cliptoo.Core
 
                 using (var inputStream = new MemoryStream(rawImageBytes))
                 using (var image = await Image.LoadAsync(inputStream).ConfigureAwait(false))
-                using (var outputStream = new MemoryStream())
                 {
-                    var pngEncoder = new PngEncoder()
+                    finalImageBytes = await Task.Run(() =>
                     {
-                        CompressionLevel = PngCompressionLevel.BestCompression,
-                        ColorType = PngColorType.Palette,
-                        Quantizer = new OctreeQuantizer(new QuantizerOptions { MaxColors = 255, Dither = KnownDitherings.FloydSteinberg })
-                    };
-                    await image.SaveAsync(outputStream, pngEncoder).ConfigureAwait(false);
-                    finalImageBytes = outputStream.ToArray();
+                        using var outputStream = new MemoryStream();
+                        var pngEncoder = new PngEncoder()
+                        {
+                            CompressionLevel = PngCompressionLevel.BestCompression,
+                            ColorType = PngColorType.Palette,
+                            Quantizer = new OctreeQuantizer(new QuantizerOptions { MaxColors = 255, Dither = KnownDitherings.FloydSteinberg })
+                        };
+                        image.Save(outputStream, pngEncoder);
+                        return outputStream.ToArray();
+                    }).ConfigureAwait(false);
                 }
 
                 if (finalImageBytes.Length > maxBytes)

@@ -95,12 +95,12 @@ namespace Cliptoo.Core.Services
                     using var image = await _imageDecoder.DecodeAsync(stream, sourceExtension).ConfigureAwait(false);
                     if (image == null) return null;
 
-                    image.Mutate(x => x.Resize(new ResizeOptions
+                    await Task.Run(() => image.Mutate(x => x.Resize(new ResizeOptions
                     {
                         Size = new SixLabors.ImageSharp.Size(size, size),
                         Mode = ResizeMode.Max,
                         Sampler = KnownResamplers.Lanczos3
-                    }));
+                    }))).ConfigureAwait(false);
 
                     using var ms = new MemoryStream();
                     if (targetExtension == ".jpeg")

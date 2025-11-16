@@ -539,16 +539,19 @@ namespace Cliptoo.Core.Services
 
         private async Task<byte[]?> ProcessAndEncodeImageAsync(Image image, string? theme, bool isSvg)
         {
-            if (theme == "dark" && IsImageDark(image))
+            await Task.Run(() =>
             {
-                LogManager.LogDebug("FAVICON_COLOR_DIAG: Dark icon on dark theme detected. Inverting colors.");
-                image.Mutate(x => x.Invert());
-            }
+                if (theme == "dark" && IsImageDark(image))
+                {
+                    LogManager.LogDebug("FAVICON_COLOR_DIAG: Dark icon on dark theme detected. Inverting colors.");
+                    image.Mutate(x => x.Invert());
+                }
 
-            if (!isSvg)
-            {
-                image.Mutate(x => x.Resize(ThumbnailSize, ThumbnailSize));
-            }
+                if (!isSvg)
+                {
+                    image.Mutate(x => x.Resize(ThumbnailSize, ThumbnailSize));
+                }
+            }).ConfigureAwait(false);
 
             using var ms = new MemoryStream();
             await image.SaveAsPngAsync(ms, _pngEncoder).ConfigureAwait(false);
