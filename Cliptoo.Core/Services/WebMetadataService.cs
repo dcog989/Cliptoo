@@ -171,7 +171,7 @@ namespace Cliptoo.Core.Services
 
             try
             {
-                var response = await _httpClient.GetAsync(pageUri, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
+                using var response = await _httpClient.GetAsync(pageUri, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
                 if (!response.IsSuccessStatusCode) return (null, candidates);
 
                 var baseUri = response.RequestMessage?.RequestUri ?? pageUri;
@@ -375,7 +375,7 @@ namespace Cliptoo.Core.Services
                     return false;
                 }
 
-                var response = await _httpClient.GetAsync(faviconUri, cancellationToken).ConfigureAwait(false);
+                using var response = await _httpClient.GetAsync(faviconUri, cancellationToken).ConfigureAwait(false);
                 if (!response.IsSuccessStatusCode)
                 {
                     LogManager.LogDebug($"Favicon GET request for {faviconUrl} failed with status code {response.StatusCode}.");

@@ -95,8 +95,7 @@ namespace Cliptoo.Core.Services
                     {
                         try
                         {
-                            var imageBytes = await File.ReadAllBytesAsync(imagePath).ConfigureAwait(false);
-                            using var stream = new MemoryStream(imageBytes);
+                            using var stream = new FileStream(imagePath, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, useAsync: true);
                             using var image = await _imageDecoder.DecodeAsync(stream, sourceExtension).ConfigureAwait(false);
                             if (image == null) return null;
 
