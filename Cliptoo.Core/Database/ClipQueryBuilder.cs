@@ -97,6 +97,7 @@ namespace Cliptoo.Core.Database
             // If the term contains FTS5 special characters or operators,
             // it must be enclosed in double quotes to be treated as a single token.
             // This prevents terms like "C++" or "email@domain.com" from being misinterpreted.
+            // When quoted, we should NOT append the prefix operator (*) as it creates invalid FTS5 syntax.
             if (FtsSpecialCharsRegex().IsMatch(escapedTerm) || IsFtsReservedWord(escapedTerm))
             {
                 return $"\"{escapedTerm}\"";
@@ -118,7 +119,12 @@ namespace Cliptoo.Core.Database
             List<string> sanitizedTerms,
             bool isTagSearch)
         {
-            var ftsQuery = string.Join(" ", sanitizedTerms.Select(term => $"{term}*"));
+            // Add prefix operator (*) only to non-quoted terms
+            var ftsQuery = string.Join(" ", sanitizedTerms.Select(term => 
+                term.StartsWith("\"", StringComparison.Ordinal) && term.EndsWith("\"", StringComparison.Ordinal)
+                    ? term  // Already quoted - don't add *
+                    : $"{term}*"  // Not quoted - add prefix operator
+            ));
 
             if (isTagSearch)
             {
