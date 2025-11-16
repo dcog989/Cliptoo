@@ -382,35 +382,30 @@ namespace Cliptoo.Core.Services
                     return false;
                 }
 
-                byte[]? outputBytes = null;
+                byte[]? outputBytes;
                 var extension = Path.GetExtension(faviconUri.AbsolutePath).ToUpperInvariant();
                 bool isSvg = extension == ".SVG";
 
-                Image? image = null;
-                try
+                if (isSvg)
                 {
-                    if (isSvg)
+                    var svgContent = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+                    outputBytes = await Task.Run(() =>
                     {
-                        var svgContent = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-                        image = await Task.Run(() => ServiceUtils.RenderSvgToImageSharp(svgContent, ThumbnailSize), cancellationToken).ConfigureAwait(false);
-                    }
-                    else
-                    {
-                        using var contentStream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-                        using var memoryStream = new MemoryStream();
-                        await contentStream.CopyToAsync(memoryStream, cancellationToken).ConfigureAwait(false);
-                        memoryStream.Position = 0;
-                        image = await _imageDecoder.DecodeAsync(memoryStream, extension).ConfigureAwait(false);
-                    }
-
-                    if (image != null)
-                    {
-                        outputBytes = await ProcessAndEncodeImageAsync(image, theme, isSvg).ConfigureAwait(false);
-                    }
+                        using var image = ServiceUtils.RenderSvgToImageSharp(svgContent, ThumbnailSize);
+                        if (image == null) return null;
+                        return ProcessAndEncodeImage(image, theme, isSvg);
+                    }, cancellationToken).ConfigureAwait(false);
                 }
-                finally
+                else
                 {
-                    image?.Dispose();
+                    var imageBytes = await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
+                    outputBytes = await Task.Run(async () =>
+                    {
+                        using var memoryStream = new MemoryStream(imageBytes);
+                        using var image = await _imageDecoder.DecodeAsync(memoryStream, extension).ConfigureAwait(false);
+                        if (image == null) return null;
+                        return ProcessAndEncodeImage(image, theme, isSvg);
+                    }, cancellationToken).ConfigureAwait(false);
                 }
 
 
@@ -461,33 +456,33 @@ namespace Cliptoo.Core.Services
                     return null;
                 }
 
-                using var stream = new MemoryStream(bytes);
-                byte[]? outputBytes = null;
                 bool isSvg = extension == ".SVG";
 
-                Image? image = null;
-                try
+                byte[]? outputBytes = await Task.Run(async () =>
                 {
-                    if (isSvg)
+                    using var stream = new MemoryStream(bytes);
+                    Image? image = null;
+                    try
                     {
-                        using var reader = new StreamReader(stream);
-                        var svgContent = await reader.ReadToEndAsync().ConfigureAwait(false);
-                        image = await Task.Run(() => ServiceUtils.RenderSvgToImageSharp(svgContent, ThumbnailSize)).ConfigureAwait(false);
-                    }
-                    else
-                    {
-                        image = await _imageDecoder.DecodeAsync(stream, extension).ConfigureAwait(false);
-                    }
+                        if (isSvg)
+                        {
+                            using var reader = new StreamReader(stream);
+                            var svgContent = await reader.ReadToEndAsync().ConfigureAwait(false);
+                            image = ServiceUtils.RenderSvgToImageSharp(svgContent, ThumbnailSize);
+                        }
+                        else
+                        {
+                            image = await _imageDecoder.DecodeAsync(stream, extension).ConfigureAwait(false);
+                        }
 
-                    if (image != null)
-                    {
-                        outputBytes = await ProcessAndEncodeImageAsync(image, theme, isSvg).ConfigureAwait(false);
+                        if (image is null) return null;
+                        return ProcessAndEncodeImage(image, theme, isSvg);
                     }
-                }
-                finally
-                {
-                    image?.Dispose();
-                }
+                    finally
+                    {
+                        image?.Dispose();
+                    }
+                }).ConfigureAwait(false);
 
                 if (outputBytes != null)
                 {
@@ -537,24 +532,21 @@ namespace Cliptoo.Core.Services
             return avgLuminance < darknessThreshold;
         }
 
-        private async Task<byte[]?> ProcessAndEncodeImageAsync(Image image, string? theme, bool isSvg)
+        private byte[]? ProcessAndEncodeImage(Image image, string? theme, bool isSvg)
         {
-            await Task.Run(() =>
+            if (theme == "dark" && IsImageDark(image))
             {
-                if (theme == "dark" && IsImageDark(image))
-                {
-                    LogManager.LogDebug("FAVICON_COLOR_DIAG: Dark icon on dark theme detected. Inverting colors.");
-                    image.Mutate(x => x.Invert());
-                }
+                LogManager.LogDebug("FAVICON_COLOR_DIAG: Dark icon on dark theme detected. Inverting colors.");
+                image.Mutate(x => x.Invert());
+            }
 
-                if (!isSvg)
-                {
-                    image.Mutate(x => x.Resize(ThumbnailSize, ThumbnailSize));
-                }
-            }).ConfigureAwait(false);
+            if (!isSvg)
+            {
+                image.Mutate(x => x.Resize(ThumbnailSize, ThumbnailSize));
+            }
 
             using var ms = new MemoryStream();
-            await image.SaveAsPngAsync(ms, _pngEncoder).ConfigureAwait(false);
+            image.SaveAsPng(ms, _pngEncoder);
             return ms.ToArray();
         }
 

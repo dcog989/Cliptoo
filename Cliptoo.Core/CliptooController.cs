@@ -195,24 +195,21 @@ namespace Cliptoo.Core
             else if (e.ContentType == ClipboardContentType.Image)
             {
                 var rawImageBytes = (byte[])e.Content;
-                byte[] finalImageBytes;
 
-                using (var inputStream = new MemoryStream(rawImageBytes))
-                using (var image = await Image.LoadAsync(inputStream).ConfigureAwait(false))
+                var finalImageBytes = await Task.Run(() =>
                 {
-                    finalImageBytes = await Task.Run(() =>
+                    using var inputStream = new MemoryStream(rawImageBytes);
+                    using var image = Image.Load(inputStream);
+                    using var outputStream = new MemoryStream();
+                    var pngEncoder = new PngEncoder
                     {
-                        using var outputStream = new MemoryStream();
-                        var pngEncoder = new PngEncoder()
-                        {
-                            CompressionLevel = PngCompressionLevel.BestCompression,
-                            ColorType = PngColorType.Palette,
-                            Quantizer = new OctreeQuantizer(new QuantizerOptions { MaxColors = 255, Dither = KnownDitherings.FloydSteinberg })
-                        };
-                        image.Save(outputStream, pngEncoder);
-                        return outputStream.ToArray();
-                    }).ConfigureAwait(false);
-                }
+                        CompressionLevel = PngCompressionLevel.BestCompression,
+                        ColorType = PngColorType.Palette,
+                        Quantizer = new OctreeQuantizer(new QuantizerOptions { MaxColors = 255, Dither = KnownDitherings.FloydSteinberg })
+                    };
+                    image.Save(outputStream, pngEncoder);
+                    return outputStream.ToArray();
+                }).ConfigureAwait(false);
 
                 if (finalImageBytes.Length > maxBytes)
                 {

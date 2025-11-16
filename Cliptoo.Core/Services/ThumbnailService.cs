@@ -91,27 +91,39 @@ namespace Cliptoo.Core.Services
                 }
                 else
                 {
-                    using var stream = File.OpenRead(imagePath);
-                    using var image = await _imageDecoder.DecodeAsync(stream, sourceExtension).ConfigureAwait(false);
-                    if (image == null) return null;
+                    outputBytes = await Task.Run(async () =>
+                    {
+                        try
+                        {
+                            var imageBytes = await File.ReadAllBytesAsync(imagePath).ConfigureAwait(false);
+                            using var stream = new MemoryStream(imageBytes);
+                            using var image = await _imageDecoder.DecodeAsync(stream, sourceExtension).ConfigureAwait(false);
+                            if (image == null) return null;
 
-                    await Task.Run(() => image.Mutate(x => x.Resize(new ResizeOptions
-                    {
-                        Size = new SixLabors.ImageSharp.Size(size, size),
-                        Mode = ResizeMode.Max,
-                        Sampler = KnownResamplers.Lanczos3
-                    }))).ConfigureAwait(false);
+                            image.Mutate(x => x.Resize(new ResizeOptions
+                            {
+                                Size = new SixLabors.ImageSharp.Size(size, size),
+                                Mode = ResizeMode.Max,
+                                Sampler = KnownResamplers.Lanczos3
+                            }));
 
-                    using var ms = new MemoryStream();
-                    if (targetExtension == ".jpeg")
-                    {
-                        await image.SaveAsync(ms, _jpegEncoder).ConfigureAwait(false);
-                    }
-                    else
-                    {
-                        await image.SaveAsync(ms, _pngEncoder).ConfigureAwait(false);
-                    }
-                    outputBytes = ms.ToArray();
+                            using var ms = new MemoryStream();
+                            if (targetExtension == ".jpeg")
+                            {
+                                await image.SaveAsync(ms, _jpegEncoder).ConfigureAwait(false);
+                            }
+                            else
+                            {
+                                await image.SaveAsync(ms, _pngEncoder).ConfigureAwait(false);
+                            }
+                            return ms.ToArray();
+                        }
+                        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                        {
+                            LogManager.LogCritical(ex, $"Image processing failed inside Task.Run for {imagePath}");
+                            return null;
+                        }
+                    }).ConfigureAwait(false);
                 }
 
                 if (outputBytes != null)
