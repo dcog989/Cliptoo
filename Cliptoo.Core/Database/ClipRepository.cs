@@ -76,12 +76,12 @@ namespace Cliptoo.Core.Database
             ClipQueryBuilder.BuildGetClipsQuery(command, limit, offset, searchTerm, filterType, tagSearchPrefix);
 
             await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-            
+
             while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
                 clips.Add(MapPreviewClipFromReader(reader));
             }
-            
+
             return clips;
         }
 
@@ -115,7 +115,11 @@ namespace Cliptoo.Core.Database
                     VALUES (@Content, @ContentHash, @PreviewContent, @ClipType, @SourceApp, @Timestamp, 0, @WasTrimmed, @SizeInBytes)
                     ON CONFLICT(ContentHash) DO UPDATE SET
                         Timestamp = excluded.Timestamp,
-                        SourceApp = excluded.SourceApp
+                        SourceApp = excluded.SourceApp,
+                        ClipType = excluded.ClipType,
+                        WasTrimmed = excluded.WasTrimmed,
+                        SizeInBytes = excluded.SizeInBytes,
+                        PreviewContent = excluded.PreviewContent
                     RETURNING Id;
                 ";
                 upsertCmd.Parameters.AddWithValue("@Content", content);
@@ -161,7 +165,7 @@ namespace Cliptoo.Core.Database
         public async Task<int> UpdateClipContentAsync(int id, string content)
         {
             ArgumentNullException.ThrowIfNull(content);
-            
+
             var newHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(content)));
             var finalClipId = id;
 
@@ -178,7 +182,7 @@ namespace Cliptoo.Core.Database
                     command.Transaction = (SqliteTransaction)transaction;
                     command.CommandText = sql;
                     command.Parameters.AddWithValue("@ContentHash", newHash);
-                    
+
                     await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
                     if (await reader.ReadAsync().ConfigureAwait(false))
                     {
@@ -199,7 +203,7 @@ namespace Cliptoo.Core.Database
                         cmd.Transaction = (SqliteTransaction)transaction;
                         cmd.CommandText = "SELECT IsFavorite FROM clips WHERE Id = @Id";
                         cmd.Parameters.AddWithValue("@Id", id);
-                        
+
                         await using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
                         if (!await reader.ReadAsync().ConfigureAwait(false))
                         {
@@ -243,7 +247,7 @@ namespace Cliptoo.Core.Database
                     updateCmd.Parameters.AddWithValue("@SizeInBytes", (long)Encoding.UTF8.GetByteCount(content));
                     updateCmd.Parameters.AddWithValue("@Id", id);
                     await updateCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
-                    
+
                     finalClipId = id;
                 }
             }).ConfigureAwait(false);
@@ -399,7 +403,7 @@ namespace Cliptoo.Core.Database
 
         public IAsyncEnumerable<Clip> GetAllClipsAsync(bool favoriteOnly)
         {
-            var sql = favoriteOnly 
+            var sql = favoriteOnly
                 ? "SELECT * FROM clips WHERE IsFavorite = 1 ORDER BY Timestamp DESC"
                 : "SELECT * FROM clips ORDER BY Timestamp DESC";
 

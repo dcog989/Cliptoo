@@ -48,6 +48,26 @@ namespace Cliptoo.Core.Services
                 return new ProcessingResult(AppConstants.ClipTypeLink, content, hadLeadingWhitespace);
             }
 
+            // Only check for file paths if it's a single-line string to avoid misclassifying code blocks.
+            if (!content.Contains('\n', StringComparison.Ordinal))
+            {
+                var classifiedType = _fileTypeClassifier.Classify(trimmedContent);
+                if (classifiedType != AppConstants.ClipTypeText)
+                {
+                    // If it's a path to a primarily textual file type,
+                    // let it fall through to be evaluated as a code snippet or plain text.
+                    // This prevents paths to code files from being misclassified as a file clip
+                    // when the user's intent was to copy the path as text.
+                    // Non-textual file types (images, videos, archives) are treated as file clips immediately.
+                    bool isTextualFileType = classifiedType is AppConstants.ClipTypeDev or AppConstants.ClipTypeFileText;
+
+                    if (!isTextualFileType)
+                    {
+                        return new ProcessingResult(classifiedType, content, hadLeadingWhitespace);
+                    }
+                }
+            }
+
             if (IsCodeSnippet(content))
             {
                 return new ProcessingResult(AppConstants.ClipTypeCodeSnippet, content, hadLeadingWhitespace);
