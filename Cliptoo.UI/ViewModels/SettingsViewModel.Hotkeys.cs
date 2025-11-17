@@ -91,7 +91,7 @@ namespace Cliptoo.UI.ViewModels
                     if (!isValid)
                     {
                         this.Hotkey = "Ctrl+Alt+V";
-                        await ShowInvalidHotkeyDialog("Launch main window hotkey", "must include at least one modifier (e.g., Ctrl, Alt) and a regular key (e.g., V)", this.Hotkey);
+                        await ShowInvalidHotkeyDialog("Launch Cliptoo hotkey", "must include at least one modifier (e.g., Ctrl, Alt) and a regular key (e.g., V)", this.Hotkey);
                     }
                     break;
 

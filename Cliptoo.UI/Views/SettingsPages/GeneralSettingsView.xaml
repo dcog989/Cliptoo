@@ -112,7 +112,7 @@
                 <TextBlock
                     Margin="16,0,8,0"
                     Style="{StaticResource SettingLabel}"
-                    Text="Launch main window" />
+                    Text="Launch Cliptoo" />
                 <ui:TextBox
                     helpers:HotkeyInputBehavior.HotkeyTarget="{x:Static core:AppConstants.HotkeyTargetMain}"
                     helpers:HotkeyInputBehavior.IsEnabled="True"
