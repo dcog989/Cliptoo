@@ -23,11 +23,11 @@ namespace Cliptoo.Core.Services
             ICompareToolService compareToolService,
             ISettingsService settingsService)
         {
-            _dbManager = dbManager;
-            _clipDataService = clipDataService;
-            _textTransformer = textTransformer;
-            _compareToolService = compareToolService;
-            _settingsService = settingsService;
+            _dbManager = dbManager ?? throw new ArgumentNullException(nameof(dbManager));
+            _clipDataService = clipDataService ?? throw new ArgumentNullException(nameof(clipDataService));
+            _textTransformer = textTransformer ?? throw new ArgumentNullException(nameof(textTransformer));
+            _compareToolService = compareToolService ?? throw new ArgumentNullException(nameof(compareToolService));
+            _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
             _tempPath = Path.Combine(Path.GetTempPath(), "Cliptoo");
             Directory.CreateDirectory(_tempPath);
         }
@@ -82,42 +82,71 @@ namespace Cliptoo.Core.Services
                 leftFilePath = Path.Combine(_tempPath, $"cliptoo_compare_left_{Guid.NewGuid()}.txt");
                 rightFilePath = Path.Combine(_tempPath, $"cliptoo_compare_right_{Guid.NewGuid()}.txt");
 
-                await File.WriteAllTextAsync(leftFilePath, leftClip.Content ?? "").ConfigureAwait(false);
-                await File.WriteAllTextAsync(rightFilePath, rightClip.Content ?? "").ConfigureAwait(false);
+                await File.WriteAllTextAsync(leftFilePath, leftClip.Content ?? string.Empty).ConfigureAwait(false);
+                await File.WriteAllTextAsync(rightFilePath, rightClip.Content ?? string.Empty).ConfigureAwait(false);
 
                 using (var process = new System.Diagnostics.Process())
                 {
                     process.StartInfo.FileName = toolPath;
-                    process.StartInfo.Arguments = $"{toolArgs} \"{leftFilePath}\" \"{rightFilePath}\"";
+                    process.StartInfo.Arguments = string.IsNullOrEmpty(toolArgs)
+                        ? $"\"{leftFilePath}\" \"{rightFilePath}\""
+                        : $"{toolArgs} \"{leftFilePath}\" \"{rightFilePath}\"";
                     process.StartInfo.UseShellExecute = false;
-                    process.Start();
-                    await process.WaitForExitAsync().ConfigureAwait(false);
+                    process.StartInfo.CreateNoWindow = false;
+
+                    if (!process.Start())
+                    {
+                        return (false, "Failed to start the comparison tool.");
+                    }
+
+                    // Don't wait for the process to exit - let it run independently
+                    // The comparison tool should stay open for the user to review
                 }
 
-                return (true, "Comparison tool launched.");
+                // Schedule cleanup after a delay to ensure the comparison tool has loaded the files
+                _ = Task.Run(async () =>
+                {
+                    await Task.Delay(5000).ConfigureAwait(false); // Wait 5 seconds
+                    CleanupTempFiles(leftFilePath, rightFilePath);
+                });
+
+                return (true, "Comparison tool launched successfully.");
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception or ObjectDisposedException or FileNotFoundException)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception or FileNotFoundException or InvalidOperationException)
             {
                 LogManager.LogCritical(ex, "Failed to execute clip comparison.");
-                return (false, "An error occurred while launching the comparison tool.");
+
+                // Attempt immediate cleanup on error
+                CleanupTempFiles(leftFilePath, rightFilePath);
+
+                return (false, $"An error occurred while launching the comparison tool: {ex.Message}");
             }
-            finally
+        }
+
+        static void CleanupTempFiles(string? leftFilePath, string? rightFilePath)
+        {
+            try
             {
-                try
+                if (leftFilePath != null && File.Exists(leftFilePath))
                 {
-                    if (leftFilePath != null && File.Exists(leftFilePath))
-                    {
-                        File.Delete(leftFilePath);
-                    }
-                    if (rightFilePath != null && File.Exists(rightFilePath))
-                    {
-                        File.Delete(rightFilePath);
-                    }
+                    File.Delete(leftFilePath);
                 }
-                catch (IOException ex)
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                LogManager.LogWarning($"Failed to delete temporary file '{leftFilePath}': {ex.Message}");
+            }
+
+            try
+            {
+                if (rightFilePath != null && File.Exists(rightFilePath))
                 {
-                    LogManager.LogWarning($"Failed to delete temporary compare files: {ex.Message}");
+                    File.Delete(rightFilePath);
                 }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                LogManager.LogWarning($"Failed to delete temporary file '{rightFilePath}': {ex.Message}");
             }
         }
 

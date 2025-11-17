@@ -19,11 +19,17 @@ namespace Cliptoo.Core.Services
 
         public ClipDataService(IDbManager dbManager, IWebMetadataService webMetadataService)
         {
-            _dbManager = dbManager;
-            _webMetadataService = webMetadataService;
+            _dbManager = dbManager ?? throw new ArgumentNullException(nameof(dbManager));
+            _webMetadataService = webMetadataService ?? throw new ArgumentNullException(nameof(webMetadataService));
         }
 
-        public Task<List<Clip>> GetClipsAsync(uint limit = 100, uint offset = 0, string searchTerm = "", string filterType = "all", string tagSearchPrefix = "##", CancellationToken cancellationToken = default)
+        public Task<List<Clip>> GetClipsAsync(
+            uint limit = 100,
+            uint offset = 0,
+            string searchTerm = "",
+            string filterType = "all",
+            string tagSearchPrefix = "##",
+            CancellationToken cancellationToken = default)
         {
             return _dbManager.GetClipsAsync(limit, offset, searchTerm, filterType, tagSearchPrefix, cancellationToken);
         }
@@ -41,38 +47,78 @@ namespace Cliptoo.Core.Services
 
         public async Task<int> AddClipAsync(string content, string clipType, string? sourceApp, bool wasTrimmed)
         {
-            var clipId = await _dbManager.AddClipAsync(content, clipType, sourceApp, wasTrimmed).ConfigureAwait(false);
-
-            // Get the preview version of the newly added clip to broadcast to the UI
-            var newClip = await _dbManager.GetPreviewClipByIdAsync(clipId).ConfigureAwait(false);
-            if (newClip != null)
+            if (string.IsNullOrEmpty(content))
             {
-                NewClipAdded?.Invoke(this, new ClipAddedEventArgs(newClip));
-            }
-            else
-            {
-                // This should realistically never happen if the add succeeded.
-                LogManager.LogWarning($"Could not retrieve newly added clip with ID {clipId} to update the UI.");
+                throw new ArgumentException("Content cannot be null or empty.", nameof(content));
             }
 
-            return clipId;
+            if (string.IsNullOrEmpty(clipType))
+            {
+                throw new ArgumentException("Clip type cannot be null or empty.", nameof(clipType));
+            }
+
+            try
+            {
+                var clipId = await _dbManager.AddClipAsync(content, clipType, sourceApp, wasTrimmed).ConfigureAwait(false);
+
+                // Get the preview version of the newly added clip to broadcast to the UI
+                var newClip = await _dbManager.GetPreviewClipByIdAsync(clipId).ConfigureAwait(false);
+                if (newClip != null)
+                {
+                    OnNewClipAdded(new ClipAddedEventArgs(newClip));
+                }
+                else
+                {
+                    // This should realistically never happen if the add succeeded.
+                    LogManager.LogWarning($"Could not retrieve newly added clip with ID {clipId} to update the UI.");
+                }
+
+                return clipId;
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogCritical(ex, $"Failed to add clip of type '{clipType}'.");
+                throw;
+            }
         }
 
-        public async Task<int> UpdateClipContentAsync(int id, string newContent)
+        public Task<int> UpdateClipContentAsync(int id, string newContent)
         {
-            return await _dbManager.UpdateClipContentAsync(id, newContent);
+            if (string.IsNullOrEmpty(newContent))
+            {
+                throw new ArgumentException("New content cannot be null or empty.", nameof(newContent));
+            }
+
+            return _dbManager.UpdateClipContentAsync(id, newContent);
         }
 
         public async Task DeleteClipAsync(Clip clip)
         {
             ArgumentNullException.ThrowIfNull(clip);
 
-            await _dbManager.DeleteClipAsync(clip.Id).ConfigureAwait(false);
-            ClipDeleted?.Invoke(this, EventArgs.Empty);
-
-            if (clip.ClipType == AppConstants.ClipTypeLink && clip.Content is not null && Uri.TryCreate(clip.Content, UriKind.Absolute, out var uri))
+            try
             {
-                _webMetadataService.ClearCacheForUrl(uri);
+                // Cache the values we need before deletion
+                var clipId = clip.Id;
+                var clipType = clip.ClipType;
+                var clipContent = clip.Content;
+
+                await _dbManager.DeleteClipAsync(clipId).ConfigureAwait(false);
+
+                OnClipDeleted();
+
+                // Clear web metadata cache if applicable
+                if (clipType == AppConstants.ClipTypeLink &&
+                    clipContent is not null &&
+                    Uri.TryCreate(clipContent, UriKind.Absolute, out var uri))
+                {
+                    _webMetadataService.ClearCacheForUrl(uri);
+                }
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogCritical(ex, $"Failed to delete clip with ID {clip.Id}.");
+                throw;
             }
         }
 
@@ -93,7 +139,45 @@ namespace Cliptoo.Core.Services
 
         public Task UpdateClipTagsAsync(int id, string tags)
         {
+            ArgumentNullException.ThrowIfNull(tags);
+
             return _dbManager.UpdateClipTagsAsync(id, tags);
+        }
+
+        /// <summary>
+        /// Safely raises the NewClipAdded event.
+        /// </summary>
+        private void OnNewClipAdded(ClipAddedEventArgs args)
+        {
+            try
+            {
+                NewClipAdded?.Invoke(this, args);
+            }
+#pragma warning disable CA1031 // Do not catch general exception types
+            catch (Exception ex)
+            {
+                // Catch all exceptions from event handlers to prevent one bad subscriber from crashing the application
+                LogManager.LogCritical(ex, "Error occurred while invoking NewClipAdded event.");
+            }
+#pragma warning restore CA1031 // Do not catch general exception types
+        }
+
+        /// <summary>
+        /// Safely raises the ClipDeleted event.
+        /// </summary>
+        private void OnClipDeleted()
+        {
+            try
+            {
+                ClipDeleted?.Invoke(this, EventArgs.Empty);
+            }
+#pragma warning disable CA1031 // Do not catch general exception types
+            catch (Exception ex)
+            {
+                // Catch all exceptions from event handlers to prevent one bad subscriber from crashing the application
+                LogManager.LogCritical(ex, "Error occurred while invoking ClipDeleted event.");
+            }
+#pragma warning restore CA1031 // Do not catch general exception types
         }
     }
 }
