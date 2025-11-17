@@ -17,7 +17,7 @@
                     Text="Maximum" />
                 <ui:NumberBox
                     ClearButtonEnabled="False"
-                    Maximum="9990"
+                    Maximum="9999"
                     Minimum="10"
                     SmallChange="10"
                     Style="{StaticResource SettingsNumberBoxStyle}"

@@ -121,7 +121,7 @@
                     Text="Delay before showing" />
                 <ui:NumberBox
                     ClearButtonEnabled="False"
-                    Maximum="9990"
+                    Maximum="9999"
                     Minimum="0"
                     SmallChange="50"
                     Style="{StaticResource SettingsNumberBoxStyle}"
@@ -168,7 +168,7 @@
                     Text="Text preview max width" />
                 <ui:NumberBox
                     ClearButtonEnabled="False"
-                    Maximum="9990"
+                    Maximum="9999"
                     Minimum="200"
                     SmallChange="10"
                     Style="{StaticResource SettingsNumberBoxStyle}"
@@ -185,7 +185,7 @@
                     Text="Image preview max size" />
                 <ui:NumberBox
                     ClearButtonEnabled="False"
-                    Maximum="9990"
+                    Maximum="9999"
                     Minimum="100"
                     SmallChange="10"
                     Style="{StaticResource SettingsNumberBoxStyle}"
