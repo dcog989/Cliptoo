@@ -115,24 +115,20 @@ namespace Cliptoo.Core.Native
 
             var availableData = GetAvailableClipboardData();
 
-            bool shouldSuppress;
             lock (_suppressionLock)
             {
                 if (_suppressionActive.IsSet)
                 {
-                    shouldSuppress = CheckForSuppressedHashes(availableData);
-                    
-                    if (!shouldSuppress)
-                    {
-                        LogManager.LogInfo("A different clip was detected during the suppression window. Processing it.");
-                        _suppressionResetTimer.Stop();
-                        _hashesToSuppress.Clear();
-                        _suppressionActive.Reset();
-                    }
-                    else
+                    if (CheckForSuppressedHashes(availableData))
                     {
                         return; // Suppressed - exit early
                     }
+                    
+                    // Different clip detected during suppression window - clear suppression and continue
+                    LogManager.LogInfo("A different clip was detected during the suppression window. Processing it.");
+                    _suppressionResetTimer.Stop();
+                    _hashesToSuppress.Clear();
+                    _suppressionActive.Reset();
                 }
             }
 

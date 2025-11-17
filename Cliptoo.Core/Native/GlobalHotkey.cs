@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Windows.Input;
+using Cliptoo.Core.Logging;
 
 namespace Cliptoo.Core.Native
 {
@@ -63,7 +64,7 @@ namespace Cliptoo.Core.Native
             }
             catch (Exception ex) when (ex is ArgumentException or ExternalException)
             {
-                Console.WriteLine($"Failed to register hotkey '{hotkey}': {ex.Message}");
+                LogManager.LogError($"Failed to register hotkey '{hotkey}': {ex.Message}");
                 return false;
             }
         }

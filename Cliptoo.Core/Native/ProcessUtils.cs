@@ -42,8 +42,8 @@ namespace Cliptoo.Core.Native
                 IntPtr hwnd = GetForegroundWindow();
                 if (hwnd == IntPtr.Zero) return null;
 
-                _ = GetWindowThreadProcessId(hwnd, out uint pid);
-                if (pid == 0) return null;
+                uint threadId = GetWindowThreadProcessId(hwnd, out uint pid);
+                if (threadId == 0 || pid == 0) return null;
 
                 IntPtr hProcess = OpenProcess(ProcessAccessFlags.QueryLimitedInformation, false, pid);
                 if (hProcess == IntPtr.Zero) return null;
@@ -68,5 +68,6 @@ namespace Cliptoo.Core.Native
             }
             return null;
         }
+
     }
 }
