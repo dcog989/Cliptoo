@@ -175,6 +175,11 @@ namespace Cliptoo.Core
 
                 if (e.IsRtf)
                 {
+                    var plainText = RtfUtils.ToPlainText(textContent);
+                    if (plainText.Trim().Length != plainText.Length)
+                    {
+                        wasAutoTrimmed = true;
+                    }
                     result = new ProcessingResult(AppConstants.ClipTypeRtf, textContent);
                 }
                 else
@@ -236,7 +241,7 @@ namespace Cliptoo.Core
                 if (paths.Length == 1)
                 {
                     var path = paths[0].Trim();
-                    
+
                     // Handle Windows .url shortcut files
                     if (path.EndsWith(".url", StringComparison.OrdinalIgnoreCase) && File.Exists(path))
                     {
@@ -246,7 +251,7 @@ namespace Cliptoo.Core
                             result = new ProcessingResult(AppConstants.ClipTypeLink, extractedUrl, false, Path.GetFileName(path));
                         }
                     }
-                    
+
                     // If not a .url file, parsing failed, or file doesn't exist, classify normally
                     if (result == null)
                     {

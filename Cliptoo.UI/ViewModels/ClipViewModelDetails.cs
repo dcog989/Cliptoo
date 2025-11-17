@@ -243,7 +243,7 @@ namespace Cliptoo.UI.ViewModels
             }
 
             string contentForTooltip = textFileContent ?? (clipToDisplay.ClipType == AppConstants.ClipTypeRtf
-                ? RtfUtils.ToPlainText(clipToDisplay.Content ?? "")
+                ? Cliptoo.Core.Services.RtfUtils.ToPlainText(clipToDisplay.Content ?? "")
                 : clipToDisplay.Content ?? "");
 
             bool wasTruncatedByCharLimit = false;

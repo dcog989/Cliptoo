@@ -4,7 +4,6 @@ using System.Windows.Media;
 using Cliptoo.Core;
 using Cliptoo.Core.Interfaces;
 using Cliptoo.Core.Services;
-using Cliptoo.UI.Helpers;
 using Cliptoo.UI.Services;
 using Cliptoo.UI.ViewModels.Base;
 using ICSharpCode.AvalonEdit.Highlighting;
@@ -126,7 +125,7 @@ namespace Cliptoo.UI.ViewModels
             Tags = _loadedClip.Tags ?? string.Empty;
 
             var lineCount = string.IsNullOrEmpty(contentForInfo) ? 0 : contentForInfo.Split('\n').Length;
-            var formattedSize = FormatUtils.FormatBytes(_loadedClip.SizeInBytes);
+            var formattedSize = Cliptoo.UI.Helpers.FormatUtils.FormatBytes(_loadedClip.SizeInBytes);
             ClipInfo = $"Size: {formattedSize}    Lines: {lineCount}";
 
             LoadSyntaxHighlighting(_loadedClip);

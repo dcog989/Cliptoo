@@ -83,7 +83,16 @@ namespace Cliptoo.Core.Database
 
             var contentSize = (long)Encoding.UTF8.GetByteCount(content);
             var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(content)));
-            var previewContent = CreatePreview(content);
+            string previewContent;
+            if (clipType == AppConstants.ClipTypeRtf)
+            {
+                var plainText = RtfUtils.ToPlainText(content);
+                previewContent = CreatePreview(plainText);
+            }
+            else
+            {
+                previewContent = CreatePreview(content);
+            }
 
             await using var connection = await GetOpenConnectionAsync().ConfigureAwait(false);
             await using var transaction = (SqliteTransaction)await connection.BeginTransactionAsync().ConfigureAwait(false);

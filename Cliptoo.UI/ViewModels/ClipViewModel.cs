@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Windows;
 using System.Windows.Input;
@@ -9,12 +10,12 @@ using Cliptoo.Core.Database.Models;
 using Cliptoo.Core.Interfaces;
 using Cliptoo.Core.Logging;
 using Cliptoo.Core.Services;
-using Cliptoo.UI.Helpers;
 using Cliptoo.UI.Services;
 using Cliptoo.UI.ViewModels.Base;
 
 namespace Cliptoo.UI.ViewModels
 {
+    [SuppressMessage("Design", "CA1515:Consider making public types internal", Justification = "Used by XAML binding.")]
     public class ClipViewModel : ViewModelBase, IDisposable
     {
         internal Clip _clip;
@@ -294,15 +295,7 @@ namespace Cliptoo.UI.ViewModels
             }
             else
             {
-                string textForPreview;
-                if (_clip.ClipType == AppConstants.ClipTypeRtf)
-                {
-                    textForPreview = RtfUtils.ToPlainText(Content);
-                }
-                else
-                {
-                    textForPreview = DisplayContent;
-                }
+                string textForPreview = DisplayContent;
 
                 using (var reader = new StringReader(textForPreview))
                 {

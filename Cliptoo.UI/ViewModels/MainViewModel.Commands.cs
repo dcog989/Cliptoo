@@ -7,7 +7,6 @@ using Cliptoo.Core.Configuration;
 using Cliptoo.Core.Database.Models;
 using Cliptoo.Core.Logging;
 using Cliptoo.Core.Services;
-using Cliptoo.UI.Helpers;
 using Cliptoo.UI.Views;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;

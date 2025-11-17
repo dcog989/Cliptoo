@@ -8,7 +8,6 @@ using Cliptoo.Core.Interfaces;
 using Cliptoo.Core.Logging;
 using Cliptoo.Core.Native;
 using Cliptoo.Core.Services;
-using Cliptoo.UI.Helpers;
 
 namespace Cliptoo.UI.Services
 {
@@ -75,7 +74,7 @@ namespace Cliptoo.UI.Services
             if (pasteAsPlainText)
             {
                 string plainText = (clip.ClipType == AppConstants.ClipTypeRtf && clip.Content != null)
-                    ? RtfUtils.ToPlainText(clip.Content)
+                    ? Core.Services.RtfUtils.ToPlainText(clip.Content)
                     : clip.Content ?? "";
                 dataObject.SetText(plainText, TextDataFormat.UnicodeText);
             }
@@ -97,10 +96,10 @@ namespace Cliptoo.UI.Services
                         break;
                     case AppConstants.ClipTypeRtf:
                         dataObject.SetData(DataFormats.Rtf, clip.Content);
-                        dataObject.SetText(RtfUtils.ToPlainText(clip.Content ?? string.Empty), TextDataFormat.UnicodeText);
+                        dataObject.SetText(Core.Services.RtfUtils.ToPlainText(clip.Content ?? string.Empty), TextDataFormat.UnicodeText);
                         break;
                     default:
-                        dataObject.SetText(clip.Content, TextDataFormat.UnicodeText);
+                        dataObject.SetText(clip.Content ?? string.Empty, TextDataFormat.UnicodeText);
                         break;
                 }
             }
