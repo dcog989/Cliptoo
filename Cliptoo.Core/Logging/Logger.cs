@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace Cliptoo.Core.Logging
 {
-    public sealed class Logger : ILogger, IDisposable
+    public sealed class Logger : ILogManager, IDisposable
     {
         private string? _logFilePath;
         public string? LogFilePath => _logFilePath;
@@ -261,7 +261,7 @@ namespace Cliptoo.Core.Logging
 
         private void EnqueueMessage(LogLevel level, string message)
         {
-            if (!IsInitialized || level > LoggingLevel) return;
+            if (!IsInitialized || level < LoggingLevel) return;
 
             var formattedMessage = $"[{DateTime.Now:HH:mm:ss.fff}] {level.ToString().ToUpperInvariant()}: {message}";
             _logQueue.Enqueue(formattedMessage);
@@ -275,9 +275,9 @@ namespace Cliptoo.Core.Logging
 
         public void LogCritical(Exception exception, string? context = null)
         {
-            if (!IsInitialized || LogLevel.Critical > LoggingLevel) return;
-
             ArgumentNullException.ThrowIfNull(exception);
+
+            if (!IsInitialized || LogLevel.Critical < LoggingLevel) return;
 
             var sb = new StringBuilder();
             var initialMessage = string.IsNullOrEmpty(context)

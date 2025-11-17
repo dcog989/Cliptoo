@@ -4,8 +4,8 @@ namespace Cliptoo.Core.Logging
 {
     public static class LogManager
     {
-        private static ILogger? _logger;
-        private static ILogger Logger => _logger ?? throw new InvalidOperationException("LogManager has not been initialized. Call Initialize() first.");
+        private static ILogManager? _logger;
+        private static ILogManager Logger => _logger ?? throw new InvalidOperationException("LogManager has not been initialized. Call Initialize() first.");
 
         public static string? LogFilePath => Logger.LogFilePath;
         public static bool IsInitialized => _logger?.IsInitialized ?? false;
@@ -20,7 +20,7 @@ namespace Cliptoo.Core.Logging
             _logger.Initialize(appDataPath);
         }
 
-        public static void Initialize(ILogger logger)
+        public static void Initialize(ILogManager logger)
         {
             // Replaces the initial logger with the singleton instance from the DI container.
             var oldLogger = _logger as IDisposable;

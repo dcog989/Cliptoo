@@ -2,7 +2,7 @@ using System;
 
 namespace Cliptoo.Core.Logging
 {
-    public interface ILogger
+    public interface ILogManager
     {
         string? LogFilePath { get; }
         LogLevel LoggingLevel { get; }

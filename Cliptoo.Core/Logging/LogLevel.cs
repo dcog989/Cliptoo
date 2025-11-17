@@ -2,10 +2,10 @@ namespace Cliptoo.Core.Logging
 {
     public enum LogLevel
     {
-        Critical, // For exceptions and unrecoverable errors.
-        Error,    // For runtime errors that do not crash the app.
-        Warning,  // For potential issues or non-critical problems.
-        Info,     // For general application flow messages.
-        Debug     // For detailed diagnostic information.
+        Debug = 0,    // For detailed diagnostic information.
+        Info = 1,     // For general application flow messages.
+        Warning = 2,  // For potential issues or non-critical problems.
+        Error = 3,    // For runtime errors that do not crash the app.
+        Critical = 4  // For exceptions and unrecoverable errors.
     }
 }

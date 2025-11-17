@@ -124,7 +124,7 @@ namespace Cliptoo.UI
                         Directory.CreateDirectory(dbFolder);
                         var dbPath = Path.Combine(dbFolder, "cliptoo_history.db");
 
-                        services.AddSingleton<ILogger>(_logger);
+                        services.AddSingleton<ILogManager>(_logger);
                         services.AddSingleton<IDatabaseInitializer>(new DatabaseInitializer(dbPath));
                         services.AddSingleton<IClipRepository>(new ClipRepository(dbPath));
                         services.AddSingleton<IDatabaseMaintenanceService>(new DatabaseMaintenanceService(dbPath));
