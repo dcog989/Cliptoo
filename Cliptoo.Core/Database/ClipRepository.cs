@@ -61,16 +61,32 @@ namespace Cliptoo.Core.Database
             ArgumentNullException.ThrowIfNull(tagSearchPrefix);
 
             var clips = new List<Clip>();
-            await using var connection = await GetOpenConnectionAsync().ConfigureAwait(false);
-            using var command = connection.CreateCommand();
-
-            ClipQueryBuilder.BuildGetClipsQuery(command, limit, offset, searchTerm, filterType, tagSearchPrefix);
-
-            await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-
-            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            SqliteConnection? connection = null;
+            SqliteDataReader? reader = null;
+            try
             {
-                clips.Add(MapPreviewClipFromReader(reader));
+                connection = await GetOpenConnectionAsync().ConfigureAwait(false);
+                using var command = connection.CreateCommand();
+
+                ClipQueryBuilder.BuildGetClipsQuery(command, limit, offset, searchTerm, filterType, tagSearchPrefix);
+
+                reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+
+                while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                {
+                    clips.Add(MapPreviewClipFromReader(reader));
+                }
+            }
+            finally
+            {
+                if (reader != null)
+                {
+                    await reader.DisposeAsync().ConfigureAwait(false);
+                }
+                if (connection != null)
+                {
+                    await connection.DisposeAsync().ConfigureAwait(false);
+                }
             }
 
             return clips;
@@ -94,23 +110,27 @@ namespace Cliptoo.Core.Database
                 previewContent = CreatePreview(content);
             }
 
-            await using var connection = await GetOpenConnectionAsync().ConfigureAwait(false);
-            await using var transaction = (SqliteTransaction)await connection.BeginTransactionAsync().ConfigureAwait(false);
-
-            // Get the rowid before the operation.
-            long initialLastInsertRowId;
-            using (var cmd = connection.CreateCommand())
-            {
-                cmd.Transaction = transaction;
-                cmd.CommandText = "SELECT last_insert_rowid();";
-                initialLastInsertRowId = (long)(await cmd.ExecuteScalarAsync().ConfigureAwait(false) ?? 0L);
-            }
-
             long? clipId;
-            using (var upsertCmd = connection.CreateCommand())
+            SqliteConnection? connection = null;
+            SqliteTransaction? transaction = null;
+            try
             {
-                upsertCmd.Transaction = transaction;
-                upsertCmd.CommandText = @"
+                connection = await GetOpenConnectionAsync().ConfigureAwait(false);
+                transaction = (SqliteTransaction)await connection.BeginTransactionAsync().ConfigureAwait(false);
+
+                // Get the rowid before the operation.
+                long initialLastInsertRowId;
+                using (var cmd = connection.CreateCommand())
+                {
+                    cmd.Transaction = transaction;
+                    cmd.CommandText = "SELECT last_insert_rowid();";
+                    initialLastInsertRowId = (long)(await cmd.ExecuteScalarAsync().ConfigureAwait(false) ?? 0L);
+                }
+
+                using (var upsertCmd = connection.CreateCommand())
+                {
+                    upsertCmd.Transaction = transaction;
+                    upsertCmd.CommandText = @"
                     INSERT INTO clips (Content, ContentHash, PreviewContent, ClipType, SourceApp, Timestamp, IsFavorite, WasTrimmed, SizeInBytes)
                     VALUES (@Content, @ContentHash, @PreviewContent, @ClipType, @SourceApp, @Timestamp, 0, @WasTrimmed, @SizeInBytes)
                     ON CONFLICT(ContentHash) DO UPDATE SET
@@ -122,37 +142,50 @@ namespace Cliptoo.Core.Database
                         PreviewContent = excluded.PreviewContent
                     RETURNING Id;
                 ";
-                upsertCmd.Parameters.AddWithValue("@Content", content);
-                upsertCmd.Parameters.AddWithValue("@ContentHash", hash);
-                upsertCmd.Parameters.AddWithValue("@PreviewContent", previewContent);
-                upsertCmd.Parameters.AddWithValue("@ClipType", clipType);
-                upsertCmd.Parameters.AddWithValue("@SourceApp", sourceApp ?? (object)DBNull.Value);
-                upsertCmd.Parameters.AddWithValue("@Timestamp", DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture));
-                upsertCmd.Parameters.AddWithValue("@WasTrimmed", wasTrimmed ? 1 : 0);
-                upsertCmd.Parameters.AddWithValue("@SizeInBytes", contentSize);
-                clipId = (long?)(await upsertCmd.ExecuteScalarAsync().ConfigureAwait(false));
-            }
+                    upsertCmd.Parameters.AddWithValue("@Content", content);
+                    upsertCmd.Parameters.AddWithValue("@ContentHash", hash);
+                    upsertCmd.Parameters.AddWithValue("@PreviewContent", previewContent);
+                    upsertCmd.Parameters.AddWithValue("@ClipType", clipType);
+                    upsertCmd.Parameters.AddWithValue("@SourceApp", sourceApp ?? (object)DBNull.Value);
+                    upsertCmd.Parameters.AddWithValue("@Timestamp", DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture));
+                    upsertCmd.Parameters.AddWithValue("@WasTrimmed", wasTrimmed ? 1 : 0);
+                    upsertCmd.Parameters.AddWithValue("@SizeInBytes", contentSize);
+                    clipId = (long?)(await upsertCmd.ExecuteScalarAsync().ConfigureAwait(false));
+                }
 
-            // Get the rowid after the operation. last_insert_rowid() is only updated by a true INSERT.
-            long finalLastInsertRowId;
-            using (var cmd = connection.CreateCommand())
+                // Get the rowid after the operation. last_insert_rowid() is only updated by a true INSERT.
+                long finalLastInsertRowId;
+                using (var cmd = connection.CreateCommand())
+                {
+                    cmd.Transaction = transaction;
+                    cmd.CommandText = "SELECT last_insert_rowid();";
+                    finalLastInsertRowId = (long)(await cmd.ExecuteScalarAsync().ConfigureAwait(false) ?? 0L);
+                }
+
+                bool wasInserted = finalLastInsertRowId != initialLastInsertRowId;
+
+                if (wasInserted)
+                {
+                    using var statCmd = connection.CreateCommand();
+                    statCmd.Transaction = transaction;
+                    statCmd.CommandText = "UPDATE stats SET Value = COALESCE(Value, 0) + 1 WHERE Key = 'UniqueClipsEver'";
+                    await statCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+                }
+
+                await transaction.CommitAsync().ConfigureAwait(false);
+            }
+            finally
             {
-                cmd.Transaction = transaction;
-                cmd.CommandText = "SELECT last_insert_rowid();";
-                finalLastInsertRowId = (long)(await cmd.ExecuteScalarAsync().ConfigureAwait(false) ?? 0L);
+                if (transaction != null)
+                {
+                    await transaction.DisposeAsync().ConfigureAwait(false);
+                }
+                if (connection != null)
+                {
+                    await connection.DisposeAsync().ConfigureAwait(false);
+                }
             }
 
-            bool wasInserted = finalLastInsertRowId != initialLastInsertRowId;
-
-            if (wasInserted)
-            {
-                using var statCmd = connection.CreateCommand();
-                statCmd.Transaction = transaction;
-                statCmd.CommandText = "UPDATE stats SET Value = COALESCE(Value, 0) + 1 WHERE Key = 'UniqueClipsEver'";
-                await statCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-
-            await transaction.CommitAsync().ConfigureAwait(false);
 
             if (clipId is null)
             {
@@ -183,11 +216,22 @@ namespace Cliptoo.Core.Database
                     command.CommandText = sql;
                     command.Parameters.AddWithValue("@ContentHash", newHash);
 
-                    await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
-                    if (await reader.ReadAsync().ConfigureAwait(false))
+                    SqliteDataReader? reader = null;
+                    try
                     {
-                        existingClipId = reader.GetInt32(0);
-                        existingIsFavorite = reader.GetInt64(1) == 1;
+                        reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
+                        if (await reader.ReadAsync().ConfigureAwait(false))
+                        {
+                            existingClipId = reader.GetInt32(0);
+                            existingIsFavorite = reader.GetInt64(1) == 1;
+                        }
+                    }
+                    finally
+                    {
+                        if (reader != null)
+                        {
+                            await reader.DisposeAsync().ConfigureAwait(false);
+                        }
                     }
                 }
 
@@ -204,12 +248,23 @@ namespace Cliptoo.Core.Database
                         cmd.CommandText = "SELECT IsFavorite FROM clips WHERE Id = @Id";
                         cmd.Parameters.AddWithValue("@Id", id);
 
-                        await using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
-                        if (!await reader.ReadAsync().ConfigureAwait(false))
+                        SqliteDataReader? reader = null;
+                        try
                         {
-                            throw new InvalidOperationException($"Clip with ID {id} not found during content update.");
+                            reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
+                            if (!await reader.ReadAsync().ConfigureAwait(false))
+                            {
+                                throw new InvalidOperationException($"Clip with ID {id} not found during content update.");
+                            }
+                            currentClipWasFavorite = reader.GetInt64(0) == 1;
                         }
-                        currentClipWasFavorite = reader.GetInt64(0) == 1;
+                        finally
+                        {
+                            if (reader != null)
+                            {
+                                await reader.DisposeAsync().ConfigureAwait(false);
+                            }
+                        }
                     }
 
                     // 2. Delete the clip being edited (this one).
