@@ -22,6 +22,12 @@ namespace Cliptoo.Core.Native
         private const ushort VK_RWIN = 0x5C;     // Right Windows key
         private const ushort VK_V = 0x56;        // V key
 
+        // Timing constants
+        private const int PollingTimeoutMs = 2500;
+        private const int PollingIntervalMs = 20;
+        private const int FocusSettleDelayMs = 50;
+        private const int DelayForStateResetMs = 200;
+        private const int DelayForCtrlRegistrationMs = 30;
         private static readonly int InputSize = Marshal.SizeOf<INPUT>();
 
         #region Structures
@@ -183,10 +189,6 @@ namespace Cliptoo.Core.Native
 
         private static async Task<IntPtr> FindStableForegroundWindowAsync(CancellationToken cancellationToken)
         {
-            const int PollingTimeoutMs = 1000;
-            const int PollingIntervalMs = 20;
-            const int FocusSettleDelayMs = 50;
-
             var stopwatch = Stopwatch.StartNew();
             uint currentProcessId = (uint)Environment.ProcessId;
 
@@ -220,9 +222,6 @@ namespace Cliptoo.Core.Native
 
         private static async Task SendPasteKeysAsync(CancellationToken cancellationToken)
         {
-            const int DelayForStateResetMs = 100;
-            const int DelayForCtrlRegistrationMs = 30;
-
             // 1. Reset any modifier keys that are currently pressed
             var resetInputs = new List<INPUT>();
             if ((GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0) resetInputs.Add(CreateKeyInput(VK_CONTROL, KEYEVENTF_KEYUP));
@@ -317,6 +316,5 @@ namespace Cliptoo.Core.Native
                 if (pTml != IntPtr.Zero) Marshal.FreeHGlobal(pTml);
             }
         }
-
     }
 }

@@ -22,6 +22,10 @@ namespace Cliptoo.UI.ViewModels
         // from a tray activation before hiding the main window. This gives the user time to read the message.
         private const int HideWindowAfterNotificationDelayMs = 5000;
 
+        // The delay (in ms) to wait after hiding the window before sending input, 
+        // allowing the OS to shift focus to the target application.
+        private const int WindowHideFocusDelayMs = 100;
+
         public ICommand PasteClipCommand { get; }
         public ICommand OpenSettingsCommand { get; }
         public ICommand HideWindowCommand { get; }
@@ -48,11 +52,13 @@ namespace Cliptoo.UI.ViewModels
                 {
                     LogManager.LogDebug($"PASTE_DIAG: Temporarily hiding window for paste (AlwaysOnTop is active).");
                     Application.Current.MainWindow?.Hide();
+                    await Task.Delay(WindowHideFocusDelayMs);
                 }
                 else
                 {
                     LogManager.LogDebug($"PASTE_DIAG: Hiding main window before paste.");
                     HideWindow();
+                    await Task.Delay(WindowHideFocusDelayMs);
                 }
 
                 await pasteAction(clip);
