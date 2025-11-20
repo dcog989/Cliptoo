@@ -38,5 +38,11 @@ namespace Cliptoo.UI.Services
                 // Fails silently if registry access is denied.
             }
         }
+
+        public bool IsStartupEnabled()
+        {
+            if (_startupKey == null) return false;
+            return _startupKey.GetValue(AppName) != null;
+        }
     }
 }

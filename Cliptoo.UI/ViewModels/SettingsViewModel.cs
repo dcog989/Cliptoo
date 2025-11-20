@@ -68,6 +68,21 @@ namespace Cliptoo.UI.ViewModels
             _processService = processService;
             Settings = _settingsService.Settings;
             Settings.PropertyChanged += OnSettingsPropertyChanged;
+
+            // Sync the setting with the actual registry state.
+            // If the registry key exists, the setting should be true.
+            // If we update the property here, OnSettingsPropertyChanged will fire and enforce the registry key (self-healing path).
+            var isActuallyEnabled = _startupManagerService.IsStartupEnabled();
+            if (Settings.StartWithWindows != isActuallyEnabled)
+            {
+                Settings.StartWithWindows = isActuallyEnabled;
+            }
+            else if (Settings.StartWithWindows)
+            {
+                // Even if they match and are true, ensure the registry path is correct (e.g. after an update or move).
+                _startupManagerService.SetStartup(true);
+            }
+
             _selectedFontFamily = Settings.FontFamily;
             _selectedPreviewFontFamily = Settings.PreviewFontFamily;
             _oklchHueBrush = new SolidColorBrush(Colors.Transparent);
