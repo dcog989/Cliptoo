@@ -1,10 +1,7 @@
 # Builder Toolbox - Explorer and IDE Actions
 
 function Open-LatestLogFile {
-    # Get the 'srcBuilderToolbox' directory (parent of this script file's directory)
-    $scriptsDir = (Get-Item $PSScriptRoot).Parent.FullName
-    # Construct the log directory path using the same logic as Start-Logging
-    $logDir = Join-Path $scriptsDir "Logs"
+    $logDir = Join-Path $Script:RepoRoot "Logs"
 
     if (Test-Path $logDir) {
         $latestLog = Get-ChildItem -Path $logDir -Filter "*.log" -File |
@@ -18,13 +15,11 @@ function Open-LatestLogFile {
             }
         }
         else {
-            Write-Log "No logs found to open in '$logDir'." "WARN"
-            Write-Host "No logs found to open in '$logDir'." -ForegroundColor Yellow
+            Write-Log "No logs found to open." "WARN"
         }
     }
     else {
-        Write-Log "Log directory not found at '$logDir'." "WARN"
-        Write-Host "Log directory not found at '$logDir'." -ForegroundColor Yellow
+        Write-Log "Log directory not found." "WARN"
     }
 }
 

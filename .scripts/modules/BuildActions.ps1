@@ -17,18 +17,37 @@ function Start-BuildAndRun {
 
     Write-Log "Build successful. Searching for application executable..." "SUCCESS"
 
-    # Refactor: Search for the EXE to avoid brittle path construction
-    $exeSearchPath = Join-Path $Script:MainProjectDir "bin"
-    $exePath = Get-ChildItem -Path $exeSearchPath -Filter "$($Script:AppName).exe" -Recurse -File -ErrorAction SilentlyContinue |
-    Sort-Object LastWriteTime -Descending |
-    Select-Object -First 1
+    # 1. bin\Debug (Standard/AnyCPU)
+    # 2. bin\x64\Debug (Platform specific)
+    $searchPaths = @(
+        (Join-Path $Script:MainProjectDir "bin\$Configuration"),
+        (Join-Path $Script:MainProjectDir "bin\$($Script:BuildPlatform)\$Configuration")
+    )
+
+    $exePath = $null
+
+    foreach ($path in $searchPaths) {
+        if (Test-Path $path) {
+            Write-Log "Searching in: $path" "DEBUG"
+            $found = Get-ChildItem -Path $path -Filter "$($Script:AppName).exe" -Recurse -File -ErrorAction SilentlyContinue |
+            Sort-Object LastWriteTime -Descending |
+            Select-Object -First 1
+            
+            if ($found) {
+                $exePath = $found
+                break
+            }
+        }
+    }
 
     if ($exePath) {
         Start-Process -FilePath $exePath.FullName
         Write-Log "Application started: $($exePath.FullName)" "SUCCESS"
     }
     else {
-        Write-Log "Main application EXE not found in $exeSearchPath" "ERROR"
+        Write-Log "Main application EXE ($($Script:AppName).exe) not found." "ERROR"
+        Write-Log "Searched the following locations:" "ERROR"
+        $searchPaths | ForEach-Object { Write-Log " - $_" "ERROR" }
     }
 }
 

@@ -1,0 +1,26 @@
+{
+    "PackageTitle": "Cliptoo",
+    "MainProjectName": "Cliptoo.UI",
+    "SolutionFileName": "Cliptoo.sln",
+    "SolutionSubFolder": "",
+    "MainProjectSourcePath": "Cliptoo.UI",
+    "PackageAuthors": "dcog989",
+    "RequiredDotNetVersion": "10",
+    "TargetFramework": "net10.0-windows",
+    "BuildPlatform": "x64",
+    "PublishRuntimeId": "win-x64",
+    "UseVelopack": true,
+    "VelopackChannelName": "prod",
+    "RemoveCreateDump": true,
+    "RemoveXmlFiles": true,
+    "XmlKeepPatterns": [
+        "MyProject.API.xml",
+        "Swagger.xml"
+    ],
+    "IdeProcessNames": {
+        "devenv": "Visual Studio",
+        "Code": "Visual Studio Code",
+        "rider64": "JetBrains Rider",
+        "notepad++": "Notepad++"
+    }
+}
