@@ -138,7 +138,9 @@ foreach ($key in @($config.Keys)) {
 
 # A. Find Solution File
 if ([string]::IsNullOrEmpty($config.SolutionFileName)) {
-    $slnFiles = Get-ChildItem -Path $Script:RepoRoot -Filter "*.sln" -File
+    # Support both legacy .sln and modern .slnx formats
+    $slnFiles = Get-ChildItem -Path $Script:RepoRoot -File | Where-Object { $_.Extension -eq ".sln" -or $_.Extension -eq ".slnx" }
+    
     if ($slnFiles.Count -gt 0) {
         $config.SolutionFileName = $slnFiles[0].Name
         # Write-Host "AUTO:          Discovered solution '$($config.SolutionFileName)'" -ForegroundColor Cyan
@@ -341,8 +343,8 @@ function Test-ConfigurationValidity {
     $solutionPath = $Script:SolutionFile
     if (Test-Path $solutionPath) {
         $solutionInfo = Get-Item $solutionPath
-        if ($solutionInfo.Extension -ne ".sln") {
-            $warnings += "Solution file '$solutionPath' does not have .sln extension."
+        if ($solutionInfo.Extension -ne ".sln" -and $solutionInfo.Extension -ne ".slnx") {
+            $warnings += "Solution file '$solutionPath' does not have .sln or .slnx extension."
         }
         Write-Log "Solution file found: $($Script:SolutionFile)" "DEBUG"
     }

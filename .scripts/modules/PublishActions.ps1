@@ -173,7 +173,7 @@ function New-ProductionPackage {
         $channelArg = if (-not [string]::IsNullOrEmpty($Script:VelopackChannelName)) { "-c $($Script:VelopackChannelName)" } else { "" }
 
         Write-Log "Packaging with Velopack..." "CONSOLE"
-        $velopackArgs = "pack --packId `"$($Script:PackageId)`" --packId $($Script:PackageId) --packVersion $($context.Version) --packDir `"$($context.PublishDir)`" -o `"$releaseDir`" $iconArg $channelArg --verbose"
+        $velopackArgs = "pack --packId `"$($Script:PackageId)`" --packVersion $($context.Version) --packDir `"$($context.PublishDir)`" -o `"$releaseDir`" $iconArg $channelArg --verbose"
 
         Write-Log "DIAGNOSTIC - Executing command: vpk $velopackArgs"
         $packResult = Invoke-ExternalCommand -ExecutablePath "vpk" -Arguments $velopackArgs
