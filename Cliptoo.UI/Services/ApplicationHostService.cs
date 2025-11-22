@@ -40,6 +40,7 @@ namespace Cliptoo.UI.Services
         private readonly IUpdateService _updateService;
         private readonly IPlatformService _platformService;
         private readonly ITrayManagerService _trayManagerService;
+        private readonly IStartupManagerService _startupManagerService;
         private MainWindow? _mainWindow;
         private MainViewModel? _mainViewModel;
         private HwndSource? _hwndSource;
@@ -62,7 +63,8 @@ namespace Cliptoo.UI.Services
             IClipDisplayService clipDisplayService,
             IUpdateService updateService,
             IPlatformService platformService,
-            ITrayManagerService trayManagerService)
+            ITrayManagerService trayManagerService,
+            IStartupManagerService startupManagerService)
         {
             _serviceProvider = serviceProvider;
             _controller = controller;
@@ -77,6 +79,7 @@ namespace Cliptoo.UI.Services
             _updateService = updateService;
             _platformService = platformService;
             _trayManagerService = trayManagerService;
+            _startupManagerService = startupManagerService;
         }
 
         public async Task StartAsync(CancellationToken cancellationToken)
@@ -92,6 +95,15 @@ namespace Cliptoo.UI.Services
             LogManager.LogInfo($"Cliptoo v{appVersion} starting up...");
             LogManager.LogInfo($"##########################################################");
             LogManager.LogDebug("ApplicationHostService starting...");
+
+            // Self-heal the startup registry key.
+            // If the setting is enabled, ensure the registry points to the CURRENT executable path.
+            // This handles cases where the app was moved or updated to a new folder.
+            if (settings.StartWithWindows)
+            {
+                LogManager.LogDebug("StartWithWindows is enabled. Enforcing registry key update.");
+                _startupManagerService.SetStartup(true);
+            }
 
             await _updateService.CheckForUpdatesAsync(cancellationToken);
             if (cancellationToken.IsCancellationRequested) return;
