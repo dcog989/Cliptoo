@@ -132,4 +132,4 @@ Cliptoo is built on the shoulders of giants. A special thank you to the creators
 
 This project is licensed under the [MIT License](LICENSE).
 
-![Cliptoo Clippy](.assets/Cliptoo=Clippy-1.jpg)
+![Cliptoo Clippy](https://raw.githubusercontent.com/dcog989/Cliptoo/refs/heads/main/assets/Cliptoo%3DClippy-1.jpg)
