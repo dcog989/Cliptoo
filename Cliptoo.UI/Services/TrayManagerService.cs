@@ -9,7 +9,7 @@ using Wpf.Ui.Tray;
 
 namespace Cliptoo.UI.Services
 {
-    internal class TrayManagerService : ITrayManagerService
+    internal class TrayManagerService : ITrayManagerService, IDisposable
     {
         private readonly INotifyIconService _notifyIconService;
         private readonly MainViewModel _mainViewModel;
@@ -18,6 +18,7 @@ namespace Cliptoo.UI.Services
 
         private MenuItem? _alwaysOnTopMenuItem;
         private MenuItem? _showHideMenuItem;
+        private bool _disposedValue;
 
         public event EventHandler<bool>? ToggleVisibilityRequested;
 
@@ -132,6 +133,24 @@ namespace Cliptoo.UI.Services
         {
             _notifyIconService.Unregister();
             _notifyIconService.Register();
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!_disposedValue)
+            {
+                if (disposing)
+                {
+                    _notifyIconService.Unregister();
+                }
+                _disposedValue = true;
+            }
+        }
+
+        public void Dispose()
+        {
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
         }
     }
 }

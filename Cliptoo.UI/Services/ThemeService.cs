@@ -57,8 +57,6 @@ namespace Cliptoo.UI.Services
                 _ => ApplicationTheme.Unknown,
             };
 
-            SystemThemeWatcher.UnWatch(_window);
-
             var finalTheme = wpfuiTheme;
             if (wpfuiTheme == ApplicationTheme.Unknown)
             {

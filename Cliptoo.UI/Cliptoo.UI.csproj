@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
-        <Version>1.9.2</Version>
+        <Version>1.9.3</Version>
         <OutputType>WinExe</OutputType>
         <TargetFramework>net10.0-windows</TargetFramework>
         <Nullable>enable</Nullable>
@@ -43,8 +43,8 @@
         <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.0" />
         <PackageReference Include="AvalonEdit" Version="6.3.1.120" />
         <PackageReference Include="Velopack" Version="0.0.1369-g1d5c984" />
-        <PackageReference Include="WPF-UI" Version="4.0.3" />
-        <PackageReference Include="WPF-UI.Tray" Version="4.0.3" />
+        <PackageReference Include="WPF-UI" Version="4.1.0" />
+        <PackageReference Include="WPF-UI.Tray" Version="4.1.0" />
     </ItemGroup>
     <ItemGroup>
         <ProjectReference Include="..\Cliptoo.Core\Cliptoo.Core.csproj" />
