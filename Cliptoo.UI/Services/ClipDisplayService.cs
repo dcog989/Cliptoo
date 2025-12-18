@@ -22,6 +22,8 @@ namespace Cliptoo.UI.Services
         private readonly DispatcherTimer _debounceTimer;
 
         private uint _currentOffset;
+        private DateTime? _lastLoadedTimestamp;
+        private int? _lastLoadedId;
         private bool _isLoadingMore;
         private const uint PageSize = 50;
         private CancellationTokenSource _loadClipsCts = new();
@@ -118,11 +120,17 @@ namespace Cliptoo.UI.Services
                 if (!string.IsNullOrEmpty(localSearchTerm) && !localSearchTerm.StartsWith(tagSearchPrefix, StringComparison.Ordinal) && localSearchTerm.Length < 2)
                 {
                     _currentOffset = 0;
+                    _lastLoadedTimestamp = null;
+                    _lastLoadedId = null;
                     return;
                 }
-                _currentOffset = 0;
 
-                var clipsData = await _clipDataService.GetClipsAsync(PageSize, _currentOffset, localSearchTerm, localFilterKey, tagSearchPrefix, token);
+                _currentOffset = 0;
+                _lastLoadedTimestamp = null;
+                _lastLoadedId = null;
+
+                var clipsData = await _clipDataService.GetClipsAsync(PageSize, 0, localSearchTerm, localFilterKey, tagSearchPrefix, token);
+
                 if (clipsData.Count < PageSize) _canLoadMore = false;
                 if (token.IsCancellationRequested) return;
 
@@ -139,6 +147,12 @@ namespace Cliptoo.UI.Services
                 });
 
                 _currentOffset = (uint)clipsData.Count;
+                if (clipsData.Count > 0)
+                {
+                    var last = clipsData.Last();
+                    _lastLoadedTimestamp = last.Timestamp;
+                    _lastLoadedId = last.Id;
+                }
             }
             catch (OperationCanceledException)
             {
@@ -148,7 +162,7 @@ namespace Cliptoo.UI.Services
             {
                 _isLoadingMore = false;
                 stopwatch.Stop();
-                LogManager.LogDebug($"PERF_DIAG: ClipDisplayService.LoadClipsAsync completed in {stopwatch.ElapsedMilliseconds}ms.");
+                LogManager.LogDebug($"PERF_DIAG: LoadClipsAsync completed in {stopwatch.ElapsedMilliseconds}ms.");
             }
         }
 
@@ -162,7 +176,7 @@ namespace Cliptoo.UI.Services
             _isLoadingMore = true;
             try
             {
-                var clipsData = await _clipDataService.GetClipsAsync(PageSize, _currentOffset, SearchTerm, SelectedFilter.Key, tagSearchPrefix, token);
+                var clipsData = await _clipDataService.GetClipsAsync(PageSize, _currentOffset, SearchTerm, SelectedFilter.Key, tagSearchPrefix, token, _lastLoadedTimestamp, _lastLoadedId);
                 if (token.IsCancellationRequested) return;
 
                 if (clipsData.Count > 0)
@@ -175,7 +189,12 @@ namespace Cliptoo.UI.Services
                         {
                             Clips.Add(_clipViewModelFactory.Create(clipData, theme));
                         }
+
                         _currentOffset += (uint)clipsData.Count;
+                        var last = clipsData.Last();
+                        _lastLoadedTimestamp = last.Timestamp;
+                        _lastLoadedId = last.Id;
+
                         if (clipsData.Count < PageSize) _canLoadMore = false;
                     });
                 }
@@ -203,14 +222,12 @@ namespace Cliptoo.UI.Services
         {
             ArgumentNullException.ThrowIfNull(newClip);
 
-            // If a search is active, we must check if the new clip matches before adding it.
             if (!string.IsNullOrEmpty(SearchTerm))
             {
                 string tagSearchPrefix = _settingsService.Settings.TagSearchPrefix;
                 bool isTagSearch = SearchTerm.StartsWith(tagSearchPrefix, StringComparison.Ordinal);
                 string actualSearchTerm = isTagSearch ? SearchTerm.Substring(tagSearchPrefix.Length) : SearchTerm;
 
-                // Only proceed if there's a real search term to check against.
                 if (!string.IsNullOrWhiteSpace(actualSearchTerm))
                 {
                     var searchWords = actualSearchTerm.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
@@ -231,11 +248,7 @@ namespace Cliptoo.UI.Services
                         matchesSearch = searchWords.All(word => contentForSearch.Contains(word, StringComparison.OrdinalIgnoreCase));
                     }
 
-                    if (!matchesSearch)
-                    {
-                        LogManager.LogDebug($"New clip does not match active search term '{SearchTerm}'. UI not updated.");
-                        return; // Don't add if it doesn't match the search.
-                    }
+                    if (!matchesSearch) return;
                 }
             }
 
@@ -243,32 +256,17 @@ namespace Cliptoo.UI.Services
                                 (SelectedFilter.Key == AppConstants.ClipTypeLink && (newClip.ClipType == AppConstants.ClipTypeLink || newClip.ClipType == AppConstants.ClipTypeFileLink)) ||
                                 SelectedFilter.Key == newClip.ClipType;
 
-            // A new clip cannot be a favorite, so if that filter is active, don't add.
-            if (SelectedFilter.Key == AppConstants.FilterKeyFavorite)
-            {
-                matchesFilter = false;
-            }
+            if (SelectedFilter.Key == AppConstants.FilterKeyFavorite) matchesFilter = false;
 
-            if (!matchesFilter)
-            {
-                // New clip doesn't match the current view, do nothing.
-                LogManager.LogDebug($"New clip (type: {newClip.ClipType}) does not match active filter ({SelectedFilter.Key}). UI not updated.");
-                return;
-            }
+            if (!matchesFilter) return;
 
             Application.Current.Dispatcher.Invoke(() =>
             {
                 var theme = MainViewModel.CurrentThemeString;
                 var viewModel = _clipViewModelFactory.Create(newClip, theme);
                 Clips.Insert(0, viewModel);
-                _currentOffset++; // Increment offset to keep paging correct if user scrolls down later.
+                _currentOffset++;
             });
-        }
-
-        public void ClearClipsForHiding()
-        {
-            Clips.Clear();
-            _currentOffset = 0;
         }
 
         private async Task InitializeFilterOptionsAsync()
@@ -309,11 +307,9 @@ namespace Cliptoo.UI.Services
             {
                 if (disposing)
                 {
-                    _debounceTimer.Tick -= OnDebounceTimerElapsed;
                     _debounceTimer.Stop();
                     _loadClipsCts.Dispose();
                 }
-
                 _disposedValue = true;
             }
         }
@@ -323,6 +319,5 @@ namespace Cliptoo.UI.Services
             Dispose(disposing: true);
             GC.SuppressFinalize(this);
         }
-
     }
 }

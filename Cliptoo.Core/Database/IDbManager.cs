@@ -9,7 +9,7 @@ namespace Cliptoo.Core.Database
     public interface IDbManager : IDisposable
     {
         Task InitializeAsync();
-        Task<List<Clip>> GetClipsAsync(uint limit, uint offset, string searchTerm, string filterType, string tagSearchPrefix = "##", CancellationToken cancellationToken = default);
+        Task<List<Clip>> GetClipsAsync(uint limit, uint offset, string searchTerm, string filterType, string tagSearchPrefix = "##", CancellationToken cancellationToken = default, DateTime? lastTimestamp = null, int? lastId = null);
         Task<Clip?> GetClipByIdAsync(int id);
         Task<Clip?> GetPreviewClipByIdAsync(int id);
         Task<int> AddClipAsync(string content, string clipType, string? sourceApp, bool wasTrimmed);
@@ -26,7 +26,8 @@ namespace Cliptoo.Core.Database
         Task<DbStats> GetStatsAsync();
         Task<int> RemoveDeadheadClipsAsync();
         Task<int> ClearOversizedClipsAsync(uint sizeMb);
-        IAsyncEnumerable<Clip> GetAllFileBasedClipsAsync(); Task UpdateClipTypesAsync(Dictionary<int, string> updates);
+        IAsyncEnumerable<Clip> GetAllFileBasedClipsAsync();
+        Task UpdateClipTypesAsync(Dictionary<int, string> updates);
         IAsyncEnumerable<string> GetAllImageClipPathsAsync();
         IAsyncEnumerable<string> GetAllLinkClipUrlsAsync();
         Task UpdateLastCleanupTimestampAsync();

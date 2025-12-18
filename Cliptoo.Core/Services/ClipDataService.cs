@@ -29,9 +29,11 @@ namespace Cliptoo.Core.Services
             string searchTerm = "",
             string filterType = "all",
             string tagSearchPrefix = "##",
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            DateTime? lastTimestamp = null,
+            int? lastId = null)
         {
-            return _dbManager.GetClipsAsync(limit, offset, searchTerm, filterType, tagSearchPrefix, cancellationToken);
+            return _dbManager.GetClipsAsync(limit, offset, searchTerm, filterType, tagSearchPrefix, cancellationToken, lastTimestamp, lastId);
         }
 
         public Task<Clip?> GetClipByIdAsync(int id)
@@ -61,7 +63,6 @@ namespace Cliptoo.Core.Services
             {
                 var clipId = await _dbManager.AddClipAsync(content, clipType, sourceApp, wasTrimmed).ConfigureAwait(false);
 
-                // Get the preview version of the newly added clip to broadcast to the UI
                 var newClip = await _dbManager.GetPreviewClipByIdAsync(clipId).ConfigureAwait(false);
                 if (newClip != null)
                 {
@@ -69,7 +70,6 @@ namespace Cliptoo.Core.Services
                 }
                 else
                 {
-                    // This should realistically never happen if the add succeeded.
                     LogManager.LogWarning($"Could not retrieve newly added clip with ID {clipId} to update the UI.");
                 }
 
@@ -98,7 +98,6 @@ namespace Cliptoo.Core.Services
 
             try
             {
-                // Cache the values we need before deletion
                 var clipId = clip.Id;
                 var clipType = clip.ClipType;
                 var clipContent = clip.Content;
@@ -107,7 +106,6 @@ namespace Cliptoo.Core.Services
 
                 OnClipDeleted();
 
-                // Clear web metadata cache if applicable
                 if (clipType == AppConstants.ClipTypeLink &&
                     clipContent is not null &&
                     Uri.TryCreate(clipContent, UriKind.Absolute, out var uri))
@@ -144,40 +142,28 @@ namespace Cliptoo.Core.Services
             return _dbManager.UpdateClipTagsAsync(id, tags);
         }
 
-        /// <summary>
-        /// Safely raises the NewClipAdded event.
-        /// </summary>
         private void OnNewClipAdded(ClipAddedEventArgs args)
         {
             try
             {
                 NewClipAdded?.Invoke(this, args);
             }
-#pragma warning disable CA1031 // Do not catch general exception types
             catch (Exception ex)
             {
-                // Catch all exceptions from event handlers to prevent one bad subscriber from crashing the application
                 LogManager.LogCritical(ex, "Error occurred while invoking NewClipAdded event.");
             }
-#pragma warning restore CA1031 // Do not catch general exception types
         }
 
-        /// <summary>
-        /// Safely raises the ClipDeleted event.
-        /// </summary>
         private void OnClipDeleted()
         {
             try
             {
                 ClipDeleted?.Invoke(this, EventArgs.Empty);
             }
-#pragma warning disable CA1031 // Do not catch general exception types
             catch (Exception ex)
             {
-                // Catch all exceptions from event handlers to prevent one bad subscriber from crashing the application
                 LogManager.LogCritical(ex, "Error occurred while invoking ClipDeleted event.");
             }
-#pragma warning restore CA1031 // Do not catch general exception types
         }
     }
 }

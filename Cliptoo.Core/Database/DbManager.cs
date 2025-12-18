@@ -26,7 +26,20 @@ namespace Cliptoo.Core.Database
         }
 
         public Task InitializeAsync() => _initializer.InitializeAsync();
-        public Task<List<Clip>> GetClipsAsync(uint limit, uint offset, string searchTerm, string filterType, string tagSearchPrefix = "##", CancellationToken cancellationToken = default) => _clipRepository.GetClipsAsync(limit, offset, searchTerm, filterType, tagSearchPrefix, cancellationToken);
+
+        public Task<List<Clip>> GetClipsAsync(
+            uint limit,
+            uint offset,
+            string searchTerm,
+            string filterType,
+            string tagSearchPrefix = "##",
+            CancellationToken cancellationToken = default,
+            DateTime? lastTimestamp = null,
+            int? lastId = null)
+        {
+            return _clipRepository.GetClipsAsync(limit, offset, searchTerm, filterType, tagSearchPrefix, cancellationToken, lastTimestamp, lastId);
+        }
+
         public Task<Clip?> GetClipByIdAsync(int id) => _clipRepository.GetClipByIdAsync(id);
         public Task<Clip?> GetPreviewClipByIdAsync(int id) => _clipRepository.GetPreviewClipByIdAsync(id);
         public Task<int> AddClipAsync(string content, string clipType, string? sourceApp, bool wasTrimmed) => _clipRepository.AddClipAsync(content, clipType, sourceApp, wasTrimmed);
@@ -52,10 +65,9 @@ namespace Cliptoo.Core.Database
         public IAsyncEnumerable<Clip> GetAllClipsAsync(bool favoriteOnly) => _clipRepository.GetAllClipsAsync(favoriteOnly);
         public Task<int> AddClipsAsync(IEnumerable<Clip> clips) => _clipRepository.AddClipsAsync(clips);
         public Task UpdateClipTagsAsync(int id, string tags) => _clipRepository.UpdateClipTagsAsync(id, tags);
+
         public void Dispose()
         {
-            // This class doesn't own any disposable resources directly.
-            // The DI container manages the lifetime of the injected services.
             GC.SuppressFinalize(this);
         }
     }

@@ -54,7 +54,15 @@ namespace Cliptoo.Core.Database
             };
         }
 
-        public async Task<List<Clip>> GetClipsAsync(uint limit, uint offset, string searchTerm, string filterType, string tagSearchPrefix, CancellationToken cancellationToken)
+        public async Task<List<Clip>> GetClipsAsync(
+            uint limit,
+            uint offset,
+            string searchTerm,
+            string filterType,
+            string tagSearchPrefix,
+            CancellationToken cancellationToken,
+            DateTime? lastTimestamp = null,
+            int? lastId = null)
         {
             ArgumentNullException.ThrowIfNull(searchTerm);
             ArgumentNullException.ThrowIfNull(filterType);
@@ -68,7 +76,7 @@ namespace Cliptoo.Core.Database
                 connection = await GetOpenConnectionAsync().ConfigureAwait(false);
                 using var command = connection.CreateCommand();
 
-                ClipQueryBuilder.BuildGetClipsQuery(command, limit, offset, searchTerm, filterType, tagSearchPrefix);
+                ClipQueryBuilder.BuildGetClipsQuery(command, limit, offset, searchTerm, filterType, tagSearchPrefix, lastTimestamp, lastId);
 
                 reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
 

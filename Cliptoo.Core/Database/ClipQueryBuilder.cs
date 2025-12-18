@@ -14,8 +14,6 @@ namespace Cliptoo.Core.Database
         private static readonly char[] _spaceSeparator = [' '];
         private const string Columns = "c.Id, c.Timestamp, c.ClipType, c.SourceApp, c.IsFavorite, c.WasTrimmed, c.SizeInBytes, c.PreviewContent, c.PasteCount, c.Tags";
 
-        // FTS5 special characters that need quoting: double quotes, and characters that could be interpreted as operators
-        // This pattern matches anything that's not alphanumeric, underscore, or basic punctuation that doesn't interfere with FTS5
         [GeneratedRegex(@"[^\w\s-]", RegexOptions.Compiled)]
         private static partial Regex FtsSpecialCharsRegex();
 
@@ -26,7 +24,9 @@ namespace Cliptoo.Core.Database
             uint offset,
             string searchTerm,
             string filterType,
-            string tagSearchPrefix)
+            string tagSearchPrefix,
+            DateTime? lastTimestamp = null,
+            int? lastId = null)
         {
             ArgumentNullException.ThrowIfNull(command);
 
@@ -37,7 +37,7 @@ namespace Cliptoo.Core.Database
                 var isTagSearch = !string.IsNullOrEmpty(tagSearchPrefix)
                     && !string.IsNullOrEmpty(searchTerm)
                     && searchTerm.StartsWith(tagSearchPrefix, StringComparison.Ordinal)
-                    && searchTerm.Length > tagSearchPrefix.Length; // Ensure there's content after the prefix
+                    && searchTerm.Length > tagSearchPrefix.Length;
 
                 var actualSearchTerm = isTagSearch
                     ? searchTerm.Substring(tagSearchPrefix.Length)
@@ -65,6 +65,13 @@ namespace Cliptoo.Core.Database
                 else
                 {
                     BuildDefaultQuery(queryBuilder);
+
+                    if (lastTimestamp.HasValue && lastId.HasValue)
+                    {
+                        whereConditions.Add("(c.Timestamp < @LastTimestamp OR (c.Timestamp = @LastTimestamp AND c.Id < @LastId))");
+                        command.Parameters.AddWithValue("@LastTimestamp", lastTimestamp.Value.ToUniversalTime().ToString("o"));
+                        command.Parameters.AddWithValue("@LastId", lastId.Value);
+                    }
                 }
 
                 AddFilterConditions(whereConditions, command, filterType);
@@ -76,106 +83,69 @@ namespace Cliptoo.Core.Database
 
                 string orderBy = sanitizedTerms.Count > 0
                     ? " ORDER BY c.IsFavorite DESC, (rank - Hotness * 5.0) ASC, c.Timestamp DESC"
-                    : " ORDER BY c.Timestamp DESC";
+                    : " ORDER BY c.Timestamp DESC, c.Id DESC";
 
                 queryBuilder.Append(orderBy);
-                queryBuilder.Append(" LIMIT @Limit OFFSET @Offset");
+                queryBuilder.Append(" LIMIT @Limit");
+
+                if (sanitizedTerms.Count > 0)
+                {
+                    queryBuilder.Append(" OFFSET @Offset");
+                    command.Parameters.AddWithValue("@Offset", offset);
+                }
 
                 command.Parameters.AddWithValue("@Limit", limit);
-                command.Parameters.AddWithValue("@Offset", offset);
                 command.CommandText = queryBuilder.ToString();
 
                 LogQueryIfDebug(command);
             }
             catch (Exception ex)
             {
-                LogManager.LogError($"Failed to build query for search term '{searchTerm}': {ex.Message}");
-                throw new InvalidOperationException($"Failed to build search query. Search term may contain invalid characters.", ex);
+                LogManager.LogError($"Failed to build query: {ex.Message}");
+                throw new InvalidOperationException($"Failed to build search query.", ex);
             }
         }
 
         private static string SanitizeFtsSearchTerm(string term)
         {
-            if (string.IsNullOrWhiteSpace(term))
-                return string.Empty;
-
-            // Remove or escape potentially dangerous SQL characters
-            // Double-dash (--) is a SQL comment, semicolon can terminate statements
-            var safeTerm = term
-                .Replace("--", "", StringComparison.Ordinal)  // Remove SQL comments
-                .Replace(";", "", StringComparison.Ordinal);  // Remove statement terminators
-
-            if (string.IsNullOrWhiteSpace(safeTerm))
-                return string.Empty;
-
-            // Escape double quotes within the term for FTS5
+            if (string.IsNullOrWhiteSpace(term)) return string.Empty;
+            var safeTerm = term.Replace("--", "", StringComparison.Ordinal).Replace(";", "", StringComparison.Ordinal);
+            if (string.IsNullOrWhiteSpace(safeTerm)) return string.Empty;
             var escapedTerm = safeTerm.Replace("\"", "\"\"", StringComparison.Ordinal);
-
-            // If the term contains FTS5 special characters or operators,
-            // it must be enclosed in double quotes to be treated as a single token.
-            // This prevents terms like "C++" or "email@domain.com" from being misinterpreted.
-            // When quoted, we should NOT append the prefix operator (*) as it creates invalid FTS5 syntax.
             if (FtsSpecialCharsRegex().IsMatch(escapedTerm) || IsFtsReservedWord(escapedTerm))
             {
                 return $"\"{escapedTerm}\"";
             }
-
             return escapedTerm;
         }
 
         private static bool IsFtsReservedWord(string term)
         {
-            // Check for FTS5 reserved words/operators that need quoting
             var upperTerm = term.ToUpperInvariant();
             return upperTerm is "AND" or "OR" or "NOT" or "NEAR";
         }
 
-        private static void BuildSearchQuery(
-            StringBuilder queryBuilder,
-            SqliteCommand command,
-            List<string> sanitizedTerms,
-            bool isTagSearch)
+        private static void BuildSearchQuery(StringBuilder queryBuilder, SqliteCommand command, List<string> sanitizedTerms, bool isTagSearch)
         {
-            // Add prefix operator (*) only to non-quoted terms
             var ftsQuery = string.Join(" ", sanitizedTerms.Select(term =>
-                term.StartsWith('"') && term.EndsWith('"')
-                    ? term  // Already quoted - don't add *
-                    : $"{term}*"  // Not quoted - add prefix operator
-            ));
+                term.StartsWith('"') && term.EndsWith('"') ? term : $"{term}*"));
 
-            if (isTagSearch)
-            {
-                ftsQuery = $"Tags : ({ftsQuery})";
-            }
-
+            if (isTagSearch) ftsQuery = $"Tags : ({ftsQuery})";
             command.Parameters.AddWithValue("@FtsSearchTerm", ftsQuery);
-
-            // The snippet should always be generated from the main content (column 0),
-            // even during a tag search. The MATCH clause still correctly filters by tag.
-            const char snippetColumn = '0';
 
             queryBuilder.Append("SELECT ")
                         .Append(Columns)
-                        .Append(", snippet(clips_fts, ")
-                        .Append(snippetColumn)
-                        .Append(", '[HL]', '[/HL]', '...',60) as MatchContext,")
+                        .Append(", snippet(clips_fts, 0, '[HL]', '[/HL]', '...',60) as MatchContext,")
                         .Append(" (c.PasteCount + 1.0) / (MAX(0.0, (julianday('now') - julianday(c.Timestamp)) * 24.0) + 2.0) AS Hotness ")
                         .Append("FROM clips c JOIN clips_fts ON c.Id = clips_fts.rowid ");
         }
 
         private static void BuildDefaultQuery(StringBuilder queryBuilder)
         {
-            // For the default view (no search term), keep the result schema consistent.
-            queryBuilder.Append("SELECT ")
-                        .Append(Columns)
-                        .Append(", NULL AS MatchContext,0 AS Hotness ")
-                        .Append("FROM clips c ");
+            queryBuilder.Append("SELECT ").Append(Columns).Append(", NULL AS MatchContext, 0 AS Hotness FROM clips c ");
         }
 
-        private static void AddFilterConditions(
-            List<string> whereConditions,
-            SqliteCommand command,
-            string filterType)
+        private static void AddFilterConditions(List<string> whereConditions, SqliteCommand command, string filterType)
         {
             if (filterType == AppConstants.FilterKeyFavorite)
             {
@@ -196,24 +166,8 @@ namespace Cliptoo.Core.Database
 
         private static void LogQueryIfDebug(SqliteCommand command)
         {
-            if (LogManager.LoggingLevel != LogLevel.Debug)
-                return;
-
+            if (LogManager.LoggingLevel != LogLevel.Debug) return;
             LogManager.LogDebug($"SQL_QUERY_DIAG: Generated query: {command.CommandText}");
-
-            var paramLog = new StringBuilder("SQL_QUERY_DIAG: Parameters: ");
-            foreach (SqliteParameter p in command.Parameters)
-            {
-                paramLog.Append(p.ParameterName)
-                        .Append('=')
-                        .Append('\'')
-                        .Append(p.Value)
-                        .Append('\'')
-                        .Append(',')
-                        .Append(' ');
-            }
-
-            LogManager.LogDebug(paramLog.ToString());
         }
     }
 }
