@@ -49,13 +49,18 @@ namespace Cliptoo.UI.Views
         private void SaveWindowState_Tick(object? sender, EventArgs e)
         {
             _saveStateDebounceTimer.Stop();
+
+            if (_viewModel == null || !_viewModel.IsReadyForEvents)
+            {
+                return;
+            }
+
             if (this.WindowState == WindowState.Normal)
             {
                 var settings = _settingsService.Settings;
                 bool sizeChanged = Math.Round(settings.WindowWidth) != Math.Round(this.Width) || Math.Round(settings.WindowHeight) != Math.Round(this.Height);
-
                 bool positionChanged = false;
-                // Only save position if the mode is Fixed, otherwise we overwrite dynamic positions like 'Cursor'
+
                 if (settings.LaunchPosition.Equals("Fixed", StringComparison.OrdinalIgnoreCase))
                 {
                     positionChanged = settings.FixedX != (int)Math.Round(this.Left) || settings.FixedY != (int)Math.Round(this.Top);

@@ -251,6 +251,10 @@ namespace Cliptoo.UI.Services
             _settingsService.SettingsChanged += (s, e) => Application.Current.Dispatcher.Invoke(() => _themeService.ApplyThemeFromSettings());
 
             _mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
+            var settings = _settingsService.Settings;
+            _mainWindow.Width = settings.WindowWidth;
+            _mainWindow.Height = settings.WindowHeight;
+
             _mainWindow.MaxHeight = SystemParameters.WorkArea.Height * 0.9;
 
             _mainWindow.Opacity = 0;
@@ -280,23 +284,11 @@ namespace Cliptoo.UI.Services
             return handle;
         }
 
-        private async Task InitializeViewModelAsync()
-        {
-            _mainViewModel = _serviceProvider.GetRequiredService<MainViewModel>();
-            if (_mainViewModel != null)
-            {
-                await _mainViewModel.InitializeAsync();
-            }
-        }
-
         private void FinalizeAndLoadData()
         {
             if (_mainWindow == null || _mainViewModel == null) return;
 
-            var settings = _settingsService.Settings;
-            _mainWindow.Width = settings.WindowWidth;
-            _mainWindow.Height = settings.WindowHeight;
-
+            // Redundant size setting removed from here as it is now handled in InitializeMainWindowAndGetHandle
             _clipDataService.NewClipAdded += OnNewClipAdded;
             _controller.ProcessingFailed += OnProcessingFailed;
 
@@ -304,6 +296,15 @@ namespace Cliptoo.UI.Services
             _mainViewModel.IsInitializing = false;
             _ = _clipDisplayService.LoadClipsAsync();
             LogManager.LogInfo("Initialization COMPLETE.");
+        }
+
+        private async Task InitializeViewModelAsync()
+        {
+            _mainViewModel = _serviceProvider.GetRequiredService<MainViewModel>();
+            if (_mainViewModel != null)
+            {
+                await _mainViewModel.InitializeAsync();
+            }
         }
 
         public void Dispose()
