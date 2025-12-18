@@ -15,23 +15,36 @@ namespace Cliptoo.Core.Services
 {
     public static class ServiceUtils
     {
+        private static readonly SKPaint SharedSvgPaint = new SKPaint
+        {
+            IsAntialias = true
+        };
+
         public static Image<Bgra32>? RenderSvgToImageSharp(string svgContent, int size)
         {
+            if (string.IsNullOrWhiteSpace(svgContent) || size <= 0) return null;
+
             try
             {
                 using var skSvg = new SKSvg();
                 using var picture = skSvg.FromSvg(svgContent);
-                if (picture is null || picture.CullRect.Width <= 0 || picture.CullRect.Height <= 0) return null;
+
+                if (picture is null || picture.CullRect.Width <= 0 || picture.CullRect.Height <= 0)
+                    return null;
 
                 var info = new SKImageInfo(size, size, SKColorType.Bgra8888, SKAlphaType.Premul);
                 using var surface = SKSurface.Create(info);
+                if (surface == null) return null;
+
                 var canvas = surface.Canvas;
                 canvas.Clear(SKColors.Transparent);
-                using (var paint = new SKPaint { IsAntialias = true })
-                {
-                    var matrix = SKMatrix.CreateScale((float)size / picture.CullRect.Width, (float)size / picture.CullRect.Height);
-                    canvas.DrawPicture(picture, matrix, paint);
-                }
+
+                float scaleX = size / picture.CullRect.Width;
+                float scaleY = size / picture.CullRect.Height;
+                var matrix = SKMatrix.CreateScale(scaleX, scaleY);
+
+                canvas.DrawPicture(picture, matrix, SharedSvgPaint);
+                canvas.Flush();
 
                 using var skImage = surface.Snapshot();
                 var skPixmap = skImage.PeekPixels();
@@ -158,18 +171,16 @@ namespace Cliptoo.Core.Services
             if (path.IndexOfAny(Path.GetInvalidPathChars()) >= 0) return false;
             try
             {
-                // This can catch issues like reserved names, etc.
                 _ = new FileInfo(path);
                 return true;
             }
             catch (ArgumentException) { return false; }
             catch (PathTooLongException) { return false; }
-            catch (NotSupportedException) { return false; } // e.g., paths with colons like "C::"
+            catch (NotSupportedException) { return false; }
         }
 
         public static string TruncateToUtf8ByteLimit(string text, int maxBytes)
         {
-            ArgumentNullException.ThrowIfNull(text);
             ArgumentNullException.ThrowIfNull(text);
 
             if (Encoding.UTF8.GetByteCount(text) <= maxBytes)
@@ -192,6 +203,5 @@ namespace Cliptoo.Core.Services
 
             return text.Substring(0, endIndex);
         }
-
     }
 }

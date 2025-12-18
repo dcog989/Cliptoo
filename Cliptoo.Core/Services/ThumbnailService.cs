@@ -18,6 +18,7 @@ namespace Cliptoo.Core.Services
         private readonly PngEncoder _pngEncoder;
         private readonly JpegEncoder _jpegEncoder;
         private readonly IImageDecoder _imageDecoder;
+        private readonly LruCache<string, string> _memoryPathCache;
 
         public ThumbnailService(string appCachePath, IImageDecoder imageDecoder)
         {
@@ -26,12 +27,10 @@ namespace Cliptoo.Core.Services
             Directory.CreateDirectory(_cacheDir);
             Directory.CreateDirectory(_previewCacheDir);
 
-            _pngEncoder = new PngEncoder
-            {
-                CompressionLevel = PngCompressionLevel.Level6
-            };
+            _pngEncoder = new PngEncoder { CompressionLevel = PngCompressionLevel.Level6 };
             _jpegEncoder = new JpegEncoder { Quality = 65 };
             _imageDecoder = imageDecoder;
+            _memoryPathCache = new LruCache<string, string>(1000);
         }
 
         private static string GetTargetExtension(string imagePath)
@@ -39,7 +38,6 @@ namespace Cliptoo.Core.Services
             var sourceExtension = Path.GetExtension(imagePath).ToUpperInvariant();
             switch (sourceExtension)
             {
-                // Photographic or complex images that benefit from JPEG
                 case ".JPG":
                 case ".JPEG":
                 case ".BMP":
@@ -48,14 +46,12 @@ namespace Cliptoo.Core.Services
                 case ".HEIC":
                 case ".HEIF":
                 case ".JXL":
-                case ".WEBP": // Can be lossy or lossless, but JPEG is a safe bet for previews.
+                case ".WEBP":
                 case ".RAW":
                 case ".DNG":
                 case ".CR2":
                 case ".NEF":
                     return ".jpeg";
-
-                // Images with transparency or simple graphics that benefit from PNG
                 case ".PNG":
                 case ".GIF":
                 case ".SVG":
@@ -69,19 +65,25 @@ namespace Cliptoo.Core.Services
         {
             var sourceExtension = Path.GetExtension(imagePath).ToUpperInvariant();
             var targetExtension = GetTargetExtension(imagePath);
+            var cacheKey = (sourceExtension == ".SVG" && !string.IsNullOrEmpty(theme))
+                ? $"{imagePath}_{theme}_{size}"
+                : $"{imagePath}_{size}";
 
-            var cachePath = GenerateCachePath(imagePath, theme, size, cacheDirectory, targetExtension);
+            if (_memoryPathCache.TryGetValue(cacheKey, out var memoryCachedPath) && File.Exists(memoryCachedPath))
+            {
+                return memoryCachedPath;
+            }
+
+            var cachePath = ServiceUtils.GetCachePath(cacheKey, cacheDirectory, targetExtension);
 
             if (File.Exists(cachePath))
             {
-                LogManager.LogDebug($"THUMB_CACHE_DIAG: Hit for '{imagePath}' (Size: {size}, Theme: {theme ?? "none"}).");
+                _memoryPathCache.Add(cacheKey, cachePath);
                 return cachePath;
             }
-            LogManager.LogDebug($"THUMB_CACHE_DIAG: Miss for '{imagePath}' (Size: {size}, Theme: {theme ?? "none"}). Generating new image.");
 
             if (!File.Exists(imagePath)) return null;
 
-            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             try
             {
                 byte[]? outputBytes;
@@ -107,50 +109,34 @@ namespace Cliptoo.Core.Services
                             }));
 
                             using var ms = new MemoryStream();
-                            if (targetExtension == ".jpeg")
-                            {
-                                await image.SaveAsync(ms, _jpegEncoder).ConfigureAwait(false);
-                            }
-                            else
-                            {
-                                await image.SaveAsync(ms, _pngEncoder).ConfigureAwait(false);
-                            }
+                            if (targetExtension == ".jpeg") await image.SaveAsync(ms, _jpegEncoder).ConfigureAwait(false);
+                            else await image.SaveAsync(ms, _pngEncoder).ConfigureAwait(false);
                             return ms.ToArray();
                         }
-                        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                        {
-                            LogManager.LogCritical(ex, $"Image processing failed inside Task.Run for {imagePath}");
-                            return null;
-                        }
+                        catch (Exception) { return null; }
                     }).ConfigureAwait(false);
                 }
 
                 if (outputBytes != null)
                 {
                     await File.WriteAllBytesAsync(cachePath, outputBytes).ConfigureAwait(false);
+                    _memoryPathCache.Add(cacheKey, cachePath);
                     return cachePath;
                 }
             }
-            catch (UnknownImageFormatException)
-            {
-                LogManager.LogDebug($"Unsupported image format for thumbnail generation: {imagePath}");
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or ImageFormatException)
+            catch (Exception ex)
             {
                 LogManager.LogCritical(ex, $"Image processing failed for {imagePath}");
-            }
-            finally
-            {
-                stopwatch.Stop();
-                LogManager.LogDebug($"PERF_DIAG: Thumbnail generation for '{imagePath}' took {stopwatch.ElapsedMilliseconds}ms.");
             }
 
             return null;
         }
 
-        public Task<string?> GetThumbnailAsync(string imagePath, string? theme) => GetImageInternalAsync(imagePath, theme, ThumbnailSize, _cacheDir);
+        public Task<string?> GetThumbnailAsync(string imagePath, string? theme)
+            => GetImageInternalAsync(imagePath, theme, ThumbnailSize, _cacheDir);
 
-        public Task<string?> GetImagePreviewAsync(string imagePath, uint largestDimension, string? theme) => GetImageInternalAsync(imagePath, theme, (int)largestDimension, _previewCacheDir);
+        public Task<string?> GetImagePreviewAsync(string imagePath, uint largestDimension, string? theme)
+            => GetImageInternalAsync(imagePath, theme, (int)largestDimension, _previewCacheDir);
 
         public void ClearCache()
         {
@@ -158,9 +144,10 @@ namespace Cliptoo.Core.Services
             {
                 ServiceUtils.DeleteDirectoryContents(_cacheDir);
                 ServiceUtils.DeleteDirectoryContents(_previewCacheDir);
+                _memoryPathCache.Clear();
                 LogManager.LogInfo("Thumbnail and preview caches cleared successfully.");
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            catch (Exception ex)
             {
                 LogManager.LogCritical(ex, "Failed to clear caches.");
             }
@@ -169,49 +156,28 @@ namespace Cliptoo.Core.Services
         public async Task<int> PruneCacheAsync(IAsyncEnumerable<string> validImagePaths, uint previewSize)
         {
             ArgumentNullException.ThrowIfNull(validImagePaths);
-
             var validCacheFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            var enumerator = validImagePaths.GetAsyncEnumerator();
-            try
+
+            await foreach (var imagePath in validImagePaths.ConfigureAwait(false))
             {
-                while (await enumerator.MoveNextAsync().ConfigureAwait(false))
+                var targetExt = GetTargetExtension(imagePath);
+                validCacheFiles.Add(ServiceUtils.GetCachePath($"{imagePath}_{ThumbnailSize}", _cacheDir, targetExt));
+                validCacheFiles.Add(ServiceUtils.GetCachePath($"{imagePath}_{(int)previewSize}", _previewCacheDir, targetExt));
+
+                if (Path.GetExtension(imagePath).Equals(".SVG", StringComparison.OrdinalIgnoreCase))
                 {
-                    var imagePath = enumerator.Current;
-                    var sourceExtension = Path.GetExtension(imagePath).ToUpperInvariant();
-                    var targetExtension = GetTargetExtension(imagePath);
-
-                    validCacheFiles.Add(GenerateCachePath(imagePath, null, ThumbnailSize, _cacheDir, targetExtension));
-                    validCacheFiles.Add(GenerateCachePath(imagePath, null, (int)previewSize, _previewCacheDir, targetExtension));
-
-                    if (sourceExtension == ".SVG")
-                    {
-                        validCacheFiles.Add(GenerateCachePath(imagePath, "light", ThumbnailSize, _cacheDir, targetExtension));
-                        validCacheFiles.Add(GenerateCachePath(imagePath, "dark", ThumbnailSize, _cacheDir, targetExtension));
-                        validCacheFiles.Add(GenerateCachePath(imagePath, "light", (int)previewSize, _previewCacheDir, targetExtension));
-                        validCacheFiles.Add(GenerateCachePath(imagePath, "dark", (int)previewSize, _previewCacheDir, targetExtension));
-                    }
+                    validCacheFiles.Add(ServiceUtils.GetCachePath($"{imagePath}_light_{ThumbnailSize}", _cacheDir, targetExt));
+                    validCacheFiles.Add(ServiceUtils.GetCachePath($"{imagePath}_dark_{ThumbnailSize}", _cacheDir, targetExt));
+                    validCacheFiles.Add(ServiceUtils.GetCachePath($"{imagePath}_light_{(int)previewSize}", _previewCacheDir, targetExt));
+                    validCacheFiles.Add(ServiceUtils.GetCachePath($"{imagePath}_dark_{(int)previewSize}", _previewCacheDir, targetExt));
                 }
             }
-            finally
-            {
-                await enumerator.DisposeAsync().ConfigureAwait(false);
-            }
 
+            int deleted = await ServiceUtils.PruneDirectoryAsync(_cacheDir, validCacheFiles).ConfigureAwait(false);
+            deleted += await ServiceUtils.PruneDirectoryAsync(_previewCacheDir, validCacheFiles).ConfigureAwait(false);
 
-            int filesDeleted = 0;
-            filesDeleted += await ServiceUtils.PruneDirectoryAsync(_cacheDir, validCacheFiles).ConfigureAwait(false);
-            filesDeleted += await ServiceUtils.PruneDirectoryAsync(_previewCacheDir, validCacheFiles).ConfigureAwait(false);
-
-            return filesDeleted;
-        }
-
-        private static string GenerateCachePath(string imagePath, string? theme, int size, string cacheDirectory, string targetExtension)
-        {
-            var sourceExtension = Path.GetExtension(imagePath).ToUpperInvariant();
-            var cacheKey = (sourceExtension == ".SVG" && !string.IsNullOrEmpty(theme))
-                ? $"{imagePath}_{theme}_{size}"
-                : $"{imagePath}_{size}";
-            return ServiceUtils.GetCachePath(cacheKey, cacheDirectory, targetExtension);
+            _memoryPathCache.Clear();
+            return deleted;
         }
     }
 }
