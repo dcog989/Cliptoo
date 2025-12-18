@@ -184,11 +184,11 @@ namespace Cliptoo.Core.Services
                 var validClips = new List<Clip>();
                 foreach (var clip in clips)
                 {
-                    if (clip.ClipType.StartsWith("file_", StringComparison.Ordinal) || clip.ClipType == AppConstants.ClipTypeFolder)
+                    if (ClipTypeHelper.IsFileBased(clip.ClipType))
                     {
                         if (string.IsNullOrWhiteSpace(clip.Content) || !ServiceUtils.IsValidPath(clip.Content))
                         {
-                            continue; // Skip clips with invalid file paths
+                            continue;
                         }
                     }
                     validClips.Add(clip);
@@ -205,7 +205,7 @@ namespace Cliptoo.Core.Services
             catch (JsonException ex)
             {
                 LogManager.LogCritical(ex, "Failed to deserialize JSON during import.");
-                throw; // Re-throw to be caught by the ViewModel
+                throw;
             }
         }
 

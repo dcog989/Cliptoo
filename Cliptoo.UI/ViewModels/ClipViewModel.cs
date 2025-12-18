@@ -64,16 +64,15 @@ namespace Cliptoo.UI.ViewModels
             ClipType == AppConstants.ClipTypeLink && !string.IsNullOrEmpty(SourceApp) && SourceApp.EndsWith(".url", StringComparison.OrdinalIgnoreCase)
                 ? SourceApp
                 : Content;
-        public string? RtfContent => IsRtf ? Content : null;
 
         public bool CanPasteAsPlainText => IsRtf;
         public bool CanPasteAsRtf => CurrentSettings.PasteAsPlainText && IsRtf;
-        public bool IsEditable => !IsImage && !ClipType.StartsWith("file_", StringComparison.Ordinal) && ClipType != AppConstants.ClipTypeFolder;
-        public bool IsOpenable => !_details.IsSourceMissing && (IsImage || ClipType.StartsWith("file_", StringComparison.Ordinal) || ClipType == AppConstants.ClipTypeFolder || ClipType == AppConstants.ClipTypeLink);
+        public bool IsEditable => ClipTypeHelper.IsEditable(ClipType);
+        public bool IsOpenable => !_details.IsSourceMissing && (IsImage || IsFileBased || ClipType == AppConstants.ClipTypeLink);
         public static string OpenCommandHeader => "Open";
 
-        public bool IsFileBased => IsImage || ClipType.StartsWith("file_", StringComparison.Ordinal) || ClipType == AppConstants.ClipTypeFolder;
-        public bool IsComparable => ClipType is AppConstants.ClipTypeText or AppConstants.ClipTypeCodeSnippet or AppConstants.ClipTypeRtf or AppConstants.ClipTypeDev or AppConstants.ClipTypeFileText;
+        public bool IsFileBased => ClipTypeHelper.IsFileBased(ClipType);
+        public bool IsComparable => ClipTypeHelper.IsComparable(ClipType);
         public string? FileName => IsFileBased ? Path.GetFileName(Content.Trim()) : null;
         public string CompareLeftHeader { get => _compareLeftHeader; set => SetProperty(ref _compareLeftHeader, value); }
         public bool ShowCompareRightOption { get => _showCompareRightOption; set => SetProperty(ref _showCompareRightOption, value); }
@@ -150,7 +149,6 @@ namespace Cliptoo.UI.ViewModels
             });
         }
 
-        #region Delegated Properties
         public ImageSource? ThumbnailSource => _details.ThumbnailSource;
         public bool HasThumbnail => _details.HasThumbnail;
         public ImageSource? ClipTypeIcon => _details.ClipTypeIcon;
@@ -165,23 +163,14 @@ namespace Cliptoo.UI.ViewModels
         public bool IsPageTitleLoading => _details.IsPageTitleLoading;
         public string? TooltipTextContent => _details.TooltipTextContent;
         public string? LineCountInfo => _details.LineCountInfo;
-        #endregion
 
-        #region Tooltip Logic
         public bool IsImage => ClipType == AppConstants.ClipTypeImage;
         public bool IsRtf => ClipType == AppConstants.ClipTypeRtf;
         public bool IsLinkToolTip => ClipType == AppConstants.ClipTypeLink;
-        public bool IsPreviewableAsTextFile =>
-            (ClipType is AppConstants.ClipTypeFileText or AppConstants.ClipTypeDev ||
-            (ClipType == AppConstants.ClipTypeDocument &&
-            (Content.EndsWith(".md", StringComparison.OrdinalIgnoreCase) ||
-                Content.EndsWith(".markdown", StringComparison.OrdinalIgnoreCase) ||
-                Content.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))))
-            && !string.Equals(Content, LogManager.LogFilePath, StringComparison.OrdinalIgnoreCase);
+        public bool IsPreviewableAsTextFile => ClipTypeHelper.IsPreviewableAsTextFile(ClipType, Content);
 
         public bool ShowFileInfoTooltip => IsFileBased && !IsImage && !IsPreviewableAsTextFile;
         public bool ShowTextualTooltip => IsPreviewableAsTextFile || (!IsFileBased && !IsLinkToolTip && ClipType != AppConstants.ClipTypeColor);
-        #endregion
 
         private void OnDetailsPropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
@@ -198,8 +187,7 @@ namespace Cliptoo.UI.ViewModels
 
         internal async Task<Clip?> GetFullClipAsync()
         {
-            var fullClip = await _clipDataService.GetClipByIdAsync(Id).ConfigureAwait(false);
-            return fullClip;
+            return await _clipDataService.GetClipByIdAsync(Id).ConfigureAwait(false);
         }
 
         public void UpdateClip(Clip clip, string theme)
@@ -224,7 +212,6 @@ namespace Cliptoo.UI.ViewModels
             OnPropertyChanged(nameof(HasTags));
             OnPropertyChanged(nameof(IsImage));
             OnPropertyChanged(nameof(IsRtf));
-            OnPropertyChanged(nameof(RtfContent));
             OnPropertyChanged(nameof(ShowTextualTooltip));
             OnPropertyChanged(nameof(IsMultiLine));
             OnPropertyChanged(nameof(WasTrimmed));
@@ -251,11 +238,8 @@ namespace Cliptoo.UI.ViewModels
             if (isSearching && !string.IsNullOrWhiteSpace(_clip.MatchContext) && _clip.MatchContext.Contains(startTag, StringComparison.Ordinal))
             {
                 string context = _clip.MatchContext.ReplaceLineEndings(" ");
-
                 string contextWithoutTags = context.Replace(startTag, "", StringComparison.Ordinal).Replace(endTag, "", StringComparison.Ordinal);
-
                 int firstHighlightStart = context.IndexOf(startTag, StringComparison.Ordinal);
-
                 int maxPreviewLength = mainViewModel?.MaxPreviewLength ?? 200;
 
                 int idealStart = firstHighlightStart - (maxPreviewLength / 3);

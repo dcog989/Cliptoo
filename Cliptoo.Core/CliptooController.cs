@@ -242,7 +242,6 @@ namespace Cliptoo.Core
                 {
                     var path = paths[0].Trim();
 
-                    // Handle Windows .url shortcut files
                     if (path.EndsWith(".url", StringComparison.OrdinalIgnoreCase) && File.Exists(path))
                     {
                         var extractedUrl = ParseUrlFile(path);
@@ -252,7 +251,6 @@ namespace Cliptoo.Core
                         }
                     }
 
-                    // If not a .url file, parsing failed, or file doesn't exist, classify normally
                     if (result == null)
                     {
                         var fileType = _fileTypeClassifier.Classify(path);
@@ -322,7 +320,7 @@ namespace Cliptoo.Core
                     }
                 }
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+            catch (Exception ex)
             {
                 LogManager.LogError($"Failed to parse .url file: {filePath}. Error: {ex.Message}");
             }
