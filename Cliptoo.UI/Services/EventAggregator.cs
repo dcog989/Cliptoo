@@ -1,45 +1,73 @@
 using System.Collections.Concurrent;
+using System.Linq.Expressions;
 using System.Reflection;
 
 namespace Cliptoo.UI.Services
 {
     public class EventAggregator : IEventAggregator
     {
-        private class WeakHandler
+        private interface ISubscription
+        {
+            bool IsAlive { get; }
+            void Invoke(object message);
+        }
+
+        private class Subscription<TMessage> : ISubscription where TMessage : class
         {
             private readonly WeakReference? _weakTarget;
             private readonly MethodInfo _method;
+            private readonly Action<object?, TMessage> _executor;
 
-            public WeakHandler(Delegate handler)
+            public Subscription(Action<TMessage> handler)
             {
                 ArgumentNullException.ThrowIfNull(handler);
+
                 if (handler.Target != null)
                 {
                     _weakTarget = new WeakReference(handler.Target);
                 }
+
                 _method = handler.Method;
+                _executor = CreateExecutor(_method);
             }
 
             public bool IsAlive => _weakTarget == null || _weakTarget.IsAlive;
 
             public void Invoke(object message)
             {
+                if (message is not TMessage typedMessage) return;
+
                 object? target = null;
                 if (_weakTarget != null)
                 {
                     target = _weakTarget.Target;
-                    if (target == null)
-                    {
-                        return; // Target has been garbage collected.
-                    }
+                    if (target == null) return;
                 }
 
-                // If _weakTarget is null, it's a static method, so target is null, which is correct for MethodInfo.Invoke.
-                _method.Invoke(target, new[] { message });
+                _executor(target, typedMessage);
+            }
+
+            private static Action<object?, TMessage> CreateExecutor(MethodInfo method)
+            {
+                var targetParam = Expression.Parameter(typeof(object), "target");
+                var messageParam = Expression.Parameter(typeof(TMessage), "message");
+
+                Expression call;
+                if (method.IsStatic)
+                {
+                    call = Expression.Call(method, messageParam);
+                }
+                else
+                {
+                    var castTarget = Expression.Convert(targetParam, method.DeclaringType!);
+                    call = Expression.Call(castTarget, method, messageParam);
+                }
+
+                return Expression.Lambda<Action<object?, TMessage>>(call, targetParam, messageParam).Compile();
             }
         }
 
-        private readonly ConcurrentDictionary<Type, List<WeakHandler>> _subscriptions = new();
+        private readonly ConcurrentDictionary<Type, List<ISubscription>> _subscriptions = new();
 
         public void Publish<TMessage>(TMessage message) where TMessage : class
         {
@@ -50,12 +78,12 @@ namespace Cliptoo.UI.Services
                 return;
             }
 
-            var liveHandlers = new List<WeakHandler>();
+            List<ISubscription> liveHandlers;
             bool needsCleanup = false;
 
             lock (handlers)
             {
-                // Snapshot live handlers and detect if cleanup is needed.
+                liveHandlers = new List<ISubscription>(handlers.Count);
                 foreach (var handler in handlers)
                 {
                     if (handler.IsAlive)
@@ -75,10 +103,8 @@ namespace Cliptoo.UI.Services
                 }
             }
 
-            // Invoke handlers outside the lock.
             foreach (var handler in liveHandlers)
             {
-                // A handler could have died between the snapshot and invocation, but Invoke handles this.
                 handler.Invoke(message);
             }
         }
@@ -88,11 +114,11 @@ namespace Cliptoo.UI.Services
             ArgumentNullException.ThrowIfNull(handler);
 
             var messageType = typeof(TMessage);
-            var handlers = _subscriptions.GetOrAdd(messageType, _ => new List<WeakHandler>());
+            var handlers = _subscriptions.GetOrAdd(messageType, _ => new List<ISubscription>());
 
             lock (handlers)
             {
-                handlers.Add(new WeakHandler(handler));
+                handlers.Add(new Subscription<TMessage>(handler));
             }
         }
     }
