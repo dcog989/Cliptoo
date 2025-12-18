@@ -25,17 +25,13 @@ namespace Cliptoo.UI.Controls
         {
             _loadTimer.Stop();
 
-            if (e.OldValue is ClipViewModel oldVm)
-            {
-                oldVm.ReleaseThumbnail();
-            }
-
             if (e.NewValue is ClipViewModel newVm)
             {
-                // Ensure the recycled control doesn't show the previous item's image
-                newVm.ReleaseThumbnail();
+                if (newVm.ThumbnailSource != null)
+                {
+                    return;
+                }
 
-                // Delay loading to ensure the user has stopped scrolling on this item
                 _loadTimer.Start();
             }
         }
@@ -52,10 +48,6 @@ namespace Cliptoo.UI.Controls
         private void OnUnloaded(object sender, RoutedEventArgs e)
         {
             _loadTimer.Stop();
-            if (DataContext is ClipViewModel vm)
-            {
-                vm.ReleaseThumbnail();
-            }
         }
 
         private void ClipItem_ToolTipOpening(object sender, ToolTipEventArgs e)

@@ -101,7 +101,7 @@ namespace Cliptoo.UI.ViewModels
 
         public async Task LoadThumbnailAsync()
         {
-            if (IsThumbnailLoading) return;
+            if (ThumbnailSource != null || IsThumbnailLoading) return;
 
             IsThumbnailLoading = true;
             try
