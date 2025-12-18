@@ -18,6 +18,7 @@ namespace Cliptoo.UI.Services
         private readonly IImageDecoder _imageDecoder;
         private readonly ConcurrentDictionary<string, (DateTime Timestamp, (long Size, int FileCount, int FolderCount, bool WasLimited) Result)> _directorySizeCache = new();
         private static readonly TimeSpan CacheDuration = TimeSpan.FromSeconds(30);
+        private static readonly TimeSpan IoTimeout = TimeSpan.FromMilliseconds(1500);
 
         public ClipDetailsLoader(IImageDecoder imageDecoder)
         {
@@ -34,6 +35,11 @@ namespace Cliptoo.UI.Services
 
             if (vm.ClipType == AppConstants.ClipTypeImage)
             {
+                if (vm.Content.StartsWith(@"\\", StringComparison.Ordinal))
+                {
+                    return null;
+                }
+
                 return await thumbnailService.GetThumbnailAsync(vm.Content, extension == ".SVG" ? theme : null).ConfigureAwait(false);
             }
             if (vm.ClipType == AppConstants.ClipTypeLink && Uri.TryCreate(vm.Content, UriKind.Absolute, out var uri))
@@ -49,6 +55,7 @@ namespace Cliptoo.UI.Services
             ArgumentNullException.ThrowIfNull(thumbnailService);
 
             if (!vm.IsImage) return null;
+            if (vm.Content.StartsWith(@"\\", StringComparison.Ordinal)) return null;
 
             var extension = Path.GetExtension(vm.Content)?.ToUpperInvariant() ?? string.Empty;
             return await thumbnailService.GetImagePreviewAsync(vm.Content, size, extension == ".SVG" ? theme : null).ConfigureAwait(false);
@@ -89,7 +96,6 @@ namespace Cliptoo.UI.Services
             {
                 return (null, null, false);
             }
-            DebugUtils.LogMemoryUsage($"GetFilePropertiesAsync START (Path: {vm.Content})");
 
             string? fileProperties = null;
             string? fileTypeInfo = null;
@@ -98,65 +104,74 @@ namespace Cliptoo.UI.Services
             try
             {
                 var path = vm.Content.Trim();
+                bool isNetworkPath = path.StartsWith(@"\\", StringComparison.Ordinal);
                 var sb = new StringBuilder();
+
+                using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(token);
+                timeoutCts.CancelAfter(IoTimeout);
 
                 await Task.Run(async () =>
                 {
-                    if (token.IsCancellationRequested) return;
-                    DebugUtils.LogMemoryUsage("GetFilePropertiesAsync - Before file system access");
+                    if (timeoutCts.Token.IsCancellationRequested) return;
 
-                    if (Directory.Exists(path))
+                    bool existsAsDir = Directory.Exists(path);
+                    bool existsAsFile = !existsAsDir && File.Exists(path);
+
+                    if (existsAsDir)
                     {
-                        DebugUtils.LogMemoryUsage("GetFilePropertiesAsync - Directory.Exists passed");
                         var dirInfo = new DirectoryInfo(path);
-                        DebugUtils.LogMemoryUsage("GetFilePropertiesAsync - After new DirectoryInfo()");
                         sb.AppendLine(CultureInfo.InvariantCulture, $"Modified: {dirInfo.LastWriteTime:yyyy-MM-dd HH:mm}");
-                        fileTypeInfo = FormatUtils.GetFriendlyClipTypeName(vm.ClipType);
-                        try
-                        {
-                            (long size, int fileCount, int folderCount, bool wasLimited) dirStats;
-                            if (_directorySizeCache.TryGetValue(path, out var cachedEntry) && (DateTime.UtcNow - cachedEntry.Timestamp) < CacheDuration)
-                            {
-                                dirStats = cachedEntry.Result;
-                                DebugUtils.LogMemoryUsage("GetFilePropertiesAsync - Directory size cache hit");
-                            }
-                            else
-                            {
-                                DebugUtils.LogMemoryUsage("GetFilePropertiesAsync - Before CalculateDirectorySize");
-                                dirStats = await Task.Run(() => CalculateDirectorySize(dirInfo, token), token).ConfigureAwait(false);
-                                DebugUtils.LogMemoryUsage("GetFilePropertiesAsync - After CalculateDirectorySize");
-                                if (token.IsCancellationRequested) return;
-                                _directorySizeCache[path] = (DateTime.UtcNow, dirStats);
-                            }
+                        fileTypeInfo = isNetworkPath ? $"Remote Folder" : FormatUtils.GetFriendlyClipTypeName(vm.ClipType);
 
-                            var sizeString = dirStats.wasLimited ? $"> {FormatUtils.FormatBytes(dirStats.size)}" : FormatUtils.FormatBytes(dirStats.size);
-                            sb.AppendLine(CultureInfo.InvariantCulture, $"Size: {sizeString}");
-                            sb.AppendLine(CultureInfo.InvariantCulture, $"Contains: {dirStats.fileCount:N0} files, {dirStats.folderCount:N0} folders");
-                        }
-                        catch (OperationCanceledException)
+                        if (isNetworkPath)
                         {
-                            return;
+                            sb.AppendLine("Size: (network path - calculation skipped)");
                         }
-                        catch (UnauthorizedAccessException)
+                        else
                         {
-                            sb.AppendLine("Size: (access denied)");
+                            try
+                            {
+                                (long size, int fileCount, int folderCount, bool wasLimited) dirStats;
+                                if (_directorySizeCache.TryGetValue(path, out var cachedEntry) && (DateTime.UtcNow - cachedEntry.Timestamp) < CacheDuration)
+                                {
+                                    dirStats = cachedEntry.Result;
+                                }
+                                else
+                                {
+                                    dirStats = await Task.Run(() => CalculateDirectorySize(dirInfo, timeoutCts.Token), timeoutCts.Token).ConfigureAwait(false);
+                                    if (timeoutCts.Token.IsCancellationRequested) return;
+                                    _directorySizeCache[path] = (DateTime.UtcNow, dirStats);
+                                }
+
+                                var sizeString = dirStats.wasLimited ? $"> {FormatUtils.FormatBytes(dirStats.size)}" : FormatUtils.FormatBytes(dirStats.size);
+                                sb.AppendLine(CultureInfo.InvariantCulture, $"Size: {sizeString}");
+                                sb.AppendLine(CultureInfo.InvariantCulture, $"Contains: {dirStats.fileCount:N0} files, {dirStats.folderCount:N0} folders");
+                            }
+                            catch (OperationCanceledException)
+                            {
+                                sb.AppendLine("Size: (calculation timed out)");
+                            }
+                            catch (UnauthorizedAccessException)
+                            {
+                                sb.AppendLine("Size: (access denied)");
+                            }
                         }
                     }
-                    else if (File.Exists(path))
+                    else if (existsAsFile)
                     {
-                        DebugUtils.LogMemoryUsage("GetFilePropertiesAsync - File.Exists passed");
                         var fileInfo = new FileInfo(path);
-                        DebugUtils.LogMemoryUsage("GetFilePropertiesAsync - After new FileInfo()");
                         sb.AppendLine(CultureInfo.InvariantCulture, $"Size: {FormatUtils.FormatBytes(fileInfo.Length)}");
                         sb.AppendLine(CultureInfo.InvariantCulture, $"Modified: {fileInfo.LastWriteTime:yyyy-MM-dd HH:mm}");
-                        fileTypeInfo = $"{fileInfo.Extension.ToUpperInvariant()} ({FormatUtils.GetFriendlyClipTypeName(vm.ClipType)})";
+                        fileTypeInfo = isNetworkPath
+                            ? $"Remote File ({fileInfo.Extension.ToUpperInvariant()})"
+                            : $"{fileInfo.Extension.ToUpperInvariant()} ({FormatUtils.GetFriendlyClipTypeName(vm.ClipType)})";
 
-                        if (vm.IsImage)
+                        if (vm.IsImage && !isNetworkPath)
                         {
                             try
                             {
                                 var extension = Path.GetExtension(path).ToUpperInvariant();
-                                using var stream = File.OpenRead(path);
+                                using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, useAsync: true);
 
                                 if (extension == ".SVG")
                                 {
@@ -176,14 +191,14 @@ namespace Cliptoo.UI.Services
                                 }
                                 else
                                 {
-                                    var imageInfo = await Image.IdentifyAsync(stream, token).ConfigureAwait(false);
+                                    var imageInfo = await Image.IdentifyAsync(stream, timeoutCts.Token).ConfigureAwait(false);
                                     if (imageInfo != null)
                                     {
                                         sb.AppendLine(CultureInfo.InvariantCulture, $"Dimensions: {imageInfo.Width} x {imageInfo.Height}");
                                     }
                                 }
                             }
-                            catch (Exception ex) when (ex is IOException or NotSupportedException or ArgumentException) { /* Ignore parsing errors */ }
+                            catch (Exception) { }
                         }
                     }
                     else
@@ -191,11 +206,19 @@ namespace Cliptoo.UI.Services
                         isMissing = true;
                     }
 
-                    if (!token.IsCancellationRequested && !isMissing)
+                    if (!timeoutCts.Token.IsCancellationRequested && !isMissing)
                     {
                         fileProperties = sb.ToString().Trim();
                     }
-                }, token).ConfigureAwait(false);
+                }, timeoutCts.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                if (!token.IsCancellationRequested)
+                {
+                    fileProperties = "Metadata loading timed out (possible slow network).";
+                    fileTypeInfo = "Unknown System Path";
+                }
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
@@ -211,8 +234,8 @@ namespace Cliptoo.UI.Services
 
         private static (long Size, int FileCount, int FolderCount, bool WasLimited) CalculateDirectorySize(DirectoryInfo dirInfo, CancellationToken token, int depth = 0)
         {
-            const int maxDepth = 5; // A reasonable limit to prevent deep recursion on system folders.
-            if (depth > maxDepth)
+            const int maxDepth = 4;
+            if (depth > maxDepth || token.IsCancellationRequested)
             {
                 return (0, 0, 0, true);
             }
@@ -237,17 +260,17 @@ namespace Cliptoo.UI.Services
                     var subDirSize = CalculateDirectorySize(dir, token, depth + 1);
                     size += subDirSize.Size;
                     fileCount += subDirSize.FileCount;
-                    folderCount += subDirSize.FolderCount + 1; // +1 for the current subdirectory
+                    folderCount += subDirSize.FolderCount + 1;
                     if (subDirSize.WasLimited)
                     {
                         wasLimited = true;
                     }
                 }
             }
-            catch (UnauthorizedAccessException) { /* ignore */ }
+            catch (UnauthorizedAccessException) { }
+            catch (DirectoryNotFoundException) { }
 
             return (size, fileCount, folderCount, wasLimited);
         }
-
     }
 }
