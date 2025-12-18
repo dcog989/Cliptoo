@@ -1,25 +1,40 @@
 # Builder Toolbox - Explorer and IDE Actions
 
 function Open-LatestLogFile {
-    $logDir = Join-Path $Script:RepoRoot "Logs"
+    # 1. Ensure any pending log entries are flushed to disk before opening
+    if (Get-Command Sync-LogBuffer -ErrorAction SilentlyContinue) {
+        Sync-LogBuffer
+    }
 
-    if (Test-Path $logDir) {
-        $latestLog = Get-ChildItem -Path $logDir -Filter "*.log" -File |
-        Sort-Object LastWriteTime -Descending |
-        Select-Object -First 1
+    # 2. Attempt to use the currently active log file path first
+    $logPath = $Script:LogFile
 
-        if ($latestLog) {
-            $success = Invoke-ItemSafely -Path $latestLog.FullName -ItemType "Log file"
-            if (-not $success) {
-                return
+    # 3. Fallback: If no active log session exists, search the directory
+    if (-not $logPath -or -not (Test-Path $logPath)) {
+        # Standardize the log directory calculation to match Logging.ps1
+        $scriptsDir = (Get-Item $PSScriptRoot).Parent.FullName
+        $logDir = Join-Path $scriptsDir "Logs"
+
+        if (Test-Path $logDir) {
+            $latestLog = Get-ChildItem -Path $logDir -Filter "*.log" -File |
+                Sort-Object LastWriteTime -Descending |
+                Select-Object -First 1
+
+            if ($latestLog) {
+                $logPath = $latestLog.FullName
             }
         }
-        else {
-            Write-Log "No logs found to open." "WARN"
+    }
+
+    # 4. Open the file if found
+    if ($logPath -and (Test-Path $logPath)) {
+        $success = Invoke-ItemSafely -Path $logPath -ItemType "Log file"
+        if (-not $success) {
+            return
         }
     }
     else {
-        Write-Log "Log directory not found." "WARN"
+        Write-Log "No log file found to open." "WARN"
     }
 }
 
