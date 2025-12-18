@@ -60,7 +60,7 @@ namespace Cliptoo.Core.Native
         public void SuppressNextClip(IEnumerable<ulong> hashes)
         {
             ArgumentNullException.ThrowIfNull(hashes);
-            
+
             lock (_suppressionLock)
             {
                 _suppressionResetTimer.Stop();
@@ -83,7 +83,7 @@ namespace Cliptoo.Core.Native
             }
 
             if (_isStarted) return;
-            
+
             _windowHandle = windowHandle;
             if (!AddClipboardFormatListener(_windowHandle))
             {
@@ -95,12 +95,12 @@ namespace Cliptoo.Core.Native
         public void StopMonitoring()
         {
             if (!_isStarted) return;
-            
+
             lock (_suppressionLock)
             {
                 _suppressionResetTimer.Stop();
             }
-            
+
             RemoveClipboardFormatListener(_windowHandle);
             _isStarted = false;
         }
@@ -123,7 +123,7 @@ namespace Cliptoo.Core.Native
                     {
                         return; // Suppressed - exit early
                     }
-                    
+
                     // Different clip detected during suppression window - clear suppression and continue
                     LogManager.LogInfo("A different clip was detected during the suppression window. Processing it.");
                     _suppressionResetTimer.Stop();
@@ -155,27 +155,24 @@ namespace Cliptoo.Core.Native
                 return; // No usable data found on clipboard.
             }
 
-            // Check if this content is a duplicate of the *very last* item we processed.
+            // FIX: Independent Hash Persistence
+            // Check if this content is a duplicate of the last item of the SAME type we processed.
+            // We no longer zero out other types, allowing the app to remember the last image hash
+            // even if a text clip was copied in between.
             if (bestCandidate.formatKey == DataFormats.Rtf || bestCandidate.formatKey == DataFormats.UnicodeText)
             {
                 if (bestCandidate.hash == _lastTextHash) return;
                 _lastTextHash = bestCandidate.hash;
-                _lastImageHash = 0;
-                _lastFileDropHash = 0;
             }
             else if (bestCandidate.formatKey == "FileDrop")
             {
                 if (bestCandidate.hash == _lastFileDropHash) return;
                 _lastFileDropHash = bestCandidate.hash;
-                _lastTextHash = 0;
-                _lastImageHash = 0;
             }
             else if (bestCandidate.formatKey == "Image")
             {
                 if (bestCandidate.hash == _lastImageHash) return;
                 _lastImageHash = bestCandidate.hash;
-                _lastTextHash = 0;
-                _lastFileDropHash = 0;
             }
 
             // Fire the event with the chosen content.
@@ -211,30 +208,30 @@ namespace Cliptoo.Core.Native
             // MUST be called within _suppressionLock
             var incomingHashes = string.Join(", ", availableData.Values.Select(v => v.Hash));
             LogManager.LogDebug($"CLIP_SUPPRESS: Checking incoming hashes: [{incomingHashes}]");
-            
+
             foreach (var format in availableData)
             {
                 if (_hashesToSuppress.Contains(format.Value.Hash))
                 {
                     LogManager.LogDebug($"CLIP_SUPPRESS: Match found. Suppressed self-generated clip based on format '{format.Key}' with hash {format.Value.Hash}.");
-                    
+
                     // Update last hash to prevent re-processing
-                    if (format.Key == DataFormats.Rtf || format.Key == DataFormats.UnicodeText) 
+                    if (format.Key == DataFormats.Rtf || format.Key == DataFormats.UnicodeText)
                         _lastTextHash = format.Value.Hash;
-                    else if (format.Key == "Image") 
+                    else if (format.Key == "Image")
                         _lastImageHash = format.Value.Hash;
-                    else if (format.Key == "FileDrop") 
+                    else if (format.Key == "FileDrop")
                         _lastFileDropHash = format.Value.Hash;
-                    
+
                     // Clear suppression state after successful match
                     _suppressionResetTimer.Stop();
                     _hashesToSuppress.Clear();
                     _suppressionActive.Reset();
-                    
+
                     return true;
                 }
             }
-            
+
             LogManager.LogDebug("CLIP_SUPPRESS: No match found. Processing clip.");
             return false;
         }
@@ -242,7 +239,7 @@ namespace Cliptoo.Core.Native
         private static Dictionary<string, (object Content, ulong Hash)> GetAvailableClipboardData()
         {
             var availableData = new Dictionary<string, (object Content, ulong Hash)>();
-            
+
             if (ClipboardUtils.SafeGet(() => Clipboard.ContainsData(DataFormats.Rtf)) == true)
             {
                 var rtfText = ClipboardUtils.SafeGet(() => Clipboard.GetData(DataFormats.Rtf) as string);
@@ -291,7 +288,7 @@ namespace Cliptoo.Core.Native
                     availableData[DataFormats.UnicodeText] = (text, HashingUtils.ComputeHash(Encoding.UTF8.GetBytes(normalizedText)));
                 }
             }
-            
+
             return availableData;
         }
 
