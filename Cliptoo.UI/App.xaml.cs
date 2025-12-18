@@ -156,7 +156,23 @@ namespace Cliptoo.UI
                         services.AddSingleton<IWebMetadataService>(sp => new WebMetadataService(AppDataLocalPath, sp.GetRequiredService<IImageDecoder>()));
                         services.AddSingleton<ISyntaxHighlighter, SyntaxHighlighter>();
                         services.AddSingleton<IClipboardMonitor, ClipboardMonitor>();
+
                         services.AddSingleton<ITextTransformer, TextTransformer>();
+                        services.AddSingleton<ITextTransformation, UpperCaseTransformation>();
+                        services.AddSingleton<ITextTransformation, LowerCaseTransformation>();
+                        services.AddSingleton<ITextTransformation, TrimTransformation>();
+                        services.AddSingleton<ITextTransformation, CapitalizeTransformation>();
+                        services.AddSingleton<ITextTransformation, SentenceCaseTransformation>();
+                        services.AddSingleton<ITextTransformation, InvertCaseTransformation>();
+                        services.AddSingleton<ITextTransformation, KebabCaseTransformation>();
+                        services.AddSingleton<ITextTransformation, SnakeCaseTransformation>();
+                        services.AddSingleton<ITextTransformation, CamelCaseTransformation>();
+                        services.AddSingleton<ITextTransformation, DeslugTransformation>();
+                        services.AddSingleton<ITextTransformation, LineFeed1Transformation>();
+                        services.AddSingleton<ITextTransformation, LineFeed2Transformation>();
+                        services.AddSingleton<ITextTransformation, RemoveLineFeedsTransformation>();
+                        services.AddSingleton<ITextTransformation, TimestampTransformation>();
+
                         services.AddSingleton<ICompareToolService, CompareToolService>();
                         services.AddSingleton<IconProvider>(sp => new IconProvider(sp.GetRequiredService<ISettingsService>(), AppDataLocalPath));
                         services.AddSingleton<IIconProvider>(sp => sp.GetRequiredService<IconProvider>());
