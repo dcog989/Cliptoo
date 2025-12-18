@@ -12,10 +12,12 @@ namespace Cliptoo.Core.Database
     public abstract class RepositoryBase
     {
         private readonly string _connectionString;
+        private readonly IDatabaseLockProvider _lockProvider;
 
-        protected RepositoryBase(string dbPath)
+        protected RepositoryBase(string dbPath, IDatabaseLockProvider lockProvider)
         {
             _connectionString = $"Data Source={dbPath}";
+            _lockProvider = lockProvider;
         }
 
         protected async Task<SqliteConnection> GetOpenConnectionAsync()
@@ -28,64 +30,73 @@ namespace Cliptoo.Core.Database
         [SuppressMessage("Microsoft.Security", "CA2100:Review SQL queries for security vulnerabilities", Justification = "This is a helper method. Callers are responsible for using parameterized queries.")]
         protected async Task<T?> ExecuteScalarAsync<T>(string commandText, params SqliteParameter[] parameters)
         {
-            SqliteConnection? connection = null;
-            SqliteCommand? command = null;
-            try
+            using (await _lockProvider.AcquireLockAsync().ConfigureAwait(false))
             {
-                connection = await GetOpenConnectionAsync().ConfigureAwait(false);
-                command = connection.CreateCommand();
-                command.CommandText = commandText;
-                command.Parameters.AddRange(parameters);
-                var result = await command.ExecuteScalarAsync().ConfigureAwait(false);
-                if (result == null || result is DBNull)
+                SqliteConnection? connection = null;
+                SqliteCommand? command = null;
+                try
                 {
-                    return default;
+                    connection = await GetOpenConnectionAsync().ConfigureAwait(false);
+                    command = connection.CreateCommand();
+                    command.CommandText = commandText;
+                    command.Parameters.AddRange(parameters);
+                    var result = await command.ExecuteScalarAsync().ConfigureAwait(false);
+                    if (result == null || result is DBNull)
+                    {
+                        return default;
+                    }
+                    return (T)Convert.ChangeType(result, typeof(T), CultureInfo.InvariantCulture);
                 }
-                return (T)Convert.ChangeType(result, typeof(T), CultureInfo.InvariantCulture);
-            }
-            finally
-            {
-                if (command != null) { await command.DisposeAsync().ConfigureAwait(false); }
-                if (connection != null) { await connection.DisposeAsync().ConfigureAwait(false); }
+                finally
+                {
+                    if (command != null) { await command.DisposeAsync().ConfigureAwait(false); }
+                    if (connection != null) { await connection.DisposeAsync().ConfigureAwait(false); }
+                }
             }
         }
 
         [SuppressMessage("Microsoft.Security", "CA2100:Review SQL queries for security vulnerabilities", Justification = "This is a helper method. Callers are responsible for using parameterized queries.")]
         protected async Task<int> ExecuteNonQueryAsync(string commandText, params SqliteParameter[] parameters)
         {
-            SqliteConnection? connection = null;
-            SqliteCommand? command = null;
-            try
+            using (await _lockProvider.AcquireLockAsync().ConfigureAwait(false))
             {
-                connection = await GetOpenConnectionAsync().ConfigureAwait(false);
-                command = connection.CreateCommand();
-                command.CommandText = commandText;
-                command.Parameters.AddRange(parameters);
-                return await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-            finally
-            {
-                if (command != null) { await command.DisposeAsync().ConfigureAwait(false); }
-                if (connection != null) { await connection.DisposeAsync().ConfigureAwait(false); }
+                SqliteConnection? connection = null;
+                SqliteCommand? command = null;
+                try
+                {
+                    connection = await GetOpenConnectionAsync().ConfigureAwait(false);
+                    command = connection.CreateCommand();
+                    command.CommandText = commandText;
+                    command.Parameters.AddRange(parameters);
+                    return await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                }
+                finally
+                {
+                    if (command != null) { await command.DisposeAsync().ConfigureAwait(false); }
+                    if (connection != null) { await connection.DisposeAsync().ConfigureAwait(false); }
+                }
             }
         }
 
         protected async Task ExecuteTransactionAsync(Func<SqliteConnection, System.Data.Common.DbTransaction, Task> transactionWork)
         {
-            ArgumentNullException.ThrowIfNull(transactionWork);
-            SqliteConnection? connection = null;
-            System.Data.Common.DbTransaction? transaction = null;
-            try
+            using (await _lockProvider.AcquireLockAsync().ConfigureAwait(false))
             {
-                connection = await GetOpenConnectionAsync().ConfigureAwait(false);
-                transaction = await connection.BeginTransactionAsync().ConfigureAwait(false);
-                await transactionWork(connection, transaction).ConfigureAwait(false);
-                await transaction.CommitAsync().ConfigureAwait(false);
-            }
-            finally
-            {
-                if (transaction != null) { await transaction.DisposeAsync().ConfigureAwait(false); }
-                if (connection != null) { await connection.DisposeAsync().ConfigureAwait(false); }
+                ArgumentNullException.ThrowIfNull(transactionWork);
+                SqliteConnection? connection = null;
+                System.Data.Common.DbTransaction? transaction = null;
+                try
+                {
+                    connection = await GetOpenConnectionAsync().ConfigureAwait(false);
+                    transaction = await connection.BeginTransactionAsync().ConfigureAwait(false);
+                    await transactionWork(connection, transaction).ConfigureAwait(false);
+                    await transaction.CommitAsync().ConfigureAwait(false);
+                }
+                finally
+                {
+                    if (transaction != null) { await transaction.DisposeAsync().ConfigureAwait(false); }
+                    if (connection != null) { await connection.DisposeAsync().ConfigureAwait(false); }
+                }
             }
         }
 
@@ -96,28 +107,31 @@ namespace Cliptoo.Core.Database
             CancellationToken cancellationToken = default,
             params SqliteParameter[] parameters) where T : class
         {
-            ArgumentNullException.ThrowIfNull(map);
-            SqliteConnection? connection = null;
-            SqliteCommand? command = null;
-            SqliteDataReader? reader = null;
-            try
+            using (await _lockProvider.AcquireLockAsync(cancellationToken).ConfigureAwait(false))
             {
-                connection = await GetOpenConnectionAsync().ConfigureAwait(false);
-                command = connection.CreateCommand();
-                command.CommandText = commandText;
-                command.Parameters.AddRange(parameters);
-                reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-                if (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                ArgumentNullException.ThrowIfNull(map);
+                SqliteConnection? connection = null;
+                SqliteCommand? command = null;
+                SqliteDataReader? reader = null;
+                try
                 {
-                    return map(reader);
+                    connection = await GetOpenConnectionAsync().ConfigureAwait(false);
+                    command = connection.CreateCommand();
+                    command.CommandText = commandText;
+                    command.Parameters.AddRange(parameters);
+                    reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+                    if (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                    {
+                        return map(reader);
+                    }
+                    return null;
                 }
-                return null;
-            }
-            finally
-            {
-                if (reader != null) { await reader.DisposeAsync().ConfigureAwait(false); }
-                if (command != null) { await command.DisposeAsync().ConfigureAwait(false); }
-                if (connection != null) { await connection.DisposeAsync().ConfigureAwait(false); }
+                finally
+                {
+                    if (reader != null) { await reader.DisposeAsync().ConfigureAwait(false); }
+                    if (command != null) { await command.DisposeAsync().ConfigureAwait(false); }
+                    if (connection != null) { await connection.DisposeAsync().ConfigureAwait(false); }
+                }
             }
         }
 
@@ -128,30 +142,31 @@ namespace Cliptoo.Core.Database
             [EnumeratorCancellation] CancellationToken cancellationToken = default,
             params SqliteParameter[] parameters)
         {
-            ArgumentNullException.ThrowIfNull(map);
-            SqliteConnection? connection = null;
-            SqliteCommand? command = null;
-            SqliteDataReader? reader = null;
-            try
+            using (await _lockProvider.AcquireLockAsync(cancellationToken).ConfigureAwait(false))
             {
-                connection = await GetOpenConnectionAsync().ConfigureAwait(false);
-                command = connection.CreateCommand();
-                command.CommandText = commandText;
-                command.Parameters.AddRange(parameters);
-                reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-                while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                ArgumentNullException.ThrowIfNull(map);
+                SqliteConnection? connection = null;
+                SqliteCommand? command = null;
+                SqliteDataReader? reader = null;
+                try
                 {
-                    yield return map(reader);
+                    connection = await GetOpenConnectionAsync().ConfigureAwait(false);
+                    command = connection.CreateCommand();
+                    command.CommandText = commandText;
+                    command.Parameters.AddRange(parameters);
+                    reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+                    while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                    {
+                        yield return map(reader);
+                    }
+                }
+                finally
+                {
+                    if (reader != null) { await reader.DisposeAsync().ConfigureAwait(false); }
+                    if (command != null) { await command.DisposeAsync().ConfigureAwait(false); }
+                    if (connection != null) { await connection.DisposeAsync().ConfigureAwait(false); }
                 }
             }
-            finally
-            {
-                if (reader != null) { await reader.DisposeAsync().ConfigureAwait(false); }
-                if (command != null) { await command.DisposeAsync().ConfigureAwait(false); }
-                if (connection != null) { await connection.DisposeAsync().ConfigureAwait(false); }
-            }
         }
-
     }
-
 }

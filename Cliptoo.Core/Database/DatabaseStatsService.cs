@@ -10,7 +10,7 @@ namespace Cliptoo.Core.Database
     public class DatabaseStatsService : RepositoryBase, IDatabaseStatsService
     {
         private readonly string _dbPath;
-        public DatabaseStatsService(string dbPath) : base(dbPath)
+        public DatabaseStatsService(string dbPath, IDatabaseLockProvider lockProvider) : base(dbPath, lockProvider)
         {
             _dbPath = dbPath;
         }

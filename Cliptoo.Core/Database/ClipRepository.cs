@@ -14,7 +14,7 @@ namespace Cliptoo.Core.Database
     {
         private const int MaxPreviewBytes = 5 * 1024;
 
-        public ClipRepository(string dbPath) : base(dbPath) { }
+        public ClipRepository(string dbPath, IDatabaseLockProvider lockProvider) : base(dbPath, lockProvider) { }
 
         private static string CreatePreview(string content)
         {
@@ -118,7 +118,6 @@ namespace Cliptoo.Core.Database
                 connection = await GetOpenConnectionAsync().ConfigureAwait(false);
                 transaction = (SqliteTransaction)await connection.BeginTransactionAsync().ConfigureAwait(false);
 
-                // Get the rowid before the operation.
                 long initialLastInsertRowId;
                 using (var cmd = connection.CreateCommand())
                 {
@@ -153,7 +152,6 @@ namespace Cliptoo.Core.Database
                     clipId = (long?)(await upsertCmd.ExecuteScalarAsync().ConfigureAwait(false));
                 }
 
-                // Get the rowid after the operation. last_insert_rowid() is only updated by a true INSERT.
                 long finalLastInsertRowId;
                 using (var cmd = connection.CreateCommand())
                 {
@@ -204,7 +202,6 @@ namespace Cliptoo.Core.Database
 
             await ExecuteTransactionAsync(async (connection, transaction) =>
             {
-                // Check if another clip with the same content already exists.
                 const string sql = "SELECT Id, IsFavorite FROM clips WHERE ContentHash = @ContentHash";
 
                 int? existingClipId = null;
@@ -237,10 +234,8 @@ namespace Cliptoo.Core.Database
 
                 if (existingClipId.HasValue && existingClipId.Value != id)
                 {
-                    // A different clip with this content already exists (MERGE case).
                     finalClipId = existingClipId.Value;
 
-                    // 1. Get the favorite status of the clip being deleted (the one currently being edited).
                     bool currentClipWasFavorite;
                     using (var cmd = connection.CreateCommand())
                     {
@@ -267,7 +262,6 @@ namespace Cliptoo.Core.Database
                         }
                     }
 
-                    // 2. Delete the clip being edited (this one).
                     using (var deleteCmd = connection.CreateCommand())
                     {
                         deleteCmd.Transaction = (SqliteTransaction)transaction;
@@ -276,7 +270,6 @@ namespace Cliptoo.Core.Database
                         await deleteCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
                     }
 
-                    // 3. Merge favorite status, then update the kept clip.
                     var newIsFavorite = currentClipWasFavorite || existingIsFavorite;
 
                     using (var updateCmd = connection.CreateCommand())
@@ -291,7 +284,6 @@ namespace Cliptoo.Core.Database
                 }
                 else
                 {
-                    // No conflict. Just update the current clip (NO MERGE case).
                     var previewContent = CreatePreview(content);
                     using var updateCmd = connection.CreateCommand();
                     updateCmd.Transaction = (SqliteTransaction)transaction;
@@ -353,12 +345,20 @@ namespace Cliptoo.Core.Database
             return ExecuteNonQueryAsync(sql, parameters);
         }
 
-        private async Task<Clip?> GetClipByHashAsync(string hash)
+        public async Task<Clip?> GetClipByIdAsync(int id)
         {
-            const string sql = "SELECT * FROM clips WHERE ContentHash = @ContentHash";
-            var param = new SqliteParameter("@ContentHash", hash);
+            const string sql = "SELECT * FROM clips WHERE Id = @Id";
+            var param = new SqliteParameter("@Id", id);
 
             return await QuerySingleOrDefaultAsync(sql, MapFullClipFromReader, default, param).ConfigureAwait(false);
+        }
+
+        public async Task<Clip?> GetPreviewClipByIdAsync(int id)
+        {
+            const string sql = "SELECT c.Id, c.Timestamp, c.ClipType, c.SourceApp, c.IsFavorite, c.WasTrimmed, c.SizeInBytes, c.PreviewContent, c.PasteCount, c.Tags, NULL as MatchContext FROM clips c WHERE Id = @Id";
+            var param = new SqliteParameter("@Id", id);
+
+            return await QuerySingleOrDefaultAsync(sql, MapPreviewClipFromReader, default, param).ConfigureAwait(false);
         }
 
         private static Clip MapFullClipFromReader(SqliteDataReader reader)
@@ -392,22 +392,6 @@ namespace Cliptoo.Core.Database
                 PasteCount = reader.GetInt32(ordinals.PasteCount),
                 Tags = reader.IsDBNull(ordinals.Tags) ? null : reader.GetString(ordinals.Tags)
             };
-        }
-
-        public async Task<Clip?> GetClipByIdAsync(int id)
-        {
-            const string sql = "SELECT * FROM clips WHERE Id = @Id";
-            var param = new SqliteParameter("@Id", id);
-
-            return await QuerySingleOrDefaultAsync(sql, MapFullClipFromReader, default, param).ConfigureAwait(false);
-        }
-
-        public async Task<Clip?> GetPreviewClipByIdAsync(int id)
-        {
-            const string sql = "SELECT c.Id, c.Timestamp, c.ClipType, c.SourceApp, c.IsFavorite, c.WasTrimmed, c.SizeInBytes, c.PreviewContent, c.PasteCount, c.Tags, NULL as MatchContext FROM clips c WHERE Id = @Id";
-            var param = new SqliteParameter("@Id", id);
-
-            return await QuerySingleOrDefaultAsync(sql, MapPreviewClipFromReader, default, param).ConfigureAwait(false);
         }
 
         private static bool HasColumn(SqliteDataReader reader, string columnName)
@@ -474,7 +458,6 @@ namespace Cliptoo.Core.Database
             {
                 foreach (var clip in clips)
                 {
-                    // Re-calculate hash and size for data integrity
                     var contentSize = (long)Encoding.UTF8.GetByteCount(clip.Content ?? string.Empty);
                     var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(clip.Content ?? string.Empty)));
                     var previewContent = CreatePreview(clip.Content ?? string.Empty);

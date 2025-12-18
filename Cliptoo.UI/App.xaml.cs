@@ -35,7 +35,6 @@ namespace Cliptoo.UI
 
         public App()
         {
-            // Logging initialization is now in Main() to ensure it runs after Velopack.
             this.DispatcherUnhandledException += OnDispatcherUnhandledException;
             this.SessionEnding += OnSessionEnding;
         }
@@ -45,7 +44,6 @@ namespace Cliptoo.UI
         {
             try
             {
-                // It's important to Run() as early as possible in app startup.
                 VelopackApp.Build().Run();
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
@@ -54,8 +52,6 @@ namespace Cliptoo.UI
                 Environment.Exit(1);
             }
 
-            // Use Velopack's built-in portable check. The UpdateManager needs a valid (even if non-functional)
-            // URL to be instantiated correctly without crashing.
             var um = new UpdateManager("https://github.com/dcog989/cliptoo");
             bool isPortable = um.IsPortable;
 
@@ -125,10 +121,13 @@ namespace Cliptoo.UI
                         var dbPath = Path.Combine(dbFolder, "cliptoo_history.db");
 
                         services.AddSingleton<ILogManager>(_logger);
-                        services.AddSingleton<IDatabaseInitializer>(new DatabaseInitializer(dbPath));
-                        services.AddSingleton<IClipRepository>(new ClipRepository(dbPath));
-                        services.AddSingleton<IDatabaseMaintenanceService>(new DatabaseMaintenanceService(dbPath));
-                        services.AddSingleton<IDatabaseStatsService>(new DatabaseStatsService(dbPath));
+                        services.AddSingleton<IDatabaseLockProvider, DatabaseLockProvider>();
+
+                        services.AddSingleton<IDatabaseInitializer>(sp => new DatabaseInitializer(dbPath, sp.GetRequiredService<IDatabaseLockProvider>()));
+                        services.AddSingleton<IClipRepository>(sp => new ClipRepository(dbPath, sp.GetRequiredService<IDatabaseLockProvider>()));
+                        services.AddSingleton<IDatabaseMaintenanceService>(sp => new DatabaseMaintenanceService(dbPath, sp.GetRequiredService<IDatabaseLockProvider>()));
+                        services.AddSingleton<IDatabaseStatsService>(sp => new DatabaseStatsService(dbPath, sp.GetRequiredService<IDatabaseLockProvider>()));
+
                         services.AddSingleton<IDbManager, DbManager>();
 
                         services.AddSingleton<ISettingsManager>(new SettingsManager(AppDataRoamingPath));
@@ -247,16 +246,12 @@ namespace Cliptoo.UI
             Dispose();
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "This is a top-level exception handler.")]
         private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
         {
             try
             {
                 LogManager.LogCritical(e.Exception, "An unhandled UI exception occurred, which caused the application to crash.");
             }
-            // This catch is intentionally broad. Its purpose is to handle a catastrophic failure
-            // where the logging system itself throws an exception. In this last-resort scenario,
-            // we must inform the user directly, as logging is no longer an option.
             catch (Exception)
             {
                 MessageBox.Show($"A fatal UI error occurred, and the logging system also failed.\n\nOriginal Error:\n{e.Exception.Message}", "Cliptoo Critical Error", MessageBoxButton.OK, MessageBoxImage.Error);
@@ -293,6 +288,5 @@ namespace Cliptoo.UI
             Dispose(disposing: true);
             GC.SuppressFinalize(this);
         }
-
     }
 }

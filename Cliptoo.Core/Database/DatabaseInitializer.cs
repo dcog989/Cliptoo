@@ -9,7 +9,7 @@ namespace Cliptoo.Core.Database
     public class DatabaseInitializer : RepositoryBase, IDatabaseInitializer
     {
         private const int CurrentDbVersion = 7;
-        public DatabaseInitializer(string dbPath) : base(dbPath) { }
+        public DatabaseInitializer(string dbPath, IDatabaseLockProvider lockProvider) : base(dbPath, lockProvider) { }
 
         [SuppressMessage("Microsoft.Security", "CA2100:Review SQL queries for security vulnerabilities", Justification = "PRAGMA user_version is a hardcoded value, not user input.")]
         public async Task InitializeAsync()
@@ -179,7 +179,6 @@ namespace Cliptoo.Core.Database
 
                 if (fromVersion < 4)
                 {
-                    // Check if the PasteCount column already exists before trying to add it.
                     bool columnExists = false;
                     var pragmaCmd = connection.CreateCommand();
                     pragmaCmd.Transaction = transaction;
@@ -307,6 +306,5 @@ namespace Cliptoo.Core.Database
                 if (connection != null) { await connection.DisposeAsync().ConfigureAwait(false); }
             }
         }
-
     }
 }
