@@ -96,23 +96,18 @@ namespace Cliptoo.UI.Services
             LogManager.LogInfo($"##########################################################");
             LogManager.LogDebug("ApplicationHostService starting...");
 
-            // Self-heal the startup registry key.
-            // If the setting is enabled, ensure the registry points to the CURRENT executable path.
-            // This handles cases where the app was moved or updated to a new folder.
             if (settings.StartWithWindows)
             {
                 LogManager.LogDebug("StartWithWindows is enabled. Enforcing registry key update.");
                 _startupManagerService.SetStartup(true);
             }
 
-            await _updateService.CheckForUpdatesAsync(cancellationToken);
-            if (cancellationToken.IsCancellationRequested) return;
-
             try
             {
                 await InitializeCoreServicesAsync();
                 await PreloadCommonIconsAsync(cancellationToken);
                 if (cancellationToken.IsCancellationRequested) return;
+
                 await Application.Current.Dispatcher.InvokeAsync(async () =>
                 {
                     try
@@ -251,6 +246,7 @@ namespace Cliptoo.UI.Services
             _settingsService.SettingsChanged += (s, e) => Application.Current.Dispatcher.Invoke(() => _themeService.ApplyThemeFromSettings());
 
             _mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
+
             var settings = _settingsService.Settings;
             _mainWindow.Width = settings.WindowWidth;
             _mainWindow.Height = settings.WindowHeight;
@@ -284,20 +280,6 @@ namespace Cliptoo.UI.Services
             return handle;
         }
 
-        private void FinalizeAndLoadData()
-        {
-            if (_mainWindow == null || _mainViewModel == null) return;
-
-            // Redundant size setting removed from here as it is now handled in InitializeMainWindowAndGetHandle
-            _clipDataService.NewClipAdded += OnNewClipAdded;
-            _controller.ProcessingFailed += OnProcessingFailed;
-
-            _mainViewModel.IsReadyForEvents = true;
-            _mainViewModel.IsInitializing = false;
-            _ = _clipDisplayService.LoadClipsAsync();
-            LogManager.LogInfo("Initialization COMPLETE.");
-        }
-
         private async Task InitializeViewModelAsync()
         {
             _mainViewModel = _serviceProvider.GetRequiredService<MainViewModel>();
@@ -305,6 +287,32 @@ namespace Cliptoo.UI.Services
             {
                 await _mainViewModel.InitializeAsync();
             }
+        }
+
+        private void FinalizeAndLoadData()
+        {
+            if (_mainWindow == null || _mainViewModel == null) return;
+
+            _clipDataService.NewClipAdded += OnNewClipAdded;
+            _controller.ProcessingFailed += OnProcessingFailed;
+
+            _mainViewModel.IsReadyForEvents = true;
+            _mainViewModel.IsInitializing = false;
+            _ = _clipDisplayService.LoadClipsAsync();
+
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await _updateService.CheckForUpdatesAsync(CancellationToken.None).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    LogManager.LogWarning($"Background update check failed: {ex.Message}");
+                }
+            });
+
+            LogManager.LogInfo("Initialization COMPLETE.");
         }
 
         public void Dispose()
@@ -327,7 +335,6 @@ namespace Cliptoo.UI.Services
 
             var commonIconKeys = new List<(string key, int size)>
             {
-                // From UiSharedResources
                 (AppConstants.IconKeyLogo, 24),
                 (AppConstants.IconKeyList, 28),
                 (AppConstants.IconKeyWasTrimmed, 20),
@@ -336,8 +343,6 @@ namespace Cliptoo.UI.Services
                 (AppConstants.IconKeyFavorite, 16),
                 (AppConstants.IconKeyError, 32),
                 (AppConstants.IconKeyTrash, 16),
-
-                // Filter icons from ClipDisplayService
                 (AppConstants.FilterKeyAll, 20),
                 (AppConstants.ClipTypeArchive, 20),
                 (AppConstants.ClipTypeAudio, 20),
@@ -357,11 +362,7 @@ namespace Cliptoo.UI.Services
                 (AppConstants.ClipTypeFileText, 20),
                 (AppConstants.ClipTypeRtf, 20),
                 (AppConstants.ClipTypeVideo, 20),
-
-                // Other common icons
                 (AppConstants.ClipTypeFileLink, 20),
-
-                // Quick Paste icons
                 ("1", 32), ("2", 32), ("3", 32), ("4", 32), ("5", 32),
                 ("6", 32), ("7", 32), ("8", 32), ("9", 32),
             };
@@ -376,6 +377,5 @@ namespace Cliptoo.UI.Services
             stopwatch.Stop();
             LogManager.LogDebug($"PERF_DIAG: Pre-loaded {tasks.Count} common icons in {stopwatch.ElapsedMilliseconds}ms.");
         }
-
     }
 }
