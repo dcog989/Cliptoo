@@ -387,7 +387,7 @@ namespace Cliptoo.UI.ViewModels
             ImageSource? typeIcon = null;
             if (!isMissing && !string.IsNullOrEmpty(_owner.ClipType))
             {
-                typeIcon = await _iconProvider.GetIconAsync(_owner.ClipType, 16).ConfigureAwait(true);
+                typeIcon = await _iconProvider.GetIconAsync(_owner.ClipType, 16);
             }
 
             await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
@@ -403,7 +403,7 @@ namespace Cliptoo.UI.ViewModels
 
         public async Task LoadIconsAsync()
         {
-            var icon = await _iconProvider.GetIconAsync(_owner.ClipType, 20).ConfigureAwait(true);
+            var icon = await _iconProvider.GetIconAsync(_owner.ClipType, 20);
             await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => ClipTypeIcon = icon);
         }
 
@@ -411,7 +411,7 @@ namespace Cliptoo.UI.ViewModels
         {
             if (_owner.Index > 0 && _owner.Index <= 9)
             {
-                var icon = await _iconProvider.GetIconAsync(_owner.Index.ToString(CultureInfo.InvariantCulture), 32).ConfigureAwait(true);
+                var icon = await _iconProvider.GetIconAsync(_owner.Index.ToString(CultureInfo.InvariantCulture), 32);
                 await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => QuickPasteIcon = icon);
             }
             else
