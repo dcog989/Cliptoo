@@ -65,6 +65,7 @@ namespace Cliptoo.UI.ViewModels
 
         private CancellationTokenSource? _filePropertiesCts;
         private CancellationTokenSource? _pageTitleCts;
+        private CancellationTokenSource? _imagePreviewCts;
 
         public ClipViewModelDetails(ClipViewModel owner, IClipDataService clipDataService, IClipDetailsLoader clipDetailsLoader, IThumbnailService thumbnailService, IWebMetadataService webMetadataService, IIconProvider iconProvider)
         {
@@ -94,7 +95,8 @@ namespace Cliptoo.UI.ViewModels
                     return !File.Exists(path);
                 }).ConfigureAwait(false);
             }
-            IsSourceMissing = isMissing;
+
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => IsSourceMissing = isMissing);
         }
 
         public async Task LoadThumbnailAsync()
@@ -107,17 +109,13 @@ namespace Cliptoo.UI.ViewModels
                 var loadId = Interlocked.Increment(ref _currentThumbnailLoadId);
                 string? newThumbnailPath = await _clipDetailsLoader.GetThumbnailAsync(_owner, _thumbnailService, _webMetadataService, _theme).ConfigureAwait(false);
 
-                if (loadId != _currentThumbnailLoadId)
-                {
-                    return;
-                }
+                if (loadId != _currentThumbnailLoadId) return;
 
-                BitmapImage? finalBitmap = null;
                 if (!string.IsNullOrEmpty(newThumbnailPath))
                 {
+                    byte[]? bytes = null;
                     try
                     {
-                        byte[]? bytes = null;
                         for (int i = 0; i < 3; i++)
                         {
                             try
@@ -125,34 +123,44 @@ namespace Cliptoo.UI.ViewModels
                                 bytes = await File.ReadAllBytesAsync(newThumbnailPath).ConfigureAwait(false);
                                 break;
                             }
-                            catch (IOException)
-                            {
-                                await Task.Delay(50).ConfigureAwait(false);
-                            }
-                        }
-                        if (bytes != null)
-                        {
-                            using var ms = new MemoryStream(bytes);
-                            var bitmapImage = new BitmapImage();
-                            bitmapImage.BeginInit();
-                            bitmapImage.StreamSource = ms;
-                            bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
-                            bitmapImage.EndInit();
-                            bitmapImage.Freeze();
-                            finalBitmap = bitmapImage;
+                            catch (IOException) { await Task.Delay(50).ConfigureAwait(false); }
                         }
                     }
-                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+                    catch (Exception) { }
+
+                    if (bytes != null && loadId == _currentThumbnailLoadId)
                     {
-                        LogManager.LogWarning($"Failed to load thumbnail image source from path: {newThumbnailPath}. Error: {ex.Message}");
+                        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                        {
+                            if (loadId != _currentThumbnailLoadId) return;
+                            try
+                            {
+                                using var ms = new MemoryStream(bytes);
+                                var bitmapImage = new BitmapImage();
+                                bitmapImage.BeginInit();
+                                bitmapImage.StreamSource = ms;
+                                bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
+                                bitmapImage.EndInit();
+                                bitmapImage.Freeze();
+                                ThumbnailSource = bitmapImage;
+                                HasThumbnail = true;
+                            }
+                            catch (Exception)
+                            {
+                                ThumbnailSource = null;
+                                HasThumbnail = false;
+                            }
+                        });
                     }
                 }
-
-                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                else
                 {
-                    ThumbnailSource = finalBitmap;
-                    HasThumbnail = finalBitmap != null;
-                });
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        ThumbnailSource = null;
+                        HasThumbnail = false;
+                    });
+                }
             }
             finally
             {
@@ -163,13 +171,11 @@ namespace Cliptoo.UI.ViewModels
         public async Task LoadTooltipContentAsync()
         {
             if (_isTooltipContentLoaded) return;
-            DebugUtils.LogMemoryUsage($"LoadTooltipContentAsync START (ID: {_owner.Id})");
-            var clipForTooltip = await _owner.GetFullClipAsync();
+            _isTooltipContentLoaded = true;
 
-            if (clipForTooltip is null)
-            {
-                return;
-            }
+            var clipForTooltip = await _owner.GetFullClipAsync().ConfigureAwait(false);
+
+            if (clipForTooltip is null || !_isTooltipContentLoaded) return;
 
             string? textFileContent = null;
             if (_owner.IsPreviewableAsTextFile)
@@ -180,22 +186,11 @@ namespace Cliptoo.UI.ViewModels
                     {
                         using var reader = new StreamReader(_owner.Content, true);
                         var buffer = new char[4096];
-                        int charsRead = await reader.ReadAsync(buffer, 0, buffer.Length);
+                        int charsRead = await reader.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false);
                         textFileContent = new string(buffer, 0, charsRead);
                     }
                 }
-                catch (IOException ex)
-                {
-                    LogManager.LogWarning($"Failed to read text file for tooltip preview. Error: {ex.Message}");
-                    if ((uint)ex.HResult == 0x80070020)
-                    {
-                        textFileContent = "Error: File is in use.";
-                    }
-                    else
-                    {
-                        textFileContent = $"Error reading file: {ex.Message}";
-                    }
-                }
+                catch (IOException) { }
             }
 
             var loadTasks = new List<Task>
@@ -204,21 +199,22 @@ namespace Cliptoo.UI.ViewModels
                 LoadPageTitleAsync()
             };
 
-            await Task.WhenAll(loadTasks);
+            await Task.WhenAll(loadTasks).ConfigureAwait(false);
 
-            GenerateTooltipProperties(clipForTooltip, textFileContent);
-            _isTooltipContentLoaded = true;
-            DebugUtils.LogMemoryUsage($"LoadTooltipContentAsync END (ID: {_owner.Id})");
+            if (_isTooltipContentLoaded)
+            {
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    GenerateTooltipProperties(clipForTooltip, textFileContent));
+            }
         }
 
         public void ClearTooltipContent()
         {
-            if (!_isTooltipContentLoaded) return;
+            _isTooltipContentLoaded = false;
 
-#pragma warning disable CA1849 // Use CancelAsync when available
             _pageTitleCts?.Cancel();
             _filePropertiesCts?.Cancel();
-#pragma warning restore CA1849
+            _imagePreviewCts?.Cancel();
 
             TooltipTextContent = null;
             LineCountInfo = null;
@@ -228,7 +224,6 @@ namespace Cliptoo.UI.ViewModels
             FileTypeInfo = null;
             FileTypeInfoIcon = null;
 
-            _isTooltipContentLoaded = false;
             IsPageTitleLoading = false;
             IsFilePropertiesLoading = false;
         }
@@ -246,8 +241,8 @@ namespace Cliptoo.UI.ViewModels
                 ? Cliptoo.Core.Services.RtfUtils.ToPlainText(clipToDisplay.Content ?? "")
                 : clipToDisplay.Content ?? "");
 
-            bool wasTruncatedByCharLimit = false;
             const int MaxTooltipChars = 16 * 1024;
+            bool wasTruncatedByCharLimit = false;
             if (contentForTooltip.Length > MaxTooltipChars)
             {
                 contentForTooltip = contentForTooltip.Substring(0, MaxTooltipChars);
@@ -294,10 +289,6 @@ namespace Cliptoo.UI.ViewModels
                     var lineInfo = totalLines > 1 ? $", {totalLines} lines" : "";
                     LineCountInfo = $"Size: {formattedSize}{lineInfo}";
                 }
-                else
-                {
-                    LineCountInfo = null;
-                }
 
                 if (totalLines > MaxTooltipLines || wasTruncatedByCharLimit)
                 {
@@ -309,53 +300,51 @@ namespace Cliptoo.UI.ViewModels
 
                 TooltipTextContent = finalSb.ToString();
             }
-            else
-            {
-                TooltipTextContent = null;
-                LineCountInfo = null;
-            }
         }
 
         public async Task LoadImagePreviewAsync(uint largestDimension)
         {
-            var isMissing = !File.Exists(_owner.Content);
-            if (isMissing != IsSourceMissing)
-            {
-                IsSourceMissing = isMissing;
-            }
+            _imagePreviewCts?.Cancel();
+            _imagePreviewCts = new CancellationTokenSource();
+            var token = _imagePreviewCts.Token;
 
-            if (isMissing)
+            if (!File.Exists(_owner.Content))
             {
-                ImagePreviewSource = null;
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    IsSourceMissing = true;
+                    ImagePreviewSource = null;
+                });
                 return;
             }
 
             var imagePreviewPath = await _clipDetailsLoader.GetImagePreviewAsync(_owner, _thumbnailService, largestDimension, _theme).ConfigureAwait(false);
 
-            if (!string.IsNullOrEmpty(imagePreviewPath))
+            if (!string.IsNullOrEmpty(imagePreviewPath) && !token.IsCancellationRequested)
             {
                 try
                 {
-                    var bytes = await File.ReadAllBytesAsync(imagePreviewPath).ConfigureAwait(false);
-                    using var ms = new MemoryStream(bytes);
+                    var bytes = await File.ReadAllBytesAsync(imagePreviewPath, token).ConfigureAwait(false);
 
-                    var bitmapImage = new BitmapImage();
-                    bitmapImage.BeginInit();
-                    bitmapImage.StreamSource = ms;
-                    bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
-                    bitmapImage.EndInit();
-                    bitmapImage.Freeze();
-                    ImagePreviewSource = bitmapImage;
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        if (token.IsCancellationRequested || !_isTooltipContentLoaded) return;
+                        try
+                        {
+                            using var ms = new MemoryStream(bytes);
+                            var bitmapImage = new BitmapImage();
+                            bitmapImage.BeginInit();
+                            bitmapImage.StreamSource = ms;
+                            bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
+                            bitmapImage.EndInit();
+                            bitmapImage.Freeze();
+                            ImagePreviewSource = bitmapImage;
+                        }
+                        catch (Exception) { ImagePreviewSource = null; }
+                    });
                 }
-                catch (IOException ex)
-                {
-                    LogManager.LogWarning($"Failed to load image preview from path: {imagePreviewPath}. Error: {ex.Message}");
-                    ImagePreviewSource = null;
-                }
-            }
-            else
-            {
-                ImagePreviewSource = null;
+                catch (OperationCanceledException) { }
+                catch (IOException) { await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => ImagePreviewSource = null); }
             }
         }
 
@@ -366,14 +355,19 @@ namespace Cliptoo.UI.ViewModels
             var token = _pageTitleCts.Token;
 
             if (IsPageTitleLoading || !string.IsNullOrEmpty(PageTitle)) return;
-            IsPageTitleLoading = true;
 
-            PageTitle = await _clipDetailsLoader.GetPageTitleAsync(_owner, _webMetadataService, token).ConfigureAwait(false);
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => IsPageTitleLoading = true);
 
-            if (!token.IsCancellationRequested)
+            var title = await _clipDetailsLoader.GetPageTitleAsync(_owner, _webMetadataService, token).ConfigureAwait(false);
+
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
             {
-                IsPageTitleLoading = false;
-            }
+                if (!token.IsCancellationRequested)
+                {
+                    PageTitle = title;
+                    IsPageTitleLoading = false;
+                }
+            });
         }
 
         public async Task LoadFilePropertiesAsync()
@@ -384,43 +378,45 @@ namespace Cliptoo.UI.ViewModels
 
             if (IsFilePropertiesLoading || !string.IsNullOrEmpty(FileProperties)) return;
 
-            IsFilePropertiesLoading = true;
-            FileProperties = null;
-            FileTypeInfo = null;
-            FileTypeInfoIcon = null;
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => IsFilePropertiesLoading = true);
 
-#pragma warning disable CA2007
-            var (properties, typeInfo, isMissing) = await _clipDetailsLoader.GetFilePropertiesAsync(_owner, token);
+            var (properties, typeInfo, isMissing) = await _clipDetailsLoader.GetFilePropertiesAsync(_owner, token).ConfigureAwait(false);
 
-            if (!token.IsCancellationRequested)
+            if (token.IsCancellationRequested) return;
+
+            ImageSource? typeIcon = null;
+            if (!isMissing && !string.IsNullOrEmpty(_owner.ClipType))
             {
+                typeIcon = await _iconProvider.GetIconAsync(_owner.ClipType, 16).ConfigureAwait(true);
+            }
+
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+            {
+                if (token.IsCancellationRequested) return;
                 FileProperties = properties;
                 FileTypeInfo = typeInfo;
                 IsSourceMissing = isMissing;
+                FileTypeInfoIcon = typeIcon;
                 IsFilePropertiesLoading = false;
-
-                if (!isMissing && !string.IsNullOrEmpty(_owner.ClipType))
-                {
-                    FileTypeInfoIcon = await _iconProvider.GetIconAsync(_owner.ClipType, 16);
-                }
-            }
-#pragma warning restore CA2007
+            });
         }
 
         public async Task LoadIconsAsync()
         {
-            ClipTypeIcon = await _iconProvider.GetIconAsync(_owner.ClipType, 20).ConfigureAwait(true);
+            var icon = await _iconProvider.GetIconAsync(_owner.ClipType, 20).ConfigureAwait(true);
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => ClipTypeIcon = icon);
         }
 
         public async Task LoadQuickPasteIconAsync()
         {
             if (_owner.Index > 0 && _owner.Index <= 9)
             {
-                QuickPasteIcon = await _iconProvider.GetIconAsync(_owner.Index.ToString(CultureInfo.InvariantCulture), 32).ConfigureAwait(true);
+                var icon = await _iconProvider.GetIconAsync(_owner.Index.ToString(CultureInfo.InvariantCulture), 32).ConfigureAwait(true);
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => QuickPasteIcon = icon);
             }
             else
             {
-                QuickPasteIcon = null;
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => QuickPasteIcon = null);
             }
         }
 
@@ -436,6 +432,7 @@ namespace Cliptoo.UI.ViewModels
         {
             _filePropertiesCts?.Dispose();
             _pageTitleCts?.Dispose();
+            _imagePreviewCts?.Dispose();
         }
     }
 }

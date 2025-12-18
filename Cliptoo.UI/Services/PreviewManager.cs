@@ -49,6 +49,7 @@ namespace Cliptoo.UI.Services
             if (IsPreviewOpen && (PreviewClip == null || PreviewClip.Id != clipVm.Id))
             {
                 IsPreviewOpen = false;
+                PreviewClip?.ClearTooltipContent();
             }
 
             if (PreviewClip?.Id == clipVm.Id && IsPreviewOpen)
@@ -109,7 +110,6 @@ namespace Cliptoo.UI.Services
                 }
                 return;
             }
-            DebugUtils.LogMemoryUsage($"Before Tooltip Load (Clip ID: {currentPreviewClip.Id})");
 
             var loadTasks = new List<Task>
             {
@@ -122,7 +122,6 @@ namespace Cliptoo.UI.Services
             }
 
             await Task.WhenAll(loadTasks);
-            DebugUtils.LogMemoryUsage($"After Tooltip Load (Clip ID: {currentPreviewClip.Id})");
 
             if (PreviewClip?.Id == currentPreviewClip.Id)
             {
@@ -137,7 +136,7 @@ namespace Cliptoo.UI.Services
         private void OnHidePreviewTimerTick(object? sender, EventArgs e)
         {
             _hidePreviewTimer.Stop();
-            if (IsPreviewOpen)
+            if (IsPreviewOpen || _previewClipRef != null)
             {
                 IsPreviewOpen = false;
                 PreviewClip?.ClearTooltipContent();

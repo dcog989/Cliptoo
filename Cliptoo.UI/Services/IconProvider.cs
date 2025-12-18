@@ -88,7 +88,6 @@ namespace Cliptoo.UI.Services
 
                 if (File.Exists(cacheFilePath))
                 {
-                    LogManager.LogDebug($"ICON_CACHE_DIAG: On-disk hit for key '{cacheKey}'.");
                     try
                     {
                         iconBytes = await File.ReadAllBytesAsync(cacheFilePath).ConfigureAwait(false);
@@ -100,8 +99,6 @@ namespace Cliptoo.UI.Services
                 }
                 else
                 {
-                    LogManager.LogDebug($"ICON_CACHE_DIAG: Miss for key '{cacheKey}'. Generating new icon.");
-
                     var parts = cacheKey.Split('_');
                     string key;
                     int size;
@@ -109,16 +106,12 @@ namespace Cliptoo.UI.Services
 
                     if (parts.Last().StartsWith('#'))
                     {
-                        // Format: {key}_{size}_{dpiScale}_{accentColor}
-                        if (parts.Length < 4) throw new ArgumentException($"Invalid cacheKey format for accent color icon: {cacheKey}", nameof(cacheKey));
                         dpiScale = double.Parse(parts[parts.Length - 2], CultureInfo.InvariantCulture);
                         size = int.Parse(parts[parts.Length - 3], CultureInfo.InvariantCulture);
                         key = string.Join("_", parts.Take(parts.Length - 3));
                     }
                     else
                     {
-                        // Format: {key}_{size}_{dpiScale}
-                        if (parts.Length < 3) throw new ArgumentException($"Invalid cacheKey format for standard icon: {cacheKey}", nameof(cacheKey));
                         dpiScale = double.Parse(parts.Last(), CultureInfo.InvariantCulture);
                         size = int.Parse(parts[parts.Length - 2], CultureInfo.InvariantCulture);
                         key = string.Join("_", parts.Take(parts.Length - 2));
@@ -132,30 +125,26 @@ namespace Cliptoo.UI.Services
                         {
                             await File.WriteAllBytesAsync(cacheFilePath, iconBytes).ConfigureAwait(false);
                         }
-                        catch (IOException ex)
-                        {
-                            LogManager.LogDebug($"Could not write icon cache file (may be a harmless race condition): {cacheFilePath}. Error: {ex.Message}");
-                        }
-                        catch (Exception ex) when (ex is UnauthorizedAccessException)
-                        {
-                            LogManager.LogWarning($"Failed to save icon to cache: {cacheFilePath}. Error: {ex.Message}");
-                        }
+                        catch (Exception) { }
                     }
                 }
 
                 if (iconBytes == null) return null;
 
-                var bitmapImage = new BitmapImage();
-                using (var ms = new MemoryStream(iconBytes))
+                return await Application.Current.Dispatcher.InvokeAsync(() =>
                 {
-                    bitmapImage.BeginInit();
-                    bitmapImage.StreamSource = ms;
-                    bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
-                    bitmapImage.EndInit();
-                }
-                bitmapImage.Freeze();
-                _cache.Add(cacheKey, bitmapImage);
-                return bitmapImage;
+                    var bitmapImage = new BitmapImage();
+                    using (var ms = new MemoryStream(iconBytes))
+                    {
+                        bitmapImage.BeginInit();
+                        bitmapImage.StreamSource = ms;
+                        bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
+                        bitmapImage.EndInit();
+                    }
+                    bitmapImage.Freeze();
+                    _cache.Add(cacheKey, bitmapImage);
+                    return (ImageSource)bitmapImage;
+                });
             }
             finally
             {
@@ -217,7 +206,7 @@ namespace Cliptoo.UI.Services
                 await imageSharpImage.SaveAsPngAsync(ms).ConfigureAwait(false);
                 return ms.ToArray();
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Xml.XmlException)
+            catch (Exception ex)
             {
                 LogManager.LogCritical(ex, $"Failed to load icon for key: {key}");
                 return null;
@@ -241,11 +230,21 @@ namespace Cliptoo.UI.Services
 
         private static double GetDpiScale()
         {
-            if (Application.Current?.MainWindow != null && VisualTreeHelper.GetDpi(Application.Current.MainWindow).PixelsPerDip != 0)
+            if (Application.Current.Dispatcher.CheckAccess())
             {
-                return VisualTreeHelper.GetDpi(Application.Current.MainWindow).DpiScaleX;
+                return FetchDpi();
             }
-            return 1.0;
+
+            return Application.Current.Dispatcher.Invoke(FetchDpi);
+
+            static double FetchDpi()
+            {
+                if (Application.Current?.MainWindow != null)
+                {
+                    return VisualTreeHelper.GetDpi(Application.Current.MainWindow).DpiScaleX;
+                }
+                return 1.0;
+            }
         }
 
         public int CleanupIconCache()
@@ -263,18 +262,11 @@ namespace Cliptoo.UI.Services
                         File.Delete(file);
                         filesDeleted++;
                     }
-                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                    {
-                        LogManager.LogWarning($"Could not delete old icon cache file: {file}. Error: {ex.Message}");
-                    }
-                }
-                if (filesDeleted > 0)
-                {
-                    LogManager.LogInfo($"Cleaned up {filesDeleted} old icon cache files.");
+                    catch (Exception) { }
                 }
                 return filesDeleted;
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            catch (Exception ex)
             {
                 LogManager.LogCritical(ex, "Failed to perform icon cache cleanup.");
                 return 0;
@@ -289,11 +281,10 @@ namespace Cliptoo.UI.Services
                 _cache.Clear();
                 LogManager.LogInfo("Icon cache cleared successfully.");
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            catch (Exception ex)
             {
                 LogManager.LogCritical(ex, "Failed to clear icon cache.");
             }
         }
-
     }
 }
