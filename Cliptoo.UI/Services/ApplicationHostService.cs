@@ -333,7 +333,9 @@ namespace Cliptoo.UI.Services
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             var iconProvider = _serviceProvider.GetRequiredService<IIconProvider>();
 
-            var commonIconKeys = new List<(string key, int size)>
+            // Drastically reduced preload list to only essential UI framework icons.
+            // Content-specific icons (file types, numbers) are loaded JIT as they enter the viewport.
+            var essentialIconKeys = new List<(string key, int size)>
             {
                 (AppConstants.IconKeyLogo, 24),
                 (AppConstants.IconKeyList, 28),
@@ -342,40 +344,18 @@ namespace Cliptoo.UI.Services
                 (AppConstants.IconKeyFavorite, 20),
                 (AppConstants.IconKeyFavorite, 16),
                 (AppConstants.IconKeyError, 32),
-                (AppConstants.IconKeyTrash, 16),
-                (AppConstants.FilterKeyAll, 20),
-                (AppConstants.ClipTypeArchive, 20),
-                (AppConstants.ClipTypeAudio, 20),
-                (AppConstants.ClipTypeCodeSnippet, 20),
-                (AppConstants.ClipTypeColor, 20),
-                (AppConstants.ClipTypeDanger, 20),
-                (AppConstants.ClipTypeDatabase, 20),
-                (AppConstants.ClipTypeDev, 20),
-                (AppConstants.ClipTypeDocument, 20),
-                (AppConstants.ClipTypeFolder, 20),
-                (AppConstants.ClipTypeFont, 20),
-                (AppConstants.ClipTypeGeneric, 20),
-                (AppConstants.ClipTypeImage, 20),
-                (AppConstants.ClipTypeLink, 20),
-                (AppConstants.ClipTypeSystem, 20),
-                (AppConstants.ClipTypeText, 20),
-                (AppConstants.ClipTypeFileText, 20),
-                (AppConstants.ClipTypeRtf, 20),
-                (AppConstants.ClipTypeVideo, 20),
-                (AppConstants.ClipTypeFileLink, 20),
-                ("1", 32), ("2", 32), ("3", 32), ("4", 32), ("5", 32),
-                ("6", 32), ("7", 32), ("8", 32), ("9", 32),
+                (AppConstants.IconKeyTrash, 16)
             };
 
             var tasks = new List<Task>();
-            foreach (var (key, size) in commonIconKeys.Distinct())
+            foreach (var (key, size) in essentialIconKeys)
             {
                 if (cancellationToken.IsCancellationRequested) return;
                 tasks.Add(iconProvider.GetIconAsync(key, size));
             }
             await Task.WhenAll(tasks);
             stopwatch.Stop();
-            LogManager.LogDebug($"PERF_DIAG: Pre-loaded {tasks.Count} common icons in {stopwatch.ElapsedMilliseconds}ms.");
+            LogManager.LogDebug($"PERF_DIAG: Pre-loaded {tasks.Count} essential UI icons in {stopwatch.ElapsedMilliseconds}ms.");
         }
     }
 }
