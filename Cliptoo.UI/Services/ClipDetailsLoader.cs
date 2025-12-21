@@ -108,14 +108,18 @@ namespace Cliptoo.UI.Services
                 var sb = new StringBuilder();
 
                 using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(token);
-                timeoutCts.CancelAfter(IoTimeout);
+                // Use a much tighter timeout for network paths to prevent UI "stutter"
+                timeoutCts.CancelAfter(isNetworkPath ? TimeSpan.FromMilliseconds(800) : IoTimeout);
 
                 await Task.Run(async () =>
                 {
                     if (timeoutCts.Token.IsCancellationRequested) return;
 
-                    bool existsAsDir = Directory.Exists(path);
-                    bool existsAsFile = !existsAsDir && File.Exists(path);
+                    // Standard .NET IO exists checks block indefinitely on slow/dead UNC paths.
+                    // We wrap them in a task with a hard timeout.
+                    var (existsAsDir, existsAsFile) = await GetPathExistenceAsync(path, timeoutCts.Token).ConfigureAwait(false);
+
+                    if (timeoutCts.Token.IsCancellationRequested) return;
 
                     if (existsAsDir)
                     {
@@ -216,8 +220,8 @@ namespace Cliptoo.UI.Services
             {
                 if (!token.IsCancellationRequested)
                 {
-                    fileProperties = "Metadata loading timed out (possible slow network).";
-                    fileTypeInfo = "Unknown System Path";
+                    fileProperties = "Metadata loading timed out (network drive unavailable).";
+                    fileTypeInfo = "Network Resource";
                 }
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -230,6 +234,30 @@ namespace Cliptoo.UI.Services
             }
 
             return (fileProperties, fileTypeInfo, isMissing);
+        }
+
+        private static async Task<(bool isDir, bool isFile)> GetPathExistenceAsync(string path, CancellationToken token)
+        {
+            var checkTask = Task.Run(() =>
+            {
+                bool isDir = Directory.Exists(path);
+                bool isFile = !isDir && File.Exists(path);
+                return (isDir, isFile);
+            });
+
+            // We use Task.WhenAny to ensure that even if the underlying OS-level IO
+            // call blocks (ignoring the token), our application flow continues.
+            var tcs = new TaskCompletionSource<bool>();
+            using (token.Register(() => tcs.TrySetResult(true)))
+            {
+                var completedTask = await Task.WhenAny(checkTask, tcs.Task).ConfigureAwait(false);
+                if (completedTask == checkTask)
+                {
+                    return await checkTask.ConfigureAwait(false);
+                }
+            }
+
+            return (false, false);
         }
 
         private static (long Size, int FileCount, int FolderCount, bool WasLimited) CalculateDirectorySize(DirectoryInfo dirInfo, CancellationToken token, int depth = 0)
