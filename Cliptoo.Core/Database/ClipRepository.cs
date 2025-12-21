@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Cliptoo.Core.Database.Models;
+using Cliptoo.Core.Logging;
 using Cliptoo.Core.Services;
 using Microsoft.Data.Sqlite;
 
@@ -68,6 +69,36 @@ namespace Cliptoo.Core.Database
             ArgumentNullException.ThrowIfNull(filterType);
             ArgumentNullException.ThrowIfNull(tagSearchPrefix);
 
+            try
+            {
+                return await FetchClipsInternalAsync(limit, offset, searchTerm, filterType, tagSearchPrefix, cancellationToken, lastTimestamp, lastId).ConfigureAwait(false);
+            }
+            catch (SqliteException ex) when (ex.SqliteErrorCode == 1 && !string.IsNullOrEmpty(searchTerm))
+            {
+                // Error 1 with an active search term usually indicates an FTS5 syntax error (e.g. invalid use of '*', ':', or '^').
+                // We fallback to a "clean" alphanumeric-only version of the search term to ensure the app doesn't crash.
+                LogManager.LogWarning($"FTS5 Search Syntax Error for term '{searchTerm}'. Retrying with alphanumeric-only term. Error: {ex.Message}");
+
+                var cleanSearchTerm = System.Text.RegularExpressions.Regex.Replace(searchTerm, @"[^\w\s]", " ").Trim();
+                if (string.IsNullOrWhiteSpace(cleanSearchTerm))
+                {
+                    return new List<Clip>();
+                }
+
+                return await FetchClipsInternalAsync(limit, offset, cleanSearchTerm, filterType, tagSearchPrefix, cancellationToken, lastTimestamp, lastId).ConfigureAwait(false);
+            }
+        }
+
+        private async Task<List<Clip>> FetchClipsInternalAsync(
+            uint limit,
+            uint offset,
+            string searchTerm,
+            string filterType,
+            string tagSearchPrefix,
+            CancellationToken cancellationToken,
+            DateTime? lastTimestamp = null,
+            int? lastId = null)
+        {
             var clips = new List<Clip>();
             SqliteConnection? connection = null;
             SqliteDataReader? reader = null;
