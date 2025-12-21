@@ -15,4 +15,5 @@ namespace Cliptoo.UI.Services
     internal record ClipPasteFilePathRequested(int ClipId);
     internal record TogglePreviewForSelectionRequested(object? PlacementTarget);
     internal record CachesClearedMessage;
+    internal record SettingsChangedMessage(string PropertyName);
 }

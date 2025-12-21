@@ -190,7 +190,6 @@ namespace Cliptoo.UI.ViewModels
             _themeService = themeService;
 
             _currentSettings = _settingsService.Settings;
-            _currentSettings.PropertyChanged += CurrentSettings_PropertyChanged;
             _mainFont = _fontProvider.GetFont(CurrentSettings.FontFamily);
             _previewFont = _fontProvider.GetFont(CurrentSettings.PreviewFontFamily);
             TooltipMaxHeight = SystemParameters.WorkArea.Height * 0.9;
@@ -226,14 +225,42 @@ namespace Cliptoo.UI.ViewModels
             _eventAggregator.Subscribe<ClipPasteRequested>(async msg =>
             {
                 var clipVM = Clips.FirstOrDefault(c => c.Id == msg.ClipId);
-                if (clipVM != null)
-                {
-                    await ExecutePasteClip(clipVM, msg.ForcePlainText);
-                }
+                if (clipVM != null) await ExecutePasteClip(clipVM, msg.ForcePlainText);
             });
             _eventAggregator.Subscribe<ClipPasteFilePathRequested>(async msg => await ExecutePasteFilePath(msg.ClipId));
             _eventAggregator.Subscribe<ClipTransformAndPasteRequested>(async msg => await ExecuteTransformAndPaste(msg.ClipId, msg.TransformType));
             _eventAggregator.Subscribe<CachesClearedMessage>(_ => OnCachesCleared());
+            _eventAggregator.Subscribe<SettingsChangedMessage>(async msg => await OnSettingsPropertyChanged(msg.PropertyName));
+        }
+
+        private async Task OnSettingsPropertyChanged(string propertyName)
+        {
+            switch (propertyName)
+            {
+                case nameof(Settings.FontFamily):
+                    MainFont = _fontProvider.GetFont(CurrentSettings.FontFamily);
+                    UpdateMaxPreviewLength();
+                    break;
+                case nameof(Settings.PreviewFontFamily):
+                    PreviewFont = _fontProvider.GetFont(CurrentSettings.PreviewFontFamily);
+                    break;
+                case nameof(Settings.DisplayLogo):
+                    OnPropertyChanged(nameof(DisplayLogo));
+                    break;
+                case nameof(Settings.PasteAsPlainText):
+                    foreach (var clipVM in Clips) clipVM.NotifyPasteAsPropertiesChanged();
+                    break;
+                case nameof(Settings.WindowWidth):
+                case nameof(Settings.FontSize):
+                    UpdateMaxPreviewLength();
+                    break;
+                case nameof(Settings.AccentColor):
+                case nameof(Settings.AccentChromaLevel):
+                    _themeService.ApplyThemeFromSettings();
+                    await SharedResources.InitializeAsync();
+                    foreach (var clip in Clips) clip.NotifyAccentColorChanged();
+                    break;
+            }
         }
 
         private void OnComparisonStateChanged(object? sender, ComparisonStateChangedEventArgs e)

@@ -243,11 +243,22 @@ namespace Cliptoo.UI.Services
 
         private IntPtr InitializeMainWindowAndGetHandle()
         {
+            var eventAggregator = _serviceProvider.GetRequiredService<IEventAggregator>();
+            var settings = _settingsService.Settings;
+
             _settingsService.SettingsChanged += (s, e) => Application.Current.Dispatcher.Invoke(() => _themeService.ApplyThemeFromSettings());
+
+            // Bridge raw INotifyPropertyChanged events to the EventAggregator to allow decoupled, weak-referenced subscriptions
+            settings.PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName != null)
+                {
+                    eventAggregator.Publish(new SettingsChangedMessage(e.PropertyName));
+                }
+            };
 
             _mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
 
-            var settings = _settingsService.Settings;
             _mainWindow.Width = settings.WindowWidth;
             _mainWindow.Height = settings.WindowHeight;
 

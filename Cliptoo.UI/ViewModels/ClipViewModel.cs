@@ -235,7 +235,24 @@ namespace Cliptoo.UI.ViewModels
                 }
             });
 
-            CurrentSettings.PropertyChanged += CurrentSettings_PropertyChanged;
+            _eventAggregator.Subscribe<SettingsChangedMessage>(OnSettingsChanged);
+        }
+
+        private void OnSettingsChanged(SettingsChangedMessage msg)
+        {
+            switch (msg.PropertyName)
+            {
+                case nameof(Settings.FontFamily):
+                    MainFont = _fontProvider.GetFont(CurrentSettings.FontFamily);
+                    break;
+                case nameof(Settings.PreviewFontFamily):
+                    PreviewFont = _fontProvider.GetFont(CurrentSettings.PreviewFontFamily);
+                    break;
+                case nameof(Settings.AccentColor):
+                case nameof(Settings.AccentChromaLevel):
+                    NotifyAccentColorChanged();
+                    break;
+            }
         }
 
         private void CurrentSettings_PropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -593,7 +610,6 @@ namespace Cliptoo.UI.ViewModels
                 _disposalCts.Cancel();
                 _disposalCts.Dispose();
                 _tooltipCts?.Dispose();
-                CurrentSettings.PropertyChanged -= CurrentSettings_PropertyChanged;
                 _disposedValue = true;
             }
             GC.SuppressFinalize(this);
