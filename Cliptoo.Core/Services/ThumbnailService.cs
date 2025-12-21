@@ -86,20 +86,25 @@ namespace Cliptoo.Core.Services
 
             try
             {
-                byte[]? outputBytes;
                 if (sourceExtension == ".SVG")
                 {
-                    outputBytes = await ServiceUtils.GenerateSvgPreviewAsync(imagePath, size, theme).ConfigureAwait(false);
+                    var outputBytes = await ServiceUtils.GenerateSvgPreviewAsync(imagePath, size, theme).ConfigureAwait(false);
+                    if (outputBytes != null)
+                    {
+                        await File.WriteAllBytesAsync(cachePath, outputBytes).ConfigureAwait(false);
+                        _memoryPathCache.Add(cacheKey, cachePath);
+                        return cachePath;
+                    }
                 }
                 else
                 {
-                    outputBytes = await Task.Run(async () =>
+                    bool success = await Task.Run(async () =>
                     {
                         try
                         {
                             using var stream = new FileStream(imagePath, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, useAsync: true);
                             using var image = await _imageDecoder.DecodeAsync(stream, sourceExtension).ConfigureAwait(false);
-                            if (image == null) return null;
+                            if (image == null) return false;
 
                             image.Mutate(x => x.Resize(new ResizeOptions
                             {
@@ -108,20 +113,20 @@ namespace Cliptoo.Core.Services
                                 Sampler = KnownResamplers.Lanczos3
                             }));
 
-                            using var ms = new MemoryStream();
-                            if (targetExtension == ".jpeg") await image.SaveAsync(ms, _jpegEncoder).ConfigureAwait(false);
-                            else await image.SaveAsync(ms, _pngEncoder).ConfigureAwait(false);
-                            return ms.ToArray();
+                            // Direct streaming to file to avoid Large Object Heap (LOH) allocations for byte arrays
+                            using var outputStream = new FileStream(cachePath, FileMode.Create, FileAccess.Write, FileShare.None, 4096, useAsync: true);
+                            if (targetExtension == ".jpeg") await image.SaveAsync(outputStream, _jpegEncoder).ConfigureAwait(false);
+                            else await image.SaveAsync(outputStream, _pngEncoder).ConfigureAwait(false);
+                            return true;
                         }
-                        catch (Exception) { return null; }
+                        catch (Exception) { return false; }
                     }).ConfigureAwait(false);
-                }
 
-                if (outputBytes != null)
-                {
-                    await File.WriteAllBytesAsync(cachePath, outputBytes).ConfigureAwait(false);
-                    _memoryPathCache.Add(cacheKey, cachePath);
-                    return cachePath;
+                    if (success)
+                    {
+                        _memoryPathCache.Add(cacheKey, cachePath);
+                        return cachePath;
+                    }
                 }
             }
             catch (Exception ex)

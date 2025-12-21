@@ -285,6 +285,9 @@ namespace Cliptoo.Core.Services
             }
             LogManager.LogInfo(summary);
 
+            // Force a targeted Gen 2 collection to compact the Large Object Heap after intensive IO/image operations.
+            GC.Collect(2, GCCollectionMode.Optimized, true, true);
+
             LogManager.LogDebug("Heavy maintenance routine finished.");
             LogManager.LogDebug($"Maintenance result: {cleaned} clips cleaned, {prunedImageCount} images pruned, {prunedFaviconCount} favicons pruned, {reclassifiedCount} reclassified, {tempFilesCleaned} temp files cleaned, {iconCacheCleaned} icons pruned, {prunedClipboardImageCount} clipboard images pruned. DB size change: {sizeChange:F2} MB.");
 

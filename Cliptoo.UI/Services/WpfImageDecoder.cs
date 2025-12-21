@@ -49,6 +49,7 @@ namespace Cliptoo.UI.Services
 
                     if (bestFrame == null) return null;
 
+                    // Stream directly into ImageSharp to avoid byte array allocations on the LOH
                     using var ms = new MemoryStream();
                     var encoder = new PngBitmapEncoder();
                     encoder.Frames.Add(bestFrame);
