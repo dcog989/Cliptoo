@@ -12,14 +12,30 @@ namespace Cliptoo.UI.Converters
     [SuppressMessage("Performance", "CA1812:Avoid uninstantiated internal classes")]
     internal sealed class ColorToBrushConverter : IValueConverter
     {
+        private static readonly Dictionary<string, SolidColorBrush> _brushCache = new(StringComparer.OrdinalIgnoreCase);
+
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
             if (value is not string colorString || colorString.Length > 50) return Brushes.Transparent;
-            if (ColorParser.TryParseColor(colorString.Trim(), out var colorData) && colorData != null)
+
+            string normalizedColor = colorString.Trim();
+
+            if (_brushCache.TryGetValue(normalizedColor, out var cachedBrush))
+            {
+                return cachedBrush;
+            }
+
+            if (ColorParser.TryParseColor(normalizedColor, out var colorData) && colorData != null)
             {
                 var color = Color.FromArgb(colorData.A, colorData.R, colorData.G, colorData.B);
                 var brush = new SolidColorBrush(color);
                 brush.Freeze();
+
+                if (_brushCache.Count < 500)
+                {
+                    _brushCache[normalizedColor] = brush;
+                }
+
                 return brush;
             }
 
