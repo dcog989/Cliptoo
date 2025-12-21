@@ -61,6 +61,7 @@ namespace Cliptoo.Core.Database
             string searchTerm,
             string filterType,
             string tagSearchPrefix,
+            bool includeSnippets,
             CancellationToken cancellationToken,
             DateTime? lastTimestamp = null,
             int? lastId = null)
@@ -71,12 +72,10 @@ namespace Cliptoo.Core.Database
 
             try
             {
-                return await FetchClipsInternalAsync(limit, offset, searchTerm, filterType, tagSearchPrefix, cancellationToken, lastTimestamp, lastId).ConfigureAwait(false);
+                return await FetchClipsInternalAsync(limit, offset, searchTerm, filterType, tagSearchPrefix, includeSnippets, cancellationToken, lastTimestamp, lastId).ConfigureAwait(false);
             }
             catch (SqliteException ex) when (ex.SqliteErrorCode == 1 && !string.IsNullOrEmpty(searchTerm))
             {
-                // Error 1 with an active search term usually indicates an FTS5 syntax error (e.g. invalid use of '*', ':', or '^').
-                // We fallback to a "clean" alphanumeric-only version of the search term to ensure the app doesn't crash.
                 LogManager.LogWarning($"FTS5 Search Syntax Error for term '{searchTerm}'. Retrying with alphanumeric-only term. Error: {ex.Message}");
 
                 var cleanSearchTerm = System.Text.RegularExpressions.Regex.Replace(searchTerm, @"[^\w\s]", " ").Trim();
@@ -85,7 +84,7 @@ namespace Cliptoo.Core.Database
                     return new List<Clip>();
                 }
 
-                return await FetchClipsInternalAsync(limit, offset, cleanSearchTerm, filterType, tagSearchPrefix, cancellationToken, lastTimestamp, lastId).ConfigureAwait(false);
+                return await FetchClipsInternalAsync(limit, offset, cleanSearchTerm, filterType, tagSearchPrefix, includeSnippets, cancellationToken, lastTimestamp, lastId).ConfigureAwait(false);
             }
         }
 
@@ -95,6 +94,7 @@ namespace Cliptoo.Core.Database
             string searchTerm,
             string filterType,
             string tagSearchPrefix,
+            bool includeSnippets,
             CancellationToken cancellationToken,
             DateTime? lastTimestamp = null,
             int? lastId = null)
@@ -107,7 +107,7 @@ namespace Cliptoo.Core.Database
                 connection = await GetOpenConnectionAsync().ConfigureAwait(false);
                 using var command = connection.CreateCommand();
 
-                ClipQueryBuilder.BuildGetClipsQuery(command, limit, offset, searchTerm, filterType, tagSearchPrefix, lastTimestamp, lastId);
+                ClipQueryBuilder.BuildGetClipsQuery(command, limit, offset, searchTerm, filterType, tagSearchPrefix, includeSnippets, lastTimestamp, lastId);
 
                 reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
 

@@ -25,6 +25,7 @@ namespace Cliptoo.Core.Database
             string searchTerm,
             string filterType,
             string tagSearchPrefix,
+            bool includeSnippets,
             DateTime? lastTimestamp = null,
             int? lastId = null)
         {
@@ -59,7 +60,7 @@ namespace Cliptoo.Core.Database
 
                 if (sanitizedTerms.Count > 0)
                 {
-                    BuildSearchQuery(queryBuilder, command, sanitizedTerms, isTagSearch);
+                    BuildSearchQuery(queryBuilder, command, sanitizedTerms, isTagSearch, includeSnippets);
                     whereConditions.Add("clips_fts MATCH @FtsSearchTerm");
                 }
                 else
@@ -106,6 +107,26 @@ namespace Cliptoo.Core.Database
             }
         }
 
+        private static void BuildSearchQuery(StringBuilder queryBuilder, SqliteCommand command, List<string> sanitizedTerms, bool isTagSearch, bool includeSnippets)
+        {
+            var ftsQuery = string.Join(" ", sanitizedTerms.Select(term =>
+                term.StartsWith('"') && term.EndsWith('"') ? term : $"{term}*"));
+
+            if (isTagSearch) ftsQuery = $"Tags : ({ftsQuery})";
+            command.Parameters.AddWithValue("@FtsSearchTerm", ftsQuery);
+
+            string snippetColumn = includeSnippets
+                ? "snippet(clips_fts, 0, '[HL]', '[/HL]', '...', 60) as MatchContext,"
+                : "NULL AS MatchContext,";
+
+            queryBuilder.Append("SELECT ")
+                        .Append(Columns)
+                        .Append(", ")
+                        .Append(snippetColumn)
+                        .Append(" (c.PasteCount + 1.0) / (MAX(0.0, (julianday('now') - julianday(c.Timestamp)) * 24.0) + 2.0) AS Hotness ")
+                        .Append("FROM clips c JOIN clips_fts ON c.Id = clips_fts.rowid ");
+        }
+
         private static string SanitizeFtsSearchTerm(string term)
         {
             if (string.IsNullOrWhiteSpace(term)) return string.Empty;
@@ -123,21 +144,6 @@ namespace Cliptoo.Core.Database
         {
             var upperTerm = term.ToUpperInvariant();
             return upperTerm is "AND" or "OR" or "NOT" or "NEAR";
-        }
-
-        private static void BuildSearchQuery(StringBuilder queryBuilder, SqliteCommand command, List<string> sanitizedTerms, bool isTagSearch)
-        {
-            var ftsQuery = string.Join(" ", sanitizedTerms.Select(term =>
-                term.StartsWith('"') && term.EndsWith('"') ? term : $"{term}*"));
-
-            if (isTagSearch) ftsQuery = $"Tags : ({ftsQuery})";
-            command.Parameters.AddWithValue("@FtsSearchTerm", ftsQuery);
-
-            queryBuilder.Append("SELECT ")
-                        .Append(Columns)
-                        .Append(", snippet(clips_fts, 0, '[HL]', '[/HL]', '...',60) as MatchContext,")
-                        .Append(" (c.PasteCount + 1.0) / (MAX(0.0, (julianday('now') - julianday(c.Timestamp)) * 24.0) + 2.0) AS Hotness ")
-                        .Append("FROM clips c JOIN clips_fts ON c.Id = clips_fts.rowid ");
         }
 
         private static void BuildDefaultQuery(StringBuilder queryBuilder)

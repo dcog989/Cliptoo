@@ -29,11 +29,12 @@ namespace Cliptoo.Core.Services
             string searchTerm = "",
             string filterType = "all",
             string tagSearchPrefix = "##",
+            bool includeSnippets = true,
             CancellationToken cancellationToken = default,
             DateTime? lastTimestamp = null,
             int? lastId = null)
         {
-            return _dbManager.GetClipsAsync(limit, offset, searchTerm, filterType, tagSearchPrefix, cancellationToken, lastTimestamp, lastId);
+            return _dbManager.GetClipsAsync(limit, offset, searchTerm, filterType, tagSearchPrefix, includeSnippets, cancellationToken, lastTimestamp, lastId);
         }
 
         public Task<Clip?> GetClipByIdAsync(int id)
