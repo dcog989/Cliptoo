@@ -266,6 +266,25 @@ namespace Cliptoo.UI.ViewModels
             bool isSearching = !string.IsNullOrEmpty(searchTerm);
             const string startTag = "[HL]";
             const string endTag = "[/HL]";
+
+            // Extract valid word tokens for regex highlighting, similar to how FTS tokenizes.
+            // This ensures searching for "color:" highlights "color".
+            var searchPrefix = CurrentSettings.TagSearchPrefix;
+            string processedSearchTerm = searchTerm;
+            if (isSearching && searchTerm.StartsWith(searchPrefix, StringComparison.Ordinal))
+            {
+                processedSearchTerm = searchTerm.Substring(searchPrefix.Length);
+            }
+
+            var highlightTerms = isSearching
+                ? System.Text.RegularExpressions.Regex.Matches(processedSearchTerm, @"\w+")
+                    .Cast<System.Text.RegularExpressions.Match>()
+                    .Select(m => m.Value)
+                    .Where(v => v.Length > 0)
+                    .Distinct()
+                    .ToList()
+                : new List<string>();
+
             if (isSearching && !string.IsNullOrWhiteSpace(_clip.MatchContext) && _clip.MatchContext.Contains(startTag, StringComparison.Ordinal))
             {
                 string context = _clip.MatchContext.ReplaceLineEndings(" ");
@@ -292,18 +311,11 @@ namespace Cliptoo.UI.ViewModels
                 int visibleLength = Math.Max(0, visibleEnd - visibleStart);
                 basePreview = contextWithoutTags.Substring(visibleStart, visibleLength);
 
-                var terms = searchTerm.Split(_spaceSeparator, StringSplitOptions.RemoveEmptyEntries);
-                var searchPrefix = CurrentSettings.TagSearchPrefix;
-                if (searchTerm.StartsWith(searchPrefix, StringComparison.Ordinal))
-                {
-                    terms = searchTerm.Substring(searchPrefix.Length).Split(_spaceSeparator, StringSplitOptions.RemoveEmptyEntries);
-                }
-
-                foreach (var term in terms)
+                foreach (var term in highlightTerms)
                 {
                     try
                     {
-                        basePreview = System.Text.RegularExpressions.Regex.Replace(basePreview, System.Text.RegularExpressions.Regex.Escape(term), "[HL]$0[/HL]", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                        basePreview = System.Text.RegularExpressions.Regex.Replace(basePreview, $@"\b{System.Text.RegularExpressions.Regex.Escape(term)}", "[HL]$0[/HL]", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
                     }
                     catch (ArgumentException) { }
                 }
@@ -329,13 +341,7 @@ namespace Cliptoo.UI.ViewModels
 
                 if (isSearching)
                 {
-                    var terms = searchTerm.Split(_spaceSeparator, StringSplitOptions.RemoveEmptyEntries);
-                    var searchPrefix = CurrentSettings.TagSearchPrefix;
-                    if (searchTerm.StartsWith(searchPrefix, StringComparison.Ordinal))
-                    {
-                        terms = searchTerm.Substring(searchPrefix.Length).Split(_spaceSeparator, StringSplitOptions.RemoveEmptyEntries);
-                    }
-                    foreach (var term in terms)
+                    foreach (var term in highlightTerms)
                     {
                         try
                         {
