@@ -23,6 +23,7 @@ namespace Cliptoo.UI.ViewModels
         private readonly IEventAggregator _eventAggregator;
         private readonly IComparisonStateService _comparisonStateService;
         private readonly IPreviewManager _previewManager;
+        private readonly IFontProvider _fontProvider;
         private readonly ClipViewModelDetails _details;
         private bool _isFavorite;
         private int _index;
@@ -33,8 +34,13 @@ namespace Cliptoo.UI.ViewModels
 
         public ISettingsService SettingsService { get; }
         public IUiSharedResources SharedResources { get; }
-        public FontFamily MainFont { get; }
-        public FontFamily PreviewFont { get; }
+
+        private FontFamily _mainFont = null!;
+        public FontFamily MainFont { get => _mainFont; private set => SetProperty(ref _mainFont, value); }
+
+        private FontFamily _previewFont = null!;
+        public FontFamily PreviewFont { get => _previewFont; private set => SetProperty(ref _previewFont, value); }
+
         public Settings CurrentSettings => SettingsService.Settings;
 
         public int Id => _clip.Id;
@@ -125,8 +131,9 @@ namespace Cliptoo.UI.ViewModels
             SettingsService = settingsService;
             SharedResources = sharedResources;
             _previewManager = previewManager;
-            MainFont = fontProvider.GetFont(CurrentSettings.FontFamily);
-            PreviewFont = fontProvider.GetFont(CurrentSettings.PreviewFontFamily);
+            _fontProvider = fontProvider;
+            _mainFont = fontProvider.GetFont(CurrentSettings.FontFamily);
+            _previewFont = fontProvider.GetFont(CurrentSettings.PreviewFontFamily);
 
             ToggleFavoriteCommand = new RelayCommand(_ => _eventAggregator.Publish(new ClipFavoriteToggled(Id, !IsFavorite)));
             DeleteCommand = new RelayCommand(_ => _eventAggregator.Publish(new ClipDeletionRequested(Id)));
@@ -147,6 +154,30 @@ namespace Cliptoo.UI.ViewModels
                     _eventAggregator.Publish(new ClipTransformAndPasteRequested(Id, transformType));
                 }
             });
+
+            CurrentSettings.PropertyChanged += CurrentSettings_PropertyChanged;
+        }
+
+        private void CurrentSettings_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            switch (e.PropertyName)
+            {
+                case nameof(Settings.FontFamily):
+                    MainFont = _fontProvider.GetFont(CurrentSettings.FontFamily);
+                    break;
+                case nameof(Settings.PreviewFontFamily):
+                    PreviewFont = _fontProvider.GetFont(CurrentSettings.PreviewFontFamily);
+                    break;
+                case nameof(Settings.AccentColor):
+                case nameof(Settings.AccentChromaLevel):
+                    NotifyAccentColorChanged();
+                    break;
+            }
+        }
+
+        public void NotifyAccentColorChanged()
+        {
+            if (Index > 0) _ = _details.LoadQuickPasteIconAsync();
         }
 
         public ImageSource? ThumbnailSource => _details.ThumbnailSource;
@@ -342,6 +373,7 @@ namespace Cliptoo.UI.ViewModels
             {
                 if (disposing)
                 {
+                    CurrentSettings.PropertyChanged -= CurrentSettings_PropertyChanged;
                     _details.PropertyChanged -= OnDetailsPropertyChanged;
                     _details.Dispose();
                 }

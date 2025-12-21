@@ -2,7 +2,7 @@ using System.Windows;
 
 namespace Cliptoo.UI.Services
 {
-    internal interface IThemeService
+    public interface IThemeService
     {
         void Initialize(Window window);
         void ApplyThemeFromSettings();

@@ -172,8 +172,8 @@ namespace Cliptoo.UI.ViewModels
             {
                 if (SetProperty(ref _accentHue, value))
                 {
-                    _themeService.ApplyAccentColor(value);
-                    AccentBrush = (SolidColorBrush)Application.Current.Resources["AccentBrush"];
+                    _accentHueDebounceTimer.Stop();
+                    _accentHueDebounceTimer.Start();
                 }
             }
         }

@@ -1,17 +1,19 @@
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Xml;
 using Cliptoo.Core;
+using Cliptoo.Core.Configuration;
 using Cliptoo.Core.Interfaces;
 using Cliptoo.Core.Services;
 using Cliptoo.UI.Services;
 using Cliptoo.UI.ViewModels.Base;
 using ICSharpCode.AvalonEdit.Highlighting;
 using ICSharpCode.AvalonEdit.Highlighting.Xshd;
-using System.Xml;
-using Wpf.Ui.Appearance;
 using Microsoft.Data.Sqlite;
 using Wpf.Ui;
+using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
 using IThemeService = Cliptoo.UI.Services.IThemeService;
 
@@ -24,8 +26,7 @@ namespace Cliptoo.UI.ViewModels
         private readonly ISyntaxHighlighter _syntaxHighlighter;
         private readonly IContentDialogService _contentDialogService;
         private readonly IThemeService _themeService;
-        private readonly FontFamily _editorFontFamily;
-        private readonly double _editorFontSize;
+        private readonly IFontProvider _fontProvider;
         private string _originalClipType = string.Empty;
         private string _documentContent = string.Empty;
         private string _clipInfo = string.Empty;
@@ -34,6 +35,12 @@ namespace Cliptoo.UI.ViewModels
         private string _originalTags = string.Empty;
         private Core.Database.Models.Clip? _loadedClip;
         private bool _disposedValue;
+
+        private FontFamily _editorFontFamily = null!;
+        public FontFamily EditorFontFamily { get => _editorFontFamily; private set => SetProperty(ref _editorFontFamily, value); }
+
+        private double _editorFontSize;
+        public double EditorFontSize { get => _editorFontSize; private set => SetProperty(ref _editorFontSize, value); }
 
         public event EventHandler? OnRequestClose;
         public event EventHandler? OnClipUpdated;
@@ -56,10 +63,6 @@ namespace Cliptoo.UI.ViewModels
         public IHighlightingDefinition? SyntaxHighlighting { get; private set; }
         public ISettingsService SettingsService { get; }
 
-        public FontFamily EditorFontFamily => _editorFontFamily;
-
-        public double EditorFontSize => _editorFontSize;
-
         public ICommand SaveChangesCommand { get; }
         public ICommand CancelCommand { get; }
 
@@ -75,6 +78,7 @@ namespace Cliptoo.UI.ViewModels
             _clipId = clipId;
             _clipDataService = clipDataService;
             SettingsService = settingsService;
+            _fontProvider = fontProvider;
             _syntaxHighlighter = syntaxHighlighter;
             _contentDialogService = contentDialogService;
             _themeService = themeService;
@@ -84,9 +88,11 @@ namespace Cliptoo.UI.ViewModels
 
             var settings = SettingsService.Settings;
             _editorFontSize = settings.PreviewFontSize;
-            _editorFontFamily = fontProvider.GetFont(settings.PreviewFontFamily);
+            _editorFontFamily = _fontProvider.GetFont(settings.PreviewFontFamily);
 
             _themeService.ThemeChanged += OnThemeChanged;
+            SettingsService.Settings.PropertyChanged += OnSettingsPropertyChanged;
+
             _ = LoadClipAsync();
         }
 
@@ -95,6 +101,20 @@ namespace Cliptoo.UI.ViewModels
             if (_loadedClip is not null)
             {
                 LoadSyntaxHighlighting(_loadedClip);
+            }
+        }
+
+        private void OnSettingsPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            var settings = SettingsService.Settings;
+            switch (e.PropertyName)
+            {
+                case nameof(Settings.PreviewFontFamily):
+                    EditorFontFamily = _fontProvider.GetFont(settings.PreviewFontFamily);
+                    break;
+                case nameof(Settings.PreviewFontSize):
+                    EditorFontSize = settings.PreviewFontSize;
+                    break;
             }
         }
 
@@ -112,7 +132,7 @@ namespace Cliptoo.UI.ViewModels
             string? contentForInfo;
             if (_originalClipType == AppConstants.ClipTypeRtf)
             {
-                contentForInfo = RtfUtils.ToPlainText(_loadedClip.Content ?? string.Empty);
+                contentForInfo = Cliptoo.UI.Helpers.RtfUtils.ToPlainText(_loadedClip.Content ?? string.Empty);
             }
             else
             {
@@ -161,18 +181,15 @@ namespace Cliptoo.UI.ViewModels
                         using var reader = new XmlTextReader(stream);
                         highlighting = HighlightingLoader.Load(reader, HighlightingManager.Instance);
                     }
-                    // If dark theme fails to load, fall back to default C# highlighting
                     SyntaxHighlighting = highlighting ?? HighlightingManager.Instance.GetDefinition(definitionName);
                 }
                 else
                 {
-                    // Disable highlighting for other languages in dark mode to avoid bad default colors.
                     SyntaxHighlighting = null;
                 }
             }
             else
             {
-                // Light theme uses default highlighting
                 SyntaxHighlighting = HighlightingManager.Instance.GetDefinition(definitionName);
             }
             OnPropertyChanged(nameof(SyntaxHighlighting));
@@ -202,7 +219,7 @@ namespace Cliptoo.UI.ViewModels
                 }
                 OnRequestClose?.Invoke(this, EventArgs.Empty);
             }
-            catch (SqliteException ex) when (ex.SqliteErrorCode == 19 && ex.Message.Contains("ContentHash", StringComparison.Ordinal)) // UNIQUE constraint failed
+            catch (SqliteException ex) when (ex.SqliteErrorCode == 19 && ex.Message.Contains("ContentHash", StringComparison.Ordinal))
             {
                 var dialog = new ContentDialog
                 {
@@ -221,6 +238,7 @@ namespace Cliptoo.UI.ViewModels
                 if (disposing)
                 {
                     _themeService.ThemeChanged -= OnThemeChanged;
+                    SettingsService.Settings.PropertyChanged -= OnSettingsPropertyChanged;
                 }
 
                 _disposedValue = true;

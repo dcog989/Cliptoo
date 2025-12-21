@@ -53,6 +53,8 @@ namespace Cliptoo.UI.ViewModels
         public static Uri GitHubUrl { get; } = new("https://github.com/dcgog989/Cliptoo");
         public ObservableCollection<SendToTarget> SendToTargets => Settings.SendToTargets;
 
+        private readonly System.Timers.Timer _accentHueDebounceTimer;
+
         public SettingsViewModel(IDatabaseService databaseService, ISettingsService settingsService, IContentDialogService contentDialogService, IStartupManagerService startupManagerService, IServiceProvider serviceProvider, IFontProvider fontProvider, IIconProvider iconProvider, Cliptoo.UI.Services.IThemeService themeService, IEventAggregator eventAggregator, IDialogService dialogService, IProcessService processService)
         {
             _databaseService = databaseService;
@@ -69,9 +71,6 @@ namespace Cliptoo.UI.ViewModels
             Settings = _settingsService.Settings;
             Settings.PropertyChanged += OnSettingsPropertyChanged;
 
-            // Sync the setting with the actual registry state.
-            // If the registry key exists, the setting should be true.
-            // If we update the property here, OnSettingsPropertyChanged will fire and enforce the registry key (self-healing path).
             var isActuallyEnabled = _startupManagerService.IsStartupEnabled();
             if (Settings.StartWithWindows != isActuallyEnabled)
             {
@@ -79,7 +78,6 @@ namespace Cliptoo.UI.ViewModels
             }
             else if (Settings.StartWithWindows)
             {
-                // Even if they match and are true, ensure the registry path is correct (e.g. after an update or move).
                 _startupManagerService.SetStartup(true);
             }
 
@@ -94,6 +92,17 @@ namespace Cliptoo.UI.ViewModels
 
             ExePathDir = Path.GetDirectoryName(exePath) ?? "Not available";
             ExePathFile = Path.GetFileName(exePath);
+
+            _accentHueDebounceTimer = new System.Timers.Timer(50);
+            _accentHueDebounceTimer.AutoReset = false;
+            _accentHueDebounceTimer.Elapsed += (s, e) =>
+            {
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    _themeService.ApplyAccentColor(_accentHue);
+                    AccentBrush = (SolidColorBrush)Application.Current.Resources["AccentBrush"];
+                });
+            };
 
             SaveSettingsCommand = new RelayCommand(_ => SyncAndSaveSettings());
             ClearHistoryCommand = new RelayCommand(async _ => await HandleClearHistory(), _ => !IsBusy);

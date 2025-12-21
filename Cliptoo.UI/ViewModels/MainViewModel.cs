@@ -36,6 +36,7 @@ namespace Cliptoo.UI.ViewModels
         private readonly IEventAggregator _eventAggregator;
         private readonly IListViewInteractionService _listViewInteractionService;
         private readonly IClipViewModelFactory _clipViewModelFactory;
+        private readonly Cliptoo.UI.Services.IThemeService _themeService;
         private bool _isAlwaysOnTop;
         private Settings _currentSettings;
         private bool _isFilterPopupOpen;
@@ -48,7 +49,7 @@ namespace Cliptoo.UI.ViewModels
         private FontFamily _previewFont;
         private int _selectedIndex;
         private bool _isPasting;
-        private bool _isReadyForEvents; // Start false, ApplicationHostService will set it to true.
+        private bool _isReadyForEvents;
         public bool IsReadyForEvents { get => _isReadyForEvents; set => _isReadyForEvents = value; }
         public event EventHandler<BoolEventArgs>? AlwaysOnTopChanged;
         private bool _requestScrollToTop;
@@ -167,7 +168,8 @@ namespace Cliptoo.UI.ViewModels
             IUiSharedResources uiSharedResources,
             IEventAggregator eventAggregator,
             IListViewInteractionService listViewInteractionService,
-            IClipViewModelFactory clipViewModelFactory)
+            IClipViewModelFactory clipViewModelFactory,
+            Cliptoo.UI.Services.IThemeService themeService)
         {
             _clipDataService = clipDataService;
             _clipboardService = clipboardService;
@@ -185,6 +187,7 @@ namespace Cliptoo.UI.ViewModels
             _eventAggregator = eventAggregator;
             _listViewInteractionService = listViewInteractionService;
             _clipViewModelFactory = clipViewModelFactory;
+            _themeService = themeService;
 
             _currentSettings = _settingsService.Settings;
             _currentSettings.PropertyChanged += CurrentSettings_PropertyChanged;
@@ -253,7 +256,7 @@ namespace Cliptoo.UI.ViewModels
             });
         }
 
-        private void CurrentSettings_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+        private async void CurrentSettings_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
         {
             switch (e.PropertyName)
             {
@@ -273,6 +276,15 @@ namespace Cliptoo.UI.ViewModels
                 case nameof(Settings.WindowWidth):
                 case nameof(Settings.FontSize):
                     UpdateMaxPreviewLength();
+                    break;
+                case nameof(Settings.AccentColor):
+                case nameof(Settings.AccentChromaLevel):
+                    _themeService.ApplyThemeFromSettings();
+                    await SharedResources.InitializeAsync();
+                    foreach (var clip in Clips)
+                    {
+                        clip.NotifyAccentColorChanged();
+                    }
                     break;
             }
         }
