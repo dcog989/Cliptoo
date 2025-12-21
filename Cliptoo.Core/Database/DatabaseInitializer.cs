@@ -8,7 +8,7 @@ namespace Cliptoo.Core.Database
 {
     public class DatabaseInitializer : RepositoryBase, IDatabaseInitializer
     {
-        private const int CurrentDbVersion = 7;
+        private const int CurrentDbVersion = 8;
         public DatabaseInitializer(string dbPath, IDatabaseLockProvider lockProvider) : base(dbPath, lockProvider) { }
 
         [SuppressMessage("Microsoft.Security", "CA2100:Review SQL queries for security vulnerabilities", Justification = "PRAGMA user_version is a hardcoded value, not user input.")]
@@ -67,7 +67,9 @@ namespace Cliptoo.Core.Database
                             INSERT INTO clips_fts(clips_fts, rowid, Content, Tags) VALUES ('delete', old.Id, old.Content, old.Tags);
                         END;
 
-                        CREATE TRIGGER clips_au AFTER UPDATE ON clips BEGIN
+                        // Optimized: Only re-index when searchable content actually changes.
+                        // Metadata updates (PasteCount, IsFavorite, Timestamp) will no longer trigger FTS re-indexing.
+                        CREATE TRIGGER clips_au AFTER UPDATE OF Content, Tags ON clips BEGIN
                             INSERT INTO clips_fts(clips_fts, rowid, Content, Tags) VALUES ('delete', old.Id, old.Content, old.Tags);
                             INSERT INTO clips_fts(rowid, Content, Tags) VALUES (new.Id, new.Content, new.Tags);
                         END;
@@ -295,6 +297,25 @@ namespace Cliptoo.Core.Database
                     cmd.Transaction = transaction;
                     cmd.CommandText = "CREATE INDEX IF NOT EXISTS idx_clips_cliptype ON clips(ClipType);";
                     await cmd.ExecuteNonQueryAsync(CancellationToken.None).ConfigureAwait(false);
+                }
+
+                if (fromVersion < 8)
+                {
+                    var cmds = new[]
+                    {
+                        "DROP TRIGGER IF EXISTS clips_au;",
+                        @"CREATE TRIGGER clips_au AFTER UPDATE OF Content, Tags ON clips BEGIN
+                            INSERT INTO clips_fts(clips_fts, rowid, Content, Tags) VALUES ('delete', old.Id, old.Content, old.Tags);
+                            INSERT INTO clips_fts(rowid, Content, Tags) VALUES (new.Id, new.Content, new.Tags);
+                        END;"
+                    };
+                    foreach (var cmdText in cmds)
+                    {
+                        var cmd = connection.CreateCommand();
+                        cmd.Transaction = transaction;
+                        cmd.CommandText = cmdText;
+                        await cmd.ExecuteNonQueryAsync(CancellationToken.None).ConfigureAwait(false);
+                    }
                 }
 
                 await transaction.CommitAsync().ConfigureAwait(false);
