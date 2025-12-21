@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Cliptoo.Core.Interfaces;
 using Cliptoo.Core.Logging;
@@ -28,6 +29,7 @@ namespace Cliptoo.Core
         private readonly IAppInteractionService _appInteractionService;
         private readonly System.Timers.Timer _cleanupTimer;
         private readonly string _clipboardImageCachePath;
+        private readonly SemaphoreSlim _clipboardLock = new(1, 1);
         private bool _isInitialized;
         private const double MaintenanceThresholdMultiplier = 1.2;
 
@@ -135,6 +137,7 @@ namespace Cliptoo.Core
         {
             Task.Run(async () =>
             {
+                await _clipboardLock.WaitAsync().ConfigureAwait(false);
                 try
                 {
                     await ProcessClipboardChange(e).ConfigureAwait(false);
@@ -143,6 +146,10 @@ namespace Cliptoo.Core
                 {
                     LogManager.LogCritical(ex, "Error in ProcessClipboardChange. The operation will be skipped, but the application will continue.");
                     ProcessingFailed?.Invoke(this, new ProcessingFailedEventArgs("Failed to Save Clip", "Could not process and save the latest clipboard item. See logs for details."));
+                }
+                finally
+                {
+                    _clipboardLock.Release();
                 }
             });
         }
@@ -344,6 +351,7 @@ namespace Cliptoo.Core
                 _fileTypeClassifier.FileTypesChanged -= OnFileTypesChanged;
                 ClipboardMonitor.ClipboardChanged -= OnClipboardChangedAsync;
                 ClipboardMonitor.Dispose();
+                _clipboardLock.Dispose();
             }
         }
     }
