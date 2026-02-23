@@ -3,6 +3,7 @@
 .archive/
 .assets/
 .config/
+.context/
 .docs/
 .git/
 .repomixignore
