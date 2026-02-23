@@ -16,7 +16,7 @@ namespace Cliptoo.UI.Converters
 
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            if (value is not string colorString || colorString.Length > 50) return Brushes.Transparent;
+            if (value is not string colorString || colorString.Length > 100) return Brushes.Transparent;
 
             string normalizedColor = colorString.Trim();
 
@@ -53,7 +53,7 @@ namespace Cliptoo.UI.Converters
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            if (value is not string colorString || colorString.Length > 50) return Visibility.Collapsed;
+            if (value is not string colorString || colorString.Length > 100) return Visibility.Collapsed;
 
             if (ColorParser.TryParseColor(colorString, out var colorData) && colorData != null)
             {
