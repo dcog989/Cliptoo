@@ -10,7 +10,7 @@ license.workspace = true
 cliptoo-core = { path = "../core" }
 futures.workspace = true
 image.workspace = true
-i-slint-backend-qt = "1.16"
+i-slint-backend-qt = "1.17"
 ksni = "0.3"
 lru.workspace = true
 tokio.workspace = true
