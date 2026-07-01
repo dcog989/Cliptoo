@@ -1,0 +1,500 @@
+// AppWindow.slint — Root component
+// Imports all sub-components and manages global UI state.
+
+import { ClipList }        from "ClipList.slint";
+import { Toolbar }        from "Toolbar.slint";
+import { FilterGrid }      from "FilterGrid.slint";
+import { PreviewTooltip }  from "PreviewTooltip.slint";
+import { Theme }           from "Theme.slint";
+import { ClipData }        from "ClipData.slint";
+import { EditWindow }      from "EditWindow.slint";
+import { SettingsWindow }  from "SettingsWindow.slint";
+import { HamburgerMenu }   from "HamburgerMenu.slint";
+import { ContextMenu }     from "ContextMenu.slint";
+import { ToastNotification } from "ToastNotification.slint";
+export { Theme, SettingsWindow, EditWindow }
+
+// ── Main window ───────────────────────────────────────────────────────────────
+
+export component AppWindow inherits Window {
+    forward-focus: focus-scope;
+    title: "Cliptoo";
+    no-frame: true;
+
+    // Window size — persisted across restarts, overridden from Rust at startup.
+    // One-way binding: width/height follow stored-*.
+    // Rust reads window().size() on close to persist user resize.
+    in-out property <length> stored-width: 460px;
+    in-out property <length> stored-height: 600px;
+    width: stored-width;
+    height: stored-height;
+
+    // ── Callbacks (bridged to Rust) ───────────────────────────────────────────
+    callback search-changed(string);
+    callback search-backspace();
+
+    callback filter-changed(string);   // "all" | "bookmarked" | "text" | "link" | "file_image" | "color" | "code_snippet" | "folder" | "file_audio" | "file_video" | "file_archive" | "file_document" | "file_database" | "file_font" | "rtf" | "file"
+    callback item-activated(int);      // paste item with given id
+    callback item-right-clicked(int, float, float, bool, string);  // id, x, y, is-bookmarked, clip-type
+    callback request-preview(int, float, float);  // id, x, y
+    callback dismiss-preview();
+    callback close-window();           // ESC pressed
+    callback blur-closed();            // window lost focus
+    callback drag-started();               // window drag started
+    callback drag-ended();                 // window drag ended (pointer released)
+    callback resize-start();               // window resize started (pointer down)
+    callback resize-delta(float, float);   // window resize delta from press point
+    callback resize-ended();               // window resize ended (pointer up)
+    // ── Hamburger menu callbacks ─────────────────────────────
+    callback menu-settings();
+    callback menu-about();
+    callback menu-close-to-tray();
+    // Phase-5 callbacks
+    callback transform-clip(int, string);       // id, transform key
+    callback send-to-clip(int, string);         // id, app_path (or name)
+    callback compare-set-left(int);             // remember id as compare-left
+    callback compare-right(int);               // diff compare-left vs id
+    callback maintenance-action(string);        // "clear-history" | "clear-caches" | "deadhead" | "reclassify" | "prune-oversized"
+    callback delete-clip(int);                 // delete clip by id
+    callback toggle-bookmark(int, bool);        // id, current is-bookmarked (Slint passes current state; Rust flips it)
+    callback move-to-top(int);                 // bump clip timestamp to top
+    callback move-to-bottom(int);              // send clip to bottom
+    callback move-up-one(int);                 // swap with clip above
+    callback move-down-one(int);               // swap with clip below
+    callback edit-clip(int);                   // open edit window for clip
+
+    // ── Properties set from Rust ──────────────────────────────────────────────
+    // Theme tokens are set directly via ui.global::<Theme>() in Rust.
+    // Components reference Theme.* and pick up the runtime values automatically.
+    background: Theme.bg-primary;
+    default-font-family: Theme.font-family;
+    default-font-size: Theme.font-size;
+    in property <[ClipData]> clips: [];
+    in property <bool> is-searching: false;
+    in-out property <bool> quick-paste-active: false;
+    property <int> quick-paste-slots: 9;
+    in-out property <bool> popup-just-closed: false;
+    // ── Toast notification ───────────────────────────────────────────
+    in-out property <bool>   toast-visible:   false;
+    in-out property <string> toast-message:   "";
+    in-out property <string> toast-severity:  "info";
+    // Guards blur-closed against focus-lost when any PopupWindow is open.
+    // Set true before show(); cleared in focus-lost.
+    in-out property <bool> popup-open: false;
+    // Mirrors toolbar.search-focused so Rust can read it in Timer-deferred
+    // blur-closed handler to detect intra-window focus transfers.
+    in-out property <bool> search-focused: toolbar.search-focused;
+    property <length> resize-handle-width: 5px;
+    in property <length> min-window-width: 320px;
+    in property <length> min-window-height: 240px;
+    property <length> toolbar-height: 48px;
+    property <length> hamburger-menu-width: 180px;
+    property <length> hamburger-menu-y-offset: 220px;
+    in-out property <string> active-filter: "all";
+    in-out property <int> selected-index: 0;  // forwarded to ClipList; reset by Rust on search/filter change
+    // search-text is owned jointly: Slint appends printable chars, Rust handles
+    // Backspace (via search-backspace callback) and resets on filter/search change.
+    in-out property <string> search-text: "";
+
+    // ── Context menu state ────────────────────────────────────────────────────
+    // Populated by Rust from settings.send_to_apps before each show().
+    in property <[string]> ctx-send-to-apps: [];
+    // Set from item-right-clicked before the popup opens.
+    property <int>    ctx-clip-id: 0;
+    property <bool>   ctx-clip-is-bookmarked: false;
+    property <string> ctx-clip-type: "text";
+    property <length> ctx-menu-x: 0px;
+    property <length> ctx-menu-y: 0px;
+    property <length> ctx-menu-width: 200px;
+    property <length> ctx-menu-row-height: 32px;
+    property <length> ctx-menu-sep-height: 9px;
+    property <bool> ctx-is-text-type:
+        root.ctx-clip-type == "text" || root.ctx-clip-type == "code_snippet" ||
+        root.ctx-clip-type == "rtf" || root.ctx-clip-type == "link";
+    // Computed from what's visible in the context menu's main view.
+    // Always-visible: 8 rows + 2 separators + 2×4px padding = 282px.
+    // +Format row (conditional), +Send To sep+row (conditional).
+    property <length> ctx-menu-height:
+        2 * 4px +
+        8 * root.ctx-menu-row-height + 2 * root.ctx-menu-sep-height +
+        (root.ctx-is-text-type ? root.ctx-menu-row-height : 0px) +
+        (root.ctx-send-to-apps.length > 0 ? root.ctx-menu-sep-height + root.ctx-menu-row-height : 0px);
+
+    // ── Preview shadow properties (set from Rust, bound to PreviewTooltip) ─────
+    in property <bool> preview-visible: false;
+    in property <image> preview-image;
+    in property <image> preview-favicon;
+    in property <string> preview-clip-type: "text";
+    in property <string> preview-text: "";
+    in property <color> preview-color: #888888;
+    in property <string> preview-web-title: "";
+    in property <string> preview-file-info: "";
+    in property <float> preview-popup-x: 0.0;
+    in property <float> preview-popup-y: 0.0;
+
+    // ── Layout ────────────────────────────────────────────────────────────────
+    //
+    //  ┌────────────────────────────────────────────────────────┐
+    //  │[1] clip list (infinite scroll, fills space)         [2]│
+    //  ├────────────────────────────────────────────────────────┤
+    //  │[3] [search field ............................] [4] [5] │  ← Toolbar
+    //  └────────────────────────────────────────────────────────┘
+    //  1 = clip type icon and conditional icon for clips with leading white space
+    //  2 = multi-line clip icon and / or bookmarked icon
+    //  3 = grab / drag icon
+    //  4 = current filter icon, click to popup filter list
+    //  5 = hamburger menu reveals list of icons for Settings, About, etc.
+
+    // Clipping background — rounds the window corners on the no-frame window.
+    clip-bg := Rectangle {
+        width: 100%;
+        height: 100%;
+        border-radius: Theme.border-radius;
+        clip: true;
+        background: transparent;
+
+        focus-scope := FocusScope {
+            key-pressed(e) => {
+                // Track Alt modifier for quick-paste overlay.
+                root.quick-paste-active = e.modifiers.alt;
+
+                // ── Navigation — always intercepted regardless of search state ──
+            if (e.text == Key.UpArrow) {
+                clip-list.nav-up();
+                return accept;
+            }
+            if (e.text == Key.DownArrow) {
+                clip-list.nav-down();
+                return accept;
+            }
+            if (e.text == Key.Home) {
+                clip-list.nav-home();
+                return accept;
+            }
+            if (e.text == Key.End) {
+                clip-list.nav-end();
+                return accept;
+            }
+            // ── ESC: clear search first, then close ──
+            if (e.text == Key.Escape) {
+                if (root.popup-open || root.popup-just-closed) {
+                    return accept;
+                }
+                if (root.search-text != "") {
+                    root.search-text = "";
+                    root.search-changed("");
+                } else {
+                    root.close-window();
+                }
+                return accept;
+            }
+
+            // ── Quick-paste: Alt + digit 1–9 ──
+            if (e.modifiers.alt && e.text >= "1" && e.text <= "\{root.quick-paste-slots}") {
+                if (e.text == "1" && root.clips.length > 0) { root.item-activated(root.clips[0].id); }
+                if (e.text == "2" && root.clips.length > 1) { root.item-activated(root.clips[1].id); }
+                if (e.text == "3" && root.clips.length > 2) { root.item-activated(root.clips[2].id); }
+                if (e.text == "4" && root.clips.length > 3) { root.item-activated(root.clips[3].id); }
+                if (e.text == "5" && root.clips.length > 4) { root.item-activated(root.clips[4].id); }
+                if (e.text == "6" && root.clips.length > 5) { root.item-activated(root.clips[5].id); }
+                if (e.text == "7" && root.clips.length > 6) { root.item-activated(root.clips[6].id); }
+                if (e.text == "8" && root.clips.length > 7) { root.item-activated(root.clips[7].id); }
+                if (e.text == "9" && root.clips.length > 8) { root.item-activated(root.clips[8].id); }
+                return accept;
+            }
+
+            // ── Text input — only handled when LineEdit is NOT focused ──
+            if (!toolbar.search-focused) {
+                if (e.text == Key.Return) {
+                    clip-list.activate();
+                    return accept;
+                }
+                if (e.text == Key.Backspace) {
+                    root.search-backspace();
+                    return accept;
+                }
+                if (e.text != "" && e.text != Key.Tab
+                        && !e.modifiers.alt && !e.modifiers.control && !e.modifiers.meta) {
+                    root.search-text += e.text;
+                    root.search-changed(root.search-text);
+                    return accept;
+                }
+            }
+
+            reject
+        }
+        key-released(e) => {
+            // Clear quick-paste overlay when Alt is released.
+            root.quick-paste-active = e.modifiers.alt;
+            reject
+        }
+        focus-lost => {
+            if (!root.popup-open && !root.popup-just-closed) {
+                root.blur-closed();
+            }
+            root.popup-open = false;
+        }
+
+        VerticalLayout {
+            padding: 0;
+            padding-bottom: 6px;
+            spacing: 0;
+
+            // Clip list — fills all available vertical space
+            clip-list := ClipList {
+                clips: root.clips;
+                quick-paste-active: root.quick-paste-active;
+                quick-paste-slots: root.quick-paste-slots;
+                is-searching: root.is-searching;
+                selected-index <=> root.selected-index;
+                horizontal-stretch: 1;
+                vertical-stretch: 1;
+                // Toolbar is at the bottom of the VerticalLayout, so the list
+                // top edge is at window Y=0 — no offset needed here.
+                list-offset-y: 0.0;
+
+                item-activated(id) => {
+                    root.item-activated(id);
+                }
+                item-right-clicked(id, x, y, bookmarked, ctype) => {
+                    root.ctx-clip-id = id;
+                    root.ctx-clip-is-bookmarked = bookmarked;
+                    root.ctx-clip-type = ctype;
+                    root.ctx-menu-x = Math.min(x * 1px, root.width - (root.ctx-menu-width + 4px));
+                    root.ctx-menu-y = Math.max(0px, Math.min(y * 1px, root.height - root.ctx-menu-height));
+                    root.popup-open = true;
+                    ctx-menu-popup.show();
+                }
+                request-preview(id, x, y) => {
+                    root.request-preview(id, x, y);
+                }
+                dismiss-preview => {
+                    root.dismiss-preview();
+                }
+            }
+
+            // Bottom bar: search + filter icon + hamburger menu
+            toolbar := Toolbar {
+                search-text <=> root.search-text;
+                search-changed(s) => { root.search-changed(s); }
+                accepted() => { clip-list.activate(); }
+                filter-changed(f) => {
+                    root.filter-changed(f);
+                }
+                toggle-filter-grid() => {
+                    root.popup-open = true;
+                    filter_popup.show();
+                }
+                menu-clicked() => {
+                    root.popup-open = true;
+                    hamburger_popup.show();
+                }
+                drag-started() => {
+                    root.drag-started();
+                }
+                drag-ended() => {
+                    root.drag-ended();
+                }
+                active-filter: root.active-filter;
+            }
+        }
+    }
+    }
+
+    // ── Context menu popup ────────────────────────────────────
+    ctx-menu-popup := PopupWindow {
+        forward-focus: focus-scope;
+        x: root.ctx-menu-x;
+        y: root.ctx-menu-y;
+        width: root.ctx-menu-width;
+        // Explicit height needed for Qt backend — PopupWindow won't render without it.
+        height: root.ctx-menu-height;
+        // Solid fill so any extra space below the menu content is not transparent.
+        Rectangle {
+            width: 100%;
+            height: 100%;
+            background: Theme.bg-header;
+        }
+        ContextMenu {
+            width: root.ctx-menu-width;
+            height: 100%;
+            clip-id: root.ctx-clip-id;
+            clip-is-bookmarked: root.ctx-clip-is-bookmarked;
+            clip-type: root.ctx-clip-type;
+            send-to-apps: root.ctx-send-to-apps;
+
+            preview => {
+                root.request-preview(root.ctx-clip-id, root.ctx-menu-x / 1px, root.ctx-menu-y / 1px);
+                ctx-menu-popup.close();
+            }
+            edit => {
+                root.edit-clip(root.ctx-clip-id);
+                ctx-menu-popup.close();
+            }
+            format(key) => {
+                root.transform-clip(root.ctx-clip-id, key);
+                ctx-menu-popup.close();
+            }
+            toggle-bookmark(id, current) => {
+                root.toggle-bookmark(id, current);
+                ctx-menu-popup.close();
+            }
+            move-to-top => {
+                root.move-to-top(root.ctx-clip-id);
+                ctx-menu-popup.close();
+            }
+            move-to-bottom => {
+                root.move-to-bottom(root.ctx-clip-id);
+                ctx-menu-popup.close();
+            }
+            move-up-one => {
+                root.move-up-one(root.ctx-clip-id);
+                ctx-menu-popup.close();
+            }
+            move-down-one => {
+                root.move-down-one(root.ctx-clip-id);
+                ctx-menu-popup.close();
+            }
+            send-to(app-name) => {
+                root.send-to-clip(root.ctx-clip-id, app-name);
+                ctx-menu-popup.close();
+            }
+            delete => {
+                root.delete-clip(root.ctx-clip-id);
+                ctx-menu-popup.close();
+            }
+        }
+    }
+
+    // ── Hamburger menu popup ────────────────────────────────
+    hamburger_popup := PopupWindow {
+        // Forward focus back to the main FocusScope. Without this, the popup
+        // steals focus on show() and the FocusScope's focus-lost → blur-closed
+        // chain hides the window the moment the user clicks the hamburger.
+        forward-focus: focus-scope;
+
+        x: root.width - (root.hamburger-menu-width + 10px);
+        y: root.height - root.hamburger-menu-y-offset;
+        width: root.hamburger-menu-width;
+
+        HamburgerMenu {
+            width: root.hamburger-menu-width;
+            menu-settings => { root.menu-settings(); root.popup-just-closed = true; hamburger_popup.close(); root.popup-just-closed = false; }
+            menu-about => { root.menu-about(); root.popup-just-closed = true; hamburger_popup.close(); root.popup-just-closed = false; }
+            menu-close-to-tray => { root.menu-close-to-tray(); root.popup-just-closed = true; hamburger_popup.close(); root.popup-just-closed = false; }
+        }
+    }
+
+    // ── Filter-grid popup ──────────────────────────────────
+    filter_popup := PopupWindow {
+        forward-focus: focus-scope;
+
+        x: root.width - 230px;
+        y: root.height - 48px - 172px;
+
+        FilterGrid {
+            active-filter: root.active-filter;
+            // Reset hover state each time the popup opens so the tooltip from
+            // the previous open cycle doesn't linger (no leave event fires when
+            // a PopupWindow closes without a selection being made).
+            hovered-index: -1;
+            filter-chosen(f) => {
+                root.active-filter = f;
+                root.filter-changed(f);
+                filter_popup.close();
+            }
+        }
+    }
+
+    // Preview tooltip overlay
+    preview_tooltip := PreviewTooltip {
+        visible-preview: root.preview-visible;
+        preview-image: root.preview-image;
+        preview-favicon: root.preview-favicon;
+        preview-clip-type: root.preview-clip-type;
+        preview-text: root.preview-text;
+        preview-color: root.preview-color;
+        preview-web-title: root.preview-web-title;
+        preview-file-info: root.preview-file-info;
+        popup-x: root.preview-popup-x;
+        popup-y: root.preview-popup-y;
+    }
+
+    // ── Toast notification overlay ────────────────────────────────────────
+    // Floated over the clip list, centered horizontally, 16px above the toolbar.
+    ToastNotification {
+        x: (root.width - self.width) / 2;
+        y: root.height - (root.toolbar-height + 12px) - self.height;
+        message:  root.toast-message;
+        severity: root.toast-severity;
+        active <=> root.toast-visible;
+        dismissed => { root.toast-visible = false; }
+    }
+
+    // ── Resize areas (edges + corner) ───────────────────────────────────
+    // Use absolute window-coordinate positions so the delta stays correct
+    // even when the handle rectangle moves under the cursor (which would
+    // invalidate the handle-relative mouse-x/pressed-x).
+    property <length> press-abs-x;
+    property <length> press-abs-y;
+
+    // Right-edge resize
+    resize-right := Rectangle {
+        x: root.width - root.resize-handle-width;
+        y: 0px;
+        width: root.resize-handle-width;
+        height: root.height;
+        right-touch := TouchArea {
+            mouse-cursor: MouseCursor.e-resize;
+            pointer-event(e) => {
+                if e.kind == PointerEventKind.down {
+                    press-abs-x = resize-right.x + right-touch.mouse-x;
+                    root.resize-start();
+                }
+                if e.kind == PointerEventKind.move && right-touch.pressed {
+                    root.resize-delta(
+                        ((resize-right.x + right-touch.mouse-x - press-abs-x) / 1px),
+                        0);
+                }
+                if e.kind == PointerEventKind.up {
+                    root.resize-ended();
+                }
+            }
+        }
+    }
+    // Bottom-edge resize
+    resize-bottom := Rectangle {
+        x: 0px;
+        y: root.height - root.resize-handle-width;
+        width: root.width;
+        height: root.resize-handle-width;
+        bottom-touch := TouchArea {
+            mouse-cursor: MouseCursor.s-resize;
+            pointer-event(e) => {
+                if e.kind == PointerEventKind.down {
+                    press-abs-y = resize-bottom.y + bottom-touch.mouse-y;
+                    root.resize-start();
+                }
+                if e.kind == PointerEventKind.move && bottom-touch.pressed {
+                    root.resize-delta(
+                        0,
+                        ((resize-bottom.y + bottom-touch.mouse-y - press-abs-y) / 1px));
+                }
+                if e.kind == PointerEventKind.up {
+                    root.resize-ended();
+                }
+            }
+        }
+    }
+    // Border overlay — 1px rounded stroke around the entire window, no TouchArea
+    Rectangle {
+        x: 0;
+        y: 0;
+        width: 100%;
+        height: 100%;
+        border-radius: Theme.border-radius;
+        border-width: 1px;
+        border-color: Theme.border-subtle;
+        background: transparent;
+    }
+}

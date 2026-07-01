@@ -1,0 +1,309 @@
+// SettingsWindow.slint — Tabbed settings interface.
+// Tabs: General | Visuals | External Apps | Data
+
+import { Theme } from "Theme.slint";
+import { SettingsTab, TextRow, IntRow, FloatRow, DropRow, ToggleRow } from "SettingsComponents.slint";
+
+export component SettingsWindow inherits Window {
+    title: "Cliptoo Settings";
+    width: 560px;
+    height: 520px;
+    background: Theme.bg-primary;
+    default-font-family: Theme.font-family;
+    default-font-size: Theme.font-size;
+
+    in-out property <int>    active-tab:             0;  // 0=General 1=Visuals 2=External Apps 3=Data
+
+    // General
+    in-out property <string> s-hotkey:               "Ctrl+Alt+Q";
+    in-out property <string> s-preview-hotkey:       "Ctrl+Alt+P";
+    in-out property <string> s-quick-paste-hotkey:   "Alt";
+    in-out property <int>    s-launch-position-idx:  0;  // Cursor/Center/TopLeft/TopRight/BottomLeft/BottomRight/Fixed
+    in-out property <bool>   s-start-with-system:    true;
+    in-out property <int>    s-log-level-idx:        1;  // Debug/Info/Warn/Error
+    in-out property <int>    s-log-retention-days:   14;
+
+    // Visuals
+    in-out property <int>    s-theme-idx:            0;  // System/Light/Dark
+    in-out property <int>    s-accent-hue:           250;
+    in-out property <int>    s-chroma-idx:           2;  // Neon/Vibrant/Mellow/Muted/Ditchwater
+    in-out property <string> s-font-family:          "Inter";
+    in-out property <int>    s-font-size-hundredths: 1300;  // 13.00 pt
+    in-out property <int>    s-preview-font-size-hundredths: 1200;
+    in-out property <int>    s-row-padding-idx:      1;  // Compact/Standard/Luxury
+    in-out property <int>    hover-delay:            400;
+    in-out property <int>    s-image-preview-size:   300;
+    in-out property <bool>   s-paste-as-plain-text:  false;
+
+    // External Apps
+    in-out property <string> s-diff-tool-path:       "";
+
+    // Data
+    in-out property <int>    s-max-clips:            10000;
+    in-out property <int>    s-max-age-days:         90;
+
+    callback setting-changed(string, string);
+    callback maintenance-action(string);
+
+    VerticalLayout {
+        padding: 0;
+        spacing: 0;
+
+        // Tab bar
+        Rectangle {
+            height: 40px;
+            background: Theme.bg-header;
+            HorizontalLayout {
+                padding-left: 12px;
+                spacing: 4px;
+                alignment: start;
+                for tab[i] in ["General", "Visuals", "External Apps", "Data"]: SettingsTab {
+                    label: tab;
+                    is-active: root.active-tab == i;
+                    clicked => { root.active-tab = i; }
+                }
+            }
+        }
+
+        // Tab content
+        VerticalLayout {
+            vertical-stretch: 1;
+            padding: 20px;
+            spacing: 0;
+
+            // ── General ───────────────────────────────────────────────────────
+            if root.active-tab == 0: VerticalLayout {
+                spacing: 12px;
+                TextRow {
+                    label: "Launch hotkey";
+                    value <=> root.s-hotkey;
+                    committed(v) => { root.setting-changed("hotkey", v); }
+                }
+                TextRow {
+                    label: "Preview hotkey";
+                    value <=> root.s-preview-hotkey;
+                    committed(v) => { root.setting-changed("preview_hotkey", v); }
+                }
+                TextRow {
+                    label: "Quick paste key";
+                    value <=> root.s-quick-paste-hotkey;
+                    committed(v) => { root.setting-changed("quick_paste_hotkey", v); }
+                }
+                DropRow {
+                    label: "Launch position";
+                    index <=> root.s-launch-position-idx;
+                    options: ["Cursor", "Center", "TopLeft", "TopRight", "BottomLeft", "BottomRight", "Fixed"];
+                    committed(v) => { root.setting-changed("launch_position", v); }
+                }
+                ToggleRow {
+                    label: "Start with system";
+                    value <=> root.s-start-with-system;
+                    committed(v) => { root.setting-changed("start_with_system", v ? "true" : "false"); }
+                }
+                DropRow {
+                    label: "Log level";
+                    index <=> root.s-log-level-idx;
+                    options: ["Debug", "Info", "Warn", "Error"];
+                    committed(v) => { root.setting-changed("logging_level", v); }
+                }
+                IntRow {
+                    label: "Log retention (days)";
+                    value <=> root.s-log-retention-days;
+                    min-val: 1;
+                    max-val: 365;
+                    step: 1;
+                    committed(v) => { root.setting-changed("log_retention_days", "\{v}"); }
+                }
+            }
+
+            // ── Visuals ───────────────────────────────────────────────────────
+            if root.active-tab == 1: VerticalLayout {
+                spacing: 12px;
+                DropRow {
+                    label: "Theme";
+                    index <=> root.s-theme-idx;
+                    options: ["System", "Light", "Dark"];
+                    committed(v) => { root.setting-changed("theme", v); }
+                }
+                IntRow {
+                    label: "Accent hue (0–360)";
+                    value <=> root.s-accent-hue;
+                    min-val: 0;
+                    max-val: 360;
+                    step: 5;
+                    committed(v) => { root.setting-changed("accent_hue", "\{v}"); }
+                }
+                DropRow {
+                    label: "Chroma level";
+                    index <=> root.s-chroma-idx;
+                    options: ["Neon", "Vibrant", "Mellow", "Muted", "Ditchwater"];
+                    committed(v) => { root.setting-changed("accent_chroma_level", v); }
+                }
+                TextRow {
+                    label: "Font family";
+                    value <=> root.s-font-family;
+                    committed(v) => { root.setting-changed("font_family", v); }
+                }
+                FloatRow {
+                    label: "Font size (pt)";
+                    value-hundredths <=> root.s-font-size-hundredths;
+                    min-hundredths: 800;
+                    max-hundredths: 2400;
+                    step-hundredths: 50;
+                    committed(v) => { root.setting-changed("font_size", "\{v}"); }
+                }
+                FloatRow {
+                    label: "Preview font size (pt)";
+                    value-hundredths <=> root.s-preview-font-size-hundredths;
+                    min-hundredths: 800;
+                    max-hundredths: 2400;
+                    step-hundredths: 50;
+                    committed(v) => { root.setting-changed("preview_font_size", "\{v}"); }
+                }
+                DropRow {
+                    label: "Row padding";
+                    index <=> root.s-row-padding-idx;
+                    options: ["Compact", "Standard", "Luxury"];
+                    committed(v) => { root.setting-changed("clip_item_padding", v); }
+                }
+                // Hover delay slider
+                HorizontalLayout {
+                    spacing: 12px;
+                    alignment: center;
+                    height: 32px;
+                    Text {
+                        width: 180px;
+                        text: "Hover delay";
+                        color: Theme.fg-primary;
+                        font-size: Theme.font-size;
+                        vertical-alignment: center;
+                    }
+                    Rectangle {
+                        horizontal-stretch: 1;
+                        height: 28px;
+                        border-radius: 5px;
+                        background: Theme.bg-input;
+                        HorizontalLayout {
+                            alignment: center;
+                            padding-left: 12px;
+                            padding-right: 8px;
+                            spacing: 8px;
+                            track := Rectangle {
+                                width: 140px;
+                                height: 6px;
+                                border-radius: 3px;
+                                background: #555;
+                                Rectangle {
+                                    width: 16px;
+                                    height: 16px;
+                                    border-radius: 8px;
+                                    background: Theme.accent-primary;
+                                    y: -5px;
+                                    x: Math.max(0px, Math.min(parent.width - 16px, (root.hover-delay * 1.0) / 2000.0 * parent.width));
+                                }
+                            }
+                            Text {
+                                text: root.hover-delay == 0 ? "Off" : "\{root.hover-delay} ms";
+                                color: Theme.fg-primary;
+                                font-size: Theme.font-size;
+                                vertical-alignment: center;
+                            }
+                        }
+                        touch := TouchArea {
+                            width: 140px;
+                            height: 28px;
+                            x: 12px;
+                            y: 0px;
+                            pointer-event(e) => {
+                                if (e.kind == PointerEventKind.down || (e.kind == PointerEventKind.move && self.pressed)) {
+                                    let raw = Math.round(touch.mouse-x / 140px * 2000 / 50) * 50;
+                                    root.hover-delay = Math.min(2000, Math.max(0, raw));
+                                    root.setting-changed("hover_preview_delay", "\{root.hover-delay}");
+                                }
+                            }
+                            mouse-cursor: pointer;
+                        }
+                    }
+                }
+                IntRow {
+                    label: "Image preview size (px)";
+                    value <=> root.s-image-preview-size;
+                    min-val: 100;
+                    max-val: 800;
+                    step: 50;
+                    committed(v) => { root.setting-changed("hover_image_preview_size", "\{v}"); }
+                }
+                ToggleRow {
+                    label: "Paste as plain text";
+                    value <=> root.s-paste-as-plain-text;
+                    committed(v) => { root.setting-changed("paste_as_plain_text", v ? "true" : "false"); }
+                }
+            }
+
+            // ── External Apps ─────────────────────────────────────────────────
+            if root.active-tab == 2: VerticalLayout {
+                spacing: 12px;
+                TextRow {
+                    label: "Diff tool path";
+                    value <=> root.s-diff-tool-path;
+                    committed(v) => { root.setting-changed("compare_tool_path", v); }
+                }
+                Text {
+                    text: "Send To apps and Blacklist are managed via JSON settings file.";
+                    color: Theme.fg-muted;
+                    font-size: Theme.font-size;
+                    wrap: word-wrap;
+                }
+            }
+
+            // ── Data ──────────────────────────────────────────────────────────
+            if root.active-tab == 3: VerticalLayout {
+                spacing: 12px;
+                IntRow {
+                    label: "Max clips";
+                    value <=> root.s-max-clips;
+                    min-val: 100;
+                    max-val: 100000;
+                    step: 500;
+                    committed(v) => { root.setting-changed("max_clips", "\{v}"); }
+                }
+                IntRow {
+                    label: "Max age (days)";
+                    value <=> root.s-max-age-days;
+                    min-val: 1;
+                    max-val: 3650;
+                    step: 10;
+                    committed(v) => { root.setting-changed("max_age_days", "\{v}"); }
+                }
+                GridLayout {
+                    spacing: 8px;
+                    for action[idx] in [
+                        { key: "clear-history", label: "Clear History" },
+                        { key: "clear-caches",  label: "Clear Caches"  },
+                        { key: "deadhead",       label: "Deadhead"      },
+                        { key: "reclassify",    label: "Reclassify All"},
+                        { key: "export",        label: "Export JSON"   },
+                        { key: "import",        label: "Import JSON"   },
+                    ]: Rectangle {
+                        row: Math.floor(idx / 3);
+                        col: Math.mod(idx, 3);
+                        height: 30px;
+                        border-radius: 6px;
+                        background: action.key == "clear-history" ? Theme.fg-danger : Theme.bg-input;
+                        Text {
+                            text: action.label;
+                            color: action.key == "clear-history" ? white : Theme.fg-primary;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                            font-size: Theme.font-size;
+                        }
+                        TouchArea {
+                            clicked => { root.maintenance-action(action.key); }
+                            mouse-cursor: pointer;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

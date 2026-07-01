@@ -1,0 +1,331 @@
+// Toolbar.slint — Bottom bar: search input + active-filter icon + hamburger menu.
+//
+// Layout:
+//   |────────────────────────────────────────────────────────|
+//   | [Search input field ...........     [filter] [≡]      |
+//   |────────────────────────────────────────────────────────|
+//
+// [filter] icon of the currently selected clip-type filter; click to toggle filter grid
+// [≡]      hamburger menu (settings, about, ...)
+//
+// Active filter keys: "all" | "bookmarked" | "text" | "link" | "file_image" |
+//                     "color" | "code_snippet" | "folder" | "file_audio" |
+//                     "file_video" | "file_archive" | "file_document" |
+//                     "file_database" | "file_font" | "rtf" | "file"
+
+import { Theme } from "Theme.slint";
+import { LineEdit } from "std-widgets.slint";
+
+export component Toolbar {
+    callback filter-changed(string);
+    callback toggle-filter-grid();
+    callback menu-clicked();
+    callback drag-started();
+    callback drag-ended();
+
+    in-out property <string> active-filter: "all";
+    in-out property <string> search-text: "";
+    callback search-changed(string);
+    callback accepted();
+
+    out property <bool> search-focused: search-input.has-focus;
+
+    height: 48px;
+
+    Rectangle {
+        background: Theme.bg-header;
+        height: 100%;
+        width: 100%;
+        Rectangle {
+            y: 0;
+            height: 1px;
+            background: Theme.border-subtle;
+        }
+
+        HorizontalLayout {
+            padding-left: 10px;
+            padding-right: 10px;
+            padding-top: 8px;
+            padding-bottom: 8px;
+            spacing: 6px;
+
+            // ── Drag handle [3] ────────────────────────────────────
+            Rectangle {
+                horizontal-stretch: 0;
+                width: 32px;
+                height: 32px;
+                border-radius: 8px;
+                background: Theme.bg-input;
+
+                // Visual grip indicator: 2x3 dot grid
+                VerticalLayout {
+                    padding-top: 5px;
+                    padding-bottom: 5px;
+                    spacing: 3px;
+                    alignment: center;
+                    HorizontalLayout {
+                        spacing: 4px;
+                        alignment: center;
+                        Rectangle {
+                            width: 4px;
+                            height: 4px;
+                            border-radius: 2px;
+                            background: Theme.fg-muted;
+                        }
+
+                        Rectangle {
+                            width: 4px;
+                            height: 4px;
+                            border-radius: 2px;
+                            background: Theme.fg-muted;
+                        }
+                    }
+
+                    HorizontalLayout {
+                        spacing: 4px;
+                        alignment: center;
+                        Rectangle {
+                            width: 4px;
+                            height: 4px;
+                            border-radius: 2px;
+                            background: Theme.fg-muted;
+                        }
+
+                        Rectangle {
+                            width: 4px;
+                            height: 4px;
+                            border-radius: 2px;
+                            background: Theme.fg-muted;
+                        }
+                    }
+
+                    HorizontalLayout {
+                        spacing: 4px;
+                        alignment: center;
+                        Rectangle {
+                            width: 4px;
+                            height: 4px;
+                            border-radius: 2px;
+                            background: Theme.fg-muted;
+                        }
+
+                        Rectangle {
+                            width: 4px;
+                            height: 4px;
+                            border-radius: 2px;
+                            background: Theme.fg-muted;
+                        }
+                    }
+                }
+
+                property <bool> dragging: false;
+                touch := TouchArea {
+                    mouse-cursor: MouseCursor.move;
+                    pointer-event(e) => {
+                        if e.kind == PointerEventKind.move && touch.pressed && !dragging {
+                            dragging = true;
+                            root.drag-started();
+                        }
+                        if e.kind == PointerEventKind.up {
+                            dragging = false;
+                            root.drag-ended();
+                        }
+                        if e.kind == PointerEventKind.cancel {
+                            dragging = false;
+                            root.drag-ended();
+                        }
+                    }
+                }
+            }
+
+            // ── Search field (stretches) ────────────────────────────
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 32px;
+                border-radius: 8px;
+                background: Theme.bg-input;
+                clip: true;
+
+                search-input := LineEdit {
+                    width: 100%;
+                    height: 100%;
+                    font-size: Theme.font-size;
+                    text <=> root.search-text;
+                    placeholder-text: "Search…";
+                    edited => { root.search-changed(self.text); }
+                    accepted => { root.accepted(); }
+                }
+            }
+
+            // ── Current filter icon [4] ────────────────────────────
+            Rectangle {
+                horizontal-stretch: 0;
+                width: 32px;
+                height: 32px;
+                border-radius: 8px;
+                background: root.active-filter == "all" ? Theme.bg-input : Theme.accent-muted;
+
+                if root.active-filter == "bookmarked": Image {
+                    source: @image-url("icons/bookmark.svg");
+                    colorize: Theme.fg-secondary;
+                    width: 20px;
+                    height: 20px;
+                    x: 6px;
+                    y: 6px;
+                }
+                if root.active-filter == "text": Image {
+                    source: @image-url("icons/text-align-start.svg");
+                    colorize: Theme.fg-secondary;
+                    width: 20px;
+                    height: 20px;
+                    x: 6px;
+                    y: 6px;
+                }
+                if root.active-filter == "link": Image {
+                    source: @image-url("icons/link.svg");
+                    colorize: Theme.fg-secondary;
+                    width: 20px;
+                    height: 20px;
+                    x: 6px;
+                    y: 6px;
+                }
+                if root.active-filter == "file_image": Image {
+                    source: @image-url("icons/file-image.svg");
+                    colorize: Theme.fg-secondary;
+                    width: 20px;
+                    height: 20px;
+                    x: 6px;
+                    y: 6px;
+                }
+                if root.active-filter == "color": Image {
+                    source: @image-url("icons/palette.svg");
+                    colorize: Theme.fg-secondary;
+                    width: 20px;
+                    height: 20px;
+                    x: 6px;
+                    y: 6px;
+                }
+                if root.active-filter == "code_snippet": Image {
+                    source: @image-url("icons/code.svg");
+                    colorize: Theme.fg-secondary;
+                    width: 20px;
+                    height: 20px;
+                    x: 6px;
+                    y: 6px;
+                }
+                if root.active-filter == "folder": Image {
+                    source: @image-url("icons/folder.svg");
+                    colorize: Theme.fg-secondary;
+                    width: 20px;
+                    height: 20px;
+                    x: 6px;
+                    y: 6px;
+                }
+                if root.active-filter == "file_audio": Image {
+                    source: @image-url("icons/audio-lines.svg");
+                    colorize: Theme.fg-secondary;
+                    width: 20px;
+                    height: 20px;
+                    x: 6px;
+                    y: 6px;
+                }
+                if root.active-filter == "file_video": Image {
+                    source: @image-url("icons/film.svg");
+                    colorize: Theme.fg-secondary;
+                    width: 20px;
+                    height: 20px;
+                    x: 6px;
+                    y: 6px;
+                }
+                if root.active-filter == "file_archive": Image {
+                    source: @image-url("icons/file-archive.svg");
+                    colorize: Theme.fg-secondary;
+                    width: 20px;
+                    height: 20px;
+                    x: 6px;
+                    y: 6px;
+                }
+                if root.active-filter == "file_document": Image {
+                    source: @image-url("icons/file-text.svg");
+                    colorize: Theme.fg-secondary;
+                    width: 20px;
+                    height: 20px;
+                    x: 6px;
+                    y: 6px;
+                }
+                if root.active-filter == "file_database": Image {
+                    source: @image-url("icons/database.svg");
+                    colorize: Theme.fg-secondary;
+                    width: 20px;
+                    height: 20px;
+                    x: 6px;
+                    y: 6px;
+                }
+                if root.active-filter == "file_font": Image {
+                    source: @image-url("icons/type-outline.svg");
+                    colorize: Theme.fg-secondary;
+                    width: 20px;
+                    height: 20px;
+                    x: 6px;
+                    y: 6px;
+                }
+                if root.active-filter == "rtf": Image {
+                    source: @image-url("icons/file-type.svg");
+                    colorize: Theme.fg-secondary;
+                    width: 20px;
+                    height: 20px;
+                    x: 6px;
+                    y: 6px;
+                }
+                if root.active-filter == "file": Image {
+                    source: @image-url("icons/file.svg");
+                    colorize: Theme.fg-secondary;
+                    width: 20px;
+                    height: 20px;
+                    x: 6px;
+                    y: 6px;
+                }
+                if root.active-filter == "all": Image {
+                    source: @image-url("icons/check-check.svg");
+                    colorize: Theme.fg-secondary;
+                    width: 20px;
+                    height: 20px;
+                    x: 6px;
+                    y: 6px;
+                }
+
+                TouchArea {
+                    clicked => {
+                        root.toggle-filter-grid();
+                    }
+                    mouse-cursor: pointer;
+                }
+            }
+
+            // ── Hamburger menu [5] (settings, about, ...) ─────────
+            Rectangle {
+                horizontal-stretch: 0;
+                width: 32px;
+                height: 32px;
+                border-radius: 8px;
+                background: Theme.bg-input;
+
+                Image {
+                    source: @image-url("icons/menu.svg");
+                    colorize: Theme.fg-secondary;
+                    width: 20px;
+                    height: 20px;
+                    x: 6px;
+                    y: 6px;
+                }
+
+                TouchArea {
+                    clicked => {
+                        root.menu-clicked();
+                    }
+                    mouse-cursor: pointer;
+                }
+            }
+        }
+    }
+}

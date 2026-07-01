@@ -1,0 +1,42 @@
+# Maintainer: Cliptoo Contributors
+pkgname=cliptoo
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Native clipboard manager for KDE Plasma 6 / Wayland"
+arch=('x86_64')
+url="https://github.com/yourusername/cliptoo-next"
+license=('MIT')
+# Cliptoo targets Wayland / KDE Plasma 6. On Wayland, the XDG Desktop Portal
+# is the only sanctioned mechanism for client apps to register a global
+# hotkey; there is no X11-style XGrabKey fallback. The KDE portal backend
+# (xdg-desktop-portal-kde) transitively pulls the router (xdg-desktop-portal)
+# and is the appropriate dependency for this app's target environment.
+# See src/ui/src/hotkeys.rs and .docs/HLD.md §9.1.
+depends=(
+    'qt6-base'
+    'qt6-wayland'
+    'wayland'
+    'wtype'
+    'xkbcommon'
+    'xdg-desktop-portal-kde'
+    'kwindowsystem'
+)
+makedepends=('rust' 'cargo' 'pkg-config')
+source=("$pkgname-$pkgver.tar.gz::https://github.com/yourusername/cliptoo-next/archive/v$pkgver.tar.gz")
+sha256sums=('SKIP')
+
+build() {
+    cd "$srcdir/cliptoo-next-$pkgver"
+    cargo build --release --locked -p cliptoo
+}
+
+package() {
+    cd "$srcdir/cliptoo-next-$pkgver"
+
+    install -Dm755 "target/release/cliptoo" "$pkgdir/usr/bin/cliptoo"
+    install -Dm644 "packaging/cliptoo.desktop" "$pkgdir/usr/share/applications/cliptoo.desktop"
+    install -Dm644 "LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+
+    # TODO: install .svg app icon at multiple sizes
+    # install -Dm644 ".assets/icon.svg" "$pkgdir/usr/share/icons/hicolor/scalable/apps/cliptoo.svg"
+}

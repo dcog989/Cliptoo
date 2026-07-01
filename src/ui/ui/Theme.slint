@@ -1,0 +1,51 @@
+// Theme.slint — Global design token definitions.
+// All color and typography values are set from Rust at startup
+// via OKLCH → sRGB conversion using user accent_hue + accent_chroma_level.
+// Components reference Theme.* rather than hardcoding values.
+
+export global Theme {
+    // ── Colors (populated by Rust via OKLCH calculation) ──────────────────────
+    // Accent palette derived from settings.accent_hue and .accent_chroma_level.
+    // Default fallbacks used only until Rust applies the real values.
+    in property <color>  accent-primary:    #7A7A7A;
+    in property <color>  accent-secondary:  #8A8A8A;
+    in property <color>  accent-muted:      #5A5A5A;
+    in property <bool>   accent-is-dark:    true;
+
+    in property <color>  bg-primary:        #181818;
+    in property <color>  bg-header:         #121212;
+    in property <color>  bg-row-alt:        #1C1C1C;
+    in property <color>  bg-row-hover:      #222222;
+    in property <color>  bg-row-selected:   #282828;
+    in property <color>  bg-input:          #242424;
+
+    in property <color>  fg-primary:        #E4E4E4;
+    in property <color>  fg-secondary:      #A1A1A1;
+    in property <color>  fg-muted:          #636363;
+    in property <color>  fg-danger:         #B0B0B0;
+    in property <color>  fg-success:        #909090;
+    in property <color>  fg-warning:        #A0A0A0;
+    in property <color>  fg-bookmarked:     #C0C0C0;
+
+    in property <color>  border-subtle:     #2A2A2A;
+    in property <color>  shadow:            #00000030;
+
+    // ── Typography ────────────────────────────────────────────────────────────
+    in property <string>  font-family:      "Inter";
+    in property <length>  font-size:        13px;
+    in property <length>  preview-font-size: 12px;
+
+    // ── Layout ────────────────────────────────────────────────────────────────
+    // Row height by padding mode: Compact=24, Standard=32, Luxury=40
+    in property <length>  row-height:       32px;
+    in property <length>  row-padding-v:    8px;
+    in property <length>  row-padding-h:    10px;
+    in property <length>  icon-col-width:   36px;
+    in property <length>  badge-col-width:  48px;
+    in property <length>  border-radius:    6px;
+
+    // ── Timing ────────────────────────────────────────────────────────────────
+    in property <duration> anim-fast:       120ms;
+    in property <duration> anim-normal:     200ms;
+    in property <duration> hover-preview-delay: 400ms;
+}

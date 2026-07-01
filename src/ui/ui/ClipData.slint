@@ -1,0 +1,41 @@
+// ClipData.slint — Shared data struct for clip list items.
+// Imported by AppWindow.slint and ClipItem.slint.
+//
+// NOTE: source-app, tags, and match-context are `string` (Slint has no Option type).
+// When the Rust DB struct has None for these fields, the bridge maps them to "".
+// Consumers should treat "" identically to "no value" – avoid displaying "" as a tag.
+
+/// A single text span in the FTS5 match-context highlight sequence.
+/// `is-highlight` is true for the `[HL]...[/HL]` segments.
+export struct MatchSpan {
+    text:         string,
+    is-highlight: bool,
+}
+
+export struct ClipData {
+    id:                   int,
+    preview-content:      string,
+    content-hash:         string,
+    clip-type:            string,
+    source-app:           string,
+    timestamp:            string,
+    is-bookmarked:        bool,
+    was-trimmed:          bool,
+    has-leading-whitespace: bool,
+    is-multiline:         bool,
+    size-in-bytes:        int,
+    paste-count:          int,
+    tags:                 string,
+    match-context:        string,
+    // Parsed match-context spans: populated when match-context != "".
+    // Each span is either plain text or an accent-highlighted segment.
+    match-spans:          [MatchSpan],
+    // True when this is a file-type clip whose path no longer exists on disk.
+    // Rendered with strikethrough in ClipItem.
+    is-deadhead:          bool,
+    thumbnail-image:      image,
+    favicon-image:        image,
+    // Parsed swatch colour for ClipType::Color rows. Populated by Rust via
+    // ColorParser; defaults to transparent when clip-type != "color".
+    clip-color:           color,
+}

@@ -1,0 +1,317 @@
+import { Theme } from "Theme.slint";
+
+component StepperButton inherits Rectangle {
+    in property <string> text;
+    callback clicked;
+
+    border-radius: 4px;
+    background: Theme.bg-row-selected;
+    Text {
+        text: root.text;
+        color: Theme.fg-primary;
+        font-size: Theme.font-size;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+    TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+export component SettingsTab {
+    in property <string> label;
+    in property <bool> is-active: false;
+    callback clicked;
+
+    height: 40px;
+    width: label-text.preferred-width + 20px;
+
+    Rectangle {
+        background: transparent;
+        border-width: 0;
+        Rectangle {
+            y: parent.height - 2px;
+            height: 2px;
+            width: parent.width;
+            background: root.is-active ? Theme.accent-primary : transparent;
+            animate background { duration: Theme.anim-fast; }
+        }
+
+        label-text := Text {
+            text: root.label;
+            color: root.is-active ? Theme.fg-primary : Theme.fg-muted;
+            font-size: Theme.font-size;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+            animate color { duration: Theme.anim-fast; }
+        }
+    }
+
+    TouchArea {
+        clicked => { root.clicked(); }
+        mouse-cursor: pointer;
+    }
+}
+
+export component TextRow {
+    in property <string> label;
+    in-out property <string> value;
+    callback committed(string);
+
+    height: 32px;
+    HorizontalLayout {
+        spacing: 12px;
+        alignment: center;
+        Text {
+            width: 180px;
+            text: root.label;
+            color: Theme.fg-primary;
+            font-size: Theme.font-size;
+            vertical-alignment: center;
+        }
+        Rectangle {
+            horizontal-stretch: 1;
+            height: 28px;
+            border-radius: 5px;
+            background: Theme.bg-input;
+            ti := TextInput {
+                x: 8px;
+                width: parent.width - 16px;
+                height: parent.height;
+                text: root.value;
+                color: Theme.fg-primary;
+                font-size: Theme.font-size;
+                vertical-alignment: center;
+                accepted => {
+                    root.value = self.text;
+                    root.committed(self.text);
+                }
+                edited => {
+                    root.value = self.text;
+                }
+                // Slint has no focus-lost callback on TextInput;
+                // accepted() fires on Enter. No focus-out commit.
+            }
+        }
+    }
+}
+
+export component IntRow {
+    in property <string> label;
+    in-out property <int> value;
+    in property <int> min-val: 0;
+    in property <int> max-val: 99999;
+    in property <int> step: 1;
+    callback committed(int);
+
+    height: 32px;
+    HorizontalLayout {
+        spacing: 12px;
+        alignment: center;
+        Text {
+            width: 180px;
+            text: root.label;
+            color: Theme.fg-primary;
+            font-size: Theme.font-size;
+            vertical-alignment: center;
+        }
+        Rectangle {
+            horizontal-stretch: 1;
+            height: 28px;
+            border-radius: 5px;
+            background: Theme.bg-input;
+            HorizontalLayout {
+                padding-left: 4px;
+                padding-right: 4px;
+                spacing: 4px;
+                alignment: center;
+                StepperButton {
+                    text: "−";
+                    clicked => {
+                        root.value = Math.max(root.min-val, root.value - root.step);
+                        root.committed(root.value);
+                    }
+                }
+                Text {
+                    horizontal-stretch: 1;
+                    text: "\{root.value}";
+                    color: Theme.fg-primary;
+                    font-size: Theme.font-size;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+                StepperButton {
+                    text: "+";
+                    clicked => {
+                        root.value = Math.min(root.max-val, root.value + root.step);
+                        root.committed(root.value);
+                    }
+                }
+            }
+        }
+    }
+}
+
+export component FloatRow {
+    in property <string> label;
+    in-out property <int> value-hundredths;
+    in property <int> min-hundredths: 0;
+    in property <int> max-hundredths: 9999;
+    in property <int> step-hundredths: 50;
+    callback committed(float);
+
+    height: 32px;
+    HorizontalLayout {
+        spacing: 12px;
+        alignment: center;
+        Text {
+            width: 180px;
+            text: root.label;
+            color: Theme.fg-primary;
+            font-size: Theme.font-size;
+            vertical-alignment: center;
+        }
+        Rectangle {
+            horizontal-stretch: 1;
+            height: 28px;
+            border-radius: 5px;
+            background: Theme.bg-input;
+            HorizontalLayout {
+                padding-left: 4px;
+                padding-right: 4px;
+                spacing: 4px;
+                alignment: center;
+                StepperButton {
+                    text: "−";
+                    clicked => {
+                        root.value-hundredths = Math.max(root.min-hundredths, root.value-hundredths - root.step-hundredths);
+                        root.committed(root.value-hundredths / 100.0);
+                    }
+                }
+                Text {
+                    horizontal-stretch: 1;
+                    text: "\{root.value-hundredths / 100}";
+                    color: Theme.fg-primary;
+                    font-size: Theme.font-size;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+                StepperButton {
+                    text: "+";
+                    clicked => {
+                        root.value-hundredths = Math.min(root.max-hundredths, root.value-hundredths + root.step-hundredths);
+                        root.committed(root.value-hundredths / 100.0);
+                    }
+                }
+            }
+        }
+    }
+}
+
+export component DropRow {
+    in property <string> label;
+    in-out property <int> index;
+    in property <[string]> options;
+    callback committed(string);
+
+    height: 32px;
+    HorizontalLayout {
+        spacing: 12px;
+        alignment: center;
+        Text {
+            width: 180px;
+            text: root.label;
+            color: Theme.fg-primary;
+            font-size: Theme.font-size;
+            vertical-alignment: center;
+        }
+        Rectangle {
+            horizontal-stretch: 1;
+            height: 28px;
+            border-radius: 5px;
+            background: Theme.bg-input;
+            HorizontalLayout {
+                padding-left: 4px;
+                padding-right: 4px;
+                spacing: 4px;
+                alignment: center;
+                StepperButton {
+                    text: "‹";
+                    clicked => {
+                        root.index = root.index == 0
+                            ? root.options.length - 1
+                            : root.index - 1;
+                        root.committed(root.options[root.index]);
+                    }
+                }
+                Text {
+                    horizontal-stretch: 1;
+                    text: root.options[root.index];
+                    color: Theme.fg-primary;
+                    font-size: Theme.font-size;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+                StepperButton {
+                    text: "›";
+                    clicked => {
+                        root.index = Math.mod(root.index + 1, root.options.length);
+                        root.committed(root.options[root.index]);
+                    }
+                }
+            }
+        }
+    }
+}
+
+export component ToggleRow {
+    in property <string> label;
+    in-out property <bool> value;
+    callback committed(bool);
+
+    height: 32px;
+    HorizontalLayout {
+        spacing: 12px;
+        alignment: center;
+        Text {
+            width: 180px;
+            text: root.label;
+            color: Theme.fg-primary;
+            font-size: Theme.font-size;
+            vertical-alignment: center;
+        }
+        Rectangle {
+            horizontal-stretch: 1;
+            height: 28px;
+            border-radius: 5px;
+            background: Theme.bg-input;
+            HorizontalLayout {
+                alignment: end;
+                padding-right: 4px;
+                Rectangle {
+                    width: 44px;
+                    height: 22px;
+                    border-radius: 11px;
+                    background: root.value ? Theme.accent-primary : #555;
+                    animate background { duration: Theme.anim-fast; }
+                    Rectangle {
+                        width: 18px;
+                        height: 18px;
+                        border-radius: 9px;
+                        background: white;
+                        x: root.value ? 24px : 2px;
+                        animate x { duration: Theme.anim-fast; }
+                    }
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            root.value = !root.value;
+                            root.committed(root.value);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

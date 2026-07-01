@@ -1,0 +1,176 @@
+// EditWindow.slint — Modal clip editor.
+// Opens on right-click → "Edit / Tags". See product spec §3.4.
+// Window size is persisted in Settings (editor_window_width/height).
+// Position is computed relative to the main AppWindow on open.
+// Supports syntax-highlighted view mode for code_snippet clips.
+
+import { Theme } from "Theme.slint";
+import { ScrollView } from "std-widgets.slint";
+
+export component EditWindow inherits Window {
+    title: "Edit Clip";
+    width: 520px;
+    height: 420px;
+    background: Theme.bg-primary;
+    default-font-family: Theme.font-family;
+    default-font-size: Theme.font-size;
+
+    in property <int>    clip-id: 0;
+    in-out property <string> edit-content: "";
+    in property <string> initial-tags: "";
+    in property <string> clip-type: "text";
+    in property <string> meta-info: "";   // "1.4 KB · 320 chars" etc.
+    in property <bool>   editing: true;
+
+    callback save-clicked(int, string, string);   // id, content, tags
+    callback cancel-clicked;
+    callback toggle-mode;
+
+    VerticalLayout {
+        padding: 16px;
+        spacing: 10px;
+
+        // Metadata bar + toggle button
+        HorizontalLayout {
+            spacing: 8px;
+            alignment: start;
+
+            Text {
+                text: root.meta-info;
+                color: Theme.fg-muted;
+                font-size: Theme.font-size - 1px;
+                vertical-alignment: center;
+                horizontal-stretch: 1;
+            }
+
+            // Toggle between highlighted view and edit mode
+            Rectangle {
+                visible: root.clip-type == "code_snippet" || root.clip-type == "file_dev";
+                width: 28px;
+                height: 28px;
+                border-radius: 4px;
+                background: root.editing ? Theme.accent-muted : Theme.bg-input;
+                TouchArea {
+                    clicked => { root.toggle-mode(); }
+                    mouse-cursor: pointer;
+                }
+                Text {
+                    text: root.editing ? "</>" : "✎";
+                    color: Theme.fg-primary;
+                    font-size: Theme.font-size - 1px;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
+        }
+
+        // Content editor — dual mode
+        Rectangle {
+            vertical-stretch: 1;
+            border-radius: Theme.border-radius;
+            border-width: 1px;
+            border-color: root.editing ? Theme.border-subtle : transparent;
+            background: root.editing ? Theme.bg-input : transparent;
+            clip: true;
+
+            // Edit mode: plain text input
+            VerticalLayout {
+                visible: root.editing;
+                padding: 8px;
+                content-edit := TextInput {
+                    text <=> root.edit-content;
+                    color: Theme.fg-primary;
+                    font-size: Theme.font-size;
+                    wrap: word-wrap;
+                    vertical-stretch: 1;
+                }
+            }
+
+            // View mode: monospace read-only text
+            preview-scroll := ScrollView {
+                visible: !root.editing;
+                x: 0; y: 0;
+                width: 100%;
+                height: 100%;
+                Text {
+                    width: parent.width - 16px;
+                    text: root.edit-content;
+                    color: Theme.fg-primary;
+                    font-family: "monospace";
+                    font-size: Theme.font-size;
+                    wrap: no-wrap;
+                }
+            }
+        }
+
+        // Tags input
+        HorizontalLayout {
+            spacing: 8px;
+            alignment: center;
+            Text {
+                text: "Tags:";
+                color: Theme.fg-secondary;
+                font-size: Theme.font-size;
+                vertical-alignment: center;
+            }
+            tags-edit := TextInput {
+                horizontal-stretch: 1;
+                // One-way initialisation: binding breaks on first user edit, which
+                // is the desired behaviour. Rust must NOT mutate initial-tags after
+                // the window opens, or the field will re-sync and discard user input.
+                text: root.initial-tags;
+                color: Theme.fg-primary;
+                font-size: Theme.font-size;
+            }
+        }
+
+        // Action buttons
+        HorizontalLayout {
+            spacing: 8px;
+            alignment: end;
+
+            // Cancel
+            Rectangle {
+                width: 80px;
+                height: 30px;
+                border-radius: 6px;
+                background: Theme.bg-input;
+                Text {
+                    text: "Cancel";
+                    color: Theme.fg-secondary;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                    font-size: Theme.font-size;
+                }
+                TouchArea { clicked => { root.cancel-clicked(); } mouse-cursor: pointer; }
+                // No modified-content guard: Rust is responsible for prompting the
+                // user if unsaved edits exist (EditWindow does not track dirty state).
+            }
+
+            // Save
+            Rectangle {
+                width: 80px;
+                height: 30px;
+                border-radius: 6px;
+                background: Theme.accent-primary;
+                Text {
+                    text: "Save";
+                    color: white;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                    font-size: Theme.font-size;
+                }
+                TouchArea {
+                    clicked => {
+                        root.save-clicked(
+                            root.clip-id,
+                            content-edit.text,
+                            tags-edit.text
+                        );
+                    }
+                    mouse-cursor: pointer;
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,208 @@
+// ContextMenu.slint — Right-click context menu for clip list items.
+// Rendered inside a PopupWindow declared in AppWindow.
+//
+// Three views, toggled by `view`:
+//   "main"    — primary actions
+//   "format"  — text transformation sub-list
+//   "send-to" — Send To app sub-list
+//
+// The caller (AppWindow) is responsible for positioning and closing the popup.
+
+import { Theme } from "Theme.slint";
+
+// A single menu row: label + optional right-arrow for sub-menus.
+component MenuRow {
+    in property <string> label;
+    in property <string> sublabel: "";
+    in property <bool>   is-danger: false;
+    in property <bool>   has-arrow: false;
+    in property <bool>   is-separator: false;
+    callback clicked;
+
+    height: root.is-separator ? 9px : 32px;
+
+    if root.is-separator: Rectangle {
+        y: 4px;
+        height: 1px;
+        background: Theme.border-subtle;
+    }
+
+    if !root.is-separator: Rectangle {
+        border-radius: 5px;
+        border-width: 1px;
+        border-color: touch.has-hover || touch.pressed ? Theme.accent-primary : transparent;
+        background: touch.pressed ? Theme.bg-row-selected : touch.has-hover ? Theme.bg-row-hover : transparent;
+
+        HorizontalLayout {
+            padding-left: 12px;
+            padding-right: 10px;
+            spacing: 6px;
+            alignment: center;
+
+            Text {
+                horizontal-stretch: 1;
+                text: root.label;
+                color: root.is-danger ? Theme.fg-danger : Theme.fg-primary;
+                font-size: Theme.font-size;
+                vertical-alignment: center;
+            }
+
+            if root.sublabel != "": Text {
+                text: root.sublabel;
+                color: Theme.fg-muted;
+                font-size: Theme.font-size - 1px;
+                vertical-alignment: center;
+            }
+
+            if root.has-arrow: Text {
+                text: "›";
+                color: Theme.fg-muted;
+                font-size: Theme.font-size;
+                vertical-alignment: center;
+            }
+        }
+
+        touch := TouchArea {
+            clicked => { root.clicked(); }
+            mouse-cursor: pointer;
+        }
+    }
+}
+
+export component ContextMenu {
+    // Which clip this menu is acting on (set by AppWindow before show()).
+    in property <int>      clip-id;
+    in property <bool>     clip-is-bookmarked: false;
+    in property <string>   clip-type: "text";
+    in property <[string]> send-to-apps: [];
+
+    // Internal view state.
+    property <string> view: "main";  // "main" | "format" | "send-to"
+
+    callback preview();
+    callback edit();
+    callback format(string);        // transform key
+    callback delete();
+    callback toggle-bookmark(int, bool);  // id, current is-bookmarked
+    callback move-to-top();
+    callback move-to-bottom();
+    callback move-up-one();
+    callback move-down-one();
+    callback send-to(string);       // app name
+
+    // Reset to main view each time the component is (re-)shown.
+    // Callers set clip-id before show(); the init expression re-evaluates.
+    // True when the clip type supports text transformations.
+    property <bool> is-text-type:
+        root.clip-type == "text" || root.clip-type == "code_snippet" ||
+        root.clip-type == "rtf" || root.clip-type == "link";
+
+    Rectangle {
+        border-radius: 8px;
+        background: Theme.bg-header;
+        border-width: 1px;
+        border-color: Theme.border-subtle;
+        drop-shadow-blur: 12px;
+        drop-shadow-color: Theme.shadow;
+        drop-shadow-offset-y: 4px;
+
+        // ── Main view ─────────────────────────────────────────────────────────
+        if root.view == "main": VerticalLayout {
+            alignment: start;
+            padding: 4px;
+            spacing: 0px;
+
+            MenuRow {
+                label: "Preview";
+                clicked => { root.preview(); }
+            }
+            MenuRow {
+                label: "Edit";
+                clicked => { root.edit(); }
+            }
+            if root.is-text-type: MenuRow {
+                label: "Format";
+                has-arrow: true;
+                clicked => { root.view = "format"; }
+            }
+            MenuRow {
+                label: "Delete";
+                is-danger: true;
+                clicked => { root.delete(); }
+            }
+            MenuRow { is-separator: true; }
+            MenuRow {
+                label: "Move to Top";
+                clicked => { root.move-to-top(); }
+            }
+            MenuRow {
+                label: "Move to Bottom";
+                clicked => { root.move-to-bottom(); }
+            }
+            MenuRow {
+                label: "Move Up One";
+                clicked => { root.move-up-one(); }
+            }
+            MenuRow {
+                label: "Move Down One";
+                clicked => { root.move-down-one(); }
+            }
+            MenuRow { is-separator: true; }
+            MenuRow {
+                label: root.clip-is-bookmarked ? "Remove Bookmark" : "Bookmark";
+                clicked => { root.toggle-bookmark(root.clip-id, root.clip-is-bookmarked); }
+            }
+            if root.send-to-apps.length > 0: MenuRow { is-separator: true; }
+            if root.send-to-apps.length > 0: MenuRow {
+                label: "Send To";
+                has-arrow: true;
+                clicked => { root.view = "send-to"; }
+            }
+        }
+
+        // ── Format sub-view ───────────────────────────────────────────────────
+        if root.view == "format": VerticalLayout {
+            alignment: start;
+            padding: 4px;
+            spacing: 0px;
+
+            MenuRow {
+                label: "← Back";
+                clicked => { root.view = "main"; }
+            }
+            MenuRow { is-separator: true; }
+            MenuRow { label: "UPPER CASE";          clicked => { root.format("upper"); } }
+            MenuRow { label: "lower case";          clicked => { root.format("lower"); } }
+            MenuRow { label: "Capitalize Words";    clicked => { root.format("capitalize"); } }
+            MenuRow { label: "Sentence case";       clicked => { root.format("sentence"); } }
+            MenuRow { label: "iNVERT cASE";         clicked => { root.format("invert"); } }
+            MenuRow { is-separator: true; }
+            MenuRow { label: "kebab-case";          clicked => { root.format("kebab"); } }
+            MenuRow { label: "snake_case";          clicked => { root.format("snake"); } }
+            MenuRow { label: "camelCase";           clicked => { root.format("camel"); } }
+            MenuRow { label: "De-slug";             clicked => { root.format("deslug"); } }
+            MenuRow { is-separator: true; }
+            MenuRow { label: "Trim Whitespace";     clicked => { root.format("trim"); } }
+            MenuRow { label: "Remove Line Breaks";  clicked => { root.format("remove_lf"); } }
+            MenuRow { label: "Normalize LF";        clicked => { root.format("lf1"); } }
+            MenuRow { label: "Add Timestamp";       clicked => { root.format("timestamp"); } }
+        }
+
+        // ── Send To sub-view ──────────────────────────────────────────────────
+        if root.view == "send-to": VerticalLayout {
+            alignment: start;
+            padding: 4px;
+            spacing: 0px;
+
+            MenuRow {
+                label: "← Back";
+                clicked => { root.view = "main"; }
+            }
+            MenuRow { is-separator: true; }
+            for app-name in root.send-to-apps: MenuRow {
+                label: app-name;
+                clicked => { root.send-to(app-name); }
+            }
+        }
+    }
+}

@@ -1,0 +1,52 @@
+[package]
+name = "cliptoo"
+description = "Cliptoo — native clipboard manager for KDE Plasma 6 / Wayland"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+cliptoo-core = { path = "../core" }
+futures.workspace = true
+image.workspace = true
+i-slint-backend-qt = "1.16"
+ksni = "0.3"
+lru.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+anyhow.workspace = true
+wl-clipboard-rs.workspace = true
+zbus.workspace = true
+slint.workspace = true
+dirs.workspace = true
+unicode-segmentation.workspace = true
+sha2.workspace = true
+const-hex.workspace = true
+regex.workspace = true
+reqwest.workspace = true
+
+[build-dependencies]
+cc.workspace = true
+pkg-config.workspace = true
+slint-build.workspace = true
+
+[[bin]]
+name = "cliptoo"
+path = "src/main.rs"
+
+# ── cargo-deb metadata ─────────────────────────────────────────────────────────
+[package.metadata.deb]
+maintainer    = "dcog989 <dcog989@users.noreply.github.com>"
+copyright     = "2026 dcog989"
+license-file  = ["../../LICENSE"]
+depends       = "$auto"
+extended-description = """Cliptoo is a native, background-running clipboard manager for Linux
+desktop environments (KDE Plasma 6 / Wayland).  It captures, parses, and indexes
+clipboard data with a target memory footprint under 20 MB."""
+
+# ── cargo-generate-rpm metadata ────────────────────────────────────────────────
+[package.metadata.generate-rpm]
+name        = "cliptoo"
+description = "Native clipboard manager for KDE Plasma 6 / Wayland"
+license     = "MIT"

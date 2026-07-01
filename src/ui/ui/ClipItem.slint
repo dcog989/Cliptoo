@@ -1,0 +1,347 @@
+// ClipItem.slint — Individual row in the clip list.
+//
+// Layout:
+//   [1]                   clip content + [bookmark]              [3]
+//
+// Column 1: thumbnail / type icon (18×18, 4px margins = 26px column)
+// Column 2: leading-whitespace indicator + content snippet + bookmark icon
+// Column 3: multiline indicator (18×18, 4px margins = 26px column)
+
+import { Theme }    from "Theme.slint";
+import { ClipData } from "ClipData.slint";
+
+export component ClipItem {
+    in property <ClipData> clip-data;
+    in property <bool> is-selected:        false;
+    in property <bool> is-alt-row:         false;
+    in property <int> row-index:          0;
+    in property <bool> quick-paste-active: false;
+    in property <int>  quick-paste-slots: 9;
+    in property <bool> is-searching:       false;
+
+    callback activated;
+    callback right-clicked(float, float);
+    callback hovered(float, float);  // mouse-x, mouse-y in logical px relative to this row
+    callback hover-exited;
+
+    // True after the preview timer fires; reset when the cursor leaves the row.
+    // Prevents the Timer from re-firing every 300 ms while the hover continues.
+    property <bool> preview-triggered: false;
+
+    height: Theme.row-height;
+
+    Rectangle {
+        background: is-selected ? Theme.bg-row-selected : is-alt-row ? Theme.bg-row-alt : Theme.bg-primary;
+        height: 100%;
+        width: 100%;
+
+        animate background { duration: Theme.anim-fast; }
+
+        HorizontalLayout {
+            padding-left: 10px;
+            padding-right: 6px;
+            spacing: 6px;
+
+            // ── Column 1: type icon ──────────────────────────────────────
+            Rectangle {
+                width: 26px;
+                Rectangle {
+                    x: 4px;
+                    y: (parent.height - 18px) / 2;
+                    width: 18px;
+                    height: 18px;
+
+                    // Quick-paste numbered overlay (digits 1–9)
+                    if root.quick-paste-active && root.row-index < root.quick-paste-slots: Rectangle {
+                        border-radius: 10px;
+                        background: Theme.accent-primary;
+                        width: 100%;
+                        height: 100%;
+                        Text {
+                            text: "\{root.row-index + 1}";
+                            color: Theme.accent-is-dark ? #ffffff : #000000;
+                            font-size: 11px;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    if !root.quick-paste-active: Rectangle {
+                        width: 100%;
+                        height: 100%;
+
+                        // Color swatch — background bound to the parsed clip colour
+                        // (populated in thumbnail_cache::convert via ColorParser).
+                        if clip-data.clip-type == "color": Rectangle {
+                            border-radius: 3px;
+                            width: 100%;
+                            height: 100%;
+                            background: clip-data.clip-color;
+                        }
+
+                        // Image thumbnail (covers the cell)
+                        if clip-data.clip-type == "file_image": Rectangle {
+                            border-radius: 3px;
+                            clip: true;
+                            width: 100%;
+                            height: 100%;
+                            Image {
+                                source: clip-data.thumbnail-image;
+                                width: 100%;
+                                height: 100%;
+                                image-fit: cover;
+                            }
+                        }
+
+                        // Type-specific SVG icons (mapped from ClipType enum as_str())
+                        if clip-data.clip-type == "folder": Image {
+                            source: @image-url("icons/folder.svg");
+                            colorize: Theme.fg-muted;
+                            width: 100%;
+                            height: 100%;
+                        }
+
+                        // Favicon thumbnail for link clips (replaces link icon when cached)
+                        if (clip-data.clip-type == "link" || clip-data.clip-type == "file_link") && clip-data.favicon-image.width != 0: Rectangle {
+                            border-radius: 3px;
+                            clip: true;
+                            width: 100%;
+                            height: 100%;
+                            Image {
+                                source: clip-data.favicon-image;
+                                width: 100%;
+                                height: 100%;
+                                image-fit: contain;
+                            }
+                        }
+                        // Generic link icon fallback (shown when no favicon cached)
+                        if (clip-data.clip-type == "link" || clip-data.clip-type == "file_link") && clip-data.favicon-image.width == 0: Image {
+                            source: @image-url("icons/link.svg");
+                            colorize: Theme.fg-muted;
+                            width: 100%;
+                            height: 100%;
+                        }
+
+                        if clip-data.clip-type == "code_snippet": Image {
+                            source: @image-url("icons/code.svg");
+                            colorize: Theme.fg-muted;
+                            width: 100%;
+                            height: 100%;
+                        }
+
+                        if clip-data.clip-type == "rtf": Image {
+                            source: @image-url("icons/file-type.svg");
+                            colorize: Theme.fg-muted;
+                            width: 100%;
+                            height: 100%;
+                        }
+
+                        if clip-data.clip-type == "file_audio": Image {
+                            source: @image-url("icons/audio-lines.svg");
+                            colorize: Theme.fg-muted;
+                            width: 100%;
+                            height: 100%;
+                        }
+
+                        if clip-data.clip-type == "file_video": Image {
+                            source: @image-url("icons/film.svg");
+                            colorize: Theme.fg-muted;
+                            width: 100%;
+                            height: 100%;
+                        }
+
+                        if clip-data.clip-type == "file_archive": Image {
+                            source: @image-url("icons/file-archive.svg");
+                            colorize: Theme.fg-muted;
+                            width: 100%;
+                            height: 100%;
+                        }
+
+                        if clip-data.clip-type == "file_document" || clip-data.clip-type == "file_text": Image {
+                            source: @image-url("icons/file-text.svg");
+                            colorize: Theme.fg-muted;
+                            width: 100%;
+                            height: 100%;
+                        }
+
+                        if clip-data.clip-type == "file_dev": Image {
+                            source: @image-url("icons/file-code.svg");
+                            colorize: Theme.fg-muted;
+                            width: 100%;
+                            height: 100%;
+                        }
+
+                        if clip-data.clip-type == "file_danger": Image {
+                            source: @image-url("icons/triangle-alert.svg");
+                            colorize: Theme.fg-muted;
+                            width: 100%;
+                            height: 100%;
+                        }
+
+                        if clip-data.clip-type == "file_generic" || clip-data.clip-type == "file_system": Image {
+                            source: @image-url("icons/file.svg");
+                            colorize: Theme.fg-muted;
+                            width: 100%;
+                            height: 100%;
+                        }
+
+                        if clip-data.clip-type == "file_database": Image {
+                            source: @image-url("icons/database.svg");
+                            colorize: Theme.fg-muted;
+                            width: 100%;
+                            height: 100%;
+                        }
+
+                        if clip-data.clip-type == "file_font": Image {
+                            source: @image-url("icons/type-outline.svg");
+                            colorize: Theme.fg-muted;
+                            width: 100%;
+                            height: 100%;
+                        }
+
+                        // Default: text icon for "text" and any unknown/future ClipType
+                        // variant whose as_str() value is not listed above. When adding
+                        // a new ClipType, add a matching branch above *and* extend the
+                        // negation below to keep unknown types visually distinct.
+                        if clip-data.clip-type == "text" || (clip-data.clip-type != "color" && clip-data.clip-type != "file_image" && clip-data.clip-type != "folder" && clip-data.clip-type != "link" && clip-data.clip-type != "file_link" && clip-data.clip-type != "code_snippet" && clip-data.clip-type != "rtf" && clip-data.clip-type != "file_audio" && clip-data.clip-type != "file_video" && clip-data.clip-type != "file_archive" && clip-data.clip-type != "file_document" && clip-data.clip-type != "file_text" && clip-data.clip-type != "file_dev" && clip-data.clip-type != "file_danger" && clip-data.clip-type != "file_generic" && clip-data.clip-type != "file_system" && clip-data.clip-type != "file_database" && clip-data.clip-type != "file_font"): Image {
+                            source: @image-url("icons/text-align-start.svg");
+                            colorize: Theme.fg-muted;
+                            width: 100%;
+                            height: 100%;
+                        }
+                    }
+                }
+            }
+
+            // ── Column 2: leading-whitespace + content snippet + bookmark ─────────
+            Rectangle {
+                horizontal-stretch: 1;
+                clip: true;
+
+                // Leading whitespace indicator
+                if clip-data.has-leading-whitespace: Image {
+                    x: 0px;
+                    y: (parent.height - 18px) / 2;
+                    width: 18px;
+                    height: 18px;
+                    source: @image-url("icons/space.svg");
+                    colorize: Theme.fg-muted;
+                }
+
+                // Plain text (not searching, or no match-context available)
+                // Width leaves room for bookmark icon when bookmarked.
+                if !root.is-searching || clip-data.match-context == "": Text {
+                    x: clip-data.has-leading-whitespace ? 22px : 0px;
+                    width: parent.width - self.x - (clip-data.is-bookmarked ? 22px : 0px);
+                    height: 100%;
+                    text: clip-data.preview-content;
+                    overflow: elide;
+                    horizontal-alignment: left;
+                    vertical-alignment: center;
+                    color: clip-data.is-deadhead ? Theme.fg-muted
+                         : clip-data.is-bookmarked && !root.is-selected ? Theme.fg-bookmarked
+                         : root.is-selected ? Theme.fg-primary
+                         : Theme.fg-secondary;
+                    font-size: Theme.font-size;
+                }
+
+                // Strikethrough overlay for deadhead file clips
+                if clip-data.is-deadhead && (!root.is-searching || clip-data.match-context == ""): Rectangle {
+                    x: clip-data.has-leading-whitespace ? 22px : 0px;
+                    width: parent.width - self.x - (clip-data.is-bookmarked ? 22px : 0px);
+                    y: (parent.height / 2) - 0.5px;
+                    height: 1px;
+                    background: Theme.fg-muted;
+                    opacity: 0.6;
+                }
+
+                // Highlighted spans (searching with FTS5 match-context)
+                if root.is-searching && clip-data.match-context != "": HorizontalLayout {
+                    x: clip-data.has-leading-whitespace ? 22px : 0px;
+                    width: parent.width - self.x - (clip-data.is-bookmarked ? 22px : 0px);
+                    height: 100%;
+                    alignment: start;
+                    spacing: 0px;
+                    for span in clip-data.match-spans: Text {
+                        text: span.text;
+                        overflow: elide;
+                        horizontal-alignment: left;
+                        vertical-alignment: center;
+                        color: span.is-highlight ? Theme.accent-primary
+                             : clip-data.is-bookmarked && !root.is-selected ? Theme.fg-bookmarked
+                             : root.is-selected ? Theme.fg-primary
+                             : Theme.fg-secondary;
+                        font-weight: span.is-highlight ? 700 : 400;
+                        font-size: Theme.font-size;
+                    }
+                }
+
+                // Bookmark icon — printed at the right end of column 2, right after the clip text
+                if clip-data.is-bookmarked: Image {
+                    source: @image-url("icons/bookmark.svg");
+                    colorize: Theme.fg-muted;
+                    x: parent.width - 18px;
+                    y: (parent.height - 18px) / 2;
+                    width: 18px;
+                    height: 18px;
+                }
+            }
+
+            // ── Column 3: multiline indicator ────────────────────────────────
+            Rectangle {
+                width: 26px;
+                height: 100%;
+                opacity: clip-data.is-multiline ? 1.0 : 0.0;
+                Image {
+                    source: @image-url("icons/text-wrap.svg");
+                    colorize: Theme.fg-muted;
+                    x: 4px;
+                    y: (parent.height - 18px) / 2;
+                    width: 18px;
+                    height: 18px;
+                    opacity: 0.7;
+                }
+            }
+        }
+
+        // Interaction
+        touch := TouchArea {
+            clicked => {
+                root.activated();
+            }
+            pointer-event(e) => {
+                if e.button == PointerEventButton.right && e.kind == PointerEventKind.down {
+                    root.right-clicked(self.mouse-x / 1px, self.mouse-y / 1px);
+                }
+            }
+            mouse-cursor: pointer;
+        }
+
+        // Fires once, after hover-preview-delay. The latch prevents re-firing
+        // on subsequent ticks while the cursor stays on the row.
+        Timer {
+            interval: Theme.hover-preview-delay;
+            running: touch.has-hover && !root.preview-triggered && Theme.hover-preview-delay > 0ms;
+            triggered => {
+                root.preview-triggered = true;
+                root.hovered(touch.mouse-x / 1px, touch.mouse-y / 1px);
+            }
+        }
+
+        // Dismiss as soon as the cursor leaves. Runs at 16 ms so the tooltip
+        // disappears on the next frame after hover ends. Only active while the
+        // preview is showing (latch is set) and the cursor is gone.
+        // Note: the latch (preview-triggered = false) disarms `running` on the
+        // same tick the timer fires, so this fires exactly once per hover exit.
+        // Re-arming would only occur if has-hover rose again before the next
+        // evaluation — impossible here because PreviewTooltip has no TouchArea.
+        Timer {
+            interval: 16ms;
+            running: !touch.has-hover && root.preview-triggered;
+            triggered => {
+                root.preview-triggered = false;
+                root.hover-exited();
+            }
+        }
+    }
+}

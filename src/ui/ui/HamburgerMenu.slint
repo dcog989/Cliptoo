@@ -1,0 +1,100 @@
+// HamburgerMenu.slint — Popup menu content for hamburger icon.
+// Rendered inside a PopupWindow declared in AppWindow.
+
+import { Theme } from "Theme.slint";
+
+export component HamburgerMenu {
+    callback menu-settings();
+    callback menu-about();
+    callback menu-close-to-tray();
+
+    Rectangle {
+        border-radius: 8px;
+        background: Theme.bg-header;
+        border-width: 1px;
+        border-color: Theme.border-subtle;
+
+        VerticalLayout {
+            padding: 4px;
+            spacing: 2px;
+
+            Rectangle {
+                height: 36px;
+                border-radius: 6px;
+                border-width: 1px;
+                border-color: touch-settings.has-hover || touch-settings.pressed ? Theme.accent-primary : transparent;
+                background: touch-settings.pressed ? Theme.bg-row-selected : touch-settings.has-hover ? Theme.bg-row-hover : transparent;
+
+                HorizontalLayout {
+                    padding-left: 12px;
+                    padding-right: 12px;
+                    alignment: center;
+
+                    Text {
+                        text: "Settings";
+                        color: Theme.fg-primary;
+                        font-size: Theme.font-size;
+                        vertical-alignment: center;
+                    }
+                }
+
+                touch-settings := TouchArea {
+                    clicked => { root.menu-settings(); }
+                    mouse-cursor: pointer;
+                }
+            }
+
+            Rectangle {
+                height: 36px;
+                border-radius: 6px;
+                border-width: 1px;
+                border-color: touch-about.has-hover || touch-about.pressed ? Theme.accent-primary : transparent;
+                background: touch-about.pressed ? Theme.bg-row-selected : touch-about.has-hover ? Theme.bg-row-hover : transparent;
+
+                HorizontalLayout {
+                    padding-left: 12px;
+                    padding-right: 12px;
+                    alignment: center;
+
+                    Text {
+                        text: "About";
+                        color: Theme.fg-primary;
+                        font-size: Theme.font-size;
+                        vertical-alignment: center;
+                    }
+                }
+
+                touch-about := TouchArea {
+                    clicked => { root.menu-about(); }
+                    mouse-cursor: pointer;
+                }
+            }
+
+            Rectangle {
+                height: 36px;
+                border-radius: 6px;
+                border-width: 1px;
+                border-color: touch-close.has-hover || touch-close.pressed ? Theme.accent-primary : transparent;
+                background: touch-close.pressed ? Theme.bg-row-selected : touch-close.has-hover ? Theme.bg-row-hover : transparent;
+
+                HorizontalLayout {
+                    padding-left: 12px;
+                    padding-right: 12px;
+                    alignment: center;
+
+                    Text {
+                        text: "Close to Tray";
+                        color: Theme.fg-primary;
+                        font-size: Theme.font-size;
+                        vertical-alignment: center;
+                    }
+                }
+
+                touch-close := TouchArea {
+                    clicked => { root.menu-close-to-tray(); }
+                    mouse-cursor: pointer;
+                }
+            }
+        }
+    }
+}

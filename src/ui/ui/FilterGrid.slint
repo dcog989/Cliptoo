@@ -1,0 +1,165 @@
+import { Theme } from "Theme.slint";
+
+export struct FilterItem {
+    key: string,
+    label: string,
+}
+
+// FilterGrid — 4×4 icon grid for clip-type filtering.
+//
+// Tooltip approach: each cell owns a TouchArea so has-hover is reliable per cell.
+// The tooltip overlay is rendered last (on top) using absolute coordinates derived
+// from the hovered cell's row/col. No single covering TouchArea is needed.
+export component FilterGrid {
+    in property <string> active-filter: "all";
+
+    callback filter-chosen(string);
+
+    // -1 when nothing is hovered.
+    in-out property <int> hovered-index: -1;
+
+    property <[FilterItem]> items: [
+        { key: "all",           label: "All"       },
+        { key: "text",          label: "Text"      },
+        { key: "file_image",    label: "Image"     },
+        { key: "bookmarked",    label: "Bookmarked"},
+        { key: "link",          label: "Link"      },
+        { key: "code_snippet",  label: "Code"      },
+        { key: "color",         label: "Color"     },
+        { key: "folder",        label: "Folder"    },
+        { key: "file_audio",    label: "Audio"     },
+        { key: "file_video",    label: "Video"     },
+        { key: "file_archive",  label: "Archive"   },
+        { key: "file_document", label: "Document"  },
+        { key: "file_database", label: "Database"  },
+        { key: "file_font",     label: "Font"      },
+        { key: "rtf",           label: "Rich Text" },
+        { key: "file",          label: "File"      },
+    ];
+
+    // Grid geometry constants — must match padding/spacing below.
+    property <length> grid-spacing: 4px;
+    property <length> grid-padding: 8px;
+    property <length> cell-size: 36px;
+    property <length> tooltip-height: 24px;
+    property <length> tooltip-width: 88px;
+
+    // Computed from above — not a separate constant.
+    property <length> cell-pitch: root.cell-size + root.grid-spacing;
+
+    // Total content area width: 4 cells + 3 gaps + 2 paddings.
+    property <length> content-width: 4 * root.cell-size + 3 * root.grid-spacing + 2 * root.grid-padding;
+
+    // Pixel origin of the hovered cell (top-left corner of the 36px cell).
+    property <length> hov-cell-x: root.grid-padding + Math.mod(root.hovered-index, 4) * root.cell-pitch;
+    property <length> hov-cell-y: root.grid-padding + Math.floor(root.hovered-index / 4) * root.cell-pitch;
+
+    // Tooltip centered on the cell, clamped to stay within the content area.
+    property <length> tooltip-x: clamp(
+        root.hov-cell-x + root.cell-size / 2 - root.tooltip-width / 2,
+        0px,
+        root.content-width - root.tooltip-width
+    );
+    property <length> tooltip-y: Math.floor(root.hovered-index / 4) == 3
+        // Row 3 (last row): flip tooltip above the cell to avoid bottom-edge clipping.
+        // No top-edge clamp — safe for the fixed 4-row grid, but would need
+        // max(0px, ...) if rows were ever added.
+        ? root.hov-cell-y - root.grid-spacing - root.tooltip-height
+        : root.hov-cell-y + root.cell-size + root.grid-spacing;
+
+    Rectangle {
+        border-radius: 8px;
+        background: Theme.bg-header;
+        border-width: 1px;
+        border-color: Theme.border-subtle;
+
+        GridLayout {
+            padding: root.grid-padding;
+            spacing: root.grid-spacing;
+
+            for item[idx] in root.items: Rectangle {
+                row: Math.floor(idx / 4);
+                col: Math.mod(idx, 4);
+                width: root.cell-size;
+                height: root.cell-size;
+                border-radius: 5px;
+                background: root.hovered-index == idx
+                    ? Theme.bg-row-selected
+                    : root.active-filter == item.key
+                        ? Theme.accent-muted
+                        : transparent;
+
+                animate background { duration: Theme.anim-fast; }
+
+                Image {
+                    x: (root.cell-size - 24px) / 2;
+                    y: (root.cell-size - 24px) / 2;
+                    width: 24px;
+                    height: 24px;
+                    source: item.key == "all"           ? @image-url("icons/check-check.svg")
+                          : item.key == "text"          ? @image-url("icons/text-align-start.svg")
+                          : item.key == "file_image"    ? @image-url("icons/file-image.svg")
+                          : item.key == "bookmarked"    ? @image-url("icons/bookmark.svg")
+                          : item.key == "link"          ? @image-url("icons/link.svg")
+                          : item.key == "code_snippet"  ? @image-url("icons/code.svg")
+                          : item.key == "color"         ? @image-url("icons/palette.svg")
+                          : item.key == "folder"        ? @image-url("icons/folder.svg")
+                          : item.key == "file_audio"    ? @image-url("icons/audio-lines.svg")
+                          : item.key == "file_video"    ? @image-url("icons/film.svg")
+                          : item.key == "file_archive"  ? @image-url("icons/file-archive.svg")
+                          : item.key == "file_document" ? @image-url("icons/file-text.svg")
+                          : item.key == "file_database" ? @image-url("icons/database.svg")
+                          : item.key == "file_font"     ? @image-url("icons/type-outline.svg")
+                          : item.key == "rtf"           ? @image-url("icons/file-type.svg")
+                          :                              @image-url("icons/file.svg");
+                    colorize: root.active-filter == item.key
+                        ? Theme.fg-secondary
+                        : root.hovered-index == idx
+                            ? Theme.fg-primary
+                            : Theme.fg-muted;
+                    animate colorize { duration: Theme.anim-fast; }
+                }
+
+                cell-touch := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.filter-chosen(item.key); }
+                    pointer-event(e) => {
+                        if e.kind == PointerEventKind.move {
+                            root.hovered-index = idx;
+                        }
+                        if e.kind == PointerEventKind.cancel {
+                            root.hovered-index = -1;
+                        }
+                    }
+                }
+            }
+        }
+
+        // ── Tooltip overlay ────────────────────────────────────────────────
+        // Rendered after the GridLayout so it paints on top.
+        // Visible only when a cell is hovered (hovered-index >= 0).
+        if root.hovered-index >= 0 && root.hovered-index < root.items.length : Rectangle {
+            x: root.tooltip-x;
+            y: root.tooltip-y;
+            width: root.tooltip-width;
+            height: root.tooltip-height;
+            border-radius: 5px;
+            background: Theme.bg-row-selected;
+            border-width: 1px;
+            border-color: Theme.border-subtle;
+            // Lift above sibling grid cells.
+            // (No explicit z in Slint; later children paint on top — this Rectangle
+            //  is declared after the GridLayout so it is always above.)
+
+            Text {
+                text: root.items[root.hovered-index].label;
+                font-size: 11px;
+                color: Theme.fg-primary;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+                width: 100%;
+                height: 100%;
+            }
+        }
+    }
+}

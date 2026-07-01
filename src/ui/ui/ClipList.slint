@@ -1,0 +1,84 @@
+// ClipList.slint — Virtualized list of clip items.
+// Binds to VecModel<ClipData> from Rust. Only visible rows are rendered (O(1)).
+// selected-index is in-out so the key handler can mutate it directly without Rust
+// roundtrips. Rust resets it to 0 when search/filter results change.
+//
+// Keyboard navigation is driven entirely by the parent (AppWindow) via the
+// public nav-* functions below. ClipList holds no FocusScope of its own.
+
+import { ClipItem }  from "ClipItem.slint";
+import { Theme }     from "Theme.slint";
+import { ClipData }  from "ClipData.slint";
+import { ListView }  from "std-widgets.slint";
+
+export component ClipList {
+    in property <[ClipData]> clips;
+    in property <bool>  quick-paste-active: false;
+    in property <int>   quick-paste-slots: 9;
+    in property <bool>  is-searching: false;
+    in-out property <int>   selected-index: 0;
+    // Window-absolute Y of the top of this list component. Set from AppWindow
+    // so the hovered callback can produce a window-absolute popup-y coordinate.
+    in property <float> list-offset-y: 0.0;
+
+    callback item-activated(int);
+    callback item-right-clicked(int, float, float, bool, string);
+    callback request-preview(int, float, float);  // id, x, y in logical px
+    callback dismiss-preview;
+
+    public function nav-up() {
+        if (root.clips.length > 0) {
+            root.selected-index = max(0, root.selected-index - 1);
+            if (root.selected-index * Theme.row-height < -list-view.viewport-y) {
+                list-view.viewport-y = -root.selected-index * Theme.row-height;
+            }
+        }
+    }
+
+    public function nav-down() {
+        if (root.clips.length > 0) {
+            root.selected-index = min(root.clips.length - 1, root.selected-index + 1);
+            if ((root.selected-index + 1) * Theme.row-height > -list-view.viewport-y + list-view.visible-height) {
+                list-view.viewport-y = -(root.selected-index + 1) * Theme.row-height + list-view.visible-height;
+            }
+        }
+    }
+
+    public function nav-home() {
+        if (root.clips.length > 0) {
+            root.selected-index = 0;
+        }
+        list-view.viewport-y = 0px;
+    }
+
+    public function nav-end() {
+        if (root.clips.length > 0) {
+            root.selected-index = root.clips.length - 1;
+            // Scroll so the last row's *bottom* is at the viewport bottom.
+            list-view.viewport-y = -(root.clips.length * Theme.row-height - list-view.visible-height);
+        }
+    }
+
+    public function activate() {
+        if (root.clips.length > 0) {
+            root.item-activated(root.clips[root.selected-index].id);
+        }
+    }
+
+    list-view := ListView {
+        for clip[idx] in root.clips: ClipItem {
+            clip-data: clip;
+            is-selected: idx == root.selected-index;
+            row-index: idx;
+            is-alt-row: mod(idx, 2) == 1;
+            quick-paste-active: root.quick-paste-active;
+            quick-paste-slots: root.quick-paste-slots;
+            is-searching: root.is-searching;
+
+            activated => { root.item-activated(clip.id); }
+            right-clicked(x, y) => { root.item-right-clicked(clip.id, x, y, clip.is-bookmarked, clip.clip-type); }
+            hovered(mx, my) => { root.request-preview(clip.id, mx, idx * Theme.row-height / 1px + list-view.viewport-y / 1px + my + root.list-offset-y); }
+            hover-exited => { root.dismiss-preview(); }
+        }
+    }
+}

@@ -1,0 +1,89 @@
+// ToastNotification.slint — temporary overlay toast for info/warn/error feedback.
+//
+// Usage:
+//   Set `visible`, `message`, and `severity` from Rust.
+//   The component auto-dismisses after `display-duration` via an internal timer
+//   which fires `dismissed` so the parent can clear the properties.
+//
+// Severity values: "info" | "warn" | "error"   (anything else → info styling)
+
+import { Theme } from "Theme.slint";
+
+export component ToastNotification {
+    in property <string>  message:          "";
+    in property <string>  severity:         "info";
+    // display-duration in milliseconds; the internal timer uses this.
+    in property <duration> display-duration: 3000ms;
+
+    // The parent sets this to show the toast.
+    in-out property <bool> active: false;
+
+    callback dismissed;
+
+    // Resolve per-severity colours.
+    property <color> bg-color:
+        severity == "error" ? #c0392b.mix(Theme.bg-primary, 0.15)
+      : severity == "warn"  ? #e67e22.mix(Theme.bg-primary, 0.15)
+      :                       Theme.accent-primary.mix(Theme.bg-primary, 0.25);
+
+    property <color> border-color:
+        severity == "error" ? #c0392b
+      : severity == "warn"  ? #e67e22
+      :                       Theme.accent-primary;
+
+    property <color> text-color:
+        severity == "error" ? #e74c3c
+      : severity == "warn"  ? #f39c12
+      :                       Theme.fg-primary;
+
+    // Auto-dismiss timer: fires once after display-duration, then resets.
+    Timer {
+        interval: root.display-duration;
+        running: root.active;
+        triggered => {
+            root.active = false;
+            root.dismissed();
+        }
+    }
+
+    if root.active: Rectangle {
+        // Anchored to bottom-center of the window.
+        // The parent positions this over the clip list; x/y set by the
+        // VerticalLayout constraints in AppWindow which places this last.
+        height: content-layout.preferred-height + 16px;
+        min-width: 200px;
+        max-width: 400px;
+
+        border-radius: 6px;
+        background: bg-color;
+        border-width: 1px;
+        border-color: border-color;
+        drop-shadow-blur: 8px;
+        drop-shadow-color: #00000040;
+
+        animate opacity { duration: Theme.anim-fast; }
+
+        content-layout := HorizontalLayout {
+            padding: 8px;
+            spacing: 8px;
+            alignment: start;
+
+            // Severity indicator bar
+            Rectangle {
+                width: 3px;
+                height: 100%;
+                background: border-color;
+                border-radius: 2px;
+            }
+
+            Text {
+                text: root.message;
+                color: text-color;
+                font-size: Theme.font-size;
+                wrap: word-wrap;
+                horizontal-alignment: left;
+                vertical-alignment: center;
+            }
+        }
+    }
+}

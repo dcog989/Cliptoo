@@ -1,0 +1,14 @@
+pre-commit:
+  parallel: true
+  commands:
+    cargo-fmt-check:
+      run: cargo fmt --all -- --check
+      glob: "*.rs"
+    cargo-clippy:
+      run: cargo clippy --workspace --all-targets -- -D warnings
+      glob: "*.rs"
+
+pre-push:
+  commands:
+    cargo-test:
+      run: cargo test --workspace

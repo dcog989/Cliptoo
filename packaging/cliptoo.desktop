@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=Cliptoo
+Comment=Clipboard manager for KDE Plasma 6
+Exec=cliptoo
+Icon=cliptoo
+Type=Application
+Categories=Utility;
+Keywords=clipboard;paste;history;
+StartupNotify=false
+NoDisplay=true
+X-KDE-StartupNotify=false

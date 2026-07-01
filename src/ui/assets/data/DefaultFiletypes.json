@@ -1,0 +1,26 @@
+{
+  "version": 2,
+  "categories": {
+    "file_archive":  [".7z",".zip",".tar",".gz",".bz2",".xz",".rar",".iso",".zst",".lz4",".cab",".ar",".deb",".rpm"],
+    "file_audio":    [".mp3",".flac",".wav",".ogg",".aac",".opus",".m4a",".wma",".aiff",".ape"],
+    "file_danger":   [".exe",".sh",".bash",".zsh",".fish",".bat",".cmd",".ps1",".apk",".dmg",".run",".so",".elf",".bin",".appimage",".msi",".jar"],
+    "file_database": [".sqlite",".sqlite3",".db",".sql",".mdb",".accdb",".ldb"],
+    "file_dev": [
+      ".rs",".py",".js",".ts",".jsx",".tsx",".go",".cs",".cpp",".c",".h",".hpp",
+      ".java",".kt",".swift",".json",".yaml",".yml",".toml",".xml",".html",".htm",
+      ".css",".scss",".sass",".less",".svelte",".vue",".astro",".php",".rb",".pl",
+      ".lua",".ex",".exs",".erl",".hs",".ml",".clj",".dart",".r",".jl",".nim",
+      ".zig",".v",".odin",".d",".f",".f90",".vhd",".graphql",".gql",".proto",
+      ".thrift",".avro",".capnp",".dockerfile",".makefile",".cmake",".gradle",
+      ".lock",".env",".gitignore",".editorconfig",".prettierrc",".eslintrc",
+      ".babelrc",".tsconfig",".jsconfig"
+    ],
+    "file_document": [".pdf",".docx",".doc",".xlsx",".xls",".pptx",".ppt",".odt",".ods",".odp",".epub",".csv",".pages",".numbers",".key"],
+    "file_font":     [".ttf",".otf",".woff",".woff2",".eot",".pfb",".afm"],
+    "file_image":    [".png",".jpg",".jpeg",".gif",".webp",".svg",".avif",".heic",".jxl",".ico",".bmp",".tiff",".tif",".psd",".xcf",".raw",".arw",".cr2",".nef",".dng"],
+    "file_link":     [".lnk",".url",".webloc",".desktop"],
+    "file_system":   [".bak",".tmp",".dll",".sys",".cache",".swp",".swo",".pid",".lock"],
+    "file_text":     [".txt",".md",".markdown",".log",".nfo",".rst",".org",".adoc",".tex",".tsv"],
+    "file_video":    [".mp4",".mkv",".avi",".mov",".webm",".flv",".wmv",".m4v",".3gp",".ts",".vob",".ogv",".rm",".rmvb"]
+  }
+}

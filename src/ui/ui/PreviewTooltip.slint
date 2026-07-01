@@ -1,0 +1,181 @@
+import { Theme }      from "Theme.slint";
+import { ScrollView } from "std-widgets.slint";
+
+export component PreviewTooltip {
+    in property <bool>    visible-preview: false;
+    in property <string>  preview-clip-type: "text";
+    in property <string>  preview-text: "";
+    in property <color>   preview-color: #888888;
+    in property <image>   preview-image;
+    in property <image>   preview-favicon;
+    in property <string>  preview-web-title: "";
+    in property <string>  preview-file-info: "";
+    in property <float>   popup-x: 0.0;
+    in property <float>   popup-y: 0.0;
+
+    // Fills the window so the inner Rectangle can use absolute x/y coordinates.
+    // No background — transparent overlay.
+    x: 0px;
+    y: 0px;
+    width: 100%;
+    height: 100%;
+
+    // Using a named, always-present Rectangle (visibility toggled via `visible`)
+    // so that content-layout.preferred-height is reachable from the y binding
+    // on this same element. An if-guarded element's named children are out of
+    // scope for sibling property bindings.
+    popup-rect := Rectangle {
+        visible: root.visible-preview;
+        x: root.popup-x * 1px;
+        // Shift the popup up if it would clip at the bottom edge (8px margin).
+        // content-layout.preferred-height reflects the actual text-wrapped height.
+        property <length> actual-h: content-layout.preferred-height > 260px
+            ? 260px
+            : content-layout.preferred-height;
+        y: (root.popup-y * 1px + actual-h > root.height - 8px)
+            ? (root.height - actual-h - 8px)
+            : root.popup-y * 1px;
+        width: root.preview-clip-type == "code_snippet" ? 560px : 400px;
+        height: actual-h;
+        clip: true;
+        border-radius: Theme.border-radius;
+        background: Theme.bg-header;
+        border-width: 1px;
+        border-color: Theme.border-subtle;
+
+        content-layout := VerticalLayout {
+            padding: 12px;
+
+            // ── Color preview ─────────────────────────────────────────────────
+            if root.preview-clip-type == "color" : VerticalLayout {
+                spacing: 8px;
+                Rectangle {
+                    height: 60px;
+                    border-radius: 6px;
+                    background: root.preview-color;
+                }
+                Text {
+                    text: root.preview-text;
+                    color: Theme.fg-primary;
+                    font-size: Theme.preview-font-size;
+                    horizontal-alignment: center;
+                }
+            }
+
+            // ── Image preview ─────────────────────────────────────────────────
+            if root.preview-clip-type == "file_image" : VerticalLayout {
+                spacing: 8px;
+                Image {
+                    source: root.preview-image;
+                    height: 200px;
+                    image-fit: contain;
+                }
+                Text {
+                    text: root.preview-text;
+                    color: Theme.fg-secondary;
+                    font-size: Theme.preview-font-size - 1px;
+                    horizontal-alignment: center;
+                    overflow: elide;
+                }
+            }
+
+            // ── Web link preview ──────────────────────────────────────────────
+            if root.preview-clip-type == "link" : VerticalLayout {
+                spacing: 6px;
+                HorizontalLayout {
+                    spacing: 8px;
+                    Image {
+                        source: root.preview-favicon;
+                        width: 16px;
+                        height: 16px;
+                    }
+                    Text {
+                        text: root.preview-web-title == "" ? root.preview-text : root.preview-web-title;
+                        color: Theme.fg-primary;
+                        font-size: Theme.preview-font-size;
+                        overflow: elide;
+                        horizontal-stretch: 1;
+                    }
+                }
+                Text {
+                    text: root.preview-text;
+                    color: Theme.accent-primary;
+                    font-size: Theme.preview-font-size - 1px;
+                    overflow: elide;
+                }
+            }
+
+            // ── Code snippet preview ──────────────────────────────────────────
+            if root.preview-clip-type == "code_snippet" : VerticalLayout {
+                spacing: 4px;
+                ScrollView {
+                    height: 240px;
+                    Text {
+                        width: parent.width - 24px;
+                        text: root.preview-text;
+                        color: Theme.fg-primary;
+                        font-size: Theme.preview-font-size;
+                        font-family: "monospace";
+                        wrap: no-wrap;
+                    }
+                }
+            }
+
+            // ── File / folder preview ─────────────────────────────────────────
+            if root.preview-clip-type == "folder" || root.preview-clip-type == "file_generic"
+            || root.preview-clip-type == "file_dev" : VerticalLayout {
+                spacing: 4px;
+                Text {
+                    text: root.preview-text;
+                    color: Theme.fg-primary;
+                    font-size: Theme.preview-font-size;
+                    overflow: elide;
+                }
+                Text {
+                    text: root.preview-file-info;
+                    color: Theme.fg-secondary;
+                    font-size: Theme.preview-font-size - 1px;
+                }
+            }
+
+            // ── Text preview (default) ────────────────────────────────────────
+            // Falls through for: text, rtf, file_link, file_audio, file_video,
+            // file_archive, file_document, file_text, file_danger, file_database,
+            // file_font, file_system, and any future unknown types.
+            // `file_link` is intentionally handled here (shows the file path as
+            // plain text) since the favicon/title pipeline doesn't run for it.
+            // If that changes, add an explicit branch above.
+            //
+            // Content beyond 260px is hard-clipped (actual-h cap). A gradient
+            // fade-out at the bottom would signal truncation more clearly — 
+            // tracked as a future polish item.
+            if root.preview-clip-type != "color" && root.preview-clip-type != "file_image"
+            && root.preview-clip-type != "link" && root.preview-clip-type != "code_snippet"
+            && root.preview-clip-type != "folder"
+            && root.preview-clip-type != "file_generic" && root.preview-clip-type != "file_dev" :
+            Text {
+                // parent.width is the popup width; subtract padding (2 × 12px) for wrap budget.
+                // Note: if parent.width is 0 before layout, preferred-height collapses to 0
+                // and actual-h will be 0 until the first layout pass resolves the width.
+                width: parent.width - 24px;
+                text: root.preview-text;
+                color: Theme.fg-primary;
+                font-size: Theme.preview-font-size;
+                wrap: word-wrap;
+            }
+        }
+        // Gradient fade at the bottom to signal truncation when content
+        // exceeds the 260px actual-h cap. Visible only for the text branch
+        // (code_snippet has its own ScrollView; color/image are fixed height).
+        if root.preview-clip-type != "code_snippet"
+            && root.preview-clip-type != "color"
+            && root.preview-clip-type != "file_image"
+            && content-layout.preferred-height > 260px : Rectangle {
+            x: 0;
+            y: actual-h - 32px;
+            width: 100%;
+            height: 32px;
+            background: @linear-gradient(180deg, transparent 0%, Theme.bg-header 100%);
+        }
+    }
+}
