@@ -22,7 +22,7 @@ mod settings;
 mod source_app;
 mod theme;
 mod thumbnail_cache;
-mod tray;
+
 mod window;
 
 slint::include_modules!();
@@ -164,39 +164,57 @@ async fn main() -> Result<()> {
     }
 
     // ── System tray ────────────────────────────────────────────────────
-    let _tray_handle;
-    {
-        let tray_pos = positioning::PositionSettings::from(&*settings.borrow());
-        let tray_ui = ui.as_weak();
-        let (action_tx, mut action_rx) = tokio::sync::mpsc::unbounded_channel::<tray::TrayAction>();
+    let mut _tray = None;
+    match CliptooTray::new() {
+        Ok(tray) => {
+            // SystemTrayIcon has its own global scope; init Theme on it too.
+            let (theme_str, is_system) = {
+                let s = settings.borrow();
+                (
+                    s.theme.clone(),
+                    s.theme.as_str() != "Light" && s.theme.as_str() != "Dark",
+                )
+            };
+            let is_dark = match theme_str.as_str() {
+                "Light" => false,
+                "Dark" => true,
+                _ => theme::detect_system_dark().await.unwrap_or(true),
+            };
+            let system_accent = if is_system {
+                theme::detect_system_accent().await
+            } else {
+                None
+            };
+            theme::fill_theme(
+                &tray.global::<crate::Theme>(),
+                &settings.borrow(),
+                is_dark,
+                system_accent,
+            );
 
-        tokio::spawn(async move {
-            while let Some(action) = action_rx.recv().await {
-                let ui = tray_ui.clone();
-                let ps = tray_pos.clone();
-                let _ = ui.upgrade_in_event_loop(move |ui| {
-                    use slint::ComponentHandle;
-                    match action {
-                        tray::TrayAction::ToggleWindow => {
-                            if ComponentHandle::window(&ui).is_visible() {
-                                let _ = ComponentHandle::hide(&ui);
-                            } else {
-                                let _ = ComponentHandle::show(&ui);
-                                positioning::position_window_ex(&ui, &ps);
-                            }
-                        }
-                        tray::TrayAction::Quit => {
-                            std::process::exit(0);
+            {
+                let win = ui.as_weak();
+                let s = settings.clone();
+                tray.on_toggle_window(move || {
+                    if let Some(w) = win.upgrade() {
+                        use slint::ComponentHandle;
+                        if w.window().is_visible() {
+                            let _ = w.hide();
+                        } else {
+                            let _ = w.show();
+                            let ps = positioning::PositionSettings::from(&*s.borrow());
+                            positioning::position_window_ex(&w, &ps);
                         }
                     }
                 });
             }
-        });
 
-        match tray::create_tray(action_tx).await {
-            Ok(handle) => _tray_handle = handle,
-            Err(e) => tracing::warn!("System tray unavailable (app will still work): {e}"),
+            tray.on_quit_app(move || std::process::exit(0));
+
+            let _ = tray.show();
+            _tray = Some(tray);
         }
+        Err(e) => tracing::warn!("System tray unavailable (app will still work): {e}"),
     }
 
     ui.show()?;

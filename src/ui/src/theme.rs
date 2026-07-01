@@ -1,4 +1,3 @@
-use crate::AppWindow;
 use crate::Theme;
 use cliptoo_core::Settings;
 use cliptoo_core::color::{
@@ -103,32 +102,14 @@ fn accent_color(h: f64, l: f64, chroma_scale: f64, chroma_level: f64) -> Color {
     Color::from_rgb_u8(r, g, b)
 }
 
-/// Apply theme tokens to the Slint UI global `Theme`.
-pub async fn apply_theme(ui: &AppWindow, settings: &Settings) {
-    let is_dark = match settings.theme.as_str() {
-        "Light" => false,
-        "Dark" => true,
-        _ => detect_system_dark().await.unwrap_or(true),
-    };
-    let system_accent = if settings.theme.as_str() != "Light" && settings.theme.as_str() != "Dark" {
-        detect_system_accent().await
-    } else {
-        None
-    };
-    apply_theme_inner(ui, settings, is_dark, system_accent);
-}
-
-/// Apply theme tokens synchronously, with pre-resolved dark/accent values.
-/// Used by `apply_theme` (with portal I/O) and by `reapply_theme` in
-/// `settings.rs` (from a Qt callback where async spawning is not possible).
-pub fn apply_theme_inner(
-    ui: &AppWindow,
+/// Apply pre-resolved theme tokens to any `Theme` global handle.
+/// Used by the window, the tray, and any other component with `Theme`.
+pub fn fill_theme(
+    t: &Theme,
     settings: &Settings,
     is_dark: bool,
     system_accent: Option<(u8, u8, u8)>,
 ) {
-    let t = ui.global::<Theme>();
-
     let (base_l, secondary_l, muted_l) = if is_dark {
         (0.62, 0.58, 0.54)
     } else {
@@ -195,4 +176,31 @@ pub fn apply_theme_inner(
     t.set_hover_preview_delay(settings.hover_preview_delay as i64);
 
     t.set_row_height(crate::positioning::row_height(&settings.clip_item_padding) as f32);
+}
+
+/// Apply theme tokens to the Slint UI global `Theme`.
+pub async fn apply_theme(ui: &crate::AppWindow, settings: &Settings) {
+    let is_dark = match settings.theme.as_str() {
+        "Light" => false,
+        "Dark" => true,
+        _ => detect_system_dark().await.unwrap_or(true),
+    };
+    let system_accent = if settings.theme.as_str() != "Light" && settings.theme.as_str() != "Dark" {
+        detect_system_accent().await
+    } else {
+        None
+    };
+    fill_theme(&ui.global::<Theme>(), settings, is_dark, system_accent);
+}
+
+/// Apply theme tokens synchronously, with pre-resolved dark/accent values.
+/// Used by `apply_theme` (with portal I/O) and by `reapply_theme` in
+/// `settings.rs` (from a Qt callback where async spawning is not possible).
+pub fn apply_theme_inner(
+    ui: &crate::AppWindow,
+    settings: &Settings,
+    is_dark: bool,
+    system_accent: Option<(u8, u8, u8)>,
+) {
+    fill_theme(&ui.global::<Theme>(), settings, is_dark, system_accent);
 }

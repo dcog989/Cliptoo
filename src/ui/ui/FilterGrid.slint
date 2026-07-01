@@ -5,18 +5,10 @@ export struct FilterItem {
     label: string,
 }
 
-// FilterGrid — 4×4 icon grid for clip-type filtering.
-//
-// Tooltip approach: each cell owns a TouchArea so has-hover is reliable per cell.
-// The tooltip overlay is rendered last (on top) using absolute coordinates derived
-// from the hovered cell's row/col. No single covering TouchArea is needed.
 export component FilterGrid {
     in property <string> active-filter: "all";
 
     callback filter-chosen(string);
-
-    // -1 when nothing is hovered.
-    in-out property <int> hovered-index: -1;
 
     property <[FilterItem]> items: [
         { key: "all",           label: "All"       },
@@ -37,35 +29,9 @@ export component FilterGrid {
         { key: "file",          label: "File"      },
     ];
 
-    // Grid geometry constants — must match padding/spacing below.
     property <length> grid-spacing: 4px;
     property <length> grid-padding: 8px;
     property <length> cell-size: 36px;
-    property <length> tooltip-height: 24px;
-    property <length> tooltip-width: 88px;
-
-    // Computed from above — not a separate constant.
-    property <length> cell-pitch: root.cell-size + root.grid-spacing;
-
-    // Total content area width: 4 cells + 3 gaps + 2 paddings.
-    property <length> content-width: 4 * root.cell-size + 3 * root.grid-spacing + 2 * root.grid-padding;
-
-    // Pixel origin of the hovered cell (top-left corner of the 36px cell).
-    property <length> hov-cell-x: root.grid-padding + Math.mod(root.hovered-index, 4) * root.cell-pitch;
-    property <length> hov-cell-y: root.grid-padding + Math.floor(root.hovered-index / 4) * root.cell-pitch;
-
-    // Tooltip centered on the cell, clamped to stay within the content area.
-    property <length> tooltip-x: clamp(
-        root.hov-cell-x + root.cell-size / 2 - root.tooltip-width / 2,
-        0px,
-        root.content-width - root.tooltip-width
-    );
-    property <length> tooltip-y: Math.floor(root.hovered-index / 4) == 3
-        // Row 3 (last row): flip tooltip above the cell to avoid bottom-edge clipping.
-        // No top-edge clamp — safe for the fixed 4-row grid, but would need
-        // max(0px, ...) if rows were ever added.
-        ? root.hov-cell-y - root.grid-spacing - root.tooltip-height
-        : root.hov-cell-y + root.cell-size + root.grid-spacing;
 
     Rectangle {
         border-radius: 8px;
@@ -83,11 +49,9 @@ export component FilterGrid {
                 width: root.cell-size;
                 height: root.cell-size;
                 border-radius: 5px;
-                background: root.hovered-index == idx
-                    ? Theme.bg-row-selected
-                    : root.active-filter == item.key
-                        ? Theme.accent-muted
-                        : transparent;
+                background: root.active-filter == item.key
+                    ? Theme.accent-muted
+                    : transparent;
 
                 animate background { duration: Theme.anim-fast; }
 
@@ -114,51 +78,15 @@ export component FilterGrid {
                           :                              @image-url("icons/file.svg");
                     colorize: root.active-filter == item.key
                         ? Theme.fg-secondary
-                        : root.hovered-index == idx
-                            ? Theme.fg-primary
-                            : Theme.fg-muted;
+                        : Theme.fg-muted;
                     animate colorize { duration: Theme.anim-fast; }
                 }
 
                 cell-touch := TouchArea {
                     mouse-cursor: pointer;
+                    Tooltip { text: @markdown("\{item.label}"); }
                     clicked => { root.filter-chosen(item.key); }
-                    pointer-event(e) => {
-                        if e.kind == PointerEventKind.move {
-                            root.hovered-index = idx;
-                        }
-                        if e.kind == PointerEventKind.cancel {
-                            root.hovered-index = -1;
-                        }
-                    }
                 }
-            }
-        }
-
-        // ── Tooltip overlay ────────────────────────────────────────────────
-        // Rendered after the GridLayout so it paints on top.
-        // Visible only when a cell is hovered (hovered-index >= 0).
-        if root.hovered-index >= 0 && root.hovered-index < root.items.length : Rectangle {
-            x: root.tooltip-x;
-            y: root.tooltip-y;
-            width: root.tooltip-width;
-            height: root.tooltip-height;
-            border-radius: 5px;
-            background: Theme.bg-row-selected;
-            border-width: 1px;
-            border-color: Theme.border-subtle;
-            // Lift above sibling grid cells.
-            // (No explicit z in Slint; later children paint on top — this Rectangle
-            //  is declared after the GridLayout so it is always above.)
-
-            Text {
-                text: root.items[root.hovered-index].label;
-                font-size: 11px;
-                color: Theme.fg-primary;
-                horizontal-alignment: center;
-                vertical-alignment: center;
-                width: 100%;
-                height: 100%;
             }
         }
     }

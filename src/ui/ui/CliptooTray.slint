@@ -1,0 +1,22 @@
+export component CliptooTray inherits SystemTrayIcon {
+    icon: @image-url("../assets/cliptoo.svg");
+    tooltip: "Cliptoo — Clipboard Manager";
+    title: "Cliptoo";
+
+    callback toggle-window();
+    callback quit-app();
+
+    clicked => { toggle-window(); }
+
+    Menu {
+        MenuItem {
+            title: "Show / Hide";
+            activated => { toggle-window(); }
+        }
+        MenuSeparator { }
+        MenuItem {
+            title: "Quit";
+            activated => { quit-app(); }
+        }
+    }
+}

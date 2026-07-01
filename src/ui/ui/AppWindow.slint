@@ -12,7 +12,8 @@ import { SettingsWindow }  from "SettingsWindow.slint";
 import { HamburgerMenu }   from "HamburgerMenu.slint";
 import { ContextMenu }     from "ContextMenu.slint";
 import { ToastNotification } from "ToastNotification.slint";
-export { Theme, SettingsWindow, EditWindow }
+import { CliptooTray }     from "CliptooTray.slint";
+export { Theme, SettingsWindow, EditWindow, CliptooTray }
 
 // ── Main window ───────────────────────────────────────────────────────────────
 
@@ -394,10 +395,6 @@ export component AppWindow inherits Window {
 
         FilterGrid {
             active-filter: root.active-filter;
-            // Reset hover state each time the popup opens so the tooltip from
-            // the previous open cycle doesn't linger (no leave event fires when
-            // a PopupWindow closes without a selection being made).
-            hovered-index: -1;
             filter-chosen(f) => {
                 root.active-filter = f;
                 root.filter-changed(f);

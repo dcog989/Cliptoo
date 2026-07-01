@@ -872,7 +872,6 @@ dependencies = [
  "futures",
  "i-slint-backend-qt",
  "image",
- "ksni",
  "lru",
  "pkg-config",
  "regex",
@@ -3195,7 +3194,6 @@ dependencies = [
  "futures-util",
  "pastey 0.2.3",
  "serde",
- "tokio",
  "zbus",
 ]
 
