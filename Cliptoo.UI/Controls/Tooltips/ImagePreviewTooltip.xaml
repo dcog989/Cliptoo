@@ -1,0 +1,76 @@
+<UserControl
+    x:Class="Cliptoo.UI.Controls.Tooltips.ImagePreviewTooltip"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:converters="clr-namespace:Cliptoo.UI.Converters"
+    xmlns:core="clr-namespace:Cliptoo.Core;assembly=Cliptoo.Core"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    d:DesignHeight="300"
+    d:DesignWidth="300"
+    mc:Ignorable="d">
+    <StackPanel Margin="10">
+        <Grid>
+            <ui:Image
+                MaxWidth="{Binding CurrentSettings.HoverImagePreviewSize}"
+                MaxHeight="{Binding CurrentSettings.HoverImagePreviewSize}"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                RenderOptions.BitmapScalingMode="Fant"
+                Source="{Binding ImagePreviewSource}"
+                Stretch="Uniform"
+                Visibility="{Binding IsSourceMissing, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter={x:Static core:AppConstants.ConverterParameterInverse}}" />
+            <ContentControl
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Content="{Binding}"
+                ContentTemplate="{StaticResource FileNotFoundErrorTemplate}"
+                Visibility="{Binding IsSourceMissing, Converter={StaticResource BooleanToVisibilityConverter}}" />
+        </Grid>
+        <TextBlock
+            Margin="0,5,0,0"
+            FontStyle="Italic"
+            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+            Text="Loading..."
+            Visibility="{Binding IsFilePropertiesLoading, Converter={StaticResource BooleanToVisibilityConverter}}" />
+        <StackPanel
+            Margin="10"
+            VerticalAlignment="Center"
+            Visibility="{Binding IsFilePropertiesLoading, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter={x:Static core:AppConstants.ConverterParameterInverse}}">
+            <TextBlock
+                FontFamily="{Binding PreviewFont}"
+                FontSize="{Binding CurrentSettings.PreviewFontSize}"
+                FontWeight="Bold"
+                Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                Text="{Binding FileName}"
+                TextWrapping="Wrap"
+                Visibility="{Binding FileName, Converter={StaticResource NullToVisibilityConverter}}" />
+            <TextBlock
+                FontFamily="{Binding PreviewFont}"
+                FontSize="{Binding CurrentSettings.PreviewFontSize}"
+                Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                Text="{Binding FileProperties}"
+                TextWrapping="Wrap" />
+            <StackPanel
+                Margin="0,4,0,0"
+                Orientation="Horizontal"
+                Visibility="{Binding FileTypeInfo, Converter={StaticResource NullToVisibilityConverter}}">
+                <ui:ImageIcon
+                    Width="16"
+                    Height="16"
+                    Margin="0,0,5,0"
+                    VerticalAlignment="Center"
+                    Source="{Binding FileTypeInfoIcon}" />
+                <TextBlock
+                    VerticalAlignment="Center"
+                    FontFamily="{Binding PreviewFont}"
+                    FontSize="{Binding CurrentSettings.PreviewFontSize}"
+                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                    Text="{Binding FileTypeInfo}"
+                    TextWrapping="Wrap" />
+            </StackPanel>
+            <ContentControl Content="{Binding}" ContentTemplate="{StaticResource TagsTemplate}" />
+        </StackPanel>
+    </StackPanel>
+</UserControl>

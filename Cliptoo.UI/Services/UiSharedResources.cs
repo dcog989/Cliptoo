@@ -1,0 +1,64 @@
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
+using System.Windows.Media;
+using Cliptoo.Core;
+
+namespace Cliptoo.UI.Services
+{
+    public class UiSharedResources : IUiSharedResources
+    {
+        private readonly IIconProvider _iconProvider;
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        private ImageSource? _logoIcon;
+        public ImageSource? LogoIcon { get => _logoIcon; private set => SetProperty(ref _logoIcon, value); }
+
+        private ImageSource? _menuIcon;
+        public ImageSource? MenuIcon { get => _menuIcon; private set => SetProperty(ref _menuIcon, value); }
+
+        private ImageSource? _wasTrimmedIcon;
+        public ImageSource? WasTrimmedIcon { get => _wasTrimmedIcon; private set => SetProperty(ref _wasTrimmedIcon, value); }
+
+        private ImageSource? _multiLineIcon;
+        public ImageSource? MultiLineIcon { get => _multiLineIcon; private set => SetProperty(ref _multiLineIcon, value); }
+
+        private ImageSource? _favoriteIcon;
+        public ImageSource? FavoriteIcon { get => _favoriteIcon; private set => SetProperty(ref _favoriteIcon, value); }
+
+        private ImageSource? _favoriteIcon16;
+        public ImageSource? FavoriteIcon16 { get => _favoriteIcon16; private set => SetProperty(ref _favoriteIcon16, value); }
+
+        private ImageSource? _errorIcon;
+        public ImageSource? ErrorIcon { get => _errorIcon; private set => SetProperty(ref _errorIcon, value); }
+
+        public UiSharedResources(IIconProvider iconProvider)
+        {
+            _iconProvider = iconProvider;
+        }
+
+        public async Task InitializeAsync()
+        {
+            LogoIcon = await _iconProvider.GetIconAsync(AppConstants.IconKeyLogo, 24).ConfigureAwait(true);
+            MenuIcon = await _iconProvider.GetIconAsync(AppConstants.IconKeyList, 28).ConfigureAwait(true);
+            WasTrimmedIcon = await _iconProvider.GetIconAsync(AppConstants.IconKeyWasTrimmed, 20).ConfigureAwait(true);
+            MultiLineIcon = await _iconProvider.GetIconAsync(AppConstants.IconKeyMultiline, 20).ConfigureAwait(true);
+            FavoriteIcon = await _iconProvider.GetIconAsync(AppConstants.IconKeyFavorite, 20).ConfigureAwait(true);
+            FavoriteIcon16 = await _iconProvider.GetIconAsync(AppConstants.IconKeyFavorite, 16).ConfigureAwait(true);
+            ErrorIcon = await _iconProvider.GetIconAsync(AppConstants.IconKeyError, 32).ConfigureAwait(true);
+        }
+
+        private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        private bool SetProperty<T>(ref T storage, T value, [CallerMemberName] string? propertyName = null)
+        {
+            if (Equals(storage, value)) return false;
+            storage = value;
+            OnPropertyChanged(propertyName);
+            return true;
+        }
+    }
+}

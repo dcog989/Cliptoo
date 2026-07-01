@@ -1,0 +1,331 @@
+using System;
+using System.Diagnostics.CodeAnalysis;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Data.Sqlite;
+
+namespace Cliptoo.Core.Database
+{
+    public class DatabaseInitializer : RepositoryBase, IDatabaseInitializer
+    {
+        private const int CurrentDbVersion = 8;
+        public DatabaseInitializer(string dbPath, IDatabaseLockProvider lockProvider) : base(dbPath, lockProvider) { }
+
+        [SuppressMessage("Microsoft.Security", "CA2100:Review SQL queries for security vulnerabilities", Justification = "PRAGMA user_version is a hardcoded value, not user input.")]
+        public async Task InitializeAsync()
+        {
+            SqliteConnection? connection = null;
+            SqliteCommand? command = null;
+            try
+            {
+                connection = await GetOpenConnectionAsync().ConfigureAwait(false);
+                command = connection.CreateCommand();
+                command.CommandText = "PRAGMA journal_mode=WAL;";
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+                command.CommandText = "PRAGMA user_version;";
+                var currentVersion = (long)(await command.ExecuteScalarAsync().ConfigureAwait(false) ?? 0L);
+
+                if (currentVersion == 0)
+                {
+                    command.CommandText = @"
+                        CREATE TABLE clips (
+                            Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            Content TEXT NOT NULL,
+                            ContentHash TEXT UNIQUE,
+                            PreviewContent TEXT,
+                            Timestamp TEXT NOT NULL,
+                            ClipType TEXT NOT NULL,
+                            SourceApp TEXT,
+                            IsFavorite INTEGER NOT NULL DEFAULT 0,
+                            WasTrimmed INTEGER NOT NULL DEFAULT 0,
+                            SizeInBytes INTEGER NOT NULL DEFAULT 0,
+                            PasteCount INTEGER NOT NULL DEFAULT 0,
+                            Tags TEXT
+                        );
+                        CREATE INDEX idx_clips_timestamp ON clips(Timestamp);
+                        CREATE INDEX idx_clips_cliptype ON clips(ClipType);
+                        CREATE TABLE stats (
+                            Key TEXT PRIMARY KEY,
+                            Value INTEGER,
+                            TextValue TEXT
+                        );
+                        CREATE VIRTUAL TABLE clips_fts USING fts5(
+                            Content,
+                            Tags,
+                            content='clips',
+                            content_rowid='Id',
+                            tokenize='unicode61 remove_diacritics 2',
+                            prefix=2
+                        );
+
+                        CREATE TRIGGER clips_ai AFTER INSERT ON clips BEGIN
+                            INSERT INTO clips_fts(rowid, Content, Tags) VALUES (new.Id, new.Content, new.Tags);
+                        END;
+
+                        CREATE TRIGGER clips_ad AFTER DELETE ON clips BEGIN
+                            INSERT INTO clips_fts(clips_fts, rowid, Content, Tags) VALUES ('delete', old.Id, old.Content, old.Tags);
+                        END;
+
+                        // Optimized: Only re-index when searchable content actually changes.
+                        // Metadata updates (PasteCount, IsFavorite, Timestamp) will no longer trigger FTS re-indexing.
+                        CREATE TRIGGER clips_au AFTER UPDATE OF Content, Tags ON clips BEGIN
+                            INSERT INTO clips_fts(clips_fts, rowid, Content, Tags) VALUES ('delete', old.Id, old.Content, old.Tags);
+                            INSERT INTO clips_fts(rowid, Content, Tags) VALUES (new.Id, new.Content, new.Tags);
+                        END;
+                        ";
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                }
+                else if (currentVersion < CurrentDbVersion)
+                {
+                    await UpgradeDatabaseAsync(currentVersion).ConfigureAwait(false);
+                }
+
+                command.CommandText = "INSERT OR IGNORE INTO stats (Key, Value) VALUES ('PasteCount', 0);";
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+                command.CommandText = "INSERT OR IGNORE INTO stats (Key, Value) VALUES ('UniqueClipsEver', (SELECT COUNT(*) FROM clips));";
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+                command.CommandText = "INSERT OR IGNORE INTO stats (Key, Value, TextValue) VALUES ('CreationTimestamp', 0, @Timestamp);";
+                command.Parameters.Clear();
+                command.Parameters.AddWithValue("@Timestamp", DateTime.UtcNow.ToString("o"));
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+                command.CommandText = "INSERT OR IGNORE INTO stats (Key, TextValue) VALUES ('LastCleanupTimestamp', @Timestamp);";
+                command.Parameters.Clear();
+                command.Parameters.AddWithValue("@Timestamp", DateTime.UtcNow.ToString("o"));
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+                command.CommandText = $"PRAGMA user_version = {CurrentDbVersion};";
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+            }
+            finally
+            {
+                if (command != null) { await command.DisposeAsync().ConfigureAwait(false); }
+                if (connection != null) { await connection.DisposeAsync().ConfigureAwait(false); }
+            }
+        }
+
+        [SuppressMessage("Microsoft.Security", "CA2100:Review SQL queries for security vulnerabilities", Justification = "Migration queries are hardcoded and do not use user input.")]
+        private async Task UpgradeDatabaseAsync(long fromVersion)
+        {
+            if (fromVersion >= CurrentDbVersion) return;
+
+            SqliteConnection? connection = null;
+            SqliteTransaction? transaction = null;
+            try
+            {
+                connection = await GetOpenConnectionAsync().ConfigureAwait(false);
+                transaction = (SqliteTransaction)await connection.BeginTransactionAsync().ConfigureAwait(false);
+
+                if (fromVersion < 1)
+                {
+                    SqliteCommand? alterCmd = null;
+                    try
+                    {
+                        alterCmd = connection.CreateCommand();
+                        alterCmd.Transaction = transaction;
+                        alterCmd.CommandText = "ALTER TABLE stats ADD COLUMN TextValue TEXT;";
+                        await alterCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        if (alterCmd != null) { await alterCmd.DisposeAsync().ConfigureAwait(false); }
+                    }
+                }
+
+                if (fromVersion < 3)
+                {
+                    var cmds = new[]
+                    {
+                        "DROP TABLE IF EXISTS clips_fts;",
+                        "DROP TRIGGER IF EXISTS clips_ai;",
+                        "DROP TRIGGER IF EXISTS clips_ad;",
+                        "DROP TRIGGER IF EXISTS clips_au;",
+                        @"CREATE VIRTUAL TABLE clips_fts USING fts5(
+                            Content,
+                            content='clips',
+                            content_rowid='Id',
+                            tokenize='unicode61 remove_diacritics 2',
+                            prefix=2
+                        );",
+                        @"CREATE TRIGGER clips_ai AFTER INSERT ON clips BEGIN
+                            INSERT INTO clips_fts(rowid, Content) VALUES (new.Id, new.Content);
+                        END;",
+                        @"CREATE TRIGGER clips_ad AFTER DELETE ON clips BEGIN
+                            INSERT INTO clips_fts(clips_fts, rowid, Content) VALUES ('delete', old.Id, old.Content);
+                        END;",
+                        @"CREATE TRIGGER clips_au AFTER UPDATE ON clips BEGIN
+                            INSERT INTO clips_fts(clips_fts, rowid, Content) VALUES ('delete', old.Id, old.Content);
+                            INSERT INTO clips_fts(rowid, Content) VALUES (new.Id, new.Content);
+                        END;",
+                        "INSERT INTO clips_fts(rowid, Content) SELECT Id, Content FROM clips;"
+                    };
+                    foreach (var cmdText in cmds)
+                    {
+                        SqliteCommand? cmd = null;
+                        try
+                        {
+                            cmd = connection.CreateCommand();
+                            cmd.Transaction = transaction;
+                            cmd.CommandText = cmdText;
+                            await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            if (cmd != null) { await cmd.DisposeAsync().ConfigureAwait(false); }
+                        }
+                    }
+                }
+
+                if (fromVersion < 4)
+                {
+                    bool columnExists = false;
+                    var pragmaCmd = connection.CreateCommand();
+                    pragmaCmd.Transaction = transaction;
+                    pragmaCmd.CommandText = "PRAGMA table_info('clips');";
+                    using (var reader = await pragmaCmd.ExecuteReaderAsync().ConfigureAwait(false))
+                    {
+                        while (await reader.ReadAsync().ConfigureAwait(false))
+                        {
+                            if (reader.GetString(reader.GetOrdinal("name")).Equals("PasteCount", StringComparison.OrdinalIgnoreCase))
+                            {
+                                columnExists = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (!columnExists)
+                    {
+                        SqliteCommand? alterCmd = null;
+                        try
+                        {
+                            alterCmd = connection.CreateCommand();
+                            alterCmd.Transaction = transaction;
+                            alterCmd.CommandText = "ALTER TABLE clips ADD COLUMN PasteCount INTEGER NOT NULL DEFAULT 0;";
+                            await alterCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            if (alterCmd != null) { await alterCmd.DisposeAsync().ConfigureAwait(false); }
+                        }
+                    }
+                }
+
+                if (fromVersion < 5)
+                {
+                    bool isPinnedColumnExists = false;
+                    var pragmaCmd = connection.CreateCommand();
+                    pragmaCmd.Transaction = transaction;
+                    pragmaCmd.CommandText = "PRAGMA table_info('clips');";
+                    using (var reader = await pragmaCmd.ExecuteReaderAsync().ConfigureAwait(false))
+                    {
+                        while (await reader.ReadAsync().ConfigureAwait(false))
+                        {
+                            if (reader.GetString(reader.GetOrdinal("name")).Equals("IsPinned", StringComparison.OrdinalIgnoreCase))
+                            {
+                                isPinnedColumnExists = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (isPinnedColumnExists)
+                    {
+                        SqliteCommand? alterCmd = null;
+                        try
+                        {
+                            alterCmd = connection.CreateCommand();
+                            alterCmd.Transaction = transaction;
+                            alterCmd.CommandText = "ALTER TABLE clips RENAME COLUMN IsPinned TO IsFavorite;";
+                            await alterCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            if (alterCmd != null) { await alterCmd.DisposeAsync().ConfigureAwait(false); }
+                        }
+                    }
+                }
+
+                if (fromVersion < 6)
+                {
+                    var alterCmd = connection.CreateCommand();
+                    alterCmd.Transaction = transaction;
+                    alterCmd.CommandText = "ALTER TABLE clips ADD COLUMN Tags TEXT;";
+                    await alterCmd.ExecuteNonQueryAsync(CancellationToken.None).ConfigureAwait(false);
+
+                    var cmds = new[]
+                    {
+                        "DROP TABLE IF EXISTS clips_fts;",
+                        "DROP TRIGGER IF EXISTS clips_ai;",
+                        "DROP TRIGGER IF EXISTS clips_ad;",
+                        "DROP TRIGGER IF EXISTS clips_au;",
+                        @"CREATE VIRTUAL TABLE clips_fts USING fts5(
+                            Content,
+                            Tags,
+                            content='clips',
+                            content_rowid='Id',
+                            tokenize='unicode61 remove_diacritics 2',
+                            prefix=2
+                        );",
+                        @"CREATE TRIGGER clips_ai AFTER INSERT ON clips BEGIN
+                            INSERT INTO clips_fts(rowid, Content, Tags) VALUES (new.Id, new.Content, new.Tags);
+                        END;",
+                        @"CREATE TRIGGER clips_ad AFTER DELETE ON clips BEGIN
+                            INSERT INTO clips_fts(clips_fts, rowid, Content, Tags) VALUES ('delete', old.Id, old.Content, old.Tags);
+                        END;",
+                        @"CREATE TRIGGER clips_au AFTER UPDATE ON clips BEGIN
+                            INSERT INTO clips_fts(clips_fts, rowid, Content, Tags) VALUES ('delete', old.Id, old.Content, old.Tags);
+                            INSERT INTO clips_fts(rowid, Content, Tags) VALUES (new.Id, new.Content, new.Tags);
+                        END;",
+                        "INSERT INTO clips_fts(rowid, Content, Tags) SELECT Id, Content, Tags FROM clips;"
+                    };
+                    foreach (var cmdText in cmds)
+                    {
+                        var cmd = connection.CreateCommand();
+                        cmd.Transaction = transaction;
+                        cmd.CommandText = cmdText;
+                        await cmd.ExecuteNonQueryAsync(CancellationToken.None).ConfigureAwait(false);
+                    }
+                }
+
+                if (fromVersion < 7)
+                {
+                    var cmd = connection.CreateCommand();
+                    cmd.Transaction = transaction;
+                    cmd.CommandText = "CREATE INDEX IF NOT EXISTS idx_clips_cliptype ON clips(ClipType);";
+                    await cmd.ExecuteNonQueryAsync(CancellationToken.None).ConfigureAwait(false);
+                }
+
+                if (fromVersion < 8)
+                {
+                    var cmds = new[]
+                    {
+                        "DROP TRIGGER IF EXISTS clips_au;",
+                        @"CREATE TRIGGER clips_au AFTER UPDATE OF Content, Tags ON clips BEGIN
+                            INSERT INTO clips_fts(clips_fts, rowid, Content, Tags) VALUES ('delete', old.Id, old.Content, old.Tags);
+                            INSERT INTO clips_fts(rowid, Content, Tags) VALUES (new.Id, new.Content, new.Tags);
+                        END;"
+                    };
+                    foreach (var cmdText in cmds)
+                    {
+                        var cmd = connection.CreateCommand();
+                        cmd.Transaction = transaction;
+                        cmd.CommandText = cmdText;
+                        await cmd.ExecuteNonQueryAsync(CancellationToken.None).ConfigureAwait(false);
+                    }
+                }
+
+                await transaction.CommitAsync().ConfigureAwait(false);
+            }
+
+            finally
+            {
+                if (transaction != null) { await transaction.DisposeAsync().ConfigureAwait(false); }
+                if (connection != null) { await connection.DisposeAsync().ConfigureAwait(false); }
+            }
+        }
+    }
+}

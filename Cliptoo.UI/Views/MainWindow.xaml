@@ -1,0 +1,570 @@
+<ui:FluentWindow
+    x:Class="Cliptoo.UI.Views.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="clr-namespace:Cliptoo.UI.Controls"
+    xmlns:core="clr-namespace:Cliptoo.Core;assembly=Cliptoo.Core"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:helpers="clr-namespace:Cliptoo.UI.Helpers"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:tooltips="clr-namespace:Cliptoo.UI.Controls.Tooltips"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    xmlns:viewModels="clr-namespace:Cliptoo.UI.ViewModels"
+    Title="Cliptoo"
+    Width="600"
+    Height="400"
+    MinWidth="250"
+    MinHeight="150"
+    d:DataContext="{d:DesignInstance Type=viewModels:MainViewModel}"
+    helpers:WindowInputBehavior.ClipListView="{Binding ElementName=ClipListView}"
+    helpers:WindowInputBehavior.IsEnabled="True"
+    helpers:WindowInputBehavior.SearchTextBox="{Binding ElementName=SearchTextBox}"
+    Deactivated="MainWindow_Deactivated"
+    ExtendsContentIntoTitleBar="True"
+    IsVisibleChanged="MainWindow_IsVisibleChanged"
+    PreviewMouseDown="MainWindow_PreviewMouseDown"
+    ShowInTaskbar="False"
+    SnapsToDevicePixels="True"
+    TextOptions.TextFormattingMode="Display"
+    TextOptions.TextRenderingMode="ClearType"
+    WindowBackdropType="Mica"
+    mc:Ignorable="d">
+
+    <ui:FluentWindow.Resources>
+        <Style x:Key="IconButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Width" Value="32" />
+            <Setter Property="Height" Value="32" />
+            <Setter Property="TextElement.Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border
+                            x:Name="border"
+                            Background="{TemplateBinding Background}"
+                            CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                                <Setter Property="TextElement.Foreground" Value="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="IconToggleButton" TargetType="ToggleButton">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Width" Value="32" />
+            <Setter Property="Height" Value="32" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border
+                            x:Name="border"
+                            Background="{TemplateBinding Background}"
+                            CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="{DynamicResource AccentFillColorSecondaryBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </ui:FluentWindow.Resources>
+
+    <ui:FluentWindow.InputBindings>
+        <KeyBinding
+            Key="Enter"
+            Command="{Binding PasteClipCommand}"
+            CommandParameter="{Binding ElementName=ClipListView, Path=SelectedItem}" />
+    </ui:FluentWindow.InputBindings>
+
+    <ui:ClientAreaBorder x:Name="ClientBorder" BorderThickness="1">
+
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <DockPanel Grid.Row="0" Margin="8,8,8,0">
+                <ListView
+                    x:Name="ClipListView"
+                    HorizontalContentAlignment="Stretch"
+                    helpers:ListViewBehavior.IsEnabled="True"
+                    helpers:ListViewBehavior.LoadMoreCommand="{Binding LoadMoreClipsCommand}"
+                    helpers:ListViewBehavior.RequestScrollToTop="{Binding RequestScrollToTop, Mode=TwoWay}"
+                    AlternationCount="2"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    ItemsSource="{Binding Clips}"
+                    MouseLeave="ClipListView_MouseLeave"
+                    MouseLeftButtonUp="ClipListView_MouseLeftButtonUp"
+                    PreviewMouseDown="ClipListView_PreviewMouseDown"
+                    PreviewMouseRightButtonDown="ClipListView_PreviewMouseRightButtonDown"
+                    ScrollViewer.CanContentScroll="True"
+                    ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                    ScrollViewer.ScrollChanged="ClipListView_ScrollChanged"
+                    VirtualizingPanel.IsVirtualizing="True"
+                    VirtualizingPanel.VirtualizationMode="Recycling">
+                    <ListView.Resources>
+                        <ContextMenu x:Key="ClipContextMenu" DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                            <ContextMenu.Resources>
+                                <Style x:Key="ContextMenuSeparatorStyle" TargetType="Separator">
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="Separator">
+                                                <Rectangle
+                                                    Height="1"
+                                                    Margin="0,6,0,6"
+                                                    Fill="{DynamicResource ControlStrokeColorDefaultBrush}" />
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </ContextMenu.Resources>
+                            <MenuItem
+                                Command="{Binding TogglePreviewCommand}"
+                                CommandParameter="{Binding PlacementTarget, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type ContextMenu}}}"
+                                Header="Preview" />
+                            <MenuItem
+                                Command="{Binding EditClipCommand}"
+                                Header="Edit / Tags"
+                                Visibility="{Binding IsEditable, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                            <MenuItem Command="{Binding MoveToTopCommand}" Header="Move to Top" />
+                            <MenuItem
+                                Command="{Binding OpenCommand}"
+                                Header="{Binding OpenCommandHeader}"
+                                Visibility="{Binding IsOpenable, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                            <MenuItem
+                                Command="{Binding PasteFilePathCommand}"
+                                Header="Paste file path"
+                                Visibility="{Binding IsFileBased, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                            <MenuItem Header="Send To" ItemsSource="{Binding SettingsService.Settings.SendToTargets}">
+                                <MenuItem.Style>
+                                    <Style TargetType="MenuItem">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding SettingsService.Settings.SendToTargets.Count}" Value="0">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding IsSourceMissing}" Value="True">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </MenuItem.Style>
+                                <MenuItem.ItemContainerStyle>
+                                    <Style TargetType="MenuItem">
+                                        <Setter Property="Header" Value="{Binding Name}" />
+                                        <Setter Property="Command" Value="{Binding DataContext.SendToCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                        <Setter Property="CommandParameter" Value="{Binding}" />
+                                    </Style>
+                                </MenuItem.ItemContainerStyle>
+                            </MenuItem>
+                            <Separator>
+                                <Separator.Style>
+                                    <Style BasedOn="{StaticResource ContextMenuSeparatorStyle}" TargetType="Separator">
+                                        <Setter Property="Visibility">
+                                            <Setter.Value>
+                                                <MultiBinding Converter="{StaticResource AnyTrueToVisibilityConverter}">
+                                                    <Binding Path="IsEditable" />
+                                                    <Binding Path="IsOpenable" />
+                                                    <Binding Path="SettingsService.Settings.SendToTargets.Count" />
+                                                </MultiBinding>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </Separator.Style>
+                            </Separator>
+                            <MenuItem
+                                Command="{Binding ToggleFavoriteCommand}"
+                                Header="Favorite"
+                                IsCheckable="True"
+                                IsChecked="{Binding IsFavorite, Mode=OneWay}">
+                                <MenuItem.Icon>
+                                    <Image
+                                        Width="16"
+                                        Height="16"
+                                        Source="{Binding SharedResources.FavoriteIcon16}" />
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <Separator Style="{StaticResource ContextMenuSeparatorStyle}">
+                                <Separator.Visibility>
+                                    <MultiBinding Converter="{StaticResource AnyTrueToVisibilityConverter}">
+                                        <Binding Path="IsPasteGroupVisible" />
+                                        <Binding Path="ShowCompareMenu" />
+                                    </MultiBinding>
+                                </Separator.Visibility>
+                            </Separator>
+                            <MenuItem
+                                Command="{Binding PasteAsPlainTextCommand}"
+                                Header="Paste as Plain Text"
+                                Visibility="{Binding CanPasteAsPlainText, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                            <MenuItem Header="RTF Text" Visibility="{Binding CanPasteAsRtf, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <MenuItem.Command>
+                                    <Binding Path="PasteCommand" />
+                                </MenuItem.Command>
+                                <MenuItem.CommandParameter>
+                                    <Binding />
+                                </MenuItem.CommandParameter>
+                            </MenuItem>
+                            <MenuItem Header="Transform" Visibility="{Binding IsTextTransformable, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <MenuItem Header="Trim Whitespace">
+                                    <MenuItem.Command>
+                                        <Binding Path="TransformAndPasteCommand" />
+                                    </MenuItem.Command>
+                                    <MenuItem.CommandParameter>
+                                        <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
+                                            <Binding />
+                                            <Binding Source="{x:Static core:AppConstants.TransformTypeTrim}" />
+                                        </MultiBinding>
+                                    </MenuItem.CommandParameter>
+                                </MenuItem>
+                                <MenuItem Header="1 Line Feed After">
+                                    <MenuItem.Command>
+                                        <Binding Path="TransformAndPasteCommand" />
+                                    </MenuItem.Command>
+                                    <MenuItem.CommandParameter>
+                                        <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
+                                            <Binding />
+                                            <Binding Source="{x:Static core:AppConstants.TransformTypeLf1}" />
+                                        </MultiBinding>
+                                    </MenuItem.CommandParameter>
+                                </MenuItem>
+                                <MenuItem Header="2 Line Feeds After">
+                                    <MenuItem.Command>
+                                        <Binding Path="TransformAndPasteCommand" />
+                                    </MenuItem.Command>
+                                    <MenuItem.CommandParameter>
+                                        <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
+                                            <Binding />
+                                            <Binding Source="{x:Static core:AppConstants.TransformTypeLf2}" />
+                                        </MultiBinding>
+                                    </MenuItem.CommandParameter>
+                                </MenuItem>
+                                <MenuItem Header="Remove Line Feeds">
+                                    <MenuItem.Command>
+                                        <Binding Path="TransformAndPasteCommand" />
+                                    </MenuItem.Command>
+                                    <MenuItem.CommandParameter>
+                                        <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
+                                            <Binding />
+                                            <Binding Source="{x:Static core:AppConstants.TransformTypeRemoveLf}" />
+                                        </MultiBinding>
+                                    </MenuItem.CommandParameter>
+                                </MenuItem>
+                                <MenuItem Header="Timestamp Prefix">
+                                    <MenuItem.Command>
+                                        <Binding Path="TransformAndPasteCommand" />
+                                    </MenuItem.Command>
+                                    <MenuItem.CommandParameter>
+                                        <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
+                                            <Binding />
+                                            <Binding Source="{x:Static core:AppConstants.TransformTypeTimestamp}" />
+                                        </MultiBinding>
+                                    </MenuItem.CommandParameter>
+                                </MenuItem>
+                            </MenuItem>
+                            <MenuItem Header="Case" Visibility="{Binding IsTextTransformable, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <MenuItem Header="UPPER CASE">
+                                    <MenuItem.Command>
+                                        <Binding Path="TransformAndPasteCommand" />
+                                    </MenuItem.Command>
+                                    <MenuItem.CommandParameter>
+                                        <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
+                                            <Binding />
+                                            <Binding Source="{x:Static core:AppConstants.TransformTypeUpper}" />
+                                        </MultiBinding>
+                                    </MenuItem.CommandParameter>
+                                </MenuItem>
+                                <MenuItem Header="lower case">
+                                    <MenuItem.Command>
+                                        <Binding Path="TransformAndPasteCommand" />
+                                    </MenuItem.Command>
+                                    <MenuItem.CommandParameter>
+                                        <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
+                                            <Binding />
+                                            <Binding Source="{x:Static core:AppConstants.TransformTypeLower}" />
+                                        </MultiBinding>
+                                    </MenuItem.CommandParameter>
+                                </MenuItem>
+                                <MenuItem Header="Capitalize Case">
+                                    <MenuItem.Command>
+                                        <Binding Path="TransformAndPasteCommand" />
+                                    </MenuItem.Command>
+                                    <MenuItem.CommandParameter>
+                                        <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
+                                            <Binding />
+                                            <Binding Source="{x:Static core:AppConstants.TransformTypeCapitalize}" />
+                                        </MultiBinding>
+                                    </MenuItem.CommandParameter>
+                                </MenuItem>
+                                <MenuItem Header="Sentence case">
+                                    <MenuItem.Command>
+                                        <Binding Path="TransformAndPasteCommand" />
+                                    </MenuItem.Command>
+                                    <MenuItem.CommandParameter>
+                                        <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
+                                            <Binding />
+                                            <Binding Source="{x:Static core:AppConstants.TransformTypeSentence}" />
+                                        </MultiBinding>
+                                    </MenuItem.CommandParameter>
+                                </MenuItem>
+                                <MenuItem Header="iNVERT cASE">
+                                    <MenuItem.Command>
+                                        <Binding Path="TransformAndPasteCommand" />
+                                    </MenuItem.Command>
+                                    <MenuItem.CommandParameter>
+                                        <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
+                                            <Binding />
+                                            <Binding Source="{x:Static core:AppConstants.TransformTypeInvert}" />
+                                        </MultiBinding>
+                                    </MenuItem.CommandParameter>
+                                </MenuItem>
+                                <MenuItem Header="kebab-case">
+                                    <MenuItem.Command>
+                                        <Binding Path="TransformAndPasteCommand" />
+                                    </MenuItem.Command>
+                                    <MenuItem.CommandParameter>
+                                        <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
+                                            <Binding />
+                                            <Binding Source="{x:Static core:AppConstants.TransformTypeKebab}" />
+                                        </MultiBinding>
+                                    </MenuItem.CommandParameter>
+                                </MenuItem>
+                                <MenuItem Header="snake__case">
+                                    <MenuItem.Command>
+                                        <Binding Path="TransformAndPasteCommand" />
+                                    </MenuItem.Command>
+                                    <MenuItem.CommandParameter>
+                                        <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
+                                            <Binding />
+                                            <Binding Source="{x:Static core:AppConstants.TransformTypeSnake}" />
+                                        </MultiBinding>
+                                    </MenuItem.CommandParameter>
+                                </MenuItem>
+                                <MenuItem Header="CamelCase">
+                                    <MenuItem.Command>
+                                        <Binding Path="TransformAndPasteCommand" />
+                                    </MenuItem.Command>
+                                    <MenuItem.CommandParameter>
+                                        <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
+                                            <Binding />
+                                            <Binding Source="{x:Static core:AppConstants.TransformTypeCamel}" />
+                                        </MultiBinding>
+                                    </MenuItem.CommandParameter>
+                                </MenuItem>
+                                <MenuItem Header="Deslug">
+                                    <MenuItem.Command>
+                                        <Binding Path="TransformAndPasteCommand" />
+                                    </MenuItem.Command>
+                                    <MenuItem.CommandParameter>
+                                        <MultiBinding Converter="{StaticResource MultiCommandParameterConverter}">
+                                            <Binding />
+                                            <Binding Source="{x:Static core:AppConstants.TransformTypeDeslug}" />
+                                        </MultiBinding>
+                                    </MenuItem.CommandParameter>
+                                </MenuItem>
+                            </MenuItem>
+                            <Separator Style="{StaticResource ContextMenuSeparatorStyle}">
+                                <Separator.Visibility>
+                                    <MultiBinding Converter="{StaticResource AllTrueToVisibilityConverter}">
+                                        <Binding Path="IsPasteGroupVisible" />
+                                        <Binding Path="ShowCompareMenu" />
+                                    </MultiBinding>
+                                </Separator.Visibility>
+                            </Separator>
+                            <MenuItem
+                                Command="{Binding SelectForCompareLeftCommand}"
+                                Header="{Binding CompareLeftHeader}"
+                                Visibility="{Binding ShowCompareMenu, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                            <MenuItem Command="{Binding CompareWithSelectedRightCommand}" Header="Compare Right">
+                                <MenuItem.Style>
+                                    <Style TargetType="MenuItem">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <MultiDataTrigger>
+                                                <MultiDataTrigger.Conditions>
+                                                    <Condition Binding="{Binding ShowCompareMenu}" Value="True" />
+                                                    <Condition Binding="{Binding ShowCompareRightOption}" Value="True" />
+                                                </MultiDataTrigger.Conditions>
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </MultiDataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </MenuItem.Style>
+                            </MenuItem>
+                            <Separator Style="{StaticResource ContextMenuSeparatorStyle}" Visibility="{Binding ShowCompareMenu, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                            <MenuItem
+                                Command="{Binding DeleteCommand}"
+                                Foreground="{DynamicResource ErrorTextBrush}"
+                                Header="DELETE" />
+                        </ContextMenu>
+                    </ListView.Resources>
+                    <ListView.Style>
+                        <Style TargetType="ListView">
+                            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Hidden" />
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto" />
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ListView.Style>
+                    <ListView.ItemTemplate>
+                        <DataTemplate>
+                            <controls:ClipItemControl DataContext="{Binding}" />
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+            </DockPanel>
+
+            <Border Grid.Row="1" Margin="8">
+                <Grid Background="Transparent">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <Border
+                        Grid.Column="0"
+                        Width="32"
+                        Height="32"
+                        Cursor="SizeAll"
+                        MouseLeftButtonDown="Logo_MouseLeftButtonDown"
+                        Visibility="{Binding DisplayLogo, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <ui:ImageIcon
+                            Width="24"
+                            Height="24"
+                            Source="{Binding SharedResources.LogoIcon}" />
+                    </Border>
+
+                    <Grid Grid.Column="1" Margin="4,0,0,0">
+                        <ui:TextBox
+                            x:Name="SearchTextBox"
+                            Padding="4,4,32,4"
+                            ClearButtonEnabled="False"
+                            FontFamily="Source Code Pro"
+                            Text="{Binding SearchTerm, UpdateSourceTrigger=PropertyChanged}" />
+                        <Button
+                            x:Name="FilterButton"
+                            HorizontalAlignment="Right"
+                            Style="{StaticResource IconButton}"
+                            ToolTip="{Binding SelectedFilter.Name}">
+                            <Rectangle
+                                Width="20"
+                                Height="20"
+                                Fill="{Binding Path=(TextElement.Foreground), RelativeSource={RelativeSource AncestorType=Button}}">
+                                <Rectangle.OpacityMask>
+                                    <ImageBrush ImageSource="{Binding SelectedFilter.Icon}" Stretch="Uniform" />
+                                </Rectangle.OpacityMask>
+                            </Rectangle>
+                        </Button>
+                        <Popup
+                            x:Name="FilterPopup"
+                            AllowsTransparency="True"
+                            IsOpen="{Binding IsFilterPopupOpen, Mode=OneWay}"
+                            Placement="Top"
+                            PlacementTarget="{Binding ElementName=FilterButton}">
+                            <Border
+                                Padding="5"
+                                Background="{DynamicResource ApplicationBackgroundBrush}"
+                                BorderBrush="{DynamicResource ControlElevationBorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="4">
+                                <controls:FilterBar DataContext="{Binding}" />
+                            </Border>
+                        </Popup>
+                    </Grid>
+
+                    <Button
+                        x:Name="MenuButton"
+                        Grid.Column="2"
+                        Margin="4,0,0,0"
+                        Click="MenuButton_Click"
+                        Style="{StaticResource IconButton}">
+                        <Button.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Command="{Binding OpenSettingsCommand}" Header="Settings..." />
+                                <MenuItem
+                                    Header="Always on Top"
+                                    IsCheckable="True"
+                                    IsChecked="{Binding IsAlwaysOnTop, Mode=TwoWay}" />
+                                <MenuItem Command="{Binding HideWindowCommand}" Header="Send to Tray" />
+                            </ContextMenu>
+                        </Button.ContextMenu>
+                        <Rectangle
+                            Width="28"
+                            Height="28"
+                            Fill="{Binding Path=(TextElement.Foreground), RelativeSource={RelativeSource AncestorType=Button}}">
+                            <Rectangle.OpacityMask>
+                                <ImageBrush ImageSource="{Binding SharedResources.MenuIcon}" Stretch="Uniform" />
+                            </Rectangle.OpacityMask>
+                        </Rectangle>
+                    </Button>
+                </Grid>
+            </Border>
+
+            <Popup
+                x:Name="PreviewPopup"
+                AllowsTransparency="True"
+                DataContext="{Binding PreviewManager}"
+                IsOpen="{Binding IsPreviewOpen, Mode=TwoWay}"
+                MouseEnter="PreviewPopup_MouseEnter"
+                MouseLeave="PreviewPopup_MouseLeave"
+                Placement="{Binding PlacementMode}"
+                PlacementTarget="{Binding PlacementTarget}"
+                PopupAnimation="Fade">
+                <Border
+                    MaxWidth="{Binding DataContext.CurrentSettings.PreviewTooltipMaxWidth, ElementName=ClipListView}"
+                    Padding="0"
+                    Background="{DynamicResource ApplicationBackgroundBrush}"
+                    BorderBrush="{DynamicResource AccentFillColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="4">
+                    <ContentControl Content="{Binding PreviewClip}">
+                        <ContentControl.Style>
+                            <Style TargetType="ContentControl">
+                                <Setter Property="MinWidth" Value="150" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Content.ClipType, RelativeSource={RelativeSource Self}}" Value="color">
+                                        <Setter Property="ContentTemplate" Value="{StaticResource ColorTooltipTemplate}" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Content.IsLinkToolTip, RelativeSource={RelativeSource Self}}" Value="True">
+                                        <Setter Property="ContentTemplate" Value="{StaticResource LinkTooltipTemplate}" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Content.ShowTextualTooltip, RelativeSource={RelativeSource Self}}" Value="True">
+                                        <Setter Property="ContentTemplate" Value="{StaticResource TextTooltipTemplate}" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Content.ShowFileInfoTooltip, RelativeSource={RelativeSource Self}}" Value="True">
+                                        <Setter Property="ContentTemplate" Value="{StaticResource FileInfoTooltipTemplate}" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Content.IsImage, RelativeSource={RelativeSource Self}}" Value="True">
+                                        <Setter Property="ContentTemplate" Value="{StaticResource ImageTooltipTemplate}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ContentControl.Style>
+                    </ContentControl>
+                </Border>
+            </Popup>
+
+            <ui:SnackbarPresenter x:Name="RootSnackbarPresenter" Grid.RowSpan="2" />
+            <ContentPresenter Grid.RowSpan="2" Content="{Binding CurrentModalViewModel}" />
+        </Grid>
+
+    </ui:ClientAreaBorder>
+</ui:FluentWindow>

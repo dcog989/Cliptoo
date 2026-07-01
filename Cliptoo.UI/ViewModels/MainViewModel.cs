@@ -1,0 +1,483 @@
+using System.Collections.ObjectModel;
+using System.Windows;
+using System.Windows.Media;
+using Cliptoo.Core.Configuration;
+using Cliptoo.Core.Interfaces;
+using Cliptoo.UI.Services;
+using Cliptoo.UI.ViewModels.Base;
+using Wpf.Ui.Appearance;
+using Cliptoo.UI.Views;
+
+namespace Cliptoo.UI.ViewModels
+{
+    public record FilterOption(string Name, string Key, ImageSource? Icon);
+
+    public class BoolEventArgs : EventArgs
+    {
+        public bool Value { get; }
+        public BoolEventArgs(bool value) { Value = value; }
+    }
+
+    public partial class MainViewModel : ViewModelBase
+    {
+        private readonly IClipDataService _clipDataService;
+        private readonly IClipboardService _clipboardService;
+        private readonly ISettingsService _settingsService;
+        private readonly IDatabaseService _databaseService;
+        private readonly IAppInteractionService _appInteractionService;
+        private readonly IServiceProvider _serviceProvider;
+        private readonly IPastingService _pastingService;
+        private readonly IFontProvider _fontProvider;
+        private readonly INotificationService _notificationService;
+        private readonly IPreviewManager _previewManager;
+        private readonly IComparisonStateService _comparisonStateService;
+        private readonly IClipDisplayService _clipDisplayService;
+        private readonly IUiSharedResources _uiSharedResources;
+        private readonly IEventAggregator _eventAggregator;
+        private readonly IListViewInteractionService _listViewInteractionService;
+        private readonly IClipViewModelFactory _clipViewModelFactory;
+        private readonly Cliptoo.UI.Services.IThemeService _themeService;
+        private bool _isAlwaysOnTop;
+        private Settings _currentSettings;
+        private bool _isFilterPopupOpen;
+        private bool _isQuickPasteModeActive;
+        private bool _isWindowVisible;
+        private bool _needsRefreshOnShow = true;
+        public bool IsWindowVisible { get => _isWindowVisible; set => SetProperty(ref _isWindowVisible, value); }
+        public int MaxPreviewLength { get; private set; }
+        private FontFamily _mainFont;
+        private FontFamily _previewFont;
+        private int _selectedIndex;
+        private bool _isPasting;
+        private bool _isReadyForEvents;
+        public bool IsReadyForEvents { get => _isReadyForEvents; set => _isReadyForEvents = value; }
+        public event EventHandler<BoolEventArgs>? AlwaysOnTopChanged;
+        private bool _requestScrollToTop;
+        public bool RequestScrollToTop { get => _requestScrollToTop; set => SetProperty(ref _requestScrollToTop, value); }
+        public IPreviewManager PreviewManager => _previewManager;
+        public ObservableCollection<ClipViewModel> Clips => _clipDisplayService.Clips;
+        public ObservableCollection<FilterOption> FilterOptions => _clipDisplayService.FilterOptions;
+        public bool IsCompareToolAvailable => _comparisonStateService.IsCompareToolAvailable;
+        public bool IsHidingExplicitly { get; set; }
+        public bool ActivationSourceIsTray { get; set; }
+        public bool IsInitializing { get; set; } = true;
+        public Settings CurrentSettings { get => _currentSettings; private set => SetProperty(ref _currentSettings, value); }
+        public FontFamily MainFont { get => _mainFont; private set => SetProperty(ref _mainFont, value); }
+        public FontFamily PreviewFont { get => _previewFont; private set => SetProperty(ref _previewFont, value); }
+        public IUiSharedResources SharedResources => _uiSharedResources;
+        public ObservableCollection<SendToTarget> SendToTargets { get; }
+        public double TooltipMaxHeight { get; }
+        public static string CurrentThemeString => Application.Current.Dispatcher.Invoke(() =>
+        {
+            var theme = ApplicationThemeManager.GetAppTheme();
+            if (theme == ApplicationTheme.Unknown)
+            {
+                var systemTheme = ApplicationThemeManager.GetSystemTheme();
+                theme = systemTheme == SystemTheme.Dark ? ApplicationTheme.Dark : ApplicationTheme.Light;
+            }
+            return theme == ApplicationTheme.Dark ? "dark" : "light";
+        });
+
+        public bool IsPasting { get => _isPasting; private set => SetProperty(ref _isPasting, value); }
+
+        public bool IsFilterPopupOpen
+        {
+            get => _isFilterPopupOpen;
+            set
+            {
+                if (_isFilterPopupOpen != value)
+                {
+                    SetProperty(ref _isFilterPopupOpen, value);
+                }
+            }
+        }
+
+        public bool IsQuickPasteModeActive
+        {
+            get => _isQuickPasteModeActive;
+            set
+            {
+                if (SetProperty(ref _isQuickPasteModeActive, value))
+                {
+                    UpdateQuickPasteIndices();
+                }
+            }
+        }
+
+        public bool IsAlwaysOnTop
+        {
+            get => _isAlwaysOnTop;
+            set
+            {
+                if (SetProperty(ref _isAlwaysOnTop, value))
+                {
+                    if (Application.Current.MainWindow != null)
+                    {
+                        Application.Current.MainWindow.Topmost = value;
+                    }
+                    AlwaysOnTopChanged?.Invoke(this, new BoolEventArgs(value));
+                    CurrentSettings.IsAlwaysOnTop = value;
+                    _settingsService.SaveSettings();
+                }
+            }
+        }
+
+        public bool DisplayLogo => CurrentSettings.DisplayLogo;
+
+        public string SearchTerm
+        {
+            get => _clipDisplayService.SearchTerm;
+            set
+            {
+                if (_clipDisplayService.SearchTerm != value)
+                {
+                    _clipDisplayService.SearchTerm = value;
+                    _appInteractionService.NotifyUiActivity();
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public FilterOption SelectedFilter
+        {
+            get => _clipDisplayService.SelectedFilter;
+            set
+            {
+                if (_clipDisplayService.SelectedFilter != value)
+                {
+                    _clipDisplayService.SelectedFilter = value;
+                    _appInteractionService.NotifyUiActivity();
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public MainViewModel(
+            IClipDataService clipDataService,
+            IClipboardService clipboardService,
+            ISettingsService settingsService,
+            IDatabaseService databaseService,
+            IAppInteractionService appInteractionService,
+            IServiceProvider serviceProvider,
+            IPastingService pastingService,
+            IFontProvider fontProvider,
+            INotificationService notificationService,
+            IPreviewManager previewManager,
+            IComparisonStateService comparisonStateService,
+            IClipDisplayService clipDisplayService,
+            IUiSharedResources uiSharedResources,
+            IEventAggregator eventAggregator,
+            IListViewInteractionService listViewInteractionService,
+            IClipViewModelFactory clipViewModelFactory,
+            Cliptoo.UI.Services.IThemeService themeService)
+        {
+            _clipDataService = clipDataService;
+            _clipboardService = clipboardService;
+            _settingsService = settingsService;
+            _databaseService = databaseService;
+            _appInteractionService = appInteractionService;
+            _serviceProvider = serviceProvider;
+            _pastingService = pastingService;
+            _fontProvider = fontProvider;
+            _notificationService = notificationService;
+            _previewManager = previewManager;
+            _comparisonStateService = comparisonStateService;
+            _clipDisplayService = clipDisplayService;
+            _uiSharedResources = uiSharedResources;
+            _eventAggregator = eventAggregator;
+            _listViewInteractionService = listViewInteractionService;
+            _clipViewModelFactory = clipViewModelFactory;
+            _themeService = themeService;
+
+            _currentSettings = _settingsService.Settings;
+            _mainFont = _fontProvider.GetFont(CurrentSettings.FontFamily);
+            _previewFont = _fontProvider.GetFont(CurrentSettings.PreviewFontFamily);
+            TooltipMaxHeight = SystemParameters.WorkArea.Height * 0.9;
+            UpdateMaxPreviewLength();
+
+            SendToTargets = new ObservableCollection<SendToTarget>(CurrentSettings.SendToTargets);
+
+            PasteClipCommand = new RelayCommand(async param => await ExecutePasteClip(param, forcePlainText: null));
+            OpenSettingsCommand = new RelayCommand(_ => OpenSettingsWindow());
+            HideWindowCommand = new RelayCommand(_ => HideWindow());
+            LoadMoreClipsCommand = new RelayCommand(async _ => await _clipDisplayService.LoadMoreClipsAsync());
+
+            SubscribeToEvents();
+
+            _clipDataService.NewClipAdded += OnNewClipAdded;
+            _databaseService.HistoryCleared += OnHistoryCleared;
+            _settingsService.SettingsChanged += OnSettingsChanged;
+            _comparisonStateService.ComparisonStateChanged += OnComparisonStateChanged;
+            _clipDisplayService.ListScrolledToTopRequest += (s, e) => RequestScrollToTop = true;
+        }
+
+        private void SubscribeToEvents()
+        {
+            _eventAggregator.Subscribe<ClipDeletionRequested>(async msg => await ExecuteDeleteClip(msg.ClipId));
+            _eventAggregator.Subscribe<ClipFavoriteToggled>(async msg => await ExecuteToggleFavorite(msg.ClipId, msg.IsFavorite));
+            _eventAggregator.Subscribe<ClipMoveToTopRequested>(async msg => await ExecuteMoveToTop(msg.ClipId));
+            _eventAggregator.Subscribe<ClipEditRequested>(msg => ExecuteEditClip(msg.ClipId));
+            _eventAggregator.Subscribe<ClipOpenRequested>(async msg => await ExecuteOpen(msg.ClipId));
+            _eventAggregator.Subscribe<ClipSelectForCompareLeft>(msg => ExecuteSelectForCompareLeft(msg.ClipId));
+            _eventAggregator.Subscribe<ClipCompareWithSelectedRight>(async msg => await ExecuteCompareWithSelectedRight(msg.ClipId));
+            _eventAggregator.Subscribe<ClipSendToRequested>(async msg => await ExecuteSendTo(msg.ClipId, msg.Target));
+            _eventAggregator.Subscribe<TogglePreviewForSelectionRequested>(msg => TogglePreviewForSelection(msg.PlacementTarget as UIElement));
+            _eventAggregator.Subscribe<ClipPasteRequested>(async msg =>
+            {
+                var clipVM = Clips.FirstOrDefault(c => c.Id == msg.ClipId);
+                if (clipVM != null) await ExecutePasteClip(clipVM, msg.ForcePlainText);
+            });
+            _eventAggregator.Subscribe<ClipPasteFilePathRequested>(async msg => await ExecutePasteFilePath(msg.ClipId));
+            _eventAggregator.Subscribe<ClipTransformAndPasteRequested>(async msg => await ExecuteTransformAndPaste(msg.ClipId, msg.TransformType));
+            _eventAggregator.Subscribe<CachesClearedMessage>(_ => OnCachesCleared());
+            _eventAggregator.Subscribe<SettingsChangedMessage>(async msg => await OnSettingsPropertyChanged(msg.PropertyName));
+        }
+
+        private async Task OnSettingsPropertyChanged(string propertyName)
+        {
+            switch (propertyName)
+            {
+                case nameof(Settings.FontFamily):
+                    MainFont = _fontProvider.GetFont(CurrentSettings.FontFamily);
+                    UpdateMaxPreviewLength();
+                    break;
+                case nameof(Settings.PreviewFontFamily):
+                    PreviewFont = _fontProvider.GetFont(CurrentSettings.PreviewFontFamily);
+                    break;
+                case nameof(Settings.DisplayLogo):
+                    OnPropertyChanged(nameof(DisplayLogo));
+                    break;
+                case nameof(Settings.PasteAsPlainText):
+                    foreach (var clipVM in Clips) clipVM.NotifyPasteAsPropertiesChanged();
+                    break;
+                case nameof(Settings.WindowWidth):
+                case nameof(Settings.FontSize):
+                    UpdateMaxPreviewLength();
+                    break;
+                case nameof(Settings.AccentColor):
+                case nameof(Settings.AccentChromaLevel):
+                    _themeService.ApplyThemeFromSettings();
+                    await SharedResources.InitializeAsync();
+                    foreach (var clip in Clips) clip.NotifyAccentColorChanged();
+                    break;
+            }
+        }
+
+        private void OnComparisonStateChanged(object? sender, ComparisonStateChangedEventArgs e)
+        {
+            Application.Current.Dispatcher.InvokeAsync(() =>
+            {
+                foreach (var clip in Clips)
+                {
+                    if (e.NewLeftClipId.HasValue && clip.Id == e.NewLeftClipId.Value)
+                    {
+                        clip.CompareLeftHeader = "✓ Comparing with this";
+                        clip.ShowCompareRightOption = false;
+                    }
+                    else
+                    {
+                        clip.CompareLeftHeader = "Compare Left";
+                        clip.ShowCompareRightOption = e.NewLeftClipId.HasValue;
+                    }
+                }
+            });
+        }
+
+        private async void CurrentSettings_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            switch (e.PropertyName)
+            {
+                case nameof(Settings.FontFamily):
+                    MainFont = _fontProvider.GetFont(CurrentSettings.FontFamily);
+                    UpdateMaxPreviewLength();
+                    break;
+                case nameof(Settings.PreviewFontFamily):
+                    PreviewFont = _fontProvider.GetFont(CurrentSettings.PreviewFontFamily);
+                    break;
+                case nameof(Settings.DisplayLogo):
+                    OnPropertyChanged(nameof(DisplayLogo));
+                    break;
+                case nameof(Settings.PasteAsPlainText):
+                    foreach (var clipVM in Clips) clipVM.NotifyPasteAsPropertiesChanged();
+                    break;
+                case nameof(Settings.WindowWidth):
+                case nameof(Settings.FontSize):
+                    UpdateMaxPreviewLength();
+                    break;
+                case nameof(Settings.AccentColor):
+                case nameof(Settings.AccentChromaLevel):
+                    _themeService.ApplyThemeFromSettings();
+                    await SharedResources.InitializeAsync();
+                    foreach (var clip in Clips)
+                    {
+                        clip.NotifyAccentColorChanged();
+                    }
+                    break;
+            }
+        }
+
+        private void UpdateMaxPreviewLength()
+        {
+            double windowWidth = CurrentSettings.WindowWidth;
+            double fontSize = CurrentSettings.FontSize;
+            const double fixedWidth = 100;
+            double avgCharWidthFactor = CurrentSettings.FontFamily == "Source Code Pro" ? 0.6 : 0.55;
+            int length = (int)((windowWidth - fixedWidth) / (fontSize * avgCharWidthFactor));
+            MaxPreviewLength = length < 40 ? 40 : length;
+        }
+
+        public async Task InitializeAsync()
+        {
+            await _clipDisplayService.InitializeAsync();
+            await SharedResources.InitializeAsync();
+            OnPropertyChanged(nameof(SelectedFilter));
+        }
+
+        private async void OnSettingsChanged(object? sender, EventArgs e)
+        {
+            await Application.Current.Dispatcher.InvokeAsync(() =>
+            {
+                SendToTargets.Clear();
+                foreach (var target in CurrentSettings.SendToTargets)
+                {
+                    SendToTargets.Add(target);
+                }
+            });
+        }
+
+        public void HideWindow()
+        {
+            _appInteractionService.IsUiInteractive = false;
+            IsHidingExplicitly = true;
+            IsFilterPopupOpen = false;
+            _needsRefreshOnShow = true;
+            var settings = _settingsService.Settings;
+            if (!settings.RememberSearchInput)
+            {
+                SearchTerm = string.Empty;
+            }
+            if (!settings.RememberFilterSelection && FilterOptions.Any())
+            {
+                SelectedFilter = FilterOptions.First();
+            }
+            Application.Current.MainWindow?.Hide();
+        }
+
+        public void HandleWindowShown()
+        {
+            _appInteractionService.IsUiInteractive = true;
+            if (IsInitializing)
+            {
+                return;
+            }
+            if (Clips.Count == 0)
+            {
+                _needsRefreshOnShow = true;
+            }
+            if (_needsRefreshOnShow && IsReadyForEvents)
+            {
+                _clipDisplayService.RefreshClipList();
+                _needsRefreshOnShow = false;
+            }
+        }
+
+        public void Cleanup()
+        {
+            _currentSettings.PropertyChanged -= CurrentSettings_PropertyChanged;
+            _clipDataService.NewClipAdded -= OnNewClipAdded;
+            _databaseService.HistoryCleared -= OnHistoryCleared;
+            _settingsService.SettingsChanged -= OnSettingsChanged;
+            _comparisonStateService.ComparisonStateChanged -= OnComparisonStateChanged;
+            if (_clipDisplayService is IDisposable disposable)
+            {
+                disposable.Dispose();
+            }
+            foreach (var clip in Clips)
+            {
+                clip.Dispose();
+            }
+            Clips.Clear();
+        }
+
+        private void OnNewClipAdded(object? sender, ClipAddedEventArgs e)
+        {
+            if (!IsWindowVisible)
+            {
+                _needsRefreshOnShow = true;
+                return;
+            }
+            if (!IsReadyForEvents) return;
+            _clipDisplayService.HandleNewClip(e.NewClip);
+        }
+
+        private void OnHistoryCleared(object? sender, EventArgs e) => _clipDisplayService.RefreshClipList();
+
+        private void OnCachesCleared() => _clipDisplayService.RefreshClipList();
+
+        public int SelectedIndex
+        {
+            get => _selectedIndex;
+            set => SetProperty(ref _selectedIndex, value);
+        }
+
+        public void HandleWindowDeactivated()
+        {
+            Application.Current.Dispatcher.InvokeAsync(async () =>
+            {
+                await Task.Delay(50);
+                if (IsFilterPopupOpen)
+                {
+                    IsFilterPopupOpen = false;
+                }
+                if (PreviewManager.IsPreviewOpen)
+                {
+                    RequestHidePreview();
+                }
+                if (IsHidingExplicitly)
+                {
+                    return;
+                }
+                if (Application.Current.Windows.OfType<Window>().Any(x => x != Application.Current.MainWindow && x.IsActive))
+                {
+                    return;
+                }
+                if (Application.Current.MainWindow is not { IsVisible: true })
+                {
+                    return;
+                }
+                if (!IsAlwaysOnTop)
+                {
+                    HideWindow();
+                }
+            });
+        }
+
+        public void UpdateQuickPasteIndices()
+        {
+            foreach (var clip in Clips.Where(c => c.Index > 0))
+            {
+                clip.Index = 0;
+            }
+            if (!IsQuickPasteModeActive) return;
+            var firstVisibleIndex = _listViewInteractionService.FirstVisibleIndex;
+            for (var i = 0; i < 9; i++)
+            {
+                var targetIndex = firstVisibleIndex + i;
+                if (targetIndex < Clips.Count)
+                {
+                    Clips[targetIndex].Index = i + 1;
+                }
+            }
+        }
+
+        public void RequestShowPreview(ClipViewModel? clipVm) => _previewManager.RequestShowPreview(clipVm);
+        public void RequestHidePreview() => _previewManager.RequestHidePreview();
+        public void TogglePreviewForSelection(UIElement? placementTarget)
+        {
+            var listView = (Application.Current.MainWindow as MainWindow)?.ClipListViewControl;
+            if (listView?.SelectedItem is not ClipViewModel selectedVm) return;
+            _previewManager.TogglePreviewForSelection(selectedVm, placementTarget);
+        }
+
+    }
+}
