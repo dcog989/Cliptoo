@@ -39,7 +39,9 @@ export component HamburgerMenu {
                 }
 
                 touch-settings := TouchArea {
-                    clicked => { root.menu-settings(); }
+                    clicked => {
+                        root.menu-settings();
+                    }
                     mouse-cursor: pointer;
                 }
             }
@@ -65,7 +67,9 @@ export component HamburgerMenu {
                 }
 
                 touch-about := TouchArea {
-                    clicked => { root.menu-about(); }
+                    clicked => {
+                        root.menu-about();
+                    }
                     mouse-cursor: pointer;
                 }
             }
@@ -91,7 +95,9 @@ export component HamburgerMenu {
                 }
 
                 touch-close := TouchArea {
-                    clicked => { root.menu-close-to-tray(); }
+                    clicked => {
+                        root.menu-close-to-tray();
+                    }
                     mouse-cursor: pointer;
                 }
             }

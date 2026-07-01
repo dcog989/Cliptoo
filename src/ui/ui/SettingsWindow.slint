@@ -2,7 +2,14 @@
 // Tabs: General | Visuals | External Apps | Data
 
 import { Theme } from "Theme.slint";
-import { SettingsTab, TextRow, IntRow, FloatRow, DropRow, ToggleRow } from "SettingsComponents.slint";
+import {
+    SettingsTab,
+    TextRow,
+    IntRow,
+    FloatRow,
+    DropRow,
+    ToggleRow,
+} from "SettingsComponents.slint";
 
 export component SettingsWindow inherits Window {
     title: "Cliptoo Settings";
@@ -12,35 +19,35 @@ export component SettingsWindow inherits Window {
     default-font-family: Theme.font-family;
     default-font-size: Theme.font-size;
 
-    in-out property <int>    active-tab:             0;  // 0=General 1=Visuals 2=External Apps 3=Data
+    in-out property <int> active-tab:             0;  // 0=General 1=Visuals 2=External Apps 3=Data
 
     // General
     in-out property <string> s-hotkey:               "Ctrl+Alt+Q";
     in-out property <string> s-preview-hotkey:       "Ctrl+Alt+P";
     in-out property <string> s-quick-paste-hotkey:   "Alt";
-    in-out property <int>    s-launch-position-idx:  0;  // Cursor/Center/TopLeft/TopRight/BottomLeft/BottomRight/Fixed
-    in-out property <bool>   s-start-with-system:    true;
-    in-out property <int>    s-log-level-idx:        1;  // Debug/Info/Warn/Error
-    in-out property <int>    s-log-retention-days:   14;
+    in-out property <int> s-launch-position-idx:  0;  // Cursor/Center/TopLeft/TopRight/BottomLeft/BottomRight/Fixed
+    in-out property <bool> s-start-with-system:    true;
+    in-out property <int> s-log-level-idx:        1;  // Debug/Info/Warn/Error
+    in-out property <int> s-log-retention-days:   14;
 
     // Visuals
-    in-out property <int>    s-theme-idx:            0;  // System/Light/Dark
-    in-out property <int>    s-accent-hue:           250;
-    in-out property <int>    s-chroma-idx:           2;  // Neon/Vibrant/Mellow/Muted/Ditchwater
+    in-out property <int> s-theme-idx:            0;  // System/Light/Dark
+    in-out property <int> s-accent-hue:           250;
+    in-out property <int> s-chroma-idx:           2;  // Neon/Vibrant/Mellow/Muted/Ditchwater
     in-out property <string> s-font-family:          "Inter";
-    in-out property <int>    s-font-size-hundredths: 1300;  // 13.00 pt
-    in-out property <int>    s-preview-font-size-hundredths: 1200;
-    in-out property <int>    s-row-padding-idx:      1;  // Compact/Standard/Luxury
-    in-out property <int>    hover-delay:            400;
-    in-out property <int>    s-image-preview-size:   300;
-    in-out property <bool>   s-paste-as-plain-text:  false;
+    in-out property <int> s-font-size-hundredths: 1300;  // 13.00 pt
+    in-out property <int> s-preview-font-size-hundredths: 1200;
+    in-out property <int> s-row-padding-idx:      1;  // Compact/Standard/Luxury
+    in-out property <int> hover-delay:            400;
+    in-out property <int> s-image-preview-size:   300;
+    in-out property <bool> s-paste-as-plain-text:  false;
 
     // External Apps
     in-out property <string> s-diff-tool-path:       "";
 
     // Data
-    in-out property <int>    s-max-clips:            10000;
-    in-out property <int>    s-max-age-days:         90;
+    in-out property <int> s-max-clips:            10000;
+    in-out property <int> s-max-age-days:         90;
 
     callback setting-changed(string, string);
     callback maintenance-action(string);
@@ -60,7 +67,9 @@ export component SettingsWindow inherits Window {
                 for tab[i] in ["General", "Visuals", "External Apps", "Data"]: SettingsTab {
                     label: tab;
                     is-active: root.active-tab == i;
-                    clicked => { root.active-tab = i; }
+                    clicked => {
+                        root.active-tab = i;
+                    }
                 }
             }
         }
@@ -77,42 +86,70 @@ export component SettingsWindow inherits Window {
                 TextRow {
                     label: "Launch hotkey";
                     value <=> root.s-hotkey;
-                    committed(v) => { root.setting-changed("hotkey", v); }
+                    committed(v) => {
+                        root.setting-changed("hotkey", v);
+                    }
                 }
+
                 TextRow {
                     label: "Preview hotkey";
                     value <=> root.s-preview-hotkey;
-                    committed(v) => { root.setting-changed("preview_hotkey", v); }
+                    committed(v) => {
+                        root.setting-changed("preview_hotkey", v);
+                    }
                 }
+
                 TextRow {
                     label: "Quick paste key";
                     value <=> root.s-quick-paste-hotkey;
-                    committed(v) => { root.setting-changed("quick_paste_hotkey", v); }
+                    committed(v) => {
+                        root.setting-changed("quick_paste_hotkey", v);
+                    }
                 }
+
                 DropRow {
                     label: "Launch position";
                     index <=> root.s-launch-position-idx;
-                    options: ["Cursor", "Center", "TopLeft", "TopRight", "BottomLeft", "BottomRight", "Fixed"];
-                    committed(v) => { root.setting-changed("launch_position", v); }
+                    options: [
+                        "Cursor",
+                        "Center",
+                        "TopLeft",
+                        "TopRight",
+                        "BottomLeft",
+                        "BottomRight",
+                        "Fixed"
+                    ];
+                    committed(v) => {
+                        root.setting-changed("launch_position", v);
+                    }
                 }
+
                 ToggleRow {
                     label: "Start with system";
                     value <=> root.s-start-with-system;
-                    committed(v) => { root.setting-changed("start_with_system", v ? "true" : "false"); }
+                    committed(v) => {
+                        root.setting-changed("start_with_system", v ? "true" : "false");
+                    }
                 }
+
                 DropRow {
                     label: "Log level";
                     index <=> root.s-log-level-idx;
                     options: ["Debug", "Info", "Warn", "Error"];
-                    committed(v) => { root.setting-changed("logging_level", v); }
+                    committed(v) => {
+                        root.setting-changed("logging_level", v);
+                    }
                 }
+
                 IntRow {
                     label: "Log retention (days)";
                     value <=> root.s-log-retention-days;
                     min-val: 1;
                     max-val: 365;
                     step: 1;
-                    committed(v) => { root.setting-changed("log_retention_days", "\{v}"); }
+                    committed(v) => {
+                        root.setting-changed("log_retention_days", "\{v}");
+                    }
                 }
             }
 
@@ -123,48 +160,68 @@ export component SettingsWindow inherits Window {
                     label: "Theme";
                     index <=> root.s-theme-idx;
                     options: ["System", "Light", "Dark"];
-                    committed(v) => { root.setting-changed("theme", v); }
+                    committed(v) => {
+                        root.setting-changed("theme", v);
+                    }
                 }
+
                 IntRow {
                     label: "Accent hue (0–360)";
                     value <=> root.s-accent-hue;
                     min-val: 0;
                     max-val: 360;
                     step: 5;
-                    committed(v) => { root.setting-changed("accent_hue", "\{v}"); }
+                    committed(v) => {
+                        root.setting-changed("accent_hue", "\{v}");
+                    }
                 }
+
                 DropRow {
                     label: "Chroma level";
                     index <=> root.s-chroma-idx;
                     options: ["Neon", "Vibrant", "Mellow", "Muted", "Ditchwater"];
-                    committed(v) => { root.setting-changed("accent_chroma_level", v); }
+                    committed(v) => {
+                        root.setting-changed("accent_chroma_level", v);
+                    }
                 }
+
                 TextRow {
                     label: "Font family";
                     value <=> root.s-font-family;
-                    committed(v) => { root.setting-changed("font_family", v); }
+                    committed(v) => {
+                        root.setting-changed("font_family", v);
+                    }
                 }
+
                 FloatRow {
                     label: "Font size (pt)";
                     value-hundredths <=> root.s-font-size-hundredths;
                     min-hundredths: 800;
                     max-hundredths: 2400;
                     step-hundredths: 50;
-                    committed(v) => { root.setting-changed("font_size", "\{v}"); }
+                    committed(v) => {
+                        root.setting-changed("font_size", "\{v}");
+                    }
                 }
+
                 FloatRow {
                     label: "Preview font size (pt)";
                     value-hundredths <=> root.s-preview-font-size-hundredths;
                     min-hundredths: 800;
                     max-hundredths: 2400;
                     step-hundredths: 50;
-                    committed(v) => { root.setting-changed("preview_font_size", "\{v}"); }
+                    committed(v) => {
+                        root.setting-changed("preview_font_size", "\{v}");
+                    }
                 }
+
                 DropRow {
                     label: "Row padding";
                     index <=> root.s-row-padding-idx;
                     options: ["Compact", "Standard", "Luxury"];
-                    committed(v) => { root.setting-changed("clip_item_padding", v); }
+                    committed(v) => {
+                        root.setting-changed("clip_item_padding", v);
+                    }
                 }
                 // Hover delay slider
                 HorizontalLayout {
@@ -178,6 +235,7 @@ export component SettingsWindow inherits Window {
                         font-size: Theme.font-size;
                         vertical-alignment: center;
                     }
+
                     Rectangle {
                         horizontal-stretch: 1;
                         height: 28px;
@@ -202,6 +260,7 @@ export component SettingsWindow inherits Window {
                                     x: Math.max(0px, Math.min(parent.width - 16px, (root.hover-delay * 1.0) / 2000.0 * parent.width));
                                 }
                             }
+
                             Text {
                                 text: root.hover-delay == 0 ? "Off" : "\{root.hover-delay} ms";
                                 color: Theme.fg-primary;
@@ -209,6 +268,7 @@ export component SettingsWindow inherits Window {
                                 vertical-alignment: center;
                             }
                         }
+
                         touch := TouchArea {
                             width: 140px;
                             height: 28px;
@@ -225,18 +285,24 @@ export component SettingsWindow inherits Window {
                         }
                     }
                 }
+
                 IntRow {
                     label: "Image preview size (px)";
                     value <=> root.s-image-preview-size;
                     min-val: 100;
                     max-val: 800;
                     step: 50;
-                    committed(v) => { root.setting-changed("hover_image_preview_size", "\{v}"); }
+                    committed(v) => {
+                        root.setting-changed("hover_image_preview_size", "\{v}");
+                    }
                 }
+
                 ToggleRow {
                     label: "Paste as plain text";
                     value <=> root.s-paste-as-plain-text;
-                    committed(v) => { root.setting-changed("paste_as_plain_text", v ? "true" : "false"); }
+                    committed(v) => {
+                        root.setting-changed("paste_as_plain_text", v ? "true" : "false");
+                    }
                 }
             }
 
@@ -246,8 +312,11 @@ export component SettingsWindow inherits Window {
                 TextRow {
                     label: "Diff tool path";
                     value <=> root.s-diff-tool-path;
-                    committed(v) => { root.setting-changed("compare_tool_path", v); }
+                    committed(v) => {
+                        root.setting-changed("compare_tool_path", v);
+                    }
                 }
+
                 Text {
                     text: "Send To apps and Blacklist are managed via JSON settings file.";
                     color: Theme.fg-muted;
@@ -265,25 +334,31 @@ export component SettingsWindow inherits Window {
                     min-val: 100;
                     max-val: 100000;
                     step: 500;
-                    committed(v) => { root.setting-changed("max_clips", "\{v}"); }
+                    committed(v) => {
+                        root.setting-changed("max_clips", "\{v}");
+                    }
                 }
+
                 IntRow {
                     label: "Max age (days)";
                     value <=> root.s-max-age-days;
                     min-val: 1;
                     max-val: 3650;
                     step: 10;
-                    committed(v) => { root.setting-changed("max_age_days", "\{v}"); }
+                    committed(v) => {
+                        root.setting-changed("max_age_days", "\{v}");
+                    }
                 }
+
                 GridLayout {
                     spacing: 8px;
                     for action[idx] in [
                         { key: "clear-history", label: "Clear History" },
-                        { key: "clear-caches",  label: "Clear Caches"  },
-                        { key: "deadhead",       label: "Deadhead"      },
-                        { key: "reclassify",    label: "Reclassify All"},
-                        { key: "export",        label: "Export JSON"   },
-                        { key: "import",        label: "Import JSON"   },
+                        { key: "clear-caches", label: "Clear Caches" },
+                        { key: "deadhead", label: "Deadhead" },
+                        { key: "reclassify", label: "Reclassify All" },
+                        { key: "export", label: "Export JSON" },
+                        { key: "import", label: "Import JSON" },
                     ]: Rectangle {
                         row: Math.floor(idx / 3);
                         col: Math.mod(idx, 3);
@@ -297,8 +372,11 @@ export component SettingsWindow inherits Window {
                             vertical-alignment: center;
                             font-size: Theme.font-size;
                         }
+
                         TouchArea {
-                            clicked => { root.maintenance-action(action.key); }
+                            clicked => {
+                                root.maintenance-action(action.key);
+                            }
                             mouse-cursor: pointer;
                         }
                     }

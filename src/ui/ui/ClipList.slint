@@ -13,10 +13,10 @@ import { ListView }  from "std-widgets.slint";
 
 export component ClipList {
     in property <[ClipData]> clips;
-    in property <bool>  quick-paste-active: false;
-    in property <int>   quick-paste-slots: 9;
-    in property <bool>  is-searching: false;
-    in-out property <int>   selected-index: 0;
+    in property <bool> quick-paste-active: false;
+    in property <int> quick-paste-slots: 9;
+    in property <bool> is-searching: false;
+    in-out property <int> selected-index: 0;
     // Window-absolute Y of the top of this list component. Set from AppWindow
     // so the hovered callback can produce a window-absolute popup-y coordinate.
     in property <float> list-offset-y: 0.0;
@@ -75,10 +75,18 @@ export component ClipList {
             quick-paste-slots: root.quick-paste-slots;
             is-searching: root.is-searching;
 
-            activated => { root.item-activated(clip.id); }
-            right-clicked(x, y) => { root.item-right-clicked(clip.id, x, y, clip.is-bookmarked, clip.clip-type); }
-            hovered(mx, my) => { root.request-preview(clip.id, mx, idx * Theme.row-height / 1px + list-view.viewport-y / 1px + my + root.list-offset-y); }
-            hover-exited => { root.dismiss-preview(); }
+            activated => {
+                root.item-activated(clip.id);
+            }
+            right-clicked(x, y) => {
+                root.item-right-clicked(clip.id, x, y, clip.is-bookmarked, clip.clip-type);
+            }
+            hovered(mx, my) => {
+                root.request-preview(clip.id, mx, idx * Theme.row-height / 1px + list-view.viewport-y / 1px + my + root.list-offset-y);
+            }
+            hover-exited => {
+                root.dismiss-preview();
+            }
         }
     }
 }

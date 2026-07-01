@@ -10,8 +10,8 @@
 import { Theme } from "Theme.slint";
 
 export component ToastNotification {
-    in property <string>  message:          "";
-    in property <string>  severity:         "info";
+    in property <string> message:          "";
+    in property <string> severity:         "info";
     // display-duration in milliseconds; the internal timer uses this.
     in property <duration> display-duration: 3000ms;
 
@@ -22,19 +22,13 @@ export component ToastNotification {
 
     // Resolve per-severity colours.
     property <color> bg-color:
-        severity == "error" ? #c0392b.mix(Theme.bg-primary, 0.15)
-      : severity == "warn"  ? #e67e22.mix(Theme.bg-primary, 0.15)
-      :                       Theme.accent-primary.mix(Theme.bg-primary, 0.25);
+        severity == "error" ? #c0392b.mix(Theme.bg-primary, 0.15) : severity == "warn" ? #e67e22.mix(Theme.bg-primary, 0.15) : Theme.accent-primary.mix(Theme.bg-primary, 0.25);
 
     property <color> border-color:
-        severity == "error" ? #c0392b
-      : severity == "warn"  ? #e67e22
-      :                       Theme.accent-primary;
+        severity == "error" ? #c0392b : severity == "warn" ? #e67e22 : Theme.accent-primary;
 
     property <color> text-color:
-        severity == "error" ? #e74c3c
-      : severity == "warn"  ? #f39c12
-      :                       Theme.fg-primary;
+        severity == "error" ? #e74c3c : severity == "warn" ? #f39c12 : Theme.fg-primary;
 
     // Auto-dismiss timer: fires once after display-duration, then resets.
     Timer {

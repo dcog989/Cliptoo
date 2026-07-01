@@ -6,17 +6,25 @@ export component CliptooTray inherits SystemTrayIcon {
     callback toggle-window();
     callback quit-app();
 
-    clicked => { toggle-window(); }
+    clicked => {
+        toggle-window();
+    }
 
     Menu {
         MenuItem {
             title: "Show / Hide";
-            activated => { toggle-window(); }
+            activated => {
+                toggle-window();
+            }
         }
+
         MenuSeparator { }
+
         MenuItem {
             title: "Quit";
-            activated => { quit-app(); }
+            activated => {
+                quit-app();
+            }
         }
     }
 }

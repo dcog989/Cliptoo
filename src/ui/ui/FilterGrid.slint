@@ -11,22 +11,22 @@ export component FilterGrid {
     callback filter-chosen(string);
 
     property <[FilterItem]> items: [
-        { key: "all",           label: "All"       },
-        { key: "text",          label: "Text"      },
-        { key: "file_image",    label: "Image"     },
-        { key: "bookmarked",    label: "Bookmarked"},
-        { key: "link",          label: "Link"      },
-        { key: "code_snippet",  label: "Code"      },
-        { key: "color",         label: "Color"     },
-        { key: "folder",        label: "Folder"    },
-        { key: "file_audio",    label: "Audio"     },
-        { key: "file_video",    label: "Video"     },
-        { key: "file_archive",  label: "Archive"   },
-        { key: "file_document", label: "Document"  },
-        { key: "file_database", label: "Database"  },
-        { key: "file_font",     label: "Font"      },
-        { key: "rtf",           label: "Rich Text" },
-        { key: "file",          label: "File"      },
+        { key: "all", label: "All" },
+        { key: "text", label: "Text" },
+        { key: "file_image", label: "Image" },
+        { key: "bookmarked", label: "Bookmarked" },
+        { key: "link", label: "Link" },
+        { key: "code_snippet", label: "Code" },
+        { key: "color", label: "Color" },
+        { key: "folder", label: "Folder" },
+        { key: "file_audio", label: "Audio" },
+        { key: "file_video", label: "Video" },
+        { key: "file_archive", label: "Archive" },
+        { key: "file_document", label: "Document" },
+        { key: "file_database", label: "Database" },
+        { key: "file_font", label: "Font" },
+        { key: "rtf", label: "Rich Text" },
+        { key: "file", label: "File" },
     ];
 
     property <length> grid-spacing: 4px;
@@ -49,9 +49,7 @@ export component FilterGrid {
                 width: root.cell-size;
                 height: root.cell-size;
                 border-radius: 5px;
-                background: root.active-filter == item.key
-                    ? Theme.accent-muted
-                    : transparent;
+                background: root.active-filter == item.key ? Theme.accent-muted : transparent;
 
                 animate background { duration: Theme.anim-fast; }
 
@@ -60,32 +58,20 @@ export component FilterGrid {
                     y: (root.cell-size - 24px) / 2;
                     width: 24px;
                     height: 24px;
-                    source: item.key == "all"           ? @image-url("icons/check-check.svg")
-                          : item.key == "text"          ? @image-url("icons/text-align-start.svg")
-                          : item.key == "file_image"    ? @image-url("icons/file-image.svg")
-                          : item.key == "bookmarked"    ? @image-url("icons/bookmark.svg")
-                          : item.key == "link"          ? @image-url("icons/link.svg")
-                          : item.key == "code_snippet"  ? @image-url("icons/code.svg")
-                          : item.key == "color"         ? @image-url("icons/palette.svg")
-                          : item.key == "folder"        ? @image-url("icons/folder.svg")
-                          : item.key == "file_audio"    ? @image-url("icons/audio-lines.svg")
-                          : item.key == "file_video"    ? @image-url("icons/film.svg")
-                          : item.key == "file_archive"  ? @image-url("icons/file-archive.svg")
-                          : item.key == "file_document" ? @image-url("icons/file-text.svg")
-                          : item.key == "file_database" ? @image-url("icons/database.svg")
-                          : item.key == "file_font"     ? @image-url("icons/type-outline.svg")
-                          : item.key == "rtf"           ? @image-url("icons/file-type.svg")
-                          :                              @image-url("icons/file.svg");
-                    colorize: root.active-filter == item.key
-                        ? Theme.fg-secondary
-                        : Theme.fg-muted;
+                    source: item.key == "all" ? @image-url("icons/check-check.svg") : item.key == "text" ? @image-url("icons/text-align-start.svg") : item.key == "file_image" ? @image-url("icons/file-image.svg") : item.key == "bookmarked" ? @image-url("icons/bookmark.svg") : item.key == "link" ? @image-url("icons/link.svg") : item.key == "code_snippet" ? @image-url("icons/code.svg") : item.key == "color" ? @image-url("icons/palette.svg") : item.key == "folder" ? @image-url("icons/folder.svg") : item.key == "file_audio" ? @image-url("icons/audio-lines.svg") : item.key == "file_video" ? @image-url("icons/film.svg") : item.key == "file_archive" ? @image-url("icons/file-archive.svg") : item.key == "file_document" ? @image-url("icons/file-text.svg") : item.key == "file_database" ? @image-url("icons/database.svg") : item.key == "file_font" ? @image-url("icons/type-outline.svg") : item.key == "rtf" ? @image-url("icons/file-type.svg") : @image-url("icons/file.svg");
+                    colorize: root.active-filter == item.key ? Theme.fg-secondary : Theme.fg-muted;
                     animate colorize { duration: Theme.anim-fast; }
                 }
 
                 cell-touch := TouchArea {
                     mouse-cursor: pointer;
-                    Tooltip { text: @markdown("\{item.label}"); }
-                    clicked => { root.filter-chosen(item.key); }
+                    Tooltip {
+                        text: @markdown("\{item.label}");
+                    }
+
+                    clicked => {
+                        root.filter-chosen(item.key);
+                    }
                 }
             }
         }

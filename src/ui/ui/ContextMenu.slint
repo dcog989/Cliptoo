@@ -14,9 +14,9 @@ import { Theme } from "Theme.slint";
 component MenuRow {
     in property <string> label;
     in property <string> sublabel: "";
-    in property <bool>   is-danger: false;
-    in property <bool>   has-arrow: false;
-    in property <bool>   is-separator: false;
+    in property <bool> is-danger: false;
+    in property <bool> has-arrow: false;
+    in property <bool> is-separator: false;
     callback clicked;
 
     height: root.is-separator ? 9px : 32px;
@@ -63,7 +63,9 @@ component MenuRow {
         }
 
         touch := TouchArea {
-            clicked => { root.clicked(); }
+            clicked => {
+                root.clicked();
+            }
             mouse-cursor: pointer;
         }
     }
@@ -71,9 +73,9 @@ component MenuRow {
 
 export component ContextMenu {
     // Which clip this menu is acting on (set by AppWindow before show()).
-    in property <int>      clip-id;
-    in property <bool>     clip-is-bookmarked: false;
-    in property <string>   clip-type: "text";
+    in property <int> clip-id;
+    in property <bool> clip-is-bookmarked: false;
+    in property <string> clip-type: "text";
     in property <[string]> send-to-apps: [];
 
     // Internal view state.
@@ -94,8 +96,7 @@ export component ContextMenu {
     // Callers set clip-id before show(); the init expression re-evaluates.
     // True when the clip type supports text transformations.
     property <bool> is-text-type:
-        root.clip-type == "text" || root.clip-type == "code_snippet" ||
-        root.clip-type == "rtf" || root.clip-type == "link";
+        root.clip-type == "text" || root.clip-type == "code_snippet" || root.clip-type == "rtf" || root.clip-type == "link";
 
     Rectangle {
         border-radius: 8px;
@@ -114,49 +115,85 @@ export component ContextMenu {
 
             MenuRow {
                 label: "Preview";
-                clicked => { root.preview(); }
+                clicked => {
+                    root.preview();
+                }
             }
+
             MenuRow {
                 label: "Edit";
-                clicked => { root.edit(); }
+                clicked => {
+                    root.edit();
+                }
             }
+
             if root.is-text-type: MenuRow {
                 label: "Format";
                 has-arrow: true;
-                clicked => { root.view = "format"; }
+                clicked => {
+                    root.view = "format";
+                }
             }
             MenuRow {
                 label: "Delete";
                 is-danger: true;
-                clicked => { root.delete(); }
+                clicked => {
+                    root.delete();
+                }
             }
-            MenuRow { is-separator: true; }
+
+            MenuRow {
+                is-separator: true;
+            }
+
             MenuRow {
                 label: "Move to Top";
-                clicked => { root.move-to-top(); }
+                clicked => {
+                    root.move-to-top();
+                }
             }
+
             MenuRow {
                 label: "Move to Bottom";
-                clicked => { root.move-to-bottom(); }
+                clicked => {
+                    root.move-to-bottom();
+                }
             }
+
             MenuRow {
                 label: "Move Up One";
-                clicked => { root.move-up-one(); }
+                clicked => {
+                    root.move-up-one();
+                }
             }
+
             MenuRow {
                 label: "Move Down One";
-                clicked => { root.move-down-one(); }
+                clicked => {
+                    root.move-down-one();
+                }
             }
-            MenuRow { is-separator: true; }
+
+            MenuRow {
+                is-separator: true;
+            }
+
             MenuRow {
                 label: root.clip-is-bookmarked ? "Remove Bookmark" : "Bookmark";
-                clicked => { root.toggle-bookmark(root.clip-id, root.clip-is-bookmarked); }
+                clicked => {
+                    root.toggle-bookmark(root.clip-id, root.clip-is-bookmarked);
+                }
             }
-            if root.send-to-apps.length > 0: MenuRow { is-separator: true; }
+
+            if root.send-to-apps.length > 0: MenuRow {
+                is-separator: true;
+            }
             if root.send-to-apps.length > 0: MenuRow {
                 label: "Send To";
                 has-arrow: true;
-                clicked => { root.view = "send-to"; }
+                clicked => {
+                    root.view = "send-to";
+                }
             }
         }
 
@@ -168,24 +205,113 @@ export component ContextMenu {
 
             MenuRow {
                 label: "← Back";
-                clicked => { root.view = "main"; }
+                clicked => {
+                    root.view = "main";
+                }
             }
-            MenuRow { is-separator: true; }
-            MenuRow { label: "UPPER CASE";          clicked => { root.format("upper"); } }
-            MenuRow { label: "lower case";          clicked => { root.format("lower"); } }
-            MenuRow { label: "Capitalize Words";    clicked => { root.format("capitalize"); } }
-            MenuRow { label: "Sentence case";       clicked => { root.format("sentence"); } }
-            MenuRow { label: "iNVERT cASE";         clicked => { root.format("invert"); } }
-            MenuRow { is-separator: true; }
-            MenuRow { label: "kebab-case";          clicked => { root.format("kebab"); } }
-            MenuRow { label: "snake_case";          clicked => { root.format("snake"); } }
-            MenuRow { label: "camelCase";           clicked => { root.format("camel"); } }
-            MenuRow { label: "De-slug";             clicked => { root.format("deslug"); } }
-            MenuRow { is-separator: true; }
-            MenuRow { label: "Trim Whitespace";     clicked => { root.format("trim"); } }
-            MenuRow { label: "Remove Line Breaks";  clicked => { root.format("remove_lf"); } }
-            MenuRow { label: "Normalize LF";        clicked => { root.format("lf1"); } }
-            MenuRow { label: "Add Timestamp";       clicked => { root.format("timestamp"); } }
+
+            MenuRow {
+                is-separator: true;
+            }
+
+            MenuRow {
+                label: "UPPER CASE";
+                clicked => {
+                    root.format("upper");
+                }
+            }
+
+            MenuRow {
+                label: "lower case";
+                clicked => {
+                    root.format("lower");
+                }
+            }
+
+            MenuRow {
+                label: "Capitalize Words";
+                clicked => {
+                    root.format("capitalize");
+                }
+            }
+
+            MenuRow {
+                label: "Sentence case";
+                clicked => {
+                    root.format("sentence");
+                }
+            }
+
+            MenuRow {
+                label: "iNVERT cASE";
+                clicked => {
+                    root.format("invert");
+                }
+            }
+
+            MenuRow {
+                is-separator: true;
+            }
+
+            MenuRow {
+                label: "kebab-case";
+                clicked => {
+                    root.format("kebab");
+                }
+            }
+
+            MenuRow {
+                label: "snake_case";
+                clicked => {
+                    root.format("snake");
+                }
+            }
+
+            MenuRow {
+                label: "camelCase";
+                clicked => {
+                    root.format("camel");
+                }
+            }
+
+            MenuRow {
+                label: "De-slug";
+                clicked => {
+                    root.format("deslug");
+                }
+            }
+
+            MenuRow {
+                is-separator: true;
+            }
+
+            MenuRow {
+                label: "Trim Whitespace";
+                clicked => {
+                    root.format("trim");
+                }
+            }
+
+            MenuRow {
+                label: "Remove Line Breaks";
+                clicked => {
+                    root.format("remove_lf");
+                }
+            }
+
+            MenuRow {
+                label: "Normalize LF";
+                clicked => {
+                    root.format("lf1");
+                }
+            }
+
+            MenuRow {
+                label: "Add Timestamp";
+                clicked => {
+                    root.format("timestamp");
+                }
+            }
         }
 
         // ── Send To sub-view ──────────────────────────────────────────────────
@@ -196,12 +322,20 @@ export component ContextMenu {
 
             MenuRow {
                 label: "← Back";
-                clicked => { root.view = "main"; }
+                clicked => {
+                    root.view = "main";
+                }
             }
-            MenuRow { is-separator: true; }
+
+            MenuRow {
+                is-separator: true;
+            }
+
             for app-name in root.send-to-apps: MenuRow {
                 label: app-name;
-                clicked => { root.send-to(app-name); }
+                clicked => {
+                    root.send-to(app-name);
+                }
             }
         }
     }

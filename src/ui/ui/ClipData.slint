@@ -8,34 +8,34 @@
 /// A single text span in the FTS5 match-context highlight sequence.
 /// `is-highlight` is true for the `[HL]...[/HL]` segments.
 export struct MatchSpan {
-    text:         string,
+    text: string,
     is-highlight: bool,
 }
 
 export struct ClipData {
-    id:                   int,
-    preview-content:      string,
-    content-hash:         string,
-    clip-type:            string,
-    source-app:           string,
-    timestamp:            string,
-    is-bookmarked:        bool,
-    was-trimmed:          bool,
+    id: int,
+    preview-content: string,
+    content-hash: string,
+    clip-type: string,
+    source-app: string,
+    timestamp: string,
+    is-bookmarked: bool,
+    was-trimmed: bool,
     has-leading-whitespace: bool,
-    is-multiline:         bool,
-    size-in-bytes:        int,
-    paste-count:          int,
-    tags:                 string,
-    match-context:        string,
+    is-multiline: bool,
+    size-in-bytes: int,
+    paste-count: int,
+    tags: string,
+    match-context: string,
     // Parsed match-context spans: populated when match-context != "".
     // Each span is either plain text or an accent-highlighted segment.
-    match-spans:          [MatchSpan],
+    match-spans: [MatchSpan],
     // True when this is a file-type clip whose path no longer exists on disk.
     // Rendered with strikethrough in ClipItem.
-    is-deadhead:          bool,
-    thumbnail-image:      image,
-    favicon-image:        image,
+    is-deadhead: bool,
+    thumbnail-image: image,
+    favicon-image: image,
     // Parsed swatch colour for ClipType::Color rows. Populated by Rust via
     // ColorParser; defaults to transparent when clip-type != "color".
-    clip-color:           color,
+    clip-color: color,
 }

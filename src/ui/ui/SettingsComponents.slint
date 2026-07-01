@@ -13,9 +13,12 @@ component StepperButton inherits Rectangle {
         horizontal-alignment: center;
         vertical-alignment: center;
     }
+
     TouchArea {
         mouse-cursor: pointer;
-        clicked => { root.clicked(); }
+        clicked => {
+            root.clicked();
+        }
     }
 }
 
@@ -49,7 +52,9 @@ export component SettingsTab {
     }
 
     TouchArea {
-        clicked => { root.clicked(); }
+        clicked => {
+            root.clicked();
+        }
         mouse-cursor: pointer;
     }
 }
@@ -70,6 +75,7 @@ export component TextRow {
             font-size: Theme.font-size;
             vertical-alignment: center;
         }
+
         Rectangle {
             horizontal-stretch: 1;
             height: 28px;
@@ -116,6 +122,7 @@ export component IntRow {
             font-size: Theme.font-size;
             vertical-alignment: center;
         }
+
         Rectangle {
             horizontal-stretch: 1;
             height: 28px;
@@ -133,6 +140,7 @@ export component IntRow {
                         root.committed(root.value);
                     }
                 }
+
                 Text {
                     horizontal-stretch: 1;
                     text: "\{root.value}";
@@ -141,6 +149,7 @@ export component IntRow {
                     horizontal-alignment: center;
                     vertical-alignment: center;
                 }
+
                 StepperButton {
                     text: "+";
                     clicked => {
@@ -172,6 +181,7 @@ export component FloatRow {
             font-size: Theme.font-size;
             vertical-alignment: center;
         }
+
         Rectangle {
             horizontal-stretch: 1;
             height: 28px;
@@ -189,6 +199,7 @@ export component FloatRow {
                         root.committed(root.value-hundredths / 100.0);
                     }
                 }
+
                 Text {
                     horizontal-stretch: 1;
                     text: "\{root.value-hundredths / 100}";
@@ -197,6 +208,7 @@ export component FloatRow {
                     horizontal-alignment: center;
                     vertical-alignment: center;
                 }
+
                 StepperButton {
                     text: "+";
                     clicked => {
@@ -226,6 +238,7 @@ export component DropRow {
             font-size: Theme.font-size;
             vertical-alignment: center;
         }
+
         Rectangle {
             horizontal-stretch: 1;
             height: 28px;
@@ -239,12 +252,11 @@ export component DropRow {
                 StepperButton {
                     text: "‹";
                     clicked => {
-                        root.index = root.index == 0
-                            ? root.options.length - 1
-                            : root.index - 1;
+                        root.index = root.index == 0 ? root.options.length - 1 : root.index - 1;
                         root.committed(root.options[root.index]);
                     }
                 }
+
                 Text {
                     horizontal-stretch: 1;
                     text: root.options[root.index];
@@ -253,6 +265,7 @@ export component DropRow {
                     horizontal-alignment: center;
                     vertical-alignment: center;
                 }
+
                 StepperButton {
                     text: "›";
                     clicked => {
@@ -281,6 +294,7 @@ export component ToggleRow {
             font-size: Theme.font-size;
             vertical-alignment: center;
         }
+
         Rectangle {
             horizontal-stretch: 1;
             height: 28px;
@@ -303,6 +317,7 @@ export component ToggleRow {
                         x: root.value ? 24px : 2px;
                         animate x { duration: Theme.anim-fast; }
                     }
+
                     TouchArea {
                         mouse-cursor: pointer;
                         clicked => {

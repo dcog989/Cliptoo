@@ -152,8 +152,12 @@ export component Toolbar {
                     font-size: Theme.font-size;
                     text <=> root.search-text;
                     placeholder-text: "Search…";
-                    edited => { root.search-changed(self.text); }
-                    accepted => { root.accepted(); }
+                    edited => {
+                        root.search-changed(self.text);
+                    }
+                    accepted => {
+                        root.accepted();
+                    }
                 }
             }
 

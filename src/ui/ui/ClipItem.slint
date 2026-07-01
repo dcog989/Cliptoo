@@ -16,7 +16,7 @@ export component ClipItem {
     in property <bool> is-alt-row:         false;
     in property <int> row-index:          0;
     in property <bool> quick-paste-active: false;
-    in property <int>  quick-paste-slots: 9;
+    in property <int> quick-paste-slots: 9;
     in property <bool> is-searching:       false;
 
     callback activated;
@@ -238,10 +238,7 @@ export component ClipItem {
                     overflow: elide;
                     horizontal-alignment: left;
                     vertical-alignment: center;
-                    color: clip-data.is-deadhead ? Theme.fg-muted
-                         : clip-data.is-bookmarked && !root.is-selected ? Theme.fg-bookmarked
-                         : root.is-selected ? Theme.fg-primary
-                         : Theme.fg-secondary;
+                    color: clip-data.is-deadhead ? Theme.fg-muted : clip-data.is-bookmarked && !root.is-selected ? Theme.fg-bookmarked : root.is-selected ? Theme.fg-primary : Theme.fg-secondary;
                     font-size: Theme.font-size;
                 }
 
@@ -267,10 +264,7 @@ export component ClipItem {
                         overflow: elide;
                         horizontal-alignment: left;
                         vertical-alignment: center;
-                        color: span.is-highlight ? Theme.accent-primary
-                             : clip-data.is-bookmarked && !root.is-selected ? Theme.fg-bookmarked
-                             : root.is-selected ? Theme.fg-primary
-                             : Theme.fg-secondary;
+                        color: span.is-highlight ? Theme.accent-primary : clip-data.is-bookmarked && !root.is-selected ? Theme.fg-bookmarked : root.is-selected ? Theme.fg-primary : Theme.fg-secondary;
                         font-weight: span.is-highlight ? 700 : 400;
                         font-size: Theme.font-size;
                     }
