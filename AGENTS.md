@@ -4,7 +4,7 @@
 
 Cliptoo is a native, background-running clipboard manager for Linux desktops. Rust + SQLite + Slint (Qt backend). Targets Wayland and KDE Plasma 6 primarily. Handles many thousands of clipboard records without blocking the UI thread. Rewrite of the original Windows C#/.NET version.
 
-NOTE: <https://slint.dev/blog/slint-1.17-released> - particularly for tooltips + system tray icons. /home/bubba/Projects/Cliptoo-Next/.docs/slint.1.17.md
+NOTE: <https://slint.dev/blog/slint-1.17-released> - particularly for tooltips + system tray icons. /home/bubba/Projects/Cliptoo/.docs/slint.1.17.md
 
 DO NOT GUESS. Access <https://docs.slint.dev/latest/docs/slint/>
 
@@ -86,11 +86,10 @@ Use `ls` / `glob` for detail. Don't memorise the tree.
 - `.docs/PORTING.md` — mapping from the C#/WPF original.
 - `.docs/Progress.md` — what's done. **Read first** when picking up work.
 - `.docs/ToDo.md` — outstanding tasks.
-- `.docs/Cliptoo-Next.md` — product framing.
 
 ## Permissions
 
-- access all content in /home/bubba/Projects/Cliptoo-Next/ unless excluded below.
+- access all content in /home/bubba/Projects/Cliptoo/ unless excluded below.
 
 ### Excluded Content
 

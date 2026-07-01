@@ -4,7 +4,7 @@ pkgver=0.1.0
 pkgrel=1
 pkgdesc="Native clipboard manager for KDE Plasma 6 / Wayland"
 arch=('x86_64')
-url="https://github.com/yourusername/cliptoo-next"
+url="https://github.com/dcog989/Cliptoo"
 license=('MIT')
 # Cliptoo targets Wayland / KDE Plasma 6. On Wayland, the XDG Desktop Portal
 # is the only sanctioned mechanism for client apps to register a global
@@ -22,16 +22,16 @@ depends=(
     'kwindowsystem'
 )
 makedepends=('rust' 'cargo' 'pkg-config')
-source=("$pkgname-$pkgver.tar.gz::https://github.com/yourusername/cliptoo-next/archive/v$pkgver.tar.gz")
+source=("$pkgname-$pkgver.tar.gz::https://github.com/dcog989/Cliptoo/archive/v$pkgver.tar.gz")
 sha256sums=('SKIP')
 
 build() {
-    cd "$srcdir/cliptoo-next-$pkgver"
+    cd "$srcdir/cliptoo-$pkgver"
     cargo build --release --locked -p cliptoo
 }
 
 package() {
-    cd "$srcdir/cliptoo-next-$pkgver"
+    cd "$srcdir/cliptoo-$pkgver"
 
     install -Dm755 "target/release/cliptoo" "$pkgdir/usr/bin/cliptoo"
     install -Dm644 "packaging/cliptoo.desktop" "$pkgdir/usr/share/applications/cliptoo.desktop"

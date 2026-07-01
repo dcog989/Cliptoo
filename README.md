@@ -69,7 +69,7 @@ Advanced clipboard manager for KDE Plasma 6 / Wayland. Rust backend, Slint UI. <
 ### Build & Run
 
 ```sh
-git clone https://github.com/dcog989/cliptoo-next.git && cd cliptoo-next
+git clone https://github.com/dcog989/cliptoo.git && cd cliptoo
 cargo build --release -p cliptoo
 ./target/release/cliptoo
 ```
