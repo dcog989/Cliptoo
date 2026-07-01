@@ -1,6 +1,9 @@
 pre-commit:
   parallel: true
   commands:
+    slint-format:
+      run: slint-lsp format -i {staged_files}
+      glob: "*.slint"
     cargo-fmt-check:
       run: cargo fmt --all -- --check
       glob: "*.rs"
