@@ -6,8 +6,6 @@ Cliptoo is a native, background-running clipboard manager for Linux desktops. Ru
 
 NOTE: Slint 1.17 now in use — `Tooltip` element replaces the custom FilterGrid tooltip overlay; `SystemTrayIcon` (via `inherits SystemTrayIcon`) replaces the old `ksni`-based tray. See `/home/bubba/Projects/Cliptoo/.docs/slint.1.17.md` for the changelog.
 
-DO NOT GUESS. Access <https://docs.slint.dev/latest/docs/slint/>
-
 ## Hard constraints
 
 - **Wayland-only.** There is no X11 fallback. Anything that touches windowing, input, or the clipboard is Wayland-only.
@@ -56,14 +54,41 @@ removed without losing information, remove it.
 
 ## Slint rules (mandatory)
 
-Training knowledge covers `.slint` syntax: components, properties, callbacks, layouts, `@image-url()`, `TouchArea`, `if`/`for`, etc.
+**Do NOT guess Slint syntax.** Look up exact signatures before writing code.
 
-**Grep the local docs for anything outside that:**
+### Local doc bundle
 
-- Rust↔Slint FFI: `ComponentHandle`, `invoke_from_event_loop`, `Weak::upgrade_in_event_loop`, `Global`, `ModelRc`, ...→ `.docs/.slint-docs/slint-docs-extracted/rust-api/`
-- Slint version-specific features or edge cases → `.docs/.slint-docs/slint-docs-extracted/markdown/`
-- Idiomatic patterns for new components → `.docs/.slint-docs/slint-docs-extracted/examples/`
-- Any API you are not 100% sure of — do not guess.
+Path: `.docs/.slint-docs/slint-docs-flat/`
+Index: `.docs/.slint-docs/slint-docs-flat/INDEX.md` — find the page you need.
+
+| Directory | What's in it |
+|-----------|-------------|
+| `widgets/` | Every widget: Button, ListView, LineEdit, TabWidget, etc. — exact properties, callbacks, examples |
+| `elements/` | Built-in elements: Rectangle, Text, Image, Path, StyledText |
+| `window/` | Window, Dialog, PopupWindow, SystemTrayIcon, Tooltip, ContextMenuArea |
+| `gestures/` | TouchArea, Flickable, DragArea, DropArea, ScaleRotate, Swipe |
+| `keyboard/` | FocusScope, TextInput, TextInputInterface, key bindings |
+| `layouts/` | HorizontalLayout, VerticalLayout, GridLayout |
+| `language/` | Language reference: file structure, properties, expressions, animations, states, globals, etc. |
+| `reference/` | Type system, colors, built-in functions, platform, timer, enums, math, etc. |
+| `guide/` | Best practices, custom controls, focus, fonts, debugging, translations, etc. |
+| `tutorial/` | Walkthrough of building a Slint app |
+| root | ai-plugins skill files (see below) |
+
+### Before writing any Slint code
+
+**Read these ai-plugins files first** — they correct the mistakes models consistently make:
+
+1. `.docs/.slint-docs/slint-docs-flat/gotchas.md` — "this won't compile because..."
+2. `.docs/.slint-docs/slint-docs-flat/language-and-layout.md` — sizing, filling, layout rules
+3. `.docs/.slint-docs/slint-docs-flat/interop.md` — Rust↔Slint callbacks, globals, models
+
+### Workflow
+
+1. Find the widget/element you need in `INDEX.md`, read its doc page for exact properties and callbacks.
+2. For Rust FFI patterns (ComponentHandle, Weak, Global, ModelRc, etc.): grep the ai-plugins `interop.md` or fetch from `https://docs.slint.dev/latest/docs/slint/<path>.md`.
+3. After editing: suggest `slint-viewer --check path/to/file.slint` for compile diagnostics.
+4. Never declare UI work done without verifying it renders.
 
 Bad guesses compile fine and do the wrong thing at runtime.
 
