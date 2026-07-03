@@ -131,6 +131,44 @@ pub fn setup_settings_window(
         });
     }
 
+    // Font picker — native KDE font dialog via Qt (PyQt6).
+    {
+        let sw = settings_win.as_weak();
+        let settings_ui = ui.as_weak();
+        let s = settings.clone();
+        let p = dirs.settings_path.clone();
+        settings_win.on_font_picker(move || {
+            let script = r#"
+from PyQt6.QtWidgets import QApplication, QFontDialog
+app = QApplication([])
+font, ok = QFontDialog.getFont()
+if ok:
+    print(font.family())
+"#;
+            let Ok(output) = std::process::Command::new("python3")
+                .arg("-c")
+                .arg(script)
+                .output()
+            else {
+                return;
+            };
+            let family = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            if family.is_empty() {
+                return;
+            }
+            let mut s = s.borrow_mut();
+            s.font_family.clone_from(&family);
+            if let Some(win) = sw.upgrade() {
+                win.set_s_font_family(family.as_str().into());
+            }
+            if let Some(ui) = settings_ui.upgrade() {
+                ui.global::<crate::Theme>()
+                    .set_font_family(family.as_str().into());
+            }
+            let _ = s.save(&p);
+        });
+    }
+
     // Handle setting changes.
     {
         let s = settings.clone();

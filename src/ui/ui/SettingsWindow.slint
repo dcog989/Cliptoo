@@ -54,6 +54,7 @@ export component SettingsWindow inherits Window {
     callback setting-changed(string, string);
     callback maintenance-action(string);
     callback hue-step(string);
+    callback font-picker();
 
     forward-focus: settings-focus;
     settings-focus := FocusScope {
@@ -254,11 +255,43 @@ export component SettingsWindow inherits Window {
                     }
                 }
 
-                TextRow {
-                    label: "Font family";
-                    value <=> root.s-font-family;
-                    committed(v) => {
-                        root.setting-changed("font_family", v);
+                HorizontalLayout {
+                    spacing: 12px;
+                    alignment: start;
+                    height: 32px;
+                    Text {
+                        width: 180px;
+                        text: "Font family";
+                        color: Theme.fg-primary;
+                        font-size: Theme.font-size;
+                        vertical-alignment: center;
+                    }
+                    Rectangle {
+                        horizontal-stretch: 1;
+                        height: 28px;
+                        border-radius: 5px;
+                        border-width: 1px;
+                        border-color: Theme.accent-muted;
+                        background: Theme.bg-input;
+                        HorizontalLayout {
+                            padding-left: 8px;
+                            padding-right: 8px;
+                            ti := TextInput {
+                                text <=> root.s-font-family;
+                                color: Theme.fg-primary;
+                                font-size: Theme.font-size;
+                                vertical-alignment: center;
+                                accepted => {
+                                    root.setting-changed("font_family", root.s-font-family);
+                                }
+                            }
+                        }
+                    }
+                    StepperButton {
+                        text: "…";
+                        clicked => {
+                            root.font-picker();
+                        }
                     }
                 }
 
