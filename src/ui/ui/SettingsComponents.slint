@@ -1,6 +1,6 @@
 import { Theme } from "Theme.slint";
 
-component StepperButton inherits Rectangle {
+export component StepperButton inherits Rectangle {
     in property <string> text;
     callback clicked;
 
@@ -67,7 +67,7 @@ export component TextRow {
     height: 32px;
     HorizontalLayout {
         spacing: 12px;
-        alignment: center;
+        alignment: start;
         Text {
             width: 180px;
             text: root.label;
@@ -80,24 +80,82 @@ export component TextRow {
             horizontal-stretch: 1;
             height: 28px;
             border-radius: 5px;
+            border-width: 1px;
+            border-color: Theme.accent-muted;
             background: Theme.bg-input;
-            ti := TextInput {
-                x: 8px;
-                width: parent.width - 16px;
-                height: parent.height;
-                text: root.value;
-                color: Theme.fg-primary;
-                font-size: Theme.font-size;
-                vertical-alignment: center;
-                accepted => {
-                    root.value = self.text;
-                    root.committed(self.text);
+            HorizontalLayout {
+                padding-left: 8px;
+                padding-right: 8px;
+                ti := TextInput {
+                    text <=> root.value;
+                    color: Theme.fg-primary;
+                    font-size: Theme.font-size;
+                    vertical-alignment: center;
+                    accepted => {
+                        root.committed(root.value);
+                    }
                 }
-                edited => {
-                    root.value = self.text;
+            }
+        }
+    }
+}
+
+export component HotkeyRow {
+    in property <string> label;
+    in-out property <string> value;
+    callback committed(string);
+    private property <bool> captured: false;
+    private property <string> display-text: (ti.has-focus && !root.captured) ? "Press hotkey…" : root.value;
+
+    height: 32px;
+    HorizontalLayout {
+        spacing: 12px;
+        alignment: start;
+        Text {
+            width: 180px;
+            text: root.label;
+            color: Theme.fg-primary;
+            font-size: Theme.font-size;
+            vertical-alignment: center;
+        }
+
+        Rectangle {
+            horizontal-stretch: 1;
+            height: 28px;
+            border-radius: 5px;
+            border-width: 1px;
+            border-color: ti.has-focus ? Theme.accent-primary : Theme.accent-muted;
+            background: Theme.bg-input;
+            HorizontalLayout {
+                padding-left: 8px;
+                padding-right: 8px;
+                ti := TextInput {
+                    text <=> root.display-text;
+                    color: Theme.fg-primary;
+                    font-size: Theme.font-size;
+                    vertical-alignment: center;
+                    key-pressed(event) => {
+                        if (event.text == Key.Escape) {
+                            ti.clear-focus();
+                            accept
+                        } else {
+                            root.value = (event.modifiers.control ? "Ctrl+" : "")
+                                + (event.modifiers.alt ? "Alt+" : "")
+                                + (event.modifiers.shift ? "Shift+" : "")
+                                + (event.modifiers.meta ? "Meta+" : "")
+                                + event.text;
+                            root.captured = true;
+                            root.committed(root.value);
+                            accept
+                        }
+                    }
                 }
-                // Slint has no focus-lost callback on TextInput;
-                // accepted() fires on Enter. No focus-out commit.
+            }
+            TouchArea {
+                clicked => {
+                    root.captured = false;
+                    ti.focus();
+                }
             }
         }
     }
@@ -114,7 +172,7 @@ export component IntRow {
     height: 32px;
     HorizontalLayout {
         spacing: 12px;
-        alignment: center;
+        alignment: start;
         Text {
             width: 180px;
             text: root.label;
@@ -127,12 +185,14 @@ export component IntRow {
             horizontal-stretch: 1;
             height: 28px;
             border-radius: 5px;
+            border-width: 1px;
+            border-color: Theme.accent-muted;
             background: Theme.bg-input;
             HorizontalLayout {
                 padding-left: 4px;
                 padding-right: 4px;
                 spacing: 4px;
-                alignment: center;
+                alignment: start;
                 StepperButton {
                     text: "−";
                     clicked => {
@@ -146,7 +206,6 @@ export component IntRow {
                     text: "\{root.value}";
                     color: Theme.fg-primary;
                     font-size: Theme.font-size;
-                    horizontal-alignment: center;
                     vertical-alignment: center;
                 }
 
@@ -173,7 +232,7 @@ export component FloatRow {
     height: 32px;
     HorizontalLayout {
         spacing: 12px;
-        alignment: center;
+        alignment: start;
         Text {
             width: 180px;
             text: root.label;
@@ -186,12 +245,14 @@ export component FloatRow {
             horizontal-stretch: 1;
             height: 28px;
             border-radius: 5px;
+            border-width: 1px;
+            border-color: Theme.accent-muted;
             background: Theme.bg-input;
             HorizontalLayout {
                 padding-left: 4px;
                 padding-right: 4px;
                 spacing: 4px;
-                alignment: center;
+                alignment: start;
                 StepperButton {
                     text: "−";
                     clicked => {
@@ -205,7 +266,6 @@ export component FloatRow {
                     text: "\{root.value-hundredths / 100}";
                     color: Theme.fg-primary;
                     font-size: Theme.font-size;
-                    horizontal-alignment: center;
                     vertical-alignment: center;
                 }
 
@@ -230,7 +290,7 @@ export component DropRow {
     height: 32px;
     HorizontalLayout {
         spacing: 12px;
-        alignment: center;
+        alignment: start;
         Text {
             width: 180px;
             text: root.label;
@@ -243,12 +303,14 @@ export component DropRow {
             horizontal-stretch: 1;
             height: 28px;
             border-radius: 5px;
+            border-width: 1px;
+            border-color: Theme.accent-muted;
             background: Theme.bg-input;
             HorizontalLayout {
                 padding-left: 4px;
                 padding-right: 4px;
                 spacing: 4px;
-                alignment: center;
+                alignment: start;
                 StepperButton {
                     text: "‹";
                     clicked => {
@@ -257,13 +319,16 @@ export component DropRow {
                     }
                 }
 
-                Text {
+                swatch-area := Rectangle {
                     horizontal-stretch: 1;
-                    text: root.options[root.index];
-                    color: Theme.fg-primary;
-                    font-size: Theme.font-size;
-                    horizontal-alignment: center;
-                    vertical-alignment: center;
+                    min-width: 110px;
+                    Text {
+                        text: root.options[root.index];
+                        color: Theme.fg-primary;
+                        font-size: Theme.font-size;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
                 }
 
                 StepperButton {
@@ -286,7 +351,7 @@ export component ToggleRow {
     height: 32px;
     HorizontalLayout {
         spacing: 12px;
-        alignment: center;
+        alignment: start;
         Text {
             width: 180px;
             text: root.label;
@@ -299,10 +364,12 @@ export component ToggleRow {
             horizontal-stretch: 1;
             height: 28px;
             border-radius: 5px;
+            border-width: 1px;
+            border-color: Theme.accent-muted;
             background: Theme.bg-input;
             HorizontalLayout {
-                alignment: end;
-                padding-right: 4px;
+                alignment: start;
+                padding-left: 4px;
                 Rectangle {
                     width: 44px;
                     height: 22px;

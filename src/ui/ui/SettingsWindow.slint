@@ -5,10 +5,12 @@ import { Theme } from "Theme.slint";
 import {
     SettingsTab,
     TextRow,
+    HotkeyRow,
     IntRow,
     FloatRow,
     DropRow,
     ToggleRow,
+    StepperButton,
 } from "SettingsComponents.slint";
 
 export component SettingsWindow inherits Window {
@@ -83,7 +85,7 @@ export component SettingsWindow inherits Window {
             // ── General ───────────────────────────────────────────────────────
             if root.active-tab == 0: VerticalLayout {
                 spacing: 12px;
-                TextRow {
+                HotkeyRow {
                     label: "Launch hotkey";
                     value <=> root.s-hotkey;
                     committed(v) => {
@@ -91,7 +93,7 @@ export component SettingsWindow inherits Window {
                     }
                 }
 
-                TextRow {
+                HotkeyRow {
                     label: "Preview hotkey";
                     value <=> root.s-preview-hotkey;
                     committed(v) => {
@@ -99,7 +101,7 @@ export component SettingsWindow inherits Window {
                     }
                 }
 
-                TextRow {
+                HotkeyRow {
                     label: "Quick paste key";
                     value <=> root.s-quick-paste-hotkey;
                     committed(v) => {
@@ -165,14 +167,62 @@ export component SettingsWindow inherits Window {
                     }
                 }
 
-                IntRow {
-                    label: "Accent hue (0–360)";
-                    value <=> root.s-accent-hue;
-                    min-val: 0;
-                    max-val: 360;
-                    step: 5;
-                    committed(v) => {
-                        root.setting-changed("accent_hue", "\{v}");
+                HorizontalLayout {
+                    spacing: 12px;
+                    alignment: start;
+                    height: 32px;
+                    Text {
+                        width: 180px;
+                        text: "Accent hue (0–360)";
+                        color: Theme.fg-primary;
+                        font-size: Theme.font-size;
+                        vertical-alignment: center;
+                    }
+
+                    Rectangle {
+                        horizontal-stretch: 1;
+                        height: 28px;
+                        border-radius: 5px;
+                        border-width: 1px;
+                        border-color: Theme.accent-muted;
+                        background: Theme.bg-input;
+                        HorizontalLayout {
+                            padding-left: 4px;
+                            padding-right: 4px;
+                            spacing: 4px;
+                            alignment: start;
+                            StepperButton {
+                                text: "−";
+                                clicked => {
+                                    root.s-accent-hue = Math.max(0, root.s-accent-hue - 5);
+                                    root.setting-changed("accent_hue", "\{root.s-accent-hue}");
+                                }
+                            }
+
+                            Text {
+                                text: "\{root.s-accent-hue}";
+                                color: Theme.fg-primary;
+                                font-size: Theme.font-size;
+                                vertical-alignment: center;
+                            }
+
+                            StepperButton {
+                                text: "+";
+                                clicked => {
+                                    root.s-accent-hue = Math.min(360, root.s-accent-hue + 5);
+                                    root.setting-changed("accent_hue", "\{root.s-accent-hue}");
+                                }
+                            }
+
+                            Rectangle {
+                                width: 20px;
+                                height: 20px;
+                                border-radius: 4px;
+                                border-width: 1px;
+                                border-color: Theme.accent-muted;
+                                background: hsv(root.s-accent-hue / 360.0, 1.0, 1.0);
+                            }
+                        }
                     }
                 }
 
@@ -226,7 +276,7 @@ export component SettingsWindow inherits Window {
                 // Hover delay slider
                 HorizontalLayout {
                     spacing: 12px;
-                    alignment: center;
+                    alignment: start;
                     height: 32px;
                     Text {
                         width: 180px;
@@ -240,9 +290,11 @@ export component SettingsWindow inherits Window {
                         horizontal-stretch: 1;
                         height: 28px;
                         border-radius: 5px;
+                        border-width: 1px;
+                        border-color: Theme.accent-muted;
                         background: Theme.bg-input;
                         HorizontalLayout {
-                            alignment: center;
+                            alignment: start;
                             padding-left: 12px;
                             padding-right: 8px;
                             spacing: 8px;

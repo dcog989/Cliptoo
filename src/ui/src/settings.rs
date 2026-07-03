@@ -8,6 +8,19 @@ fn idx_of(needle: &str, haystack: &[&str]) -> i32 {
         .unwrap_or(0) as i32
 }
 
+fn clean_hotkey_text(raw: &str) -> String {
+    raw.chars()
+        .map(|c| {
+            let code = c as u32;
+            if code >= 1 && code <= 26 {
+                ((b'a' + (code - 1) as u8) as char).to_string()
+            } else {
+                c.to_string()
+            }
+        })
+        .collect()
+}
+
 fn reapply_theme(settings_ui: &slint::Weak<crate::AppWindow>, settings: &cliptoo_core::Settings) {
     let weak = settings_ui.clone();
     let s_snap = settings.clone();
@@ -95,6 +108,7 @@ pub fn setup_settings_window(
         let s = settings.clone();
         let p = dirs.settings_path.clone();
         let settings_ui = ui.as_weak();
+        let sw = settings_win.as_weak();
         settings_win.on_setting_changed(
             move |key: slint::SharedString, value: slint::SharedString| {
                 let key = key.to_string();
@@ -102,9 +116,27 @@ pub fn setup_settings_window(
                 let mut s = s.borrow_mut();
 
                 match key.as_str() {
-                    "hotkey" => s.hotkey = value.clone(),
-                    "preview_hotkey" => s.preview_hotkey = value.clone(),
-                    "quick_paste_hotkey" => s.quick_paste_hotkey = value.clone(),
+                    "hotkey" => {
+                        let cleaned = clean_hotkey_text(value.trim_end_matches('+'));
+                        s.hotkey = cleaned.clone();
+                        if let Some(win) = sw.upgrade() {
+                            win.set_s_hotkey(cleaned.into());
+                        }
+                    }
+                    "preview_hotkey" => {
+                        let cleaned = clean_hotkey_text(value.trim_end_matches('+'));
+                        s.preview_hotkey = cleaned.clone();
+                        if let Some(win) = sw.upgrade() {
+                            win.set_s_preview_hotkey(cleaned.into());
+                        }
+                    }
+                    "quick_paste_hotkey" => {
+                        let cleaned = clean_hotkey_text(value.trim_end_matches('+'));
+                        s.quick_paste_hotkey = cleaned.clone();
+                        if let Some(win) = sw.upgrade() {
+                            win.set_s_quick_paste_hotkey(cleaned.into());
+                        }
+                    }
                     "launch_position" => s.launch_position = value.clone(),
                     "start_with_system" => {
                         let enabled = value == "true";
