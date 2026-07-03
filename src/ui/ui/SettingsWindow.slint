@@ -54,6 +54,18 @@ export component SettingsWindow inherits Window {
     callback setting-changed(string, string);
     callback maintenance-action(string);
 
+    forward-focus: settings-focus;
+    settings-focus := FocusScope {
+        key-pressed(event) => {
+            if (event.text == Key.Escape) {
+                root.hide();
+                accept
+            } else {
+                reject
+            }
+        }
+    }
+
     VerticalLayout {
         padding: 0;
         spacing: 0;
