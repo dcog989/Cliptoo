@@ -204,6 +204,8 @@ where
     let mut options = HashMap::<&str, Value>::new();
     options.insert("session_handle_token", Value::from("cliptoo_session"));
     options.insert("handle_token", Value::from(handle_token.as_str()));
+    options.insert("desktop-file-name", Value::from("cliptoo"));
+    options.insert("application-id", Value::from("org.cliptoo.Cliptoo"));
 
     let result = conn
         .call_method(

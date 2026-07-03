@@ -87,6 +87,7 @@ export component TextRow {
 
         Rectangle {
             horizontal-stretch: 1;
+            min-width: 300px;
             height: 28px;
             border-radius: 5px;
             border-width: 1px;
@@ -271,6 +272,7 @@ export component FloatRow {
 
                 Text {
                     horizontal-stretch: 1;
+                    min-width: 50px;
                     text: "\{root.value-hundredths / 100}";
                     color: Theme.fg-primary;
                     font-size: Theme.font-size;
