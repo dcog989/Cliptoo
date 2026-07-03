@@ -12,7 +12,7 @@ fn clean_hotkey_text(raw: &str) -> String {
     raw.chars()
         .map(|c| {
             let code = c as u32;
-            if code >= 1 && code <= 26 {
+            if (1..=26).contains(&code) {
                 ((b'a' + (code - 1) as u8) as char).to_string()
             } else {
                 c.to_string()
