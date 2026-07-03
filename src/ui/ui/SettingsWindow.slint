@@ -53,6 +53,7 @@ export component SettingsWindow inherits Window {
 
     callback setting-changed(string, string);
     callback maintenance-action(string);
+    callback hue-step(string);
 
     forward-focus: settings-focus;
     settings-focus := FocusScope {
@@ -202,10 +203,14 @@ export component SettingsWindow inherits Window {
                             padding-left: 4px;
                             padding-right: 4px;
                             spacing: 4px;
+                            cross-axis-alignment: center;
                             StepperButton {
                                 text: "−";
+                                pressed-changed(held) => {
+                                    root.hue-step(held ? "minus" : "stop");
+                                }
                                 clicked => {
-                                    root.s-accent-hue = Math.max(0, root.s-accent-hue - 5);
+                                    root.s-accent-hue = Math.max(0, root.s-accent-hue - 1);
                                     root.setting-changed("accent_hue", "\{root.s-accent-hue}");
                                 }
                             }
@@ -219,8 +224,11 @@ export component SettingsWindow inherits Window {
 
                             StepperButton {
                                 text: "+";
+                                pressed-changed(held) => {
+                                    root.hue-step(held ? "plus" : "stop");
+                                }
                                 clicked => {
-                                    root.s-accent-hue = Math.min(360, root.s-accent-hue + 5);
+                                    root.s-accent-hue = Math.min(360, root.s-accent-hue + 1);
                                     root.setting-changed("accent_hue", "\{root.s-accent-hue}");
                                 }
                             }
@@ -305,7 +313,7 @@ export component SettingsWindow inherits Window {
                         border-color: Theme.accent-muted;
                         background: Theme.bg-input;
                         HorizontalLayout {
-                            alignment: start;
+                            cross-axis-alignment: center;
                             padding-left: 12px;
                             padding-right: 8px;
                             spacing: 8px;
@@ -328,7 +336,6 @@ export component SettingsWindow inherits Window {
                                 text: root.hover-delay == 0 ? "Off" : "\{root.hover-delay} ms";
                                 color: Theme.fg-primary;
                                 font-size: Theme.font-size;
-                                vertical-alignment: center;
                             }
                         }
 

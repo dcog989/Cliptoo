@@ -103,6 +103,34 @@ pub fn setup_settings_window(
         });
     }
 
+    // Accent hue: click-and-hold repeat via 100ms timer.
+    {
+        let sw = settings_win.as_weak();
+        let timer = std::cell::RefCell::new(slint::Timer::default());
+        settings_win.on_hue_step(move |direction: slint::SharedString| {
+            let dir = direction.as_str();
+            let t = timer.borrow_mut();
+            t.stop();
+            if dir == "stop" {
+                return;
+            }
+            let step: i32 = if dir == "minus" { -1 } else { 1 };
+            let weak = sw.clone();
+            t.start(
+                slint::TimerMode::Repeated,
+                std::time::Duration::from_millis(100),
+                move || {
+                    if let Some(win) = weak.upgrade() {
+                        let cur = win.get_s_accent_hue();
+                        let v = (cur + step).clamp(0, 360);
+                        win.set_s_accent_hue(v);
+                        win.invoke_setting_changed("accent_hue".into(), format!("{v}").into());
+                    }
+                },
+            );
+        });
+    }
+
     // Handle setting changes.
     {
         let s = settings.clone();

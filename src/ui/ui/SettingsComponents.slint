@@ -3,21 +3,28 @@ import { Theme } from "Theme.slint";
 export component StepperButton inherits Rectangle {
     in property <string> text;
     callback clicked;
+    callback pressed-changed(bool);
 
     min-width: 24px;
-    min-height: 24px;
-    Text {
-        width: 100%;
-        height: 100%;
-        text: root.text;
-        color: Theme.fg-primary;
-        font-size: 22px;
-        horizontal-alignment: center;
-        vertical-alignment: center;
+    HorizontalLayout {
+        cross-axis-alignment: center;
+        Text {
+            text: root.text;
+            color: Theme.fg-primary;
+            font-size: 22px;
+            horizontal-alignment: center;
+        }
     }
 
-    TouchArea {
+    touch := TouchArea {
         mouse-cursor: pointer;
+        pointer-event(e) => {
+            if (e.kind == PointerEventKind.down) {
+                root.pressed-changed(true);
+            } else if (e.kind == PointerEventKind.up) {
+                root.pressed-changed(false);
+            }
+        }
         clicked => {
             root.clicked();
         }
@@ -194,6 +201,7 @@ export component IntRow {
                 padding-left: 4px;
                 padding-right: 4px;
                 spacing: 4px;
+                cross-axis-alignment: center;
                 StepperButton {
                     text: "−";
                     clicked => {
@@ -207,7 +215,6 @@ export component IntRow {
                     text: "\{root.value}";
                     color: Theme.fg-primary;
                     font-size: Theme.font-size;
-                    vertical-alignment: center;
                 }
 
                 StepperButton {
@@ -253,6 +260,7 @@ export component FloatRow {
                 padding-left: 4px;
                 padding-right: 4px;
                 spacing: 4px;
+                cross-axis-alignment: center;
                 StepperButton {
                     text: "−";
                     clicked => {
@@ -266,7 +274,6 @@ export component FloatRow {
                     text: "\{root.value-hundredths / 100}";
                     color: Theme.fg-primary;
                     font-size: Theme.font-size;
-                    vertical-alignment: center;
                 }
 
                 StepperButton {
@@ -310,6 +317,7 @@ export component DropRow {
                 padding-left: 4px;
                 padding-right: 4px;
                 spacing: 4px;
+                cross-axis-alignment: center;
                 StepperButton {
                     text: "‹";
                     clicked => {
@@ -326,7 +334,6 @@ export component DropRow {
                         color: Theme.fg-primary;
                         font-size: Theme.font-size;
                         horizontal-alignment: center;
-                        vertical-alignment: center;
                     }
                 }
 
@@ -367,7 +374,7 @@ export component ToggleRow {
             border-color: Theme.accent-muted;
             background: Theme.bg-input;
             HorizontalLayout {
-                alignment: start;
+                cross-axis-alignment: center;
                 padding-left: 4px;
                 Rectangle {
                     width: 44px;
