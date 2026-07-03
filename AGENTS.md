@@ -1,5 +1,7 @@
 # AGENTS.md
 
+**IMPERATIVE** - you MUST access and read the contents of /home/bubba/Projects/Cliptoo/.docs/.slint-docs/slint-docs-flat - do NOT guess Slint code - you constantly guess WRONG.
+
 ## What this is
 
 Cliptoo is a native, background-running clipboard manager for Linux desktops. Rust + SQLite + Slint (Qt backend). Targets Wayland and KDE Plasma 6 primarily. Handles many thousands of clipboard records without blocking the UI thread. Rewrite of the original Windows C#/.NET version.
@@ -123,3 +125,7 @@ Use `ls` / `glob` for detail. Don't memorise the tree.
 ## Interaction style
 
 Concise, precise, no analogies, no apologies. Answer the question asked. Don't prompt the next step or volunteer unrequested suggestions.
+
+---
+
+**IMPERATIVE** - you MUST access and read the contents of /home/bubba/Projects/Cliptoo/.docs/.slint-docs/slint-docs-flat - do NOT guess Slint code - you constantly guess WRONG.
