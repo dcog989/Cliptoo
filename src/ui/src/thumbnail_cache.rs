@@ -71,17 +71,43 @@ fn extract_domain(url: &str) -> Option<String> {
     Some(stripped.split('/').next()?.to_string())
 }
 
-fn load_favicon(favicons_dir: &Path, content: &str) -> Image {
-    let domain = match extract_domain(content) {
-        Some(d) => d,
-        None => return Image::default(),
-    };
-    let path = favicons_dir.join(format!("{domain}.webp"));
-    if path.exists() {
-        Image::load_from_path(&path).unwrap_or_default()
-    } else {
-        Image::default()
+// ── LRU favicon cache ─────────────────────────────────────────────────────────
+
+/// Least-Recently-Used in-memory cache for decoded Slint favicon images.
+/// Keyed by domain name.  `slint::Image` is not `Send` so the cache must
+/// live on the UI thread.
+pub struct FaviconLru(LruCache<String, Image>);
+
+impl FaviconLru {
+    pub fn get_or_load(&mut self, favicons_dir: &Path, content: &str) -> Image {
+        let domain = match extract_domain(content) {
+            Some(d) => d,
+            None => return Image::default(),
+        };
+        if let Some(img) = self.0.get(&domain) {
+            return img.clone();
+        }
+        let path = favicons_dir.join(format!("{domain}.webp"));
+        let img = if path.exists() {
+            Image::load_from_path(&path).unwrap_or_default()
+        } else {
+            Image::default()
+        };
+        self.0.put(domain, img.clone());
+        img
     }
+}
+
+impl Default for FaviconLru {
+    fn default() -> Self {
+        Self(LruCache::new(
+            NonZeroUsize::new(LRU_CAPACITY).expect("capacity must be > 0"),
+        ))
+    }
+}
+
+fn load_favicon(favicons_dir: &Path, content: &str) -> Image {
+    FAVICON_LRU.with(|lru| lru.borrow_mut().get_or_load(favicons_dir, content))
 }
 
 /// Parse an FTS5 match-context string with `[HL]...[/HL]` sentinels
@@ -193,10 +219,12 @@ pub fn convert(
     }
 }
 
-// Thread-local LRU thumbnail cache — allocated once on the UI thread.
+// Thread-local LRU caches — allocated once on the UI thread.
 thread_local! {
     pub static THUMB_LRU: std::cell::RefCell<ThumbnailLru> =
         std::cell::RefCell::new(ThumbnailLru::default());
+    pub static FAVICON_LRU: std::cell::RefCell<FaviconLru> =
+        std::cell::RefCell::new(FaviconLru::default());
 }
 
 /// Convert a Vec of DB clips using the provided LRU cache.
