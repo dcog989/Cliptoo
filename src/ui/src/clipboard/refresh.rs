@@ -19,7 +19,14 @@ pub(super) async fn refresh_ui(
         let db_clone = db.clone();
         let _ = ui.upgrade_in_event_loop(move |ui| {
             use slint::ModelRc;
-            let slint_clips = crate::thumbnail_cache::convert_vec(clips, &dir, &fdir);
+            let slint_clips = crate::thumbnail_cache::THUMB_LRU.with(|lru| {
+                crate::thumbnail_cache::convert_vec_cached(
+                    clips,
+                    &dir,
+                    &fdir,
+                    &mut lru.borrow_mut(),
+                )
+            });
             ui.set_clips(ModelRc::from(slint_clips.as_slice()));
             crate::favicon::check_pending_favicons(&ui, &db_clone, &fdir);
         });

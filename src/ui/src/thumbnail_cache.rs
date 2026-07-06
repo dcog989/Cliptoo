@@ -193,18 +193,6 @@ pub fn convert(
     }
 }
 
-/// Convert a Vec of DB clips to Slint ClipData, using the LRU cache for thumbnails.
-pub fn convert_vec(
-    clips: Vec<DbClipData>,
-    thumbnails_dir: &Path,
-    favicons_dir: &Path,
-) -> Vec<crate::ClipData> {
-    clips
-        .into_iter()
-        .map(|d| convert(d, thumbnails_dir, favicons_dir, None))
-        .collect()
-}
-
 // Thread-local LRU thumbnail cache — allocated once on the UI thread.
 thread_local! {
     pub static THUMB_LRU: std::cell::RefCell<ThumbnailLru> =
