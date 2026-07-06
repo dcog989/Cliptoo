@@ -1,6 +1,5 @@
 mod listener;
 mod reader;
-mod refresh;
 
 pub use listener::run_listener;
 

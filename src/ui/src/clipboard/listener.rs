@@ -13,7 +13,7 @@ use crate::paste::PasteSuppressionSet;
 use super::ClipboardPayload;
 use super::is_blacklisted;
 use super::reader::poll_clipboard;
-use super::refresh::refresh_ui;
+use crate::helpers::refresh_clips;
 
 #[allow(clippy::too_many_arguments)]
 pub async fn run_listener(
@@ -177,7 +177,16 @@ pub async fn run_listener(
                                 info!("existing clip updated: {} — text", &hash[..12]);
                             }
 
-                            refresh_ui(&db, &ui, &thumbnails_dir, &favicons_dir).await;
+                            refresh_clips(
+                                &db,
+                                &ui,
+                                &thumbnails_dir,
+                                &favicons_dir,
+                                "",
+                                "all",
+                                None,
+                            )
+                            .await;
                         }
                     }
                     ClipboardPayload::FileUri { hash, content } => {
@@ -254,7 +263,8 @@ pub async fn run_listener(
                                 let _ = h.await;
                             }
                         }
-                        refresh_ui(&db, &ui, &thumbnails_dir, &favicons_dir).await;
+                        refresh_clips(&db, &ui, &thumbnails_dir, &favicons_dir, "", "all", None)
+                            .await;
                     }
                     ClipboardPayload::Image { hash, data } => {
                         let source_app = crate::source_app::detect_source_app().await;
@@ -305,7 +315,8 @@ pub async fn run_listener(
                             info!("existing image clip updated: {}", &hash[..12]);
                         }
 
-                        refresh_ui(&db, &ui, &thumbnails_dir, &favicons_dir).await;
+                        refresh_clips(&db, &ui, &thumbnails_dir, &favicons_dir, "", "all", None)
+                            .await;
                     }
                 }
             }
