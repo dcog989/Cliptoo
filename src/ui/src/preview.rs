@@ -3,7 +3,7 @@ use std::sync::Arc;
 use slint::ComponentHandle;
 use slint::Model;
 
-use cliptoo_core::image::PREVIEW_FALLBACK_DIM;
+use cliptoo_core::image::{HASH_FILENAME_PREFIX_LEN, PREVIEW_FALLBACK_DIM};
 
 use crate::helpers;
 
@@ -122,10 +122,14 @@ pub fn setup_preview(
                         }
                         _ => {
                             if resolved_type == "file_image" {
-                                let preview_webp =
-                                    td.join(format!("{}_preview.webp", &content_hash[..16]));
-                                let preview_svg =
-                                    td.join(format!("{}_preview.svg", &content_hash[..16]));
+                                let preview_webp = td.join(format!(
+                                    "{}_preview.webp",
+                                    &content_hash[..HASH_FILENAME_PREFIX_LEN]
+                                ));
+                                let preview_svg = td.join(format!(
+                                    "{}_preview.svg",
+                                    &content_hash[..HASH_FILENAME_PREFIX_LEN]
+                                ));
                                 if preview_webp.exists() {
                                     let img = slint::Image::load_from_path(&preview_webp)
                                         .unwrap_or_default();
@@ -146,7 +150,10 @@ pub fn setup_preview(
                                             std::path::Path::new(&file_path),
                                             PREVIEW_FALLBACK_DIM,
                                         );
-                                        let p = td2.join(format!("{}_preview.webp", &hash2[..16]));
+                                        let p = td2.join(format!(
+                                            "{}_preview.webp",
+                                            &hash2[..HASH_FILENAME_PREFIX_LEN]
+                                        ));
                                         if p.exists() {
                                             let _ = w.upgrade_in_event_loop(move |ui| {
                                                 let img = slint::Image::load_from_path(&p)
@@ -154,8 +161,10 @@ pub fn setup_preview(
                                                 ui.set_preview_image(img);
                                             });
                                         } else {
-                                            let svg_p =
-                                                td2.join(format!("{}_preview.svg", &hash2[..16]));
+                                            let svg_p = td2.join(format!(
+                                                "{}_preview.svg",
+                                                &hash2[..HASH_FILENAME_PREFIX_LEN]
+                                            ));
                                             if svg_p.exists() {
                                                 let _ = w.upgrade_in_event_loop(move |ui| {
                                                     let img = slint::Image::load_from_path(&svg_p)

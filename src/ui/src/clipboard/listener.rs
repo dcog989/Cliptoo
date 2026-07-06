@@ -2,6 +2,7 @@ use anyhow::Result;
 use cliptoo_core::content::classifier::ContentProcessor;
 use cliptoo_core::db::DbPool;
 use cliptoo_core::db::queries::insert_or_bump;
+use cliptoo_core::image::HASH_FILENAME_PREFIX_LEN;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -275,7 +276,7 @@ pub async fn run_listener(
                         }
 
                         let content_str = images_dir
-                            .join(format!("{}.png", &hash[..16]))
+                            .join(format!("{}.png", &hash[..HASH_FILENAME_PREFIX_LEN]))
                             .to_string_lossy()
                             .to_string();
                         let preview = format!("clipboard-image-{}.png", &hash[..12]);

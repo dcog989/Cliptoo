@@ -16,7 +16,7 @@ use crate::db::DbPool;
 use crate::stats;
 use crate::time::utc_now_iso;
 
-const HASH_FILENAME_PREFIX_LEN: usize = 16;
+use crate::image::HASH_FILENAME_PREFIX_LEN;
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
