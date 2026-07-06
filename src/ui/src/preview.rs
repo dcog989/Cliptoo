@@ -27,36 +27,12 @@ pub fn setup_preview(
                 .await;
             if let Ok((content, clip_type, content_hash)) = result {
                 let _ = ui.upgrade_in_event_loop(move |ui| {
-                    let resolved_type: String = match clip_type.as_str() {
-                        "code_snippet" => "code_snippet".to_string(),
-                        "link" => "link".to_string(),
-                        "folder" => "folder".to_string(),
-                        _ => {
-                            let path = std::path::Path::new(&content);
-                            let is_image_file = path.is_file() && {
-                                path.extension()
-                                    .and_then(|e| e.to_str())
-                                    .map(|e| {
-                                        cliptoo_core::image::IMAGE_EXTENSIONS
-                                            .contains(&e.to_lowercase().as_str())
-                                    })
-                                    .unwrap_or(false)
-                            };
-                            if is_image_file {
-                                "file_image".to_string()
-                            } else if cliptoo_core::color::ColorParser::is_color(&content) {
-                                "color".to_string()
-                            } else {
-                                "text".to_string()
-                            }
-                        }
+                    // ── Popup position ────────────────────────────────────────
+                    let popup_w: f32 = if clip_type == "code_snippet" {
+                        560.0
+                    } else {
+                        400.0
                     };
-
-                    let popup_w: f32 = match resolved_type.as_str() {
-                        "code_snippet" => 560.0,
-                        _ => 400.0,
-                    };
-
                     let window_w = ui.window().size().width as f32;
                     let scale = ui.window().scale_factor();
                     let window_w_logical = window_w / scale;
@@ -67,6 +43,7 @@ pub fn setup_preview(
                     ui.set_preview_popup_x(popup_x);
                     ui.set_preview_popup_y(popup_y);
 
+                    // ── Per-type handlers ─────────────────────────────────────
                     match clip_type.as_str() {
                         "code_snippet" => {
                             ui.set_preview_clip_type("code_snippet".into());
@@ -120,109 +97,118 @@ pub fn setup_preview(
                                 });
                             });
                         }
-                        _ => {
-                            if resolved_type == "file_image" {
-                                let preview_webp = td.join(format!(
-                                    "{}_preview.webp",
-                                    &content_hash[..HASH_FILENAME_PREFIX_LEN]
-                                ));
-                                let preview_svg = td.join(format!(
-                                    "{}_preview.svg",
-                                    &content_hash[..HASH_FILENAME_PREFIX_LEN]
-                                ));
-                                if preview_webp.exists() {
-                                    let img = slint::Image::load_from_path(&preview_webp)
-                                        .unwrap_or_default();
-                                    ui.set_preview_image(img);
-                                } else if preview_svg.exists() {
-                                    let img = slint::Image::load_from_path(&preview_svg)
-                                        .unwrap_or_default();
-                                    ui.set_preview_image(img);
-                                } else {
-                                    let file_path = content.clone();
-                                    let td2 = td.clone();
-                                    let hash2 = content_hash.clone();
-                                    let w = ui.as_weak();
-                                    tokio::spawn(async move {
-                                        let _ = cliptoo_core::image::store_both_thumbnails_for_file(
-                                            &td2,
-                                            &hash2,
-                                            std::path::Path::new(&file_path),
-                                            PREVIEW_FALLBACK_DIM,
-                                        );
-                                        let p = td2.join(format!(
-                                            "{}_preview.webp",
+                        "file_image" => {
+                            let preview_webp = td.join(format!(
+                                "{}_preview.webp",
+                                &content_hash[..HASH_FILENAME_PREFIX_LEN]
+                            ));
+                            let preview_svg = td.join(format!(
+                                "{}_preview.svg",
+                                &content_hash[..HASH_FILENAME_PREFIX_LEN]
+                            ));
+                            if preview_webp.exists() {
+                                let img =
+                                    slint::Image::load_from_path(&preview_webp).unwrap_or_default();
+                                ui.set_preview_image(img);
+                            } else if preview_svg.exists() {
+                                let img =
+                                    slint::Image::load_from_path(&preview_svg).unwrap_or_default();
+                                ui.set_preview_image(img);
+                            } else {
+                                let file_path = content.clone();
+                                let td2 = td.clone();
+                                let hash2 = content_hash.clone();
+                                let w = ui.as_weak();
+                                tokio::spawn(async move {
+                                    let _ = cliptoo_core::image::store_both_thumbnails_for_file(
+                                        &td2,
+                                        &hash2,
+                                        std::path::Path::new(&file_path),
+                                        PREVIEW_FALLBACK_DIM,
+                                    );
+                                    let p = td2.join(format!(
+                                        "{}_preview.webp",
+                                        &hash2[..HASH_FILENAME_PREFIX_LEN]
+                                    ));
+                                    if p.exists() {
+                                        let _ = w.upgrade_in_event_loop(move |ui| {
+                                            let img = slint::Image::load_from_path(&p)
+                                                .unwrap_or_default();
+                                            ui.set_preview_image(img);
+                                        });
+                                    } else {
+                                        let svg_p = td2.join(format!(
+                                            "{}_preview.svg",
                                             &hash2[..HASH_FILENAME_PREFIX_LEN]
                                         ));
-                                        if p.exists() {
+                                        if svg_p.exists() {
                                             let _ = w.upgrade_in_event_loop(move |ui| {
-                                                let img = slint::Image::load_from_path(&p)
+                                                let img = slint::Image::load_from_path(&svg_p)
                                                     .unwrap_or_default();
                                                 ui.set_preview_image(img);
                                             });
-                                        } else {
-                                            let svg_p = td2.join(format!(
-                                                "{}_preview.svg",
-                                                &hash2[..HASH_FILENAME_PREFIX_LEN]
-                                            ));
-                                            if svg_p.exists() {
-                                                let _ = w.upgrade_in_event_loop(move |ui| {
-                                                    let img = slint::Image::load_from_path(&svg_p)
-                                                        .unwrap_or_default();
-                                                    ui.set_preview_image(img);
-                                                });
-                                            }
                                         }
-                                    });
-                                }
-                            } else if resolved_type == "folder" {
-                                let path = std::path::Path::new(&content);
-                                let info = if path.is_dir() {
-                                    let mut count = 0u64;
-                                    let mut total_size = 0u64;
-                                    let mut latest_mtime = 0i64;
-                                    if let Ok(entries) = std::fs::read_dir(path) {
-                                        for entry in entries.flatten() {
-                                            count += 1;
-                                            if let Ok(meta) = entry.metadata() {
-                                                total_size += meta.len();
-                                                if let Ok(mtime) = meta.modified()
-                                                    && let Ok(dur) =
-                                                        mtime.duration_since(std::time::UNIX_EPOCH)
-                                                {
-                                                    latest_mtime =
-                                                        latest_mtime.max(dur.as_secs() as i64);
-                                                }
+                                    }
+                                });
+                            }
+                            ui.set_preview_clip_type("file_image".into());
+                            ui.set_preview_text(content.into());
+                        }
+                        "folder" => {
+                            let path = std::path::Path::new(&content);
+                            let info = if path.is_dir() {
+                                let mut count = 0u64;
+                                let mut total_size = 0u64;
+                                let mut latest_mtime = 0i64;
+                                if let Ok(entries) = std::fs::read_dir(path) {
+                                    for entry in entries.flatten() {
+                                        count += 1;
+                                        if let Ok(meta) = entry.metadata() {
+                                            total_size += meta.len();
+                                            if let Ok(mtime) = meta.modified()
+                                                && let Ok(dur) =
+                                                    mtime.duration_since(std::time::UNIX_EPOCH)
+                                            {
+                                                latest_mtime =
+                                                    latest_mtime.max(dur.as_secs() as i64);
                                             }
                                         }
                                     }
-                                    let size_str = if total_size < 1024 {
-                                        format!("{total_size} B")
-                                    } else if total_size < 1024 * 1024 {
-                                        format!("{:.1} KB", total_size as f64 / 1024.0)
-                                    } else if total_size < 1024 * 1024 * 1024 {
-                                        format!("{:.1} MB", total_size as f64 / (1024.0 * 1024.0))
-                                    } else {
-                                        format!(
-                                            "{:.2} GB",
-                                            total_size as f64 / (1024.0 * 1024.0 * 1024.0)
-                                        )
-                                    };
-                                    let item_label = if count == 1 { "item" } else { "items" };
-                                    let date_str = if latest_mtime > 0 {
-                                        chrono::DateTime::from_timestamp(latest_mtime, 0)
-                                            .map(|dt| dt.format("%Y-%m-%d %H:%M").to_string())
-                                            .unwrap_or_default()
-                                    } else {
-                                        String::new()
-                                    };
-                                    format!("{count} {item_label} · {size_str} · {date_str}")
+                                }
+                                let size_str = if total_size < 1024 {
+                                    format!("{total_size} B")
+                                } else if total_size < 1024 * 1024 {
+                                    format!("{:.1} KB", total_size as f64 / 1024.0)
+                                } else if total_size < 1024 * 1024 * 1024 {
+                                    format!("{:.1} MB", total_size as f64 / (1024.0 * 1024.0))
+                                } else {
+                                    format!(
+                                        "{:.2} GB",
+                                        total_size as f64 / (1024.0 * 1024.0 * 1024.0)
+                                    )
+                                };
+                                let item_label = if count == 1 { "item" } else { "items" };
+                                let date_str = if latest_mtime > 0 {
+                                    chrono::DateTime::from_timestamp(latest_mtime, 0)
+                                        .map(|dt| dt.format("%Y-%m-%d %H:%M").to_string())
+                                        .unwrap_or_default()
                                 } else {
                                     String::new()
                                 };
-                                ui.set_preview_file_info(info.into());
-                            }
-                            ui.set_preview_clip_type(resolved_type.into());
+                                format!("{count} {item_label} · {size_str} · {date_str}")
+                            } else {
+                                String::new()
+                            };
+                            ui.set_preview_clip_type("folder".into());
+                            ui.set_preview_text(content.into());
+                            ui.set_preview_file_info(info.into());
+                        }
+                        // All other clip types (text, rtf, color, file_video,
+                        // file_audio, file_archive, file_document, file_dev,
+                        // file_danger, file_text, file_generic, file_database,
+                        // file_font, file_link, file_system): show text.
+                        _ => {
+                            ui.set_preview_clip_type(clip_type.into());
                             ui.set_preview_text(content.into());
                         }
                     }
