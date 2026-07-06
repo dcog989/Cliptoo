@@ -150,18 +150,12 @@ fn parse_match_spans(context: &str) -> slint::ModelRc<crate::MatchSpan> {
 /// Convert a DB clip to a Slint ClipData, loading the thumbnail
 /// from disk for file_image clips (via LRU cache) and the favicon for link clips.
 /// Must be called on the UI thread because `slint::Image` is not Send.
-pub fn convert(
-    db_clip: DbClipData,
-    thumbnails_dir: &Path,
-    favicons_dir: &Path,
-    lru: Option<&mut ThumbnailLru>,
-) -> crate::ClipData {
+pub fn convert(db_clip: DbClipData, thumbnails_dir: &Path, favicons_dir: &Path) -> crate::ClipData {
     let thumbnail = if db_clip.clip_type == ClipType::FileImage {
-        if let Some(cache) = lru {
-            cache.get_or_load(thumbnails_dir, &db_clip.content_hash)
-        } else {
-            load_thumbnail(thumbnails_dir, &db_clip.content_hash)
-        }
+        THUMB_LRU.with(|lru| {
+            lru.borrow_mut()
+                .get_or_load(thumbnails_dir, &db_clip.content_hash)
+        })
     } else {
         Image::default()
     };
@@ -220,15 +214,15 @@ thread_local! {
         std::cell::RefCell::new(FaviconLru::default());
 }
 
-/// Convert a Vec of DB clips using the provided LRU cache.
-pub fn convert_vec_cached(
+/// Convert a Vec of DB clips to Slint ClipData, using the thread-local
+/// LRU caches for thumbnails and favicons.
+pub fn convert_vec(
     clips: Vec<DbClipData>,
     thumbnails_dir: &Path,
     favicons_dir: &Path,
-    lru: &mut ThumbnailLru,
 ) -> Vec<crate::ClipData> {
     clips
         .into_iter()
-        .map(|d| convert(d, thumbnails_dir, favicons_dir, Some(lru)))
+        .map(|d| convert(d, thumbnails_dir, favicons_dir))
         .collect()
 }

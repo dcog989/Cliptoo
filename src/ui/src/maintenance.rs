@@ -97,15 +97,9 @@ pub fn setup_manual_maintenance(
                             {
                                 let db_import = db.clone();
                                 let _ = ui.upgrade_in_event_loop(move |ui| {
-                                    let slint_clips =
-                                        crate::thumbnail_cache::THUMB_LRU.with(|lru| {
-                                            crate::thumbnail_cache::convert_vec_cached(
-                                                clips,
-                                                &td_import,
-                                                &fd_import,
-                                                &mut lru.borrow_mut(),
-                                            )
-                                        });
+                                    let slint_clips = crate::thumbnail_cache::convert_vec(
+                                        clips, &td_import, &fd_import,
+                                    );
                                     ui.set_clips(slint::ModelRc::from(slint_clips.as_slice()));
                                     ui.set_selected_index(0);
                                     crate::favicon::check_pending_favicons(
@@ -164,14 +158,7 @@ pub fn setup_manual_maintenance(
                 let fd_refresh = fd.clone();
                 let db_refresh = db.clone();
                 let _ = ui.upgrade_in_event_loop(move |ui| {
-                    let slint_clips = crate::thumbnail_cache::THUMB_LRU.with(|lru| {
-                        crate::thumbnail_cache::convert_vec_cached(
-                            clips,
-                            &td2,
-                            &fd_refresh,
-                            &mut lru.borrow_mut(),
-                        )
-                    });
+                    let slint_clips = crate::thumbnail_cache::convert_vec(clips, &td2, &fd_refresh);
                     ui.set_clips(slint::ModelRc::from(slint_clips.as_slice()));
                     ui.set_selected_index(0);
                     crate::favicon::check_pending_favicons(&ui, &db_refresh, &fd_refresh);

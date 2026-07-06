@@ -70,9 +70,7 @@ pub async fn refresh_clips(
         let td = td.to_path_buf();
         let fd = fd.to_path_buf();
         let _ = ui.upgrade_in_event_loop(move |ui| {
-            let slint_clips = crate::thumbnail_cache::THUMB_LRU.with(|lru| {
-                crate::thumbnail_cache::convert_vec_cached(clips, &td, &fd, &mut lru.borrow_mut())
-            });
+            let slint_clips = crate::thumbnail_cache::convert_vec(clips, &td, &fd);
             let model = std::rc::Rc::new(slint::VecModel::<crate::ClipData>::from(slint_clips));
             ui.set_clips(model.into());
             ui.set_selected_index(0);

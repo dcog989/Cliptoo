@@ -41,14 +41,7 @@ pub fn setup_search(
             if let Ok(clips) = result {
                 let db2 = db.clone();
                 let _ = ui.upgrade_in_event_loop(move |ui| {
-                    let slint_clips = crate::thumbnail_cache::THUMB_LRU.with(|lru| {
-                        crate::thumbnail_cache::convert_vec_cached(
-                            clips,
-                            &td,
-                            &fd,
-                            &mut lru.borrow_mut(),
-                        )
-                    });
+                    let slint_clips = crate::thumbnail_cache::convert_vec(clips, &td, &fd);
                     let model =
                         std::rc::Rc::new(slint::VecModel::<crate::ClipData>::from(slint_clips));
                     ui.set_clips(model.into());
@@ -106,14 +99,7 @@ pub fn setup_filter(
             if let Ok(clips) = result {
                 let db2 = db.clone();
                 let _ = ui.upgrade_in_event_loop(move |ui| {
-                    let slint_clips = crate::thumbnail_cache::THUMB_LRU.with(|lru| {
-                        crate::thumbnail_cache::convert_vec_cached(
-                            clips,
-                            &td,
-                            &fd,
-                            &mut lru.borrow_mut(),
-                        )
-                    });
+                    let slint_clips = crate::thumbnail_cache::convert_vec(clips, &td, &fd);
                     let model =
                         std::rc::Rc::new(slint::VecModel::<crate::ClipData>::from(slint_clips));
                     ui.set_clips(model.into());
