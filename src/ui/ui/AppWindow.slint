@@ -360,42 +360,52 @@ export component AppWindow inherits Window {
 
             preview => {
                 root.request-preview(root.ctx-clip-id, root.ctx-menu-x / 1px, root.ctx-menu-y / 1px);
+                root.popup-open = false;
                 ctx-menu-popup.close();
             }
             edit => {
                 root.edit-clip(root.ctx-clip-id);
+                root.popup-open = false;
                 ctx-menu-popup.close();
             }
             format(key) => {
                 root.transform-clip(root.ctx-clip-id, key);
+                root.popup-open = false;
                 ctx-menu-popup.close();
             }
             toggle-bookmark(id, current) => {
                 root.toggle-bookmark(id, current);
+                root.popup-open = false;
                 ctx-menu-popup.close();
             }
             move-to-top => {
                 root.move-to-top(root.ctx-clip-id);
+                root.popup-open = false;
                 ctx-menu-popup.close();
             }
             move-to-bottom => {
                 root.move-to-bottom(root.ctx-clip-id);
+                root.popup-open = false;
                 ctx-menu-popup.close();
             }
             move-up-one => {
                 root.move-up-one(root.ctx-clip-id);
+                root.popup-open = false;
                 ctx-menu-popup.close();
             }
             move-down-one => {
                 root.move-down-one(root.ctx-clip-id);
+                root.popup-open = false;
                 ctx-menu-popup.close();
             }
             send-to(app-name) => {
                 root.send-to-clip(root.ctx-clip-id, app-name);
+                root.popup-open = false;
                 ctx-menu-popup.close();
             }
             delete => {
                 root.delete-clip(root.ctx-clip-id);
+                root.popup-open = false;
                 ctx-menu-popup.close();
             }
         }
@@ -424,12 +434,14 @@ export component AppWindow inherits Window {
                 root.menu-about();
                 root.popup-just-closed = true;
                 hamburger_popup.close();
+                root.popup-open = false;
                 root.popup-just-closed = false;
             }
             menu-close-to-tray => {
                 root.menu-close-to-tray();
                 root.popup-just-closed = true;
                 hamburger_popup.close();
+                root.popup-open = false;
                 root.popup-just-closed = false;
             }
         }
@@ -447,6 +459,7 @@ export component AppWindow inherits Window {
             filter-chosen(f) => {
                 root.active-filter = f;
                 root.filter-changed(f);
+                root.popup-open = false;
                 filter_popup.close();
             }
         }

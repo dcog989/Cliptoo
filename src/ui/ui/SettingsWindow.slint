@@ -50,6 +50,7 @@ export component SettingsWindow inherits Window {
     in-out property <int> s-max-clips:            10000;
     in-out property <int> s-max-age-days:         90;
 
+    callback settings-closing();
     callback setting-changed(string, string);
     callback maintenance-action(string);
     callback hue-step(string);
@@ -59,6 +60,7 @@ export component SettingsWindow inherits Window {
     settings-focus := FocusScope {
         key-pressed(event) => {
             if (event.text == Key.Escape) {
+                root.settings-closing();
                 root.hide();
                 accept
             } else {

@@ -48,6 +48,18 @@ pub fn setup_settings_window(
 ) -> crate::SettingsWindow {
     let settings_win = crate::SettingsWindow::new().expect("SettingsWindow creation");
 
+    // Reset popup-open when settings window is closed via window manager
+    // (ESC is handled by the settings-closing callback).
+    {
+        let main_ui = ui.as_weak();
+        settings_win.window().on_close_requested(move || {
+            let _ = main_ui.upgrade_in_event_loop(move |ui| {
+                ui.set_popup_open(false);
+            });
+            slint::CloseRequestResponse::HideWindow
+        });
+    }
+
     // Initialise all settings properties.
     {
         let s = settings.borrow();
@@ -100,6 +112,17 @@ pub fn setup_settings_window(
             if let Some(ui) = main_ui.upgrade() {
                 ui.invoke_maintenance_action(key);
             }
+        });
+    }
+
+    // When settings window closes, reset popup-open so ESC and blur-to-tray
+    // work again on the main window.
+    {
+        let main_ui = ui.as_weak();
+        settings_win.on_settings_closing(move || {
+            let _ = main_ui.upgrade_in_event_loop(move |ui| {
+                ui.set_popup_open(false);
+            });
         });
     }
 
