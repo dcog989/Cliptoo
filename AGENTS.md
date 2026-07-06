@@ -116,11 +116,11 @@ Use `ls` / `glob` for detail. Don't memorise the tree.
 
 ## Permissions
 
-- access all content in /home/bubba/Projects/Cliptoo/ unless excluded below.
+- access all content in `/home/bubba/Projects/Cliptoo/` unless excluded below.
 
 ### Excluded Content
 
-- ./**/.archive/
+- `.assets/`, `.docs/ToDo.md`, `.git/`, `node_modules/`
 
 ## Interaction style
 
