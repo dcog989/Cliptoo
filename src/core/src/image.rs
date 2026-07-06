@@ -11,9 +11,16 @@ const THUMB_MAX_DIM: u32 = 36;
 pub const PREVIEW_FALLBACK_DIM: u32 = 400;
 pub const HASH_FILENAME_PREFIX_LEN: usize = 16;
 
-/// Formats in IMAGE that the `image` crate + jxl-oxide cannot decode.
-/// SVG is now handled via `icon::rasterize_svg` in `decode_image`; the rest
-/// get a placeholder thumbnail.
+/// Canonical list of all image-file extensions.  Single source of truth for
+/// `filetype.rs` (DB `ClipType` classification) and `preview.rs` (hover popup
+/// `resolved_type`).  Keep this in sync with the two downstream consumers.
+pub const IMAGE_EXTENSIONS: &[&str] = &[
+    "png", "jpg", "jpeg", "gif", "webp", "svg", "avif", "heic", "jxl", "ico", "bmp", "tiff", "tif",
+    "psd", "xcf", "raw", "arw", "cr2", "nef", "dng",
+];
+
+/// Subset of [`IMAGE_EXTENSIONS`] that the `image` crate + jxl-oxide cannot
+/// decode.  These get a placeholder thumbnail instead of failing silently.
 const UNDECODABLE_IMAGE_EXTS: &[&str] = &["psd", "xcf", "raw", "arw", "cr2", "nef", "dng"];
 
 /// Resolution at which SVG content is rasterised in `decode_image` when

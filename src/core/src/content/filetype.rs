@@ -33,7 +33,7 @@ impl FileTypeClassifier {
             Some(e) if DEV.contains(&e) => ClipType::FileDev,
             Some(e) if DOCUMENT.contains(&e) => ClipType::FileDocument,
             Some(e) if FONT.contains(&e) => ClipType::FileFont,
-            Some(e) if IMAGE.contains(&e) => ClipType::FileImage,
+            Some(e) if crate::image::IMAGE_EXTENSIONS.contains(&e) => ClipType::FileImage,
             Some(e) if LINK.contains(&e) => ClipType::FileLink,
             Some(e) if SYSTEM.contains(&e) => ClipType::FileSystem,
             Some(e) if TEXT_FILE.contains(&e) => ClipType::FileText,
@@ -80,10 +80,7 @@ const DOCUMENT: &[&str] = &[
     "pages", "numbers", "key",
 ];
 const FONT: &[&str] = &["ttf", "otf", "woff", "woff2", "eot", "pfb", "afm"];
-const IMAGE: &[&str] = &[
-    "png", "jpg", "jpeg", "gif", "webp", "svg", "avif", "heic", "jxl", "ico", "bmp", "tiff", "tif",
-    "psd", "xcf", "raw", "arw", "cr2", "nef", "dng",
-];
+
 const LINK: &[&str] = &["lnk", "url", "webloc", "desktop"];
 const SYSTEM: &[&str] = &[
     "bak", "tmp", "dll", "sys", "cache", "swp", "swo", "pid", "lock", "log",

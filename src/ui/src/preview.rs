@@ -34,13 +34,12 @@ pub fn setup_preview(
                         _ => {
                             let path = std::path::Path::new(&content);
                             let is_image_file = path.is_file() && {
-                                const IMAGE_EXTS: &[&str] = &[
-                                    "png", "jpg", "jpeg", "gif", "webp", "svg", "avif", "heic",
-                                    "jxl", "ico", "bmp", "tiff", "tif",
-                                ];
                                 path.extension()
                                     .and_then(|e| e.to_str())
-                                    .map(|e| IMAGE_EXTS.contains(&e.to_lowercase().as_str()))
+                                    .map(|e| {
+                                        cliptoo_core::image::IMAGE_EXTENSIONS
+                                            .contains(&e.to_lowercase().as_str())
+                                    })
                                     .unwrap_or(false)
                             };
                             if is_image_file {
