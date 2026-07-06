@@ -38,12 +38,7 @@ impl ThumbnailLru {
         if let Some(img) = self.0.get(key) {
             return img.clone();
         }
-        let path = thumbnails_dir.join(format!("{key}.webp"));
-        let img = if path.exists() {
-            Image::load_from_path(&path).unwrap_or_default()
-        } else {
-            Image::default()
-        };
+        let img = load_thumbnail(thumbnails_dir, hash);
         self.0.put(key.to_string(), img.clone());
         img
     }
@@ -56,15 +51,16 @@ impl Default for ThumbnailLru {
 }
 
 fn load_thumbnail(thumbnails_dir: &Path, content_hash: &str) -> Image {
-    let path = thumbnails_dir.join(format!(
-        "{}.webp",
-        &content_hash[..content_hash.len().min(HASH_FILENAME_PREFIX_LEN)]
-    ));
-    if path.exists() {
-        Image::load_from_path(&path).unwrap_or_default()
-    } else {
-        Image::default()
+    let key = &content_hash[..content_hash.len().min(HASH_FILENAME_PREFIX_LEN)];
+    let webp = thumbnails_dir.join(format!("{key}.webp"));
+    if webp.exists() {
+        return Image::load_from_path(&webp).unwrap_or_default();
     }
+    let svg = thumbnails_dir.join(format!("{key}.svg"));
+    if svg.exists() {
+        return Image::load_from_path(&svg).unwrap_or_default();
+    }
+    Image::default()
 }
 
 /// Extract the domain from a URL (e.g. "https://github.com/foo" -> "github.com").

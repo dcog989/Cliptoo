@@ -9,6 +9,11 @@ const THUMB_MAX_DIM: u32 = 36;
 pub const PREVIEW_FALLBACK_DIM: u32 = 400;
 pub const HASH_FILENAME_PREFIX_LEN: usize = 16;
 
+/// Formats in IMAGE that the `image` crate + jxl-oxide cannot decode.
+/// SVG is handled by copying the file directly; the rest get a placeholder
+/// thumbnail since the `image` crate has no decoder for them.
+const UNDECODABLE_IMAGE_EXTS: &[&str] = &["svg", "psd", "xcf", "raw", "arw", "cr2", "nef", "dng"];
+
 // ── Directory layout ──────────────────────────────────────────────────────────
 //
 // Full-resolution clipboard images are stored as PNG under `images_dir`:
@@ -137,6 +142,103 @@ pub fn store_both_thumbnails(
     }
 
     Ok(())
+}
+
+/// Check whether `ext` (lowercased) is one of the IMAGE-classified formats
+/// that cannot be decoded by the `image` crate or jxl-oxide.
+pub fn is_undecodable_image_ext(ext: &str) -> bool {
+    UNDECODABLE_IMAGE_EXTS.contains(&ext)
+}
+
+// ── Placeholder thumbnail ────────────────────────────────────────────────────
+//
+// Formats like PSD, XCF, and camera raw are classified as FileImage but cannot
+// be decoded.  Rather than failing silently, we write a gentle gradient
+// placeholder so the list cell and preview popup always have something to show.
+
+fn make_placeholder(size: u32) -> image::DynamicImage {
+    let mut img = image::RgbaImage::new(size, size);
+    for y in 0..size {
+        for x in 0..size {
+            let v = (x as f64 / size as f64 * 30.0 + y as f64 / size as f64 * 20.0) as u8;
+            img.put_pixel(
+                x,
+                y,
+                image::Rgba([
+                    160u8.saturating_add(v),
+                    170u8.saturating_add(v),
+                    185u8.saturating_add(v),
+                    255,
+                ]),
+            );
+        }
+    }
+    image::DynamicImage::ImageRgba8(img)
+}
+
+// ── File-aware thumbnail store ───────────────────────────────────────────────
+
+/// Write thumbnails for a `FileImage` clip backed by an on-disk file.
+///
+/// * **SVG** – the file is copied directly to `{hash}.svg` / `{hash}_preview.svg`
+///   so Slint can load it natively. No decode attempt.
+/// * **PSD, XCF, RAW, …** – a generic gradient placeholder is written as WebP
+///   since the `image` crate cannot decode these.
+/// * **All other formats** – decoded and written as WebP (same as
+///   [`store_both_thumbnails`]).
+pub fn store_both_thumbnails_for_file(
+    dir: &Path,
+    hash: &str,
+    file_path: &Path,
+    preview_max_dim: u32,
+) -> Result<()> {
+    let prefix = &hash[..hash.len().min(HASH_FILENAME_PREFIX_LEN)];
+
+    let thumb_webp = dir.join(format!("{prefix}.webp"));
+    let thumb_svg = dir.join(format!("{prefix}.svg"));
+    let preview_webp = dir.join(format!("{prefix}_preview.webp"));
+    let preview_svg = dir.join(format!("{prefix}_preview.svg"));
+
+    let ext = file_path
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.to_lowercase());
+
+    match ext.as_deref() {
+        Some("svg") => {
+            if !thumb_svg.exists() {
+                std::fs::copy(file_path, &thumb_svg)?;
+            }
+            if !preview_svg.exists() {
+                std::fs::copy(file_path, &preview_svg)?;
+            }
+            Ok(())
+        }
+        Some(e) if UNDECODABLE_IMAGE_EXTS.contains(&e) => {
+            let need_thumb = !thumb_webp.exists();
+            let need_preview = !preview_webp.exists();
+            if !need_thumb && !need_preview {
+                return Ok(());
+            }
+            if need_thumb && need_preview {
+                let mut f = std::fs::File::create(&thumb_webp)?;
+                make_placeholder(THUMB_MAX_DIM).write_to(&mut f, image::ImageFormat::WebP)?;
+                let mut f = std::fs::File::create(&preview_webp)?;
+                make_placeholder(preview_max_dim).write_to(&mut f, image::ImageFormat::WebP)?;
+            } else if need_thumb {
+                let mut f = std::fs::File::create(&thumb_webp)?;
+                make_placeholder(THUMB_MAX_DIM).write_to(&mut f, image::ImageFormat::WebP)?;
+            } else if need_preview {
+                let mut f = std::fs::File::create(&preview_webp)?;
+                make_placeholder(preview_max_dim).write_to(&mut f, image::ImageFormat::WebP)?;
+            }
+            Ok(())
+        }
+        _ => {
+            let data = std::fs::read(file_path)?;
+            store_both_thumbnails(dir, hash, &data, preview_max_dim)
+        }
+    }
 }
 
 // ── In-memory thumbnail generation ───────────────────────────────────────────

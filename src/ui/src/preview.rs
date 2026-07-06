@@ -123,10 +123,16 @@ pub fn setup_preview(
                         }
                         _ => {
                             if resolved_type == "file_image" {
-                                let thumb_path =
+                                let preview_webp =
                                     td.join(format!("{}_preview.webp", &content_hash[..16]));
-                                if thumb_path.exists() {
-                                    let img = slint::Image::load_from_path(&thumb_path)
+                                let preview_svg =
+                                    td.join(format!("{}_preview.svg", &content_hash[..16]));
+                                if preview_webp.exists() {
+                                    let img = slint::Image::load_from_path(&preview_webp)
+                                        .unwrap_or_default();
+                                    ui.set_preview_image(img);
+                                } else if preview_svg.exists() {
+                                    let img = slint::Image::load_from_path(&preview_svg)
                                         .unwrap_or_default();
                                     ui.set_preview_image(img);
                                 } else {
@@ -135,22 +141,29 @@ pub fn setup_preview(
                                     let hash2 = content_hash.clone();
                                     let w = ui.as_weak();
                                     tokio::spawn(async move {
-                                        if let Ok(data) = std::fs::read(&file_path)
-                                            && cliptoo_core::image::store_both_thumbnails(
-                                                &td2,
-                                                &hash2,
-                                                &data,
-                                                PREVIEW_FALLBACK_DIM,
-                                            )
-                                            .is_ok()
-                                        {
-                                            let p =
-                                                td2.join(format!("{}_preview.webp", &hash2[..16]));
+                                        let _ = cliptoo_core::image::store_both_thumbnails_for_file(
+                                            &td2,
+                                            &hash2,
+                                            std::path::Path::new(&file_path),
+                                            PREVIEW_FALLBACK_DIM,
+                                        );
+                                        let p = td2.join(format!("{}_preview.webp", &hash2[..16]));
+                                        if p.exists() {
                                             let _ = w.upgrade_in_event_loop(move |ui| {
                                                 let img = slint::Image::load_from_path(&p)
                                                     .unwrap_or_default();
                                                 ui.set_preview_image(img);
                                             });
+                                        } else {
+                                            let svg_p =
+                                                td2.join(format!("{}_preview.svg", &hash2[..16]));
+                                            if svg_p.exists() {
+                                                let _ = w.upgrade_in_event_loop(move |ui| {
+                                                    let img = slint::Image::load_from_path(&svg_p)
+                                                        .unwrap_or_default();
+                                                    ui.set_preview_image(img);
+                                                });
+                                            }
                                         }
                                     });
                                 }

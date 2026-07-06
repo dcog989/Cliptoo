@@ -149,22 +149,15 @@ pub async fn run_listener(
                                     let hash_c = hash.clone();
                                     let td = thumbnails_dir.clone();
                                     Some(tokio::task::spawn_blocking(move || {
-                                        if let Ok(data) = std::fs::read(&path) {
-                                            if let Err(e) =
-                                                cliptoo_core::image::store_both_thumbnails(
-                                                    &td,
-                                                    &hash_c,
-                                                    &data,
-                                                    preview_max_dim,
-                                                )
-                                            {
-                                                tracing::error!("store_both_thumbnails: {e}");
-                                            }
-                                        } else {
-                                            tracing::error!(
-                                                "read file for thumbnail: {} — {path:?}",
-                                                &hash_c[..12]
-                                            );
+                                        if let Err(e) =
+                                            cliptoo_core::image::store_both_thumbnails_for_file(
+                                                &td,
+                                                &hash_c,
+                                                &path,
+                                                preview_max_dim,
+                                            )
+                                        {
+                                            tracing::error!("store_both_thumbnails_for_file: {e}");
                                         }
                                     }))
                                 } else {
@@ -241,20 +234,15 @@ pub async fn run_listener(
                                 let hash_c = hash.clone();
                                 let td = thumbnails_dir.clone();
                                 Some(tokio::task::spawn_blocking(move || {
-                                    if let Ok(data) = std::fs::read(&path) {
-                                        if let Err(e) = cliptoo_core::image::store_both_thumbnails(
+                                    if let Err(e) =
+                                        cliptoo_core::image::store_both_thumbnails_for_file(
                                             &td,
                                             &hash_c,
-                                            &data,
+                                            &path,
                                             preview_max_dim,
-                                        ) {
-                                            tracing::error!("store_both_thumbnails: {e}");
-                                        }
-                                    } else {
-                                        tracing::error!(
-                                            "read file for thumbnail: {} — {path:?}",
-                                            &hash_c[..12]
-                                        );
+                                        )
+                                    {
+                                        tracing::error!("store_both_thumbnails_for_file: {e}");
                                     }
                                 }))
                             } else {
