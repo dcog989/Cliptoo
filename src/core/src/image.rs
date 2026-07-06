@@ -2,6 +2,8 @@ use anyhow::{Context, Result};
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
 
+use crate::icon;
+
 const THUMB_MAX_DIM: u32 = 36;
 // PREVIEW_FALLBACK_DIM is used by generate_both_thumbnails (the in-memory path
 // that has no access to settings). The disk-write path accepts preview_max_dim
@@ -10,9 +12,15 @@ pub const PREVIEW_FALLBACK_DIM: u32 = 400;
 pub const HASH_FILENAME_PREFIX_LEN: usize = 16;
 
 /// Formats in IMAGE that the `image` crate + jxl-oxide cannot decode.
-/// SVG is handled by copying the file directly; the rest get a placeholder
-/// thumbnail since the `image` crate has no decoder for them.
-const UNDECODABLE_IMAGE_EXTS: &[&str] = &["svg", "psd", "xcf", "raw", "arw", "cr2", "nef", "dng"];
+/// SVG is now handled via `icon::rasterize_svg` in `decode_image`; the rest
+/// get a placeholder thumbnail.
+const UNDECODABLE_IMAGE_EXTS: &[&str] = &["psd", "xcf", "raw", "arw", "cr2", "nef", "dng"];
+
+/// Resolution at which SVG content is rasterised in `decode_image` when
+/// the raw SVG byte stream is pasted (e.g. from a web app).  The file-
+/// backed path (`store_both_thumbnails_for_file`) copies SVG files as-is
+/// so Slint can render them natively at any size.
+const SVG_RENDER_SIZE: u32 = 1024;
 
 // ── Directory layout ──────────────────────────────────────────────────────────
 //
@@ -32,6 +40,13 @@ const UNDECODABLE_IMAGE_EXTS: &[&str] = &["svg", "psd", "xcf", "raw", "arw", "cr
 
 fn decode_image(data: &[u8]) -> Result<image::DynamicImage> {
     image::load_from_memory(data).or_else(|_| {
+        // SVG rasterization via resvg/usvg/tiny-skia
+        if let Ok((rgba, w, h)) = icon::rasterize_svg(data, SVG_RENDER_SIZE)
+            && let Some(img) = image::RgbaImage::from_raw(w, h, rgba)
+        {
+            return Ok(image::DynamicImage::ImageRgba8(img));
+        }
+        // JXL via jxl-oxide
         let jxl = jxl_oxide::JxlImage::builder()
             .read(std::io::Cursor::new(data))
             .map_err(|e| anyhow::anyhow!("jxl-oxide decode: {e}"))?;
