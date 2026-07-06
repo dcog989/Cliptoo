@@ -126,9 +126,6 @@ pub fn setup_close_handlers(
             let p2 = p.clone();
             let guard2 = guard.clone();
 
-            // Defer hide to next event-loop tick so that any intra-window
-            // focus transfers (e.g. clicking the search LineEdit) have
-            // time to settle and update search-focused before we decide.
             slint::Timer::single_shot(Duration::ZERO, move || {
                 let ui = match weak2.upgrade() {
                     Some(u) => u,
@@ -137,13 +134,7 @@ pub fn setup_close_handlers(
                         return;
                     }
                 };
-
-                // If the search field now has focus, this was an
-                // intra-window focus transfer, not a true blur.
-                if !ui.get_search_focused() {
-                    save_size_and_hide(&ui, &s2, &p2);
-                }
-
+                save_size_and_hide(&ui, &s2, &p2);
                 guard2.set(false);
             });
         });

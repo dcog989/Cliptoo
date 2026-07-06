@@ -87,9 +87,7 @@ export component AppWindow inherits Window {
     // Guards blur-closed against focus-lost when any PopupWindow is open.
     // Set true before show(); cleared in focus-lost.
     in-out property <bool> popup-open: false;
-    // Mirrors toolbar.search-focused so Rust can read it in Timer-deferred
-    // blur-closed handler to detect intra-window focus transfers.
-    in-out property <bool> search-focused: toolbar.search-focused;
+
     property <length> resize-handle-width: 5px;
     in property <length> min-window-width: 320px;
     in property <length> min-window-height: 240px;
@@ -246,11 +244,27 @@ export component AppWindow inherits Window {
             root.quick-paste-active = e.modifiers.alt;
                 reject
             }
-            focus-lost => {
-                if (!root.popup-open && !root.popup-just-closed) {
+            focus-gained(reason) => {
+                focus-poll.running = true;
+            }
+            focus-lost(reason) => {
+                if (reason == FocusReason.window-activation && !root.popup-open && !root.popup-just-closed) {
                     root.blur-closed();
                 }
-                root.popup-open = false;
+                if (reason == FocusReason.popup-activation) {
+                    root.popup-open = false;
+                }
+            }
+
+            focus-poll := Timer {
+                interval: 200ms;
+                running: true;
+                triggered() => {
+                    if (!root.popup-open && !root.popup-just-closed && !focus-scope.has-focus && !toolbar.search-focused) {
+                        focus-poll.running = false;
+                        root.blur-closed();
+                    }
+                }
             }
 
             VerticalLayout {
