@@ -2,6 +2,7 @@ use slint::Image;
 use std::num::NonZeroUsize;
 use std::path::Path;
 
+use crate::helpers::extract_domain;
 use cliptoo_core::db::models::ClipData as DbClipData;
 use cliptoo_core::db::models::ClipType;
 use cliptoo_core::image::HASH_FILENAME_PREFIX_LEN;
@@ -61,14 +62,6 @@ fn load_thumbnail(thumbnails_dir: &Path, content_hash: &str) -> Image {
         return Image::load_from_path(&svg).unwrap_or_default();
     }
     Image::default()
-}
-
-/// Extract the domain from a URL (e.g. "https://github.com/foo" -> "github.com").
-fn extract_domain(url: &str) -> Option<String> {
-    let stripped = url
-        .strip_prefix("https://")
-        .or_else(|| url.strip_prefix("http://"))?;
-    Some(stripped.split('/').next()?.to_string())
 }
 
 // ── LRU favicon cache ─────────────────────────────────────────────────────────

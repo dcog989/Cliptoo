@@ -7,6 +7,14 @@ const PAGE_TITLE_FETCH_TIMEOUT_SECS: u64 = 5;
 
 pub const USER_AGENT: &str = "Cliptoo/0.2";
 
+/// Extract the domain from a URL (e.g. "https://github.com/foo" -> "github.com").
+pub fn extract_domain(url: &str) -> Option<String> {
+    let stripped = url
+        .strip_prefix("https://")
+        .or_else(|| url.strip_prefix("http://"))?;
+    Some(stripped.split('/').next()?.to_string())
+}
+
 /// Show a toast notification on the main window.
 /// `severity` is "info", "warn", or "error".
 pub fn show_toast(ui: &slint::Weak<crate::AppWindow>, message: &str, severity: &str) {

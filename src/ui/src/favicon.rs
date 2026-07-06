@@ -1,18 +1,12 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use crate::helpers::extract_domain;
 use cliptoo_core::db::DbPool;
 use slint::ComponentHandle;
 use slint::Model;
 
 const FAVICON_FETCH_TIMEOUT_SECS: u64 = 3;
-
-fn extract_domain(url: &str) -> Option<String> {
-    let stripped = url
-        .strip_prefix("https://")
-        .or_else(|| url.strip_prefix("http://"))?;
-    Some(stripped.split('/').next()?.to_string())
-}
 
 pub async fn fetch_favicon(url: &str, fav_dir: &Path) -> Option<PathBuf> {
     let domain = extract_domain(url)?;
