@@ -866,6 +866,7 @@ version = "2.0.0"
 dependencies = [
  "anyhow",
  "cc",
+ "chrono",
  "cliptoo-core",
  "const-hex",
  "dirs",
