@@ -114,11 +114,13 @@ Use `ls` / `glob` for detail. Don't memorise the tree.
 - `.docs/Progress.md` — what's done. **Read first** when picking up work.
 - `.docs/ToDo.md` — outstanding tasks.
 
-## Permissions
+## Content Access
 
-- access all content in `/home/bubba/Projects/Cliptoo/` unless excluded below.
+### Allowed
 
-### Excluded Content
+- `/home/bubba/Projects/Cliptoo/` unless excluded below.
+
+### Excluded
 
 - `.assets/`, `.docs/ToDo.md`, `.git/`, `node_modules/`
 
