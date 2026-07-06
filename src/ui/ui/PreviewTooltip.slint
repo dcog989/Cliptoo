@@ -53,6 +53,7 @@ export component PreviewTooltip {
 
                 Text {
                     text: root.preview-text;
+                    font-family: Theme.font-family;
                     color: Theme.fg-primary;
                     font-size: Theme.preview-font-size;
                     horizontal-alignment: center;
@@ -70,6 +71,7 @@ export component PreviewTooltip {
 
                 Text {
                     text: root.preview-text;
+                    font-family: Theme.font-family;
                     color: Theme.fg-secondary;
                     font-size: Theme.preview-font-size - 1px;
                     horizontal-alignment: center;
@@ -90,6 +92,7 @@ export component PreviewTooltip {
 
                     Text {
                         text: root.preview-web-title == "" ? root.preview-text : root.preview-web-title;
+                        font-family: Theme.font-family;
                         color: Theme.fg-primary;
                         font-size: Theme.preview-font-size;
                         overflow: elide;
@@ -99,6 +102,7 @@ export component PreviewTooltip {
 
                 Text {
                     text: root.preview-text;
+                    font-family: Theme.font-family;
                     color: Theme.accent-primary;
                     font-size: Theme.preview-font-size - 1px;
                     overflow: elide;
@@ -126,6 +130,7 @@ export component PreviewTooltip {
                 spacing: 4px;
                 Text {
                     text: root.preview-text;
+                    font-family: Theme.font-family;
                     color: Theme.fg-primary;
                     font-size: Theme.preview-font-size;
                     overflow: elide;
@@ -156,6 +161,7 @@ export component PreviewTooltip {
                 // and actual-h will be 0 until the first layout pass resolves the width.
                 width: parent.width - 24px;
                 text: root.preview-text;
+                font-family: Theme.font-family;
                 color: Theme.fg-primary;
                 font-size: Theme.preview-font-size;
                 wrap: word-wrap;

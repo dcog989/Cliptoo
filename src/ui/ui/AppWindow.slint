@@ -73,7 +73,6 @@ export component AppWindow inherits Window {
     // Theme tokens are set directly via ui.global::<Theme>() in Rust.
     // Components reference Theme.* and pick up the runtime values automatically.
     background: Theme.bg-primary;
-    default-font-family: Theme.font-family;
     default-font-size: Theme.font-size;
     in property <[ClipData]> clips: [];
     in property <bool> is-searching: false;

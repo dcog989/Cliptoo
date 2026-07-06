@@ -235,6 +235,7 @@ export component ClipItem {
                     width: parent.width - self.x - (clip-data.is-bookmarked ? 22px : 0px);
                     height: 100%;
                     text: clip-data.preview-content;
+                    font-family: Theme.font-family;
                     overflow: elide;
                     horizontal-alignment: left;
                     vertical-alignment: center;
@@ -261,6 +262,7 @@ export component ClipItem {
                     spacing: 0px;
                     for span in clip-data.match-spans: Text {
                         text: span.text;
+                        font-family: Theme.font-family;
                         overflow: elide;
                         horizontal-alignment: left;
                         vertical-alignment: center;
