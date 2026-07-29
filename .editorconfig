@@ -1,0 +1,43 @@
+# This is the top level editorconfig
+root = true
+
+# Defaults
+[*]
+charset = utf-8
+end_of_line = lf
+indent_size = 4
+indent_style = space
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# These use 2 spaces
+[*.{astro,bash,bash_profile,bashrc,cjs,css,fish,htm,html,js,json,json5,jsonc,jsx,less,mjs,
+  profile,sass,scss,sh,sql,svelte,svg,toml,ts,tsx,vue,xhtml,xml,xsd,xsl,yaml,yml,zsh}]
+indent_size = 2
+
+# These use tabs
+[*.{go,Makefile,makefile,GNUMakefile}]
+indent_style = tab
+tab_width = 4
+
+# Markdown may need trailing spaces for hard line breaks
+[*.md]
+trim_trailing_whitespace = false
+
+# Windows command scripts use CRLF
+[*.{bat,cmd,ps1}]
+end_of_line = crlf
+
+# Do not touch generated directories
+[{.terraform,build,coverage,dist,node_modules,out,target,vendor}/**]
+indent_size = unset
+trim_trailing_whitespace = unset
+end_of_line = unset
+insert_final_newline = unset
+
+# Do not touch lock files
+[{*.lock,package-lock.json,pnpm-lock.yaml}]
+indent_size = unset
+trim_trailing_whitespace = unset
+end_of_line = unset
+insert_final_newline = unset
