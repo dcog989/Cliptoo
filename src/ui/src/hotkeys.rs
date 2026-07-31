@@ -13,6 +13,11 @@ const PORTAL_DEST: &str = "org.freedesktop.portal.Desktop";
 const PORTAL_PATH: &str = "/org/freedesktop/portal/desktop";
 const SHORTCUT_IFACE: &str = "org.freedesktop.portal.GlobalShortcuts";
 const REQUEST_IFACE: &str = "org.freedesktop.portal.Request";
+const HOST_REGISTRY_IFACE: &str = "org.freedesktop.host.portal.Registry";
+
+/// Application id used to register with the portal. Must match the basename
+/// of an installed `.desktop` file (the PKGBUILD installs `cliptoo.desktop`).
+const APP_ID: &str = "cliptoo";
 
 /// Replace characters that are invalid in D-Bus object path elements with `_`.
 /// Valid chars are `[A-Za-z0-9_]`.
@@ -196,6 +201,36 @@ where
         .await
         .context("session bus connection")?;
 
+    // ── Register app id ───────────────────────────────────────────────────
+    // The portal rejects `CreateSession` with "An app id is required" unless
+    // it can identify the calling app. For an unsandboxed host app the only
+    // portable way to supply one is the host Registry interface; the app id
+    // must match an installed `.desktop` file basename. This MUST be the
+    // first portal call on this connection, so it is done before anything
+    // else. Best-effort: if registration fails the request proceeds and the
+    // portal will reject it on its own (same net effect, logged below).
+    let reg_options = HashMap::<&str, Value>::new();
+    match conn
+        .call_method(
+            Some(PORTAL_DEST),
+            PORTAL_PATH,
+            Some(HOST_REGISTRY_IFACE),
+            "Register",
+            &(APP_ID, &reg_options),
+        )
+        .await
+    {
+        Ok(_) => info!("registered app id {APP_ID} with the portal"),
+        Err(e) => {
+            tracing::warn!(
+                "failed to register app id {APP_ID} with the portal: {e}. \
+                 The XDG Desktop Portal requires an app id to register a \
+                 global shortcut; ensure cliptoo is installed with its \
+                 `.desktop` file (matching `{APP_ID}.desktop`)."
+            );
+        }
+    }
+
     // ── Create session ────────────────────────────────────────────────────
     // Start listening BEFORE calling CreateSession to avoid race.
     let mut signal_stream = MessageStream::from(&conn);
@@ -314,7 +349,7 @@ where
             if is_shortcut && is_activated {
                 let raw = msg.body();
                 let body: std::result::Result<
-                    (OwnedObjectPath, String, u32, HashMap<String, Value>),
+                    (OwnedObjectPath, String, u64, HashMap<String, Value>),
                     _,
                 > = raw.deserialize();
                 if let Ok((_, shortcut_id, _, _)) = body {
