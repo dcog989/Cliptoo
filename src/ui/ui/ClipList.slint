@@ -79,7 +79,7 @@ export component ClipList {
                 root.item-activated(clip.id);
             }
             right-clicked(x, y) => {
-                root.item-right-clicked(clip.id, x, y, clip.is-bookmarked, clip.clip-type);
+                root.item-right-clicked(clip.id, x, idx * Theme.row-height / 1px + list-view.viewport-y / 1px + y + root.list-offset-y, clip.is-bookmarked, clip.clip-type);
             }
             hovered(mx, my) => {
                 root.request-preview(clip.id, mx, idx * Theme.row-height / 1px + list-view.viewport-y / 1px + my + root.list-offset-y);
