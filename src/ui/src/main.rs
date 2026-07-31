@@ -108,7 +108,7 @@ async fn main() -> Result<()> {
             MAINTENANCE_INTERVAL_SECS,
         );
     }
-    maintenance::setup_manual_maintenance(&ui, &db, &dirs, &settings);
+    maintenance::setup_manual_maintenance(&ui, &db, &dirs, &settings, &settings_win);
 
     // ── Clipboard listener ─────────────────────────────────────────────
     {

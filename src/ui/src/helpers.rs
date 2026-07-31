@@ -15,18 +15,6 @@ pub fn extract_domain(url: &str) -> Option<String> {
     Some(stripped.split('/').next()?.to_string())
 }
 
-/// Show a toast notification on the main window.
-/// `severity` is "info", "warn", or "error".
-pub fn show_toast(ui: &slint::Weak<crate::AppWindow>, message: &str, severity: &str) {
-    let msg = message.to_string();
-    let sev = severity.to_string();
-    let _ = ui.upgrade_in_event_loop(move |ui| {
-        ui.set_toast_message(msg.into());
-        ui.set_toast_severity(sev.into());
-        ui.set_toast_visible(true);
-    });
-}
-
 pub async fn fetch_page_title(url: &str) -> Option<String> {
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(
