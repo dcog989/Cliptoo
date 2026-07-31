@@ -252,7 +252,14 @@ export component AppWindow inherits Window {
                         root.search-backspace();
                         return accept;
                     }
-                    if (e.text != "" && e.text != Key.Tab && !e.modifiers.alt && !e.modifiers.control && !e.modifiers.meta) {
+                    // Only accept keys that produce printable text. Slint encodes
+                    // non-printable keys (PageUp/Down, Insert, Delete, F-keys, …) as
+                    // private-use or control characters — same filter TextInput uses.
+                    if (e.text != ""
+                        && !e.modifiers.alt && !e.modifiers.control && !e.modifiers.meta
+                        && !(e.text >= "\u{f700}" && e.text <= "\u{f7ff}")
+                        && !(e.text >= "\u{0000}" && e.text <= "\u{001f}")
+                        && !(e.text >= "\u{007f}" && e.text <= "\u{009f}")) {
                         root.search-text += e.text;
                         root.search-changed(root.search-text);
                         return accept;
