@@ -143,9 +143,9 @@ async fn main() -> Result<()> {
                             let _ = ui_weak.upgrade_in_event_loop(move |ui| {
                                 use slint::ComponentHandle;
                                 if ComponentHandle::window(&ui).is_visible() {
-                                    let _ = ComponentHandle::hide(&ui);
+                                    window::hide_window(&ui);
                                 } else {
-                                    let _ = ComponentHandle::show(&ui);
+                                    let _ = window::show_window(&ui);
                                     positioning::position_window_ex(&ui, &ps);
                                 }
                             });
@@ -196,9 +196,9 @@ async fn main() -> Result<()> {
                     if let Some(w) = win.upgrade() {
                         use slint::ComponentHandle;
                         if w.window().is_visible() {
-                            let _ = w.hide();
+                            window::hide_window(&w);
                         } else {
-                            let _ = w.show();
+                            let _ = window::show_window(&w);
                             let ps = positioning::PositionSettings::from(&*s.borrow());
                             positioning::position_window_ex(&w, &ps);
                         }
@@ -214,7 +214,7 @@ async fn main() -> Result<()> {
         Err(e) => tracing::warn!("System tray unavailable (app will still work): {e}"),
     }
 
-    ui.show()?;
+    window::show_window(&ui)?;
     positioning::position_window(&ui, &settings.borrow());
     slint::run_event_loop_until_quit()?;
 

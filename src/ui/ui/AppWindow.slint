@@ -77,6 +77,9 @@ export component AppWindow inherits Window {
     in property <[ClipData]> clips: [];
     in property <bool> is-searching: false;
     in-out property <bool> quick-paste-active: false;
+    // Set from Rust on every show/hide of the main window. Gates the
+    // focus-poll timer so it never runs while the window is hidden.
+    in-out property <bool> window-visible: false;
     property <int> quick-paste-slots: 9;
     in-out property <bool> popup-just-closed: false;
     // ── Toast notification ───────────────────────────────────────────
@@ -272,22 +275,19 @@ export component AppWindow inherits Window {
             root.quick-paste-active = e.modifiers.alt;
                 reject
             }
-            focus-gained(reason) => {
-                focus-poll.running = true;
-            }
             focus-lost(reason) => {
                 if (reason == FocusReason.window-activation && !root.popup-open && !root.popup-just-closed) {
-                    focus-poll.running = false;
                     root.blur-closed();
                 }
             }
 
             focus-poll := Timer {
                 interval: 200ms;
-                running: true;
+                // Gated on visibility: Rust sets window-visible on every
+                // show/hide, so this never polls while the window is hidden.
+                running: root.window-visible;
                 triggered() => {
                     if (!root.popup-open && !root.popup-just-closed && !focus-scope.has-focus && !toolbar.search-focused) {
-                        focus-poll.running = false;
                         root.blur-closed();
                     }
                 }

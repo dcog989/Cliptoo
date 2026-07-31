@@ -77,8 +77,7 @@ pub async fn paste_content(
 
     let (tx, rx) = tokio::sync::oneshot::channel::<()>();
     let _ = window.upgrade_in_event_loop(move |ui| {
-        use slint::ComponentHandle;
-        let _ = ComponentHandle::window(&ui).hide();
+        crate::window::hide_window(&ui);
         let _ = tx.send(());
     });
     rx.await.ok();

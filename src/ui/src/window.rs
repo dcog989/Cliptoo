@@ -2,6 +2,24 @@ use slint::ComponentHandle;
 use std::path::Path;
 use std::time::Duration;
 
+/// Hide the main window. Also clears `window-visible`, which stops the
+/// blur-detection poll (AppWindow.slint `focus-poll` is gated on it).
+pub fn hide_window(ui: &crate::AppWindow) {
+    ui.set_window_visible(false);
+    let _ = ComponentHandle::hide(ui);
+}
+
+/// Show the main window and re-arm the blur-detection poll via
+/// `window-visible`. Returns the `show` result so callers can propagate
+/// platform errors.
+pub fn show_window(ui: &crate::AppWindow) -> Result<(), slint::PlatformError> {
+    let result = ComponentHandle::show(ui);
+    if result.is_ok() {
+        ui.set_window_visible(true);
+    }
+    result
+}
+
 /// Window drag via Qt FFI (xdg-shell _move protocol).
 pub fn setup_drag(ui: &crate::AppWindow) {
     let drag_started = std::rc::Rc::new(std::cell::Cell::new(false));
@@ -78,7 +96,7 @@ fn save_size_and_hide(
         s.window_height = size.height as f64;
     }
     let _ = settings.borrow().save(path);
-    let _ = slint::ComponentHandle::hide(ui);
+    hide_window(ui);
 }
 
 pub fn setup_close_handlers(
@@ -145,7 +163,7 @@ pub fn setup_close_to_tray(ui: &crate::AppWindow) {
     let weak = ui.as_weak();
     ui.on_menu_close_to_tray(move || {
         if let Some(ui) = weak.upgrade() {
-            let _ = slint::ComponentHandle::hide(&ui);
+            hide_window(&ui);
         }
     });
 }
