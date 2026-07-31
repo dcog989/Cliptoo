@@ -33,6 +33,43 @@ fn sanitize_dbus_token(s: &str) -> String {
         .collect()
 }
 
+/// Convert a Qt-style hotkey string (as stored in settings, e.g. `Ctrl+Alt+z`)
+/// to the XDG Shortcuts spec format the portal expects (e.g. `CTRL+ALT+z`).
+///
+/// The portal backend (xdg-desktop-portal-kde's `XdgShortcut::parse`) matches
+/// modifier names case-sensitively against `{SHIFT, CAPS, CTRL, ALT, NUM, LOGO}`,
+/// so a mixed-case trigger like `Ctrl+Alt+z` fails to parse and the shortcut is
+/// registered with no key bound. Normalise the modifier tokens here instead of
+/// changing what the user types in the settings UI.
+fn to_xdg_trigger(trigger: &str) -> String {
+    let parts: Vec<&str> = trigger.split('+').collect();
+
+    // A single token is the bare key (e.g. `F5`) — nothing to normalise.
+    if parts.len() == 1 {
+        return trigger.to_string();
+    }
+
+    let mods = parts[..parts.len() - 1]
+        .iter()
+        .map(|m| match m.to_ascii_uppercase().as_str() {
+            "CTRL" | "CONTROL" => "CTRL".to_string(),
+            "SHIFT" => "SHIFT".to_string(),
+            "CAPS" | "CAPSLOCK" => "CAPS".to_string(),
+            "ALT" => "ALT".to_string(),
+            "NUM" | "NUMLOCK" => "NUM".to_string(),
+            "META" | "SUPER" | "LOGO" | "WIN" => "LOGO".to_string(),
+            other => other.to_string(),
+        })
+        .collect::<Vec<_>>();
+
+    let mut out = mods.join("+");
+    if !out.is_empty() {
+        out.push('+');
+    }
+    out.push_str(parts[parts.len() - 1]);
+    out
+}
+
 /// Wait for a portal Response signal on `request_handle`, then extract
 /// `key` from the results dict as a String.  Returns `None` if the key is
 /// absent, `Err` on D-Bus / timeout / protocol error.
@@ -170,19 +207,19 @@ pub async fn check_portal_presence() {
 /// not available), and D-Bus interfaces specific to other toolkits
 /// (KDE's `KGlobalAccel`, GNOME's `org.gnome.Shell` keybindings) are not
 /// portable. This function is therefore a no-op on a system where the
-/// XDG Desktop Portal is not running — it logs a warning and returns
-/// `Ok(())`.
+/// XDG Desktop Portal is not running — it logs a warning and returns a
+/// completed `JoinHandle` so callers can always abort the listener.
 ///
 /// # Failure modes
 ///
 /// The function gracefully degrades in three places:
 ///
 /// 1. `CreateSession` fails (e.g. portal service is absent or hung) — the
-///    `Err` arm at line ~186 emits a `warn!` and returns `Ok(())`.
-/// 2. `BindShortcuts` fails — the `Err` arm at line ~243 emits a `warn!`
-///    and returns `Ok(())`.
+///    `Err` arm emits a `warn!` and returns a completed `JoinHandle`.
+/// 2. `BindShortcuts` fails — the `Err` arm emits a `warn!` and returns a
+///    completed `JoinHandle`.
 /// 3. The `BindShortcuts` Response signal reports an error — the `Err`
-///    arm at line ~263 emits a `warn!`; the function still proceeds to
+///    arm emits a `warn!`; the function still proceeds to
 ///    install the Activated-signal listener because partial success is
 ///    possible.
 ///
@@ -193,7 +230,7 @@ pub async fn check_portal_presence() {
 pub async fn register_shortcuts_and_listen<F>(
     shortcuts: &[(&str, &str)],
     mut handler: F,
-) -> Result<()>
+) -> Result<tokio::task::JoinHandle<()>>
 where
     F: FnMut(String) + Send + 'static,
 {
@@ -265,7 +302,7 @@ where
                  with GlobalShortcuts support. On KDE Plasma 6, ensure \
                  xdg-desktop-portal-kde is installed and running."
             );
-            return Ok(());
+            return Ok(tokio::spawn(async {}));
         }
     };
 
@@ -289,7 +326,10 @@ where
         .map(|(id, trigger)| {
             let mut opts = HashMap::<String, Value>::new();
             opts.insert("description".into(), Value::from(*id));
-            opts.insert("preferred_trigger".into(), Value::from(*trigger));
+            opts.insert(
+                "preferred_trigger".into(),
+                Value::from(to_xdg_trigger(trigger)),
+            );
             (*id, opts)
         })
         .collect();
@@ -313,7 +353,7 @@ where
             .context("parse BindShortcuts reply")?,
         Err(e) => {
             tracing::warn!("BindShortcuts failed (shortcuts may not work): {e}");
-            return Ok(());
+            return Ok(tokio::spawn(async {}));
         }
     };
 
@@ -339,7 +379,7 @@ where
     // ── Listen for Activated signals ──────────────────────────────────────
     let mut stream = MessageStream::from(&conn);
 
-    tokio::spawn(async move {
+    let handle = tokio::spawn(async move {
         while let Some(Ok(msg)) = stream.next().await {
             let hdr = msg.header();
             let is_shortcut = hdr
@@ -359,5 +399,34 @@ where
         }
     });
 
-    Ok(())
+    Ok(handle)
+}
+
+/// Best-effort: remove `actions` from KGlobalAccel so a changed hotkey takes
+/// effect.
+///
+/// The portal's `BindShortcuts` keeps the keys already stored for a shortcut
+/// that exists in KGlobalAccel (it treats it as "returning" and restores the
+/// stored keys, ignoring the new `preferred_trigger`). Removing the actions
+/// first makes the portal see them as new and apply the changed trigger.
+/// KDE-specific; on other backends this is a harmless no-op.
+pub async fn clear_kglobalaccel_bindings(actions: &[&str]) {
+    const KGLOBALACCEL_DEST: &str = "org.kde.kglobalaccel";
+    const KGLOBALACCEL_PATH: &str = "/kglobalaccel";
+    const KGLOBALACCEL_IFACE: &str = "org.kde.KGlobalAccel";
+
+    let Ok(conn) = Connection::session().await else {
+        return;
+    };
+    for action in actions {
+        let _ = conn
+            .call_method(
+                Some(KGLOBALACCEL_DEST),
+                KGLOBALACCEL_PATH,
+                Some(KGLOBALACCEL_IFACE),
+                "unregister",
+                &(APP_ID, action),
+            )
+            .await;
+    }
 }

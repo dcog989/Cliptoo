@@ -70,6 +70,7 @@ pub fn setup_settings_window(
     ui: &crate::AppWindow,
     settings: &std::rc::Rc<std::cell::RefCell<cliptoo_core::Settings>>,
     dirs: &crate::app_dirs::AppDirs,
+    hotkey_tx: tokio::sync::watch::Sender<String>,
 ) -> crate::SettingsWindow {
     let settings_win = crate::SettingsWindow::new().expect("SettingsWindow creation");
 
@@ -89,7 +90,6 @@ pub fn setup_settings_window(
     {
         let s = settings.borrow();
         settings_win.set_s_hotkey(s.hotkey.as_str().into());
-        settings_win.set_s_preview_hotkey(s.preview_hotkey.as_str().into());
         settings_win.set_s_quick_paste_hotkey(s.quick_paste_hotkey.as_str().into());
         settings_win.set_s_launch_position_idx(idx_of(
             &s.launch_position,
@@ -235,13 +235,7 @@ if ok:
                         if let Some(win) = sw.upgrade() {
                             win.set_s_hotkey(cleaned.into());
                         }
-                    }
-                    "preview_hotkey" => {
-                        let cleaned = clean_hotkey_text(value.trim_end_matches('+'));
-                        s.preview_hotkey = cleaned.clone();
-                        if let Some(win) = sw.upgrade() {
-                            win.set_s_preview_hotkey(cleaned.into());
-                        }
+                        let _ = hotkey_tx.send(s.hotkey.clone());
                     }
                     "quick_paste_hotkey" => {
                         let cleaned = clean_hotkey_text(value.trim_end_matches('+'));

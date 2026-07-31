@@ -24,7 +24,6 @@ export component SettingsWindow inherits Window {
 
     // General
     in-out property <string> s-hotkey:               "Ctrl+Alt+Q";
-    in-out property <string> s-preview-hotkey:       "Ctrl+Alt+P";
     in-out property <string> s-quick-paste-hotkey:   "Alt";
     in-out property <int> s-launch-position-idx:  0;  // Cursor/Center/TopLeft/TopRight/BottomLeft/BottomRight/Fixed
     in-out property <bool> s-start-with-system:    true;
@@ -105,14 +104,6 @@ export component SettingsWindow inherits Window {
                     value <=> root.s-hotkey;
                     committed(v) => {
                         root.setting-changed("hotkey", v);
-                    }
-                }
-
-                HotkeyRow {
-                    label: "Preview hotkey";
-                    value <=> root.s-preview-hotkey;
-                    committed(v) => {
-                        root.setting-changed("preview_hotkey", v);
                     }
                 }
 

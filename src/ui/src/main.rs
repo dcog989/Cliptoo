@@ -3,7 +3,6 @@
 #![deny(unsafe_code)]
 
 use anyhow::Result;
-use slint::Model;
 use slint::VecModel;
 use std::sync::Arc;
 use tracing::info;
@@ -60,12 +59,16 @@ async fn main() -> Result<()> {
     let settings = std::rc::Rc::new(std::cell::RefCell::new(settings));
     let tag_prefix = settings.borrow().tag_prefix.clone();
 
+    // Watch channel: the settings UI publishes hotkey changes here; the global
+    // shortcut registration loop below re-registers when they change.
+    let (hotkey_tx, hotkey_rx) = tokio::sync::watch::channel(settings.borrow().hotkey.clone());
+
     window::setup_drag(&ui);
     window::setup_resize(&ui);
     window::setup_close_handlers(&ui, &settings, &dirs);
     window::setup_close_to_tray(&ui);
 
-    let settings_win = settings::setup_settings_window(&ui, &settings, &dirs);
+    let settings_win = settings::setup_settings_window(&ui, &settings, &dirs, hotkey_tx);
     // Slint globals are per-window-instance: the settings window has its own
     // `Theme` global that must be filled separately from the main window's.
     theme::fill_theme(
@@ -130,53 +133,69 @@ async fn main() -> Result<()> {
     // ── Global shortcuts ───────────────────────────────────────────────
     {
         let pos_settings = positioning::PositionSettings::from(&*settings.borrow());
-        let main_hotkey = settings.borrow().hotkey.clone();
-        let preview_hotkey = settings.borrow().preview_hotkey.clone();
         let ui_weak = ui.as_weak();
+        let mut hotkey_rx = hotkey_rx;
         tokio::spawn(async move {
-            hotkeys::check_portal_presence().await;
-            if let Err(e) = hotkeys::register_shortcuts_and_listen(
-                &[
-                    ("toggle-cliptoo", main_hotkey.as_str()),
-                    ("preview-cliptoo", preview_hotkey.as_str()),
-                ],
-                move |shortcut_id| {
-                    let ps = pos_settings.clone();
-                    match shortcut_id.as_str() {
-                        "toggle-cliptoo" => {
-                            let _ = ui_weak.upgrade_in_event_loop(move |ui| {
-                                use slint::ComponentHandle;
-                                if ComponentHandle::window(&ui).is_visible() {
-                                    window::hide_window(&ui);
-                                } else {
-                                    let _ = window::show_window(&ui);
-                                    positioning::position_window_ex(&ui, &ps);
-                                }
-                            });
+            loop {
+                let main_hotkey = hotkey_rx.borrow().clone();
+
+                hotkeys::check_portal_presence().await;
+
+                let handle = hotkeys::register_shortcuts_and_listen(
+                    &[("toggle-cliptoo", main_hotkey.as_str())],
+                    {
+                        let ps = pos_settings.clone();
+                        let weak = ui_weak.clone();
+                        move |shortcut_id| {
+                            let ps = ps.clone();
+                            if shortcut_id == "toggle-cliptoo" {
+                                let _ = weak.upgrade_in_event_loop(move |ui| {
+                                    use slint::ComponentHandle;
+                                    if ComponentHandle::window(&ui).is_visible() {
+                                        window::hide_window(&ui);
+                                    } else {
+                                        let _ = window::show_window(&ui);
+                                        positioning::position_window_ex(&ui, &ps);
+                                    }
+                                });
+                            }
                         }
-                        "preview-cliptoo" => {
-                            let _ = ui_weak.upgrade_in_event_loop(move |ui| {
-                                let idx = ui.get_selected_index();
-                                let visible = ui.get_preview_visible();
-                                if visible {
-                                    ui.set_preview_visible(false);
-                                } else if let Some(clip) = ui.get_clips().row_data(idx as usize) {
-                                    let row_h = ui.global::<crate::Theme>().get_row_height();
-                                    let preview_x = 8.0_f32;
-                                    let preview_y = (idx as f32 * row_h) + row_h;
-                                    ui.set_preview_popup_x(preview_x);
-                                    ui.set_preview_popup_y(preview_y);
-                                    ui.invoke_request_preview(clip.id, preview_x, preview_y);
-                                }
-                            });
-                        }
-                        _ => {}
+                    },
+                )
+                .await;
+
+                if let Err(e) = &handle {
+                    tracing::warn!("Global shortcuts unavailable: {e}");
+                }
+
+                // Wait for the user to change a hotkey in Settings. The
+                // settings UI commits on every key-press, so a user typing
+                // `Ctrl+Alt+Q` fires several changes in quick succession.
+                // Debounce: only act once the value has been stable for a
+                // quiet period, so the KDE confirmation dialog appears for
+                // the complete combo, not the first modifier key.
+                const HOTKEY_DEBOUNCE_MS: u64 = 800;
+                if hotkey_rx.changed().await.is_err() {
+                    break;
+                }
+                loop {
+                    match tokio::time::timeout(
+                        std::time::Duration::from_millis(HOTKEY_DEBOUNCE_MS),
+                        hotkey_rx.changed(),
+                    )
+                    .await
+                    {
+                        Err(_) => break,
+                        Ok(Err(_)) => break,
+                        Ok(Ok(())) => continue,
                     }
-                },
-            )
-            .await
-            {
-                tracing::warn!("Global shortcuts unavailable: {e}");
+                }
+
+                // Drop the old listener, clear the stale KGlobalAccel keys so
+                // the portal treats the shortcut as new (and applies the new
+                // preferred_trigger), then loop to re-register.
+                handle.map(|h| h.abort()).ok();
+                hotkeys::clear_kglobalaccel_bindings(&["toggle-cliptoo"]).await;
             }
         });
     }
