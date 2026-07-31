@@ -48,14 +48,14 @@ pub fn setup_settings_window(
 ) -> crate::SettingsWindow {
     let settings_win = crate::SettingsWindow::new().expect("SettingsWindow creation");
 
-    // Reset popup-open when settings window is closed via window manager
-    // (ESC is handled by the settings-closing callback).
+    // Reset settings-open when the settings window is closed via the window
+    // manager (ESC is handled by the settings-closing callback).
     {
         let main_ui = ui.as_weak();
         settings_win.window().on_close_requested(move || {
-            let _ = main_ui.upgrade_in_event_loop(move |ui| {
-                ui.set_popup_open(false);
-            });
+            if let Some(ui) = main_ui.upgrade() {
+                ui.set_settings_open(false);
+            }
             slint::CloseRequestResponse::HideWindow
         });
     }
@@ -115,14 +115,14 @@ pub fn setup_settings_window(
         });
     }
 
-    // When settings window closes, reset popup-open so ESC and blur-to-tray
-    // work again on the main window.
+    // When the settings window closes, reset settings-open so ESC and
+    // blur-to-tray work again on the main window.
     {
         let main_ui = ui.as_weak();
         settings_win.on_settings_closing(move || {
-            let _ = main_ui.upgrade_in_event_loop(move |ui| {
-                ui.set_popup_open(false);
-            });
+            if let Some(ui) = main_ui.upgrade() {
+                ui.set_settings_open(false);
+            }
         });
     }
 
@@ -324,8 +324,14 @@ if ok:
     // Show settings window from hamburger menu.
     {
         let sw = settings_win.as_weak();
+        let main_ui = ui.as_weak();
         ui.on_menu_settings(move || {
             if let Some(win) = sw.upgrade() {
+                if let Some(ui) = main_ui.upgrade() {
+                    // Guard blur-to-tray while the settings window is visible;
+                    // cleared when the settings window closes.
+                    ui.set_settings_open(true);
+                }
                 win.show().ok();
             }
         });
