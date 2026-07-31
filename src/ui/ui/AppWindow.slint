@@ -115,17 +115,31 @@ export component AppWindow inherits Window {
     // Reset to "main" before each show() so the menu never reopens on a sub-view.
     in-out property <string> ctx-menu-view: "main";
     property <length> ctx-menu-x: 0px;
-    property <length> ctx-menu-y: 0px;
+    // Raw y requested at right-click. ctx-menu-y below clamps it against the
+    // current ctx-menu-height, so the popup re-clamps reactively when the menu
+    // grows as the view switches to "format"/"send-to".
+    property <length> ctx-menu-anchor-y: 0px;
+    property <length> ctx-menu-y: Math.max(0px, Math.min(root.ctx-menu-anchor-y, root.height - root.ctx-menu-height));
     property <length> ctx-menu-width: 200px;
     property <length> ctx-menu-row-height: 32px;
     property <length> ctx-menu-sep-height: 9px;
     property <bool> ctx-is-text-type:
         root.ctx-clip-type == "text" || root.ctx-clip-type == "code_snippet" || root.ctx-clip-type == "rtf" || root.ctx-clip-type == "link";
-    // Computed from what's visible in the context menu's main view.
-    // Always-visible: 8 rows + 2 separators + 2×4px padding = 282px.
-    // +Format row (conditional), +Send To sep+row (conditional).
-    property <length> ctx-menu-height:
+    // Height of the view currently shown in the context menu (keep in sync with
+    // ContextMenu.slint). Every view adds 2×4px vertical padding; rows are
+    // 32px, separators 9px.
+    //   main    — 8 base rows + 2 seps; +Format row for text clips;
+    //             +Send To sep+row when apps are configured.
+    //   format  — Back + 13 transforms = 14 rows + 3 seps (fixed content).
+    //   send-to — Back + 1 sep + one row per configured app.
+    property <length> ctx-menu-main-height:
         2 * 4px + 8 * root.ctx-menu-row-height + 2 * root.ctx-menu-sep-height + (root.ctx-is-text-type ? root.ctx-menu-row-height : 0px) + (root.ctx-send-to-apps.length > 0 ? root.ctx-menu-sep-height + root.ctx-menu-row-height : 0px);
+    property <length> ctx-menu-format-height:
+        2 * 4px + 14 * root.ctx-menu-row-height + 3 * root.ctx-menu-sep-height;
+    property <length> ctx-menu-send-to-height:
+        2 * 4px + 2 * root.ctx-menu-row-height + root.ctx-menu-sep-height + root.ctx-send-to-apps.length * root.ctx-menu-row-height;
+    property <length> ctx-menu-height:
+        root.ctx-menu-view == "format" ? root.ctx-menu-format-height : root.ctx-menu-view == "send-to" ? root.ctx-menu-send-to-height : root.ctx-menu-main-height;
 
     // ── Preview shadow properties (set from Rust, bound to PreviewTooltip) ─────
     in property <bool> preview-visible: false;
@@ -298,7 +312,7 @@ export component AppWindow inherits Window {
                         root.ctx-clip-type = ctype;
                         root.ctx-menu-view = "main";
                         root.ctx-menu-x = Math.min(x * 1px, root.width - (root.ctx-menu-width + 4px));
-                        root.ctx-menu-y = Math.max(0px, Math.min(y * 1px, root.height - root.ctx-menu-height));
+                        root.ctx-menu-anchor-y = y * 1px;
                         ctx-menu-popup.show();
                     }
                     request-preview(id, x, y) => {
