@@ -6,7 +6,7 @@
 
 - Name: Cliptoo
 - Description: Native, background-running clipboard manager for Linux desktops (Wayland/KDE Plasma 6). Rust + SQLite + Slint (Qt backend). Handles many thousands of clipboard records without blocking the UI thread.
-- Tech: Rust, SQLite (rusqlite), Slint 1.18, tracing, anyhow/thiserror, Wayland (xdg-desktop-portal for global hotkeys)
+- Tech: Rust, SQLite (rusqlite), Slint 1.17, tracing, anyhow/thiserror, Wayland (xdg-desktop-portal for global hotkeys)
 
 ## Key Files
 
