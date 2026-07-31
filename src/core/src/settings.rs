@@ -16,7 +16,6 @@ pub struct Settings {
 
     // Hotkeys
     pub hotkey: String,
-    pub quick_paste_hotkey: String,
 
     // Window
     pub launch_position: String,
@@ -65,7 +64,6 @@ impl Default for Settings {
         Self {
             version: SETTINGS_VERSION,
             hotkey: "Ctrl+Alt+Q".to_string(),
-            quick_paste_hotkey: "Alt".to_string(),
             launch_position: "Cursor".to_string(),
             fixed_x: 0,
             fixed_y: 0,

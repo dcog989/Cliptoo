@@ -90,7 +90,6 @@ pub fn setup_settings_window(
     {
         let s = settings.borrow();
         settings_win.set_s_hotkey(s.hotkey.as_str().into());
-        settings_win.set_s_quick_paste_hotkey(s.quick_paste_hotkey.as_str().into());
         settings_win.set_s_launch_position_idx(idx_of(
             &s.launch_position,
             &[
@@ -236,13 +235,6 @@ if ok:
                             win.set_s_hotkey(cleaned.into());
                         }
                         let _ = hotkey_tx.send(s.hotkey.clone());
-                    }
-                    "quick_paste_hotkey" => {
-                        let cleaned = clean_hotkey_text(value.trim_end_matches('+'));
-                        s.quick_paste_hotkey = cleaned.clone();
-                        if let Some(win) = sw.upgrade() {
-                            win.set_s_quick_paste_hotkey(cleaned.into());
-                        }
                     }
                     "launch_position" => s.launch_position = value.clone(),
                     "start_with_system" => {
