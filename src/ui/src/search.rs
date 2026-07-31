@@ -20,6 +20,10 @@ pub fn setup_search(
         let ui = search_ui.clone();
         let td = search_td.clone();
         let fd = search_fd.clone();
+        // Match highlighting in ClipItem only applies while a query is active.
+        if let Some(u) = search_ui.upgrade() {
+            u.set_is_searching(!query.is_empty());
+        }
         let current_filter = search_ui
             .upgrade()
             .map(|u| u.get_active_filter().to_string())
@@ -83,6 +87,10 @@ pub fn setup_filter(
         let ui = filter_ui.clone();
         let td = filter_td.clone();
         let fd = filter_fd.clone();
+        // A filter change clears the search text, so FTS highlighting is off.
+        if let Some(u) = filter_ui.upgrade() {
+            u.set_is_searching(false);
+        }
         tokio::spawn(async move {
             let result = db
                 .with(|conn| {
