@@ -78,8 +78,8 @@ export component ContextMenu {
     in property <string> clip-type: "text";
     in property <[string]> send-to-apps: [];
 
-    // Internal view state.
-    property <string> view: "main";  // "main" | "format" | "send-to"
+    // Internal view state. AppWindow resets this to "main" before each show().
+    in-out property <string> view: "main";  // "main" | "format" | "send-to"
 
     callback preview();
     callback edit();
@@ -92,8 +92,6 @@ export component ContextMenu {
     callback move-down-one();
     callback send-to(string);       // app name
 
-    // Reset to main view each time the component is (re-)shown.
-    // Callers set clip-id before show(); the init expression re-evaluates.
     // True when the clip type supports text transformations.
     property <bool> is-text-type:
         root.clip-type == "text" || root.clip-type == "code_snippet" || root.clip-type == "rtf" || root.clip-type == "link";

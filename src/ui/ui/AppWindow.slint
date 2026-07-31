@@ -109,6 +109,11 @@ export component AppWindow inherits Window {
     property <int> ctx-clip-id: 0;
     property <bool> ctx-clip-is-bookmarked: false;
     property <string> ctx-clip-type: "text";
+    // Which sub-view the context menu shows ("main" | "format" | "send-to").
+    // Owned here because Slint forbids touching elements inside a PopupWindow
+    // from the enclosing component; two-way bound to ContextMenu.view below.
+    // Reset to "main" before each show() so the menu never reopens on a sub-view.
+    in-out property <string> ctx-menu-view: "main";
     property <length> ctx-menu-x: 0px;
     property <length> ctx-menu-y: 0px;
     property <length> ctx-menu-width: 200px;
@@ -291,6 +296,7 @@ export component AppWindow inherits Window {
                         root.ctx-clip-id = id;
                         root.ctx-clip-is-bookmarked = bookmarked;
                         root.ctx-clip-type = ctype;
+                        root.ctx-menu-view = "main";
                         root.ctx-menu-x = Math.min(x * 1px, root.width - (root.ctx-menu-width + 4px));
                         root.ctx-menu-y = Math.max(0px, Math.min(y * 1px, root.height - root.ctx-menu-height));
                         ctx-menu-popup.show();
@@ -348,13 +354,14 @@ export component AppWindow inherits Window {
             background: Theme.bg-header;
         }
 
-        ContextMenu {
+        ctx-menu := ContextMenu {
             width: root.ctx-menu-width;
             height: 100%;
             clip-id: root.ctx-clip-id;
             clip-is-bookmarked: root.ctx-clip-is-bookmarked;
             clip-type: root.ctx-clip-type;
             send-to-apps: root.ctx-send-to-apps;
+            view <=> root.ctx-menu-view;
 
             preview => {
                 root.request-preview(root.ctx-clip-id, root.ctx-menu-x / 1px, root.ctx-menu-y / 1px);
