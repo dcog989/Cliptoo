@@ -1,3 +1,7 @@
+// No `unsafe` anywhere in this crate except the Qt FFI shim in `drag.rs`
+// (which carries a module-level `#![allow(unsafe_code)]`).
+#![deny(unsafe_code)]
+
 use anyhow::Result;
 use slint::Model;
 use slint::VecModel;

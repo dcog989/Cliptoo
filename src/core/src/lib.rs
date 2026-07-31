@@ -1,4 +1,8 @@
 // cliptoo-core: backend library
+// No `unsafe` is permitted here; the only crate-wide exception is the Qt FFI
+// shim in the UI crate (`src/ui/src/drag.rs`).
+#![deny(unsafe_code)]
+
 // Modules are gated here; each owns its own error types via thiserror.
 
 pub mod color;

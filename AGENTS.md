@@ -55,7 +55,7 @@ Pre-push hooks: `cargo test --workspace`.
 - `cargo fmt` defaults. No custom rustfmt config.
 - Errors: `anyhow::Result` at boundaries, `thiserror` enums in `src/core/`. Use `.context(...)` on fallible ops crossing a module boundary.
 - Logging: `tracing::{info,warn,error,debug}` only (never `println!`, never `dbg!`). Initialised in `core/src/logger.rs`.
-- `unsafe` is **not used** in this codebase. Do not introduce it.
+- `unsafe` is **not used** in this codebase, with a single carve-out: the Qt FFI shim in `src/ui/src/drag.rs` (module-level `#![allow(unsafe_code)]`). Both crate roots `#![deny(unsafe_code)]`, so it cannot spread. Do not introduce `unsafe` anywhere else.
 - Decompose files over 400 lines if they mix concerns.
 - Never run git mutations (commit, push, reset, rebase, amend) unless explicitly asked.
 - Self-documenting code via clear naming. Comments only for WHY (non-obvious platform gotchas, upstream bug workarounds, security boundaries, magic constants). Never restate the code.
