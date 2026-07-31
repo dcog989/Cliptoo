@@ -49,7 +49,7 @@ async fn main() -> Result<()> {
     let ui = AppWindow::new()?;
 
     ui.set_clips(std::rc::Rc::new(VecModel::<ClipData>::from(vec![])).into());
-    theme::apply_theme(&ui, &settings).await;
+    let (is_dark, system_accent) = theme::apply_theme(&ui, &settings).await;
     ui.set_stored_width(settings.window_width as f32);
     ui.set_stored_height(settings.window_height as f32);
 
@@ -61,7 +61,15 @@ async fn main() -> Result<()> {
     window::setup_close_handlers(&ui, &settings, &dirs);
     window::setup_close_to_tray(&ui);
 
-    let _settings_win = settings::setup_settings_window(&ui, &settings, &dirs);
+    let settings_win = settings::setup_settings_window(&ui, &settings, &dirs);
+    // Slint globals are per-window-instance: the settings window has its own
+    // `Theme` global that must be filled separately from the main window's.
+    theme::fill_theme(
+        &settings_win.global::<crate::Theme>(),
+        &settings.borrow(),
+        is_dark,
+        system_accent,
+    );
 
     search::setup_search(&ui, &db, &dirs, &tag_prefix);
 
@@ -71,6 +79,12 @@ async fn main() -> Result<()> {
     preview::setup_dismiss_preview(&ui);
 
     let edit_win = edit::setup_edit_window(&ui, &settings, &dirs, &db);
+    theme::fill_theme(
+        &edit_win.global::<crate::Theme>(),
+        &settings.borrow(),
+        is_dark,
+        system_accent,
+    );
 
     let suppression = Arc::new(paste::PasteSuppressionSet::new());
     actions::setup_clip_actions(&ui, &edit_win, &db, &settings, &dirs, &suppression);
@@ -168,23 +182,6 @@ async fn main() -> Result<()> {
     match CliptooTray::new() {
         Ok(tray) => {
             // SystemTrayIcon has its own global scope; init Theme on it too.
-            let (theme_str, is_system) = {
-                let s = settings.borrow();
-                (
-                    s.theme.clone(),
-                    s.theme.as_str() != "Light" && s.theme.as_str() != "Dark",
-                )
-            };
-            let is_dark = match theme_str.as_str() {
-                "Light" => false,
-                "Dark" => true,
-                _ => theme::detect_system_dark().await.unwrap_or(true),
-            };
-            let system_accent = if is_system {
-                theme::detect_system_accent().await
-            } else {
-                None
-            };
             theme::fill_theme(
                 &tray.global::<crate::Theme>(),
                 &settings.borrow(),

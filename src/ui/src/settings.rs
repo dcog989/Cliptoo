@@ -21,22 +21,47 @@ fn clean_hotkey_text(raw: &str) -> String {
         .collect()
 }
 
-fn reapply_theme(settings_ui: &slint::Weak<crate::AppWindow>, settings: &cliptoo_core::Settings) {
-    let weak = settings_ui.clone();
+/// Update a single `Theme` token on both the main window and the settings
+/// window globals. Slint globals are per-window-instance, so live previews
+/// need each window's `Theme` global updated.
+fn apply_theme_to_windows(
+    main_ui: &slint::Weak<crate::AppWindow>,
+    settings_win_ui: &slint::Weak<crate::SettingsWindow>,
+    apply: impl Fn(&crate::Theme),
+) {
+    if let Some(ui) = main_ui.upgrade() {
+        apply(&ui.global::<crate::Theme>());
+    }
+    if let Some(win) = settings_win_ui.upgrade() {
+        apply(&win.global::<crate::Theme>());
+    }
+}
+
+fn reapply_theme(
+    main_ui: &slint::Weak<crate::AppWindow>,
+    settings_win_ui: &slint::Weak<crate::SettingsWindow>,
+    settings: &cliptoo_core::Settings,
+) {
+    let main_weak = main_ui.clone();
+    let settings_weak = settings_win_ui.clone();
     let s_snap = settings.clone();
     tokio::spawn(async move {
-        let is_dark = match s_snap.theme.as_str() {
-            "Light" => false,
-            "Dark" => true,
-            _ => crate::theme::detect_system_dark().await.unwrap_or(true),
-        };
-        let system_accent = if s_snap.theme.as_str() != "Light" && s_snap.theme.as_str() != "Dark" {
-            crate::theme::detect_system_accent().await
-        } else {
-            None
-        };
-        let _ = weak.upgrade_in_event_loop(move |ui| {
-            crate::theme::apply_theme_inner(&ui, &s_snap, is_dark, system_accent);
+        let (is_dark, system_accent) = crate::theme::resolve_theme(&s_snap).await;
+        let _ = main_weak.upgrade_in_event_loop(move |ui| {
+            crate::theme::fill_theme(
+                &ui.global::<crate::Theme>(),
+                &s_snap,
+                is_dark,
+                system_accent,
+            );
+            if let Some(win) = settings_weak.upgrade() {
+                crate::theme::fill_theme(
+                    &win.global::<crate::Theme>(),
+                    &s_snap,
+                    is_dark,
+                    system_accent,
+                );
+            }
         });
     });
 }
@@ -184,10 +209,9 @@ if ok:
             if let Some(win) = sw.upgrade() {
                 win.set_s_font_family(family.as_str().into());
             }
-            if let Some(ui) = settings_ui.upgrade() {
-                ui.global::<crate::Theme>()
-                    .set_font_family(family.as_str().into());
-            }
+            apply_theme_to_windows(&settings_ui, &sw, |t| {
+                t.set_font_family(family.as_str().into());
+            });
             let _ = s.save(&p);
         });
     }
@@ -244,56 +268,52 @@ if ok:
                     }
                     "theme" => {
                         s.theme = value.clone();
-                        reapply_theme(&settings_ui, &s);
+                        reapply_theme(&settings_ui, &sw, &s);
                     }
                     "accent_hue" => {
                         if let Ok(v) = value.parse::<f64>() {
                             s.accent_hue = v;
-                            reapply_theme(&settings_ui, &s);
+                            reapply_theme(&settings_ui, &sw, &s);
                         }
                     }
                     "accent_chroma_level" => {
                         s.accent_chroma_level = value.clone();
-                        reapply_theme(&settings_ui, &s);
+                        reapply_theme(&settings_ui, &sw, &s);
                     }
                     "font_family" => {
                         s.font_family = value.clone();
-                        if let Some(ui) = settings_ui.upgrade() {
-                            ui.global::<crate::Theme>()
-                                .set_font_family(value.as_str().into());
-                        }
+                        apply_theme_to_windows(&settings_ui, &sw, |t| {
+                            t.set_font_family(value.as_str().into());
+                        });
                     }
                     "font_size" => {
                         if let Ok(v) = value.parse::<f64>() {
                             s.font_size = v;
-                            if let Some(ui) = settings_ui.upgrade() {
-                                ui.global::<crate::Theme>().set_font_size(v as f32);
-                            }
+                            apply_theme_to_windows(&settings_ui, &sw, |t| {
+                                t.set_font_size(v as f32)
+                            });
                         }
                     }
                     "preview_font_size" => {
                         if let Ok(v) = value.parse::<f64>() {
                             s.preview_font_size = v;
-                            if let Some(ui) = settings_ui.upgrade() {
-                                ui.global::<crate::Theme>().set_preview_font_size(v as f32);
-                            }
+                            apply_theme_to_windows(&settings_ui, &sw, |t| {
+                                t.set_preview_font_size(v as f32);
+                            });
                         }
                     }
                     "clip_item_padding" => {
                         s.clip_item_padding = value.clone();
-                        if let Some(ui) = settings_ui.upgrade() {
-                            ui.global::<crate::Theme>().set_row_height(
-                                crate::positioning::row_height(value.as_str()) as f32,
-                            );
-                        }
+                        apply_theme_to_windows(&settings_ui, &sw, |t| {
+                            t.set_row_height(crate::positioning::row_height(value.as_str()) as f32);
+                        });
                     }
                     "hover_preview_delay" => {
                         if let Ok(ms) = value.parse::<u32>() {
                             s.hover_preview_delay = ms;
-                            if let Some(ui) = settings_ui.upgrade() {
-                                ui.global::<crate::Theme>()
-                                    .set_hover_preview_delay(ms as i64);
-                            }
+                            apply_theme_to_windows(&settings_ui, &sw, |t| {
+                                t.set_hover_preview_delay(ms as i64);
+                            });
                         }
                     }
                     "hover_image_preview_size" => {

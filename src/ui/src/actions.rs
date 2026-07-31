@@ -111,6 +111,9 @@ pub fn setup_clip_actions(
                 let s = ctx_edit_settings.borrow();
                 (s.editor_window_width as f32, s.editor_window_height as f32)
             };
+            // Snapshot for re-applying the theme when the editor opens, so a
+            // theme change made since startup is reflected here too.
+            let s_snap = ctx_edit_settings.borrow().clone();
             tokio::spawn(async move {
                 let content = db
                     .with(|conn| cliptoo_core::db::queries::get_clip_content(conn, id as i64))
@@ -152,6 +155,16 @@ pub fn setup_clip_actions(
                     }
 
                     edit.set_editing(!is_code);
+
+                    // Slint globals are per-window-instance: the editor has its
+                    // own `Theme` global that must be (re-)filled before showing.
+                    let (is_dark, system_accent) = crate::theme::cached_resolved_theme();
+                    crate::theme::fill_theme(
+                        &edit.global::<crate::Theme>(),
+                        &s_snap,
+                        is_dark,
+                        system_accent,
+                    );
 
                     let _ = edit.show();
                 });

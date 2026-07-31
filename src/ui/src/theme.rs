@@ -4,6 +4,7 @@ use cliptoo_core::color::{
     chroma_level_factor, find_max_chroma, oklch_to_srgb_bytes, srgb_bytes_to_oklch,
 };
 use slint::{Color, ComponentHandle, SharedString};
+use std::sync::Mutex;
 
 /// Detect the system color-scheme preference via xdg-desktop-portal.
 /// Returns `true` for dark, `false` for light, `None` if undetectable.
@@ -178,8 +179,34 @@ pub fn fill_theme(
     t.set_row_height(crate::positioning::row_height(&settings.clip_item_padding) as f32);
 }
 
-/// Apply theme tokens to the Slint UI global `Theme`.
-pub async fn apply_theme(ui: &crate::AppWindow, settings: &Settings) {
+/// A resolved theme context: whether the UI should be dark and, if in
+/// "System" theme mode, the detected system accent color in 0–255.
+type ResolvedTheme = (bool, Option<(u8, u8, u8)>);
+
+/// The most recently resolved (is_dark, system_accent) pair, shared so any
+/// window with a `Theme` global can be (re-)filled without re-querying the
+/// portal. Slint globals are per-window-instance, so every window's `Theme`
+/// global must be filled individually with the same values.
+static RESOLVED_THEME: Mutex<Option<ResolvedTheme>> = Mutex::new(None);
+
+fn cache_resolved_theme(is_dark: bool, system_accent: Option<(u8, u8, u8)>) {
+    if let Ok(mut cached) = RESOLVED_THEME.lock() {
+        *cached = Some((is_dark, system_accent));
+    }
+}
+
+/// The last resolved theme context, or `(dark, no accent)` if never resolved.
+pub fn cached_resolved_theme() -> ResolvedTheme {
+    RESOLVED_THEME
+        .lock()
+        .ok()
+        .and_then(|guard| *guard)
+        .unwrap_or((true, None))
+}
+
+/// Resolve the dark-mode and system-accent context for the given settings.
+/// Side-effect: caches the result for `cached_resolved_theme`.
+pub async fn resolve_theme(settings: &Settings) -> ResolvedTheme {
     let is_dark = match settings.theme.as_str() {
         "Light" => false,
         "Dark" => true,
@@ -190,17 +217,15 @@ pub async fn apply_theme(ui: &crate::AppWindow, settings: &Settings) {
     } else {
         None
     };
-    fill_theme(&ui.global::<Theme>(), settings, is_dark, system_accent);
+    cache_resolved_theme(is_dark, system_accent);
+    (is_dark, system_accent)
 }
 
-/// Apply theme tokens synchronously, with pre-resolved dark/accent values.
-/// Used by `apply_theme` (with portal I/O) and by `reapply_theme` in
-/// `settings.rs` (from a Qt callback where async spawning is not possible).
-pub fn apply_theme_inner(
-    ui: &crate::AppWindow,
-    settings: &Settings,
-    is_dark: bool,
-    system_accent: Option<(u8, u8, u8)>,
-) {
+/// Apply theme tokens to the Slint UI global `Theme` of the main window.
+/// Returns the resolved (is_dark, system_accent) pair so callers can fill the
+/// other windows' `Theme` globals with the same values.
+pub async fn apply_theme(ui: &crate::AppWindow, settings: &Settings) -> ResolvedTheme {
+    let (is_dark, system_accent) = resolve_theme(settings).await;
     fill_theme(&ui.global::<Theme>(), settings, is_dark, system_accent);
+    (is_dark, system_accent)
 }
