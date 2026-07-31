@@ -249,6 +249,7 @@ export component SettingsWindow inherits Window {
                         font-size: Theme.font-size;
                         vertical-alignment: center;
                     }
+
                     Rectangle {
                         horizontal-stretch: 1;
                         height: 28px;
@@ -270,6 +271,7 @@ export component SettingsWindow inherits Window {
                             }
                         }
                     }
+
                     StepperButton {
                         text: "…";
                         clicked => {
@@ -419,7 +421,7 @@ export component SettingsWindow inherits Window {
                     value <=> root.s-max-clips;
                     min-val: 100;
                     max-val: 100000;
-                    step: 500;
+                    step: 100;
                     committed(v) => {
                         root.setting-changed("max_clips", "\{v}");
                     }
@@ -430,7 +432,7 @@ export component SettingsWindow inherits Window {
                     value <=> root.s-max-age-days;
                     min-val: 1;
                     max-val: 3650;
-                    step: 10;
+                    step: 5;
                     committed(v) => {
                         root.setting-changed("max_age_days", "\{v}");
                     }
