@@ -465,7 +465,9 @@ export component AppWindow inherits Window {
     filter_popup := PopupWindow {
         forward-focus: focus-scope;
 
-        x: root.width - 230px;
+        // Opens above the filter icon, right-aligned so its right edge
+        // nearly touches the app window's right edge.
+        x: root.width - 172px - 6px;
         y: root.height - 48px - 172px;
 
         FilterGrid {
