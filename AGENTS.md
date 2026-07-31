@@ -23,6 +23,11 @@
 - `packaging/PKGBUILD` — Arch packaging
 - `lefthook.yml` — pre-commit/pre-push hooks
 
+## Dev Environment
+
+- CachyOS, Limine bootloader, KDE Plasma 6, Wayland, and Btrfs.
+- fish shell, Ghostty terminal, Fresh TUI editor, yay package manager, bun npm manager, Firefox, and Zed code editor.
+
 ## Development Workflow
 
 ```bash
