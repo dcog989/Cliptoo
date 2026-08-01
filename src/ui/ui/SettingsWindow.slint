@@ -68,6 +68,7 @@ export component SettingsWindow inherits Window {
     private property <string> tip-open-log: @tr("Open the most recent log file in your default viewer");
     private property <string> tip-font-family: @tr("Font family used for the clip list");
     private property <string> tip-hover-delay: @tr("Delay before the image hover preview appears");
+    private property <string> tip-accent-picker: @tr("Open the color picker");
 
     forward-focus: settings-focus;
     settings-focus := FocusScope {
@@ -208,18 +209,14 @@ export component SettingsWindow inherits Window {
                         border-width: 1px;
                         border-color: Theme.accent-muted;
                         background: root.s-accent-color;
-                    }
-
-                    Text {
-                        text: @tr("Change…");
-                        color: Theme.accent-primary;
-                        font-size: Theme.font-size;
-                        vertical-alignment: center;
                         TouchArea {
                             mouse-cursor: pointer;
                             clicked => {
                                 accent_popup.show();
                             }
+                        }
+                        Tooltip {
+                            text: @markdown("\{root.tip-accent-picker}");
                         }
                     }
 

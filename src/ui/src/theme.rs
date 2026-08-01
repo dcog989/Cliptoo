@@ -121,9 +121,11 @@ pub(crate) fn accent_hex_to_color(hex: &str) -> Color {
     Color::from_rgb_u8(r, g, b)
 }
 
-/// The fallback/default accent color (matches the core settings default).
+/// The fallback/default accent color: the detected OS/system accent when
+/// available, otherwise the core settings default (`#7C6EE6`). This is what
+/// "Clear" shows in the settings, since clearing means "use the OS default".
 pub(crate) fn default_accent_color() -> Color {
-    let (r, g, b) = DEFAULT_ACCENT;
+    let (r, g, b) = cached_resolved_theme().1.unwrap_or(DEFAULT_ACCENT);
     Color::from_rgb_u8(r, g, b)
 }
 

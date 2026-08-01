@@ -10,7 +10,7 @@ fn idx_of(needle: &str, haystack: &[&str]) -> i32 {
 
 /// 24 accent swatches at 15° hue steps across the full 0–360° wheel. Each
 /// entry carries both the `color` for rendering and its hex for persistence.
-const SWATCH_SATURATION: f64 = 0.85;
+const SWATCH_SATURATION: f64 = 0.65;
 const SWATCH_VALUE: f64 = 0.95;
 const SWATCH_COUNT: u32 = 24;
 const SWATCH_HUE_STEP: u32 = 360 / SWATCH_COUNT;
