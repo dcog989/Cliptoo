@@ -240,7 +240,7 @@ export component ClipItem {
                     horizontal-alignment: left;
                     vertical-alignment: center;
                     color: clip-data.is-deadhead ? Theme.fg-muted : clip-data.is-bookmarked && !root.is-selected ? Theme.fg-bookmarked : root.is-selected ? Theme.fg-primary : Theme.fg-secondary;
-                    font-size: Theme.font-size;
+                    font-size: Theme.clip-list-font-size;
                 }
 
                 // Strikethrough overlay for deadhead file clips
@@ -268,7 +268,7 @@ export component ClipItem {
                         vertical-alignment: center;
                         color: span.is-highlight ? Theme.accent-primary : clip-data.is-bookmarked && !root.is-selected ? Theme.fg-bookmarked : root.is-selected ? Theme.fg-primary : Theme.fg-secondary;
                         font-weight: span.is-highlight ? 700 : 400;
-                        font-size: Theme.font-size;
+                        font-size: Theme.clip-list-font-size;
                     }
                 }
 

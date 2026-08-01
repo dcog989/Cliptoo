@@ -274,7 +274,7 @@ if ok:
                         if let Ok(v) = value.parse::<f64>() {
                             s.font_size = v;
                             apply_theme_to_windows(&settings_ui, &sw, |t| {
-                                t.set_font_size(v as f32)
+                                t.set_clip_list_font_size(v as f32)
                             });
                         }
                     }

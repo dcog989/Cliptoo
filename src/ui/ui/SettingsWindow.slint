@@ -307,8 +307,8 @@ export component SettingsWindow inherits Window {
                 }
 
                 FloatRow {
-                    label: @tr("Font size (pt)");
-                    tooltip-text: @tr("Base interface font size in points");
+                    label: @tr("Clip list font size (pt)");
+                    tooltip-text: @tr("Font size of clip entries in the main list");
                     value-hundredths <=> root.s-font-size-hundredths;
                     min-hundredths: 800;
                     max-hundredths: 2400;

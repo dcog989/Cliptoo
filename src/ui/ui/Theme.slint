@@ -32,7 +32,10 @@ export global Theme {
 
     // ── Typography ────────────────────────────────────────────────────────────
     in property <string> font-family:      "Inter";
+    // Base UI font, fixed at the theme default. The user-facing "font size"
+    // setting drives clip-list-font-size below, not this.
     in property <length> font-size:        13px;
+    in property <length> clip-list-font-size: 13px;
     in property <length> preview-font-size: 12px;
 
     // ── Layout ────────────────────────────────────────────────────────────────

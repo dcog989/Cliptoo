@@ -171,7 +171,7 @@ pub fn fill_theme(
     }
 
     t.set_font_family(SharedString::from(&*settings.font_family));
-    t.set_font_size(settings.font_size as f32);
+    t.set_clip_list_font_size(settings.font_size as f32);
     t.set_preview_font_size(settings.preview_font_size as f32);
 
     t.set_hover_preview_delay(settings.hover_preview_delay as i64);
