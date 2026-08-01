@@ -13,6 +13,11 @@ export component PreviewTooltip {
     in property <float> popup-x: 0.0;
     in property <float> popup-y: 0.0;
 
+    // True while the cursor is over the popup itself. Lets callers keep the
+    // tooltip open on hover-exit from the originating clip row when the
+    // cursor has simply moved onto the tooltip rather than away from it.
+    out property <bool> hovered: hover-catch.has-hover;
+
     // Fills the window so the inner Rectangle can use absolute x/y coordinates.
     // No background — transparent overlay.
     x: 0px;
@@ -38,6 +43,14 @@ export component PreviewTooltip {
         background: Theme.bg-header;
         border-width: 1px;
         border-color: Theme.border-subtle;
+
+        // Passive hover tracker covering the whole popup — no click handling,
+        // just feeds `root.hovered` so dismissal logic in AppWindow can tell
+        // the cursor moved onto the tooltip rather than away from it.
+        hover-catch := TouchArea {
+            width: 100%;
+            height: 100%;
+        }
 
         content-layout := VerticalLayout {
             padding: 12px;

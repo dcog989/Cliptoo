@@ -334,7 +334,12 @@ export component AppWindow inherits Window {
                         root.request-preview(id, x, y);
                     }
                     dismiss-preview => {
-                        root.dismiss-preview();
+                        // Cursor may have moved onto the tooltip itself rather
+                        // than away from the preview area — the tooltip-hover
+                        // Timer below takes over closing it in that case.
+                        if (!preview_tooltip.hovered) {
+                            root.dismiss-preview();
+                        }
                     }
                 }
 
@@ -500,6 +505,29 @@ export component AppWindow inherits Window {
         preview-file-info: root.preview-file-info;
         popup-x: root.preview-popup-x;
         popup-y: root.preview-popup-y;
+    }
+
+    // Latches true once the cursor actually reaches the tooltip, so the
+    // poll below only closes it after the cursor has been on the tooltip
+    // and then leaves — not on the very first tick after showing, when the
+    // cursor is still over the originating clip row.
+    property <bool> tooltip-hover-latch: false;
+    changed preview-visible => {
+        if (root.preview-visible) {
+            root.tooltip-hover-latch = false;
+        }
+    }
+    Timer {
+        interval: 16ms;
+        running: root.preview-visible;
+        triggered => {
+            if (preview_tooltip.hovered) {
+                root.tooltip-hover-latch = true;
+            } else if (root.tooltip-hover-latch) {
+                root.tooltip-hover-latch = false;
+                root.dismiss-preview();
+            }
+        }
     }
 
     // ── Toast notification overlay ────────────────────────────────────────
