@@ -113,6 +113,10 @@ export component AppWindow inherits Window {
     property <length> toolbar-height: 48px;
     property <length> hamburger-menu-width: 180px;
     property <length> hamburger-menu-y-offset: 220px;
+    // FilterGrid intrinsic extent: 4 cells of 36px plus 8px padding and
+    // 4px grid spacing each way (matches FilterGrid.slint).
+    property <length> filter-popup-size: 172px;
+    property <length> filter-popup-right-margin: 6px;
     in-out property <string> active-filter: "all";
     in-out property <int> selected-index: 0;  // forwarded to ClipList; reset by Rust on search/filter change
     // search-text is owned jointly: Slint appends printable chars, Rust handles
@@ -485,9 +489,11 @@ export component AppWindow inherits Window {
         forward-focus: focus-scope;
 
         // Opens above the filter icon, right-aligned so its right edge
-        // nearly touches the app window's right edge.
-        x: root.width - 172px - 6px;
-        y: root.height - 48px - 172px;
+        // nearly touches the app window's right edge. Y is clamped to the
+        // window's top edge so a very short window cannot push the popup off
+        // screen (Y would otherwise go negative below ~220px window height).
+        x: root.width - root.filter-popup-size - root.filter-popup-right-margin;
+        y: Math.max(0px, root.height - root.toolbar-height - root.filter-popup-size);
 
         FilterGrid {
             active-filter: root.active-filter;
