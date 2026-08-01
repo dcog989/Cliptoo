@@ -16,7 +16,6 @@ depends=(
     'qt6-base'
     'qt6-wayland'
     'wayland'
-    'wtype'
     'xkbcommon'
     'xdg-desktop-portal-kde'
     'kwindowsystem'

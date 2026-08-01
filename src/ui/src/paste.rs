@@ -1,5 +1,7 @@
 use anyhow::{Context, Result};
 use cliptoo_core::content::hash::{normalize_line_endings, sha256_u64};
+use evdev::uinput::VirtualDevice;
+use evdev::{AttributeSet, EventType, InputEvent, KeyCode};
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -89,17 +91,58 @@ pub async fn paste_content(
     Ok(())
 }
 
-fn simulate_ctrl_v() -> Result<()> {
-    let status = std::process::Command::new("wtype")
-        .args(["-s", "15", "-M", "ctrl", "v"])
-        .status()
-        .map_err(|e| anyhow::anyhow!("failed to spawn wtype: {e}"))?;
+/// Injects Ctrl+V through a virtual uinput keyboard device.
+///
+/// A spawned `wtype` is not viable here: KWin does not advertise the wlr
+/// virtual-keyboard protocol, so wtype can never bind. uinput is compositor-
+/// agnostic and works through the device node's logind uaccess ACL. This is
+/// the same mechanism ydotool uses, without an external binary.
+const DEVICE_NAME: &str = "cliptoo virtual keyboard";
+const VIRTUAL_DEVICE_SETTLE: Duration = Duration::from_millis(50);
+const KEY_STRESS_DELAY: Duration = Duration::from_millis(10);
+const PRESSED: i32 = 1;
+const RELEASED: i32 = 0;
 
-    if status.success() {
-        Ok(())
-    } else {
-        Err(anyhow::anyhow!("wtype exited with {status}"))
-    }
+fn simulate_ctrl_v() -> Result<()> {
+    let mut device = VirtualDevice::builder()
+        .context("open /dev/uinput")?
+        .name(DEVICE_NAME)
+        .with_keys(
+            &[KeyCode::KEY_LEFTCTRL, KeyCode::KEY_V]
+                .into_iter()
+                .collect::<AttributeSet<KeyCode>>(),
+        )
+        .context("configure uinput keyboard capabilities")?
+        .build()
+        .context("create uinput keyboard device")?;
+
+    // Let the compositor hotplug the new input device before emitting, so the
+    // first keystroke is not dropped during device setup.
+    std::thread::sleep(VIRTUAL_DEVICE_SETTLE);
+
+    device
+        .emit(&[
+            key_event(KeyCode::KEY_LEFTCTRL, PRESSED),
+            key_event(KeyCode::KEY_V, PRESSED),
+        ])
+        .context("inject Ctrl+V key press")?;
+
+    // Separate press from release so the target application registers a
+    // distinct keydown/keyup rather than a simultaneous event.
+    std::thread::sleep(KEY_STRESS_DELAY);
+
+    device
+        .emit(&[
+            key_event(KeyCode::KEY_V, RELEASED),
+            key_event(KeyCode::KEY_LEFTCTRL, RELEASED),
+        ])
+        .context("inject Ctrl+V key release")?;
+
+    Ok(())
+}
+
+fn key_event(key: KeyCode, value: i32) -> InputEvent {
+    InputEvent::new(EventType::KEY.0, key.code(), value)
 }
 
 /// Remove RTF markup, returning the plain-text content.
