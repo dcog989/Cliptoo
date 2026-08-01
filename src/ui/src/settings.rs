@@ -8,6 +8,26 @@ fn idx_of(needle: &str, haystack: &[&str]) -> i32 {
         .unwrap_or(0) as i32
 }
 
+/// 24 accent swatches at 15° hue steps across the full 0–360° wheel. Each
+/// entry carries both the `color` for rendering and its hex for persistence.
+const SWATCH_SATURATION: f64 = 0.85;
+const SWATCH_VALUE: f64 = 0.95;
+const SWATCH_COUNT: u32 = 24;
+const SWATCH_HUE_STEP: u32 = 360 / SWATCH_COUNT;
+
+fn build_accent_swatches() -> Vec<crate::AccentSwatch> {
+    (0..SWATCH_COUNT)
+        .map(|i| {
+            let hue = (i * SWATCH_HUE_STEP) % 360;
+            let (r, g, b) = crate::theme::hsv_to_rgb(hue as f64, SWATCH_SATURATION, SWATCH_VALUE);
+            crate::AccentSwatch {
+                hex: format!("#{r:02X}{g:02X}{b:02X}").into(),
+                color: slint::Color::from_rgb_u8(r, g, b),
+            }
+        })
+        .collect()
+}
+
 fn clean_hotkey_text(raw: &str) -> String {
     raw.chars()
         .map(|c| {
@@ -96,11 +116,13 @@ pub fn setup_settings_window(
             &["Debug", "Info", "Warn", "Error"],
         ));
         settings_win.set_s_theme_idx(idx_of(&s.theme, &["System", "Light", "Dark"]));
-        settings_win.set_s_accent_hue(s.accent_hue as i32);
-        settings_win.set_s_chroma_idx(idx_of(
-            &s.accent_chroma_level,
-            &["Neon", "Vibrant", "Mellow", "Muted", "Ditchwater"],
-        ));
+        settings_win.set_s_accent_color(crate::theme::accent_hex_to_color(&s.accent_color));
+        settings_win.set_accent_swatches(
+            std::rc::Rc::new(slint::VecModel::<crate::AccentSwatch>::from(
+                build_accent_swatches(),
+            ))
+            .into(),
+        );
         settings_win.set_s_font_family(s.font_family.as_str().into());
         settings_win.set_s_font_size_hundredths((s.font_size * 100.0) as i32);
         settings_win.set_s_preview_font_size_hundredths((s.preview_font_size * 100.0) as i32);
@@ -123,6 +145,23 @@ pub fn setup_settings_window(
             if let Some(ui) = main_ui.upgrade() {
                 ui.invoke_maintenance_action(key);
             }
+        });
+    }
+
+    // Clear accent: empty accent_color means "use the OS default accent".
+    {
+        let sw = settings_win.as_weak();
+        let settings_ui = ui.as_weak();
+        let s = settings.clone();
+        let p = dirs.settings_path.clone();
+        settings_win.on_clear_accent_color(move || {
+            let mut s = s.borrow_mut();
+            s.accent_color = String::new();
+            if let Some(win) = sw.upgrade() {
+                win.set_s_accent_color(crate::theme::default_accent_color());
+            }
+            reapply_theme(&settings_ui, &sw, &s);
+            let _ = s.save(&p);
         });
     }
 
@@ -151,34 +190,6 @@ pub fn setup_settings_window(
             if let Some(ui) = main_ui.upgrade() {
                 ui.set_settings_open(false);
             }
-        });
-    }
-
-    // Accent hue: click-and-hold repeat via 100ms timer.
-    {
-        let sw = settings_win.as_weak();
-        let timer = std::cell::RefCell::new(slint::Timer::default());
-        settings_win.on_hue_step(move |direction: slint::SharedString| {
-            let dir = direction.as_str();
-            let t = timer.borrow_mut();
-            t.stop();
-            if dir == "stop" {
-                return;
-            }
-            let step: i32 = if dir == "minus" { -1 } else { 1 };
-            let weak = sw.clone();
-            t.start(
-                slint::TimerMode::Repeated,
-                std::time::Duration::from_millis(100),
-                move || {
-                    if let Some(win) = weak.upgrade() {
-                        let cur = win.get_s_accent_hue();
-                        let v = (cur + step).clamp(0, 360);
-                        win.set_s_accent_hue(v);
-                        win.invoke_setting_changed("accent_hue".into(), format!("{v}").into());
-                    }
-                },
-            );
         });
     }
 
@@ -254,21 +265,21 @@ if ok:
                         s.theme = value.clone();
                         reapply_theme(&settings_ui, &sw, &s);
                     }
-                    "accent_hue" => {
-                        if let Ok(v) = value.parse::<f64>() {
-                            s.accent_hue = v;
-                            reapply_theme(&settings_ui, &sw, &s);
-                        }
-                    }
-                    "accent_chroma_level" => {
-                        s.accent_chroma_level = value.clone();
-                        reapply_theme(&settings_ui, &sw, &s);
-                    }
                     "font_family" => {
                         s.font_family = value.clone();
                         apply_theme_to_windows(&settings_ui, &sw, |t| {
                             t.set_font_family(value.as_str().into());
                         });
+                    }
+                    "accent_color" => {
+                        let hex = value.trim();
+                        if hex.starts_with('#') && hex.len() == 7 {
+                            s.accent_color = value.clone();
+                            if let Some(win) = sw.upgrade() {
+                                win.set_s_accent_color(crate::theme::accent_hex_to_color(hex));
+                            }
+                            reapply_theme(&settings_ui, &sw, &s);
+                        }
                     }
                     "font_size" => {
                         if let Ok(v) = value.parse::<f64>() {
@@ -336,6 +347,9 @@ if ok:
                     // cleared when the settings window closes.
                     ui.set_settings_open(true);
                 }
+                // Always reopen on the General tab, regardless of the tab the
+                // user last left the window on.
+                win.set_active_tab(0);
                 win.show().ok();
             }
         });

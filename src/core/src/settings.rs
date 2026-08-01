@@ -24,8 +24,9 @@ pub struct Settings {
     pub editor_window_height: f64,
 
     // Theming
-    pub accent_hue: f64,
-    pub accent_chroma_level: String,
+    // accent_color is a "#RRGGBB" string; older settings files stored
+    // accent_hue + accent_chroma_level, which are no longer read.
+    #[serde(default = "default_accent_color")]
     pub accent_color: String,
     pub theme: String,
 
@@ -64,8 +65,6 @@ impl Default for Settings {
             window_height: 600.0,
             editor_window_width: 520.0,
             editor_window_height: 420.0,
-            accent_hue: 250.0,
-            accent_chroma_level: "Mellow".to_string(),
             accent_color: "#7C6EE6".to_string(),
             theme: "System".to_string(),
             font_family: "Inter".to_string(),
@@ -149,6 +148,10 @@ impl Settings {
         std::fs::rename(&tmp, path)?;
         Ok(())
     }
+}
+
+fn default_accent_color() -> String {
+    "#7C6EE6".to_string()
 }
 
 fn chrono_now_compact() -> String {

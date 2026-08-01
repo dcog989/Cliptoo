@@ -1,8 +1,6 @@
 use crate::Theme;
 use cliptoo_core::Settings;
-use cliptoo_core::color::{
-    chroma_level_factor, find_max_chroma, oklch_to_srgb_bytes, srgb_bytes_to_oklch,
-};
+use cliptoo_core::color::{oklch_to_srgb_bytes, srgb_bytes_to_oklch};
 use slint::{Color, ComponentHandle, SharedString};
 use std::sync::Mutex;
 
@@ -96,10 +94,44 @@ fn blend(base: Color, accent: Color, alpha: f32) -> Color {
     Color::from_rgb_u8(r, g, b)
 }
 
-fn accent_color(h: f64, l: f64, chroma_scale: f64, chroma_level: f64) -> Color {
-    let max_c = find_max_chroma(l, h);
-    let c = max_c * chroma_level * chroma_scale;
-    let [r, g, b] = oklch_to_srgb_bytes(l, c, h);
+/// Fallback accent RGB used when no valid hex is stored (core settings
+/// default is `#7C6EE6`).
+const DEFAULT_ACCENT: (u8, u8, u8) = (0x7C, 0x6E, 0xE6);
+
+/// Parse a `#RRGGBB` hex string (leading `#` optional) into `(r, g, b)`.
+/// Returns `DEFAULT_ACCENT` for malformed input.
+pub(crate) fn parse_accent_hex(hex: &str) -> (u8, u8, u8) {
+    let hex = hex.trim().trim_start_matches('#');
+    if hex.len() == 6
+        && let Ok(v) = u32::from_str_radix(hex, 16)
+    {
+        (
+            ((v >> 16) & 0xFF) as u8,
+            ((v >> 8) & 0xFF) as u8,
+            (v & 0xFF) as u8,
+        )
+    } else {
+        DEFAULT_ACCENT
+    }
+}
+
+/// Convert a stored accent hex string to a `slint::Color`.
+pub(crate) fn accent_hex_to_color(hex: &str) -> Color {
+    let (r, g, b) = parse_accent_hex(hex);
+    Color::from_rgb_u8(r, g, b)
+}
+
+/// The fallback/default accent color (matches the core settings default).
+pub(crate) fn default_accent_color() -> Color {
+    let (r, g, b) = DEFAULT_ACCENT;
+    Color::from_rgb_u8(r, g, b)
+}
+
+/// Derive a lighter/dimmer sibling of the base accent at OKLCH lightness `l`,
+/// scaling the base color's own chroma by `chroma_scale` — a picked Neon stays
+/// vibrant, a picked Muted stays restrained.
+fn accent_sibling(hue: f64, base_chroma: f64, l: f64, chroma_scale: f64) -> Color {
+    let [r, g, b] = oklch_to_srgb_bytes(l, base_chroma * chroma_scale, hue);
     Color::from_rgb_u8(r, g, b)
 }
 
@@ -111,21 +143,19 @@ pub fn fill_theme(
     is_dark: bool,
     system_accent: Option<(u8, u8, u8)>,
 ) {
-    let (base_l, secondary_l, muted_l) = if is_dark {
-        (0.62, 0.58, 0.54)
-    } else {
-        (0.48, 0.44, 0.40)
-    };
+    let (secondary_l, muted_l) = if is_dark { (0.58, 0.54) } else { (0.44, 0.40) };
 
-    let chroma_level = chroma_level_factor(&settings.accent_chroma_level);
-
-    let (accent, hue) = if let Some((sr, sg, sb)) = system_accent {
+    // Base accent: the system accent in "System" theme mode, otherwise the
+    // user-picked color. Secondary/muted shades are derived from whichever was
+    // used, keeping hue and relative chroma consistent.
+    let (accent, hue, base_chroma) = if let Some((sr, sg, sb)) = system_accent {
         tracing::debug!("detected system accent: #{sr:02X}{sg:02X}{sb:02X}");
-        let (_, _, sys_h) = srgb_bytes_to_oklch(sr, sg, sb);
-        (Color::from_rgb_u8(sr, sg, sb), sys_h)
+        let (_, sys_c, sys_h) = srgb_bytes_to_oklch(sr, sg, sb);
+        (Color::from_rgb_u8(sr, sg, sb), sys_h, sys_c)
     } else {
-        let a = accent_color(settings.accent_hue, base_l, 1.0, chroma_level);
-        (a, settings.accent_hue)
+        let (r, g, b) = parse_accent_hex(&settings.accent_color);
+        let (_, c, h) = srgb_bytes_to_oklch(r, g, b);
+        (Color::from_rgb_u8(r, g, b), h, c)
     };
 
     let ar = accent.red() as f32;
@@ -133,8 +163,8 @@ pub fn fill_theme(
     let ab = accent.blue() as f32;
     t.set_accent_is_dark((0.299 * ar + 0.587 * ag + 0.114 * ab) <= 128.0);
     t.set_accent_primary(accent);
-    t.set_accent_secondary(accent_color(hue, secondary_l, 0.75, chroma_level));
-    t.set_accent_muted(accent_color(hue, muted_l, 0.40, chroma_level));
+    t.set_accent_secondary(accent_sibling(hue, base_chroma, secondary_l, 0.75));
+    t.set_accent_muted(accent_sibling(hue, base_chroma, muted_l, 0.40));
 
     if is_dark {
         t.set_bg_primary(Color::from_rgb_u8(0x18, 0x18, 0x18));
@@ -204,6 +234,24 @@ pub fn cached_resolved_theme() -> ResolvedTheme {
         .unwrap_or((true, None))
 }
 
+/// Convert HSV (hue 0–360, s/v 0–1) to an sRGB color. Standard algorithm;
+/// used to build the evenly-hue-spaced accent swatch palette.
+pub(crate) fn hsv_to_rgb(h: f64, s: f64, v: f64) -> (u8, u8, u8) {
+    let c = v * s;
+    let x = c * (1.0 - ((h / 60.0) % 2.0 - 1.0).abs());
+    let m = v - c;
+    let (r, g, b) = match h as u32 % 360 {
+        0..=59 => (c, x, 0.0),
+        60..=119 => (x, c, 0.0),
+        120..=179 => (0.0, c, x),
+        180..=239 => (0.0, x, c),
+        240..=299 => (x, 0.0, c),
+        _ => (c, 0.0, x),
+    };
+    let to_u8 = |z: f64| ((z + m) * 255.0).round() as u8;
+    (to_u8(r), to_u8(g), to_u8(b))
+}
+
 /// Resolve the dark-mode and system-accent context for the given settings.
 /// Side-effect: caches the result for `cached_resolved_theme`.
 pub async fn resolve_theme(settings: &Settings) -> ResolvedTheme {
@@ -212,7 +260,11 @@ pub async fn resolve_theme(settings: &Settings) -> ResolvedTheme {
         "Dark" => true,
         _ => detect_system_dark().await.unwrap_or(true),
     };
-    let system_accent = if settings.theme.as_str() != "Light" && settings.theme.as_str() != "Dark" {
+    // Follow the OS accent in "System" theme mode, and always when the accent
+    // has been cleared (empty string) — that is the "use OS default" state.
+    let system_accent = if settings.accent_color.trim().is_empty()
+        || (settings.theme.as_str() != "Light" && settings.theme.as_str() != "Dark")
+    {
         detect_system_accent().await
     } else {
         None
