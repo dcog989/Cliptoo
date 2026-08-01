@@ -2,6 +2,7 @@ import { Theme } from "Theme.slint";
 
 export component StepperButton inherits Rectangle {
     in property <string> text;
+    in property <string> tooltip-text;
     callback clicked;
     callback pressed-changed(bool);
 
@@ -29,10 +30,15 @@ export component StepperButton inherits Rectangle {
             root.clicked();
         }
     }
+
+    if root.tooltip-text != "" : Tooltip {
+        text: @markdown("\{root.tooltip-text}");
+    }
 }
 
 export component SettingsTab {
     in property <string> label;
+    in property <string> tooltip-text;
     in property <bool> is-active: false;
     callback clicked;
 
@@ -66,11 +72,16 @@ export component SettingsTab {
         }
         mouse-cursor: pointer;
     }
+
+    if root.tooltip-text != "" : Tooltip {
+        text: @markdown("\{root.tooltip-text}");
+    }
 }
 
 export component TextRow {
     in property <string> label;
     in-out property <string> value;
+    in property <string> tooltip-text;
     callback committed(string);
 
     height: 32px;
@@ -108,11 +119,16 @@ export component TextRow {
             }
         }
     }
+
+    if root.tooltip-text != "" : Tooltip {
+        text: @markdown("\{root.tooltip-text}");
+    }
 }
 
 export component HotkeyRow {
     in property <string> label;
     in-out property <string> value;
+    in property <string> tooltip-text;
     callback committed(string);
     private property <bool> captured: false;
     private property <string> display-text: (ti.has-focus && !root.captured) ? "Press hotkey…" : root.value;
@@ -169,6 +185,10 @@ export component HotkeyRow {
             }
         }
     }
+
+    if root.tooltip-text != "" : Tooltip {
+        text: @markdown("\{root.tooltip-text}");
+    }
 }
 
 export component IntRow {
@@ -177,6 +197,7 @@ export component IntRow {
     in property <int> min-val: 0;
     in property <int> max-val: 99999;
     in property <int> step: 1;
+    in property <string> tooltip-text;
     callback committed(int);
 
     height: 32px;
@@ -228,6 +249,10 @@ export component IntRow {
             }
         }
     }
+
+    if root.tooltip-text != "" : Tooltip {
+        text: @markdown("\{root.tooltip-text}");
+    }
 }
 
 export component FloatRow {
@@ -236,6 +261,7 @@ export component FloatRow {
     in property <int> min-hundredths: 0;
     in property <int> max-hundredths: 9999;
     in property <int> step-hundredths: 50;
+    in property <string> tooltip-text;
     callback committed(float);
 
     height: 32px;
@@ -288,12 +314,17 @@ export component FloatRow {
             }
         }
     }
+
+    if root.tooltip-text != "" : Tooltip {
+        text: @markdown("\{root.tooltip-text}");
+    }
 }
 
 export component DropRow {
     in property <string> label;
     in-out property <int> index;
     in property <[string]> options;
+    in property <string> tooltip-text;
     callback committed(string);
 
     height: 32px;
@@ -349,11 +380,16 @@ export component DropRow {
             }
         }
     }
+
+    if root.tooltip-text != "" : Tooltip {
+        text: @markdown("\{root.tooltip-text}");
+    }
 }
 
 export component ToggleRow {
     in property <string> label;
     in-out property <bool> value;
+    in property <string> tooltip-text;
     callback committed(bool);
 
     height: 32px;
@@ -403,5 +439,9 @@ export component ToggleRow {
                 }
             }
         }
+    }
+
+    if root.tooltip-text != "" : Tooltip {
+        text: @markdown("\{root.tooltip-text}");
     }
 }
