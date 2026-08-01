@@ -1,8 +1,6 @@
 # Cliptoo
 
-Advanced clipboard manager for KDE Plasma 6 / Wayland. Super fast, super slim, packed with features. Rust / Slint - handles thousands of clips without slowing down.
-
-> Rust/Slint rewrite of the original Windows C#/.NET version. See [HLD.md](.docs/HLD.md).
+Advanced clipboard manager for KDE Plasma 6 / Wayland. Super fast, super slim, packed with features. Rust / Slint / rusqlite - handles thousands of clips without slowing down.
 
 ---
 
