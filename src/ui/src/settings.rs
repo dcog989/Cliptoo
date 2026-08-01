@@ -90,18 +90,6 @@ pub fn setup_settings_window(
     {
         let s = settings.borrow();
         settings_win.set_s_hotkey(s.hotkey.as_str().into());
-        settings_win.set_s_launch_position_idx(idx_of(
-            &s.launch_position,
-            &[
-                "Cursor",
-                "Center",
-                "TopLeft",
-                "TopRight",
-                "BottomLeft",
-                "BottomRight",
-                "Fixed",
-            ],
-        ));
         settings_win.set_s_start_with_system(s.start_with_system);
         settings_win.set_s_log_level_idx(idx_of(
             &s.logging_level,
@@ -236,7 +224,6 @@ if ok:
                         }
                         let _ = hotkey_tx.send(s.hotkey.clone());
                     }
-                    "launch_position" => s.launch_position = value.clone(),
                     "start_with_system" => {
                         let enabled = value == "true";
                         s.start_with_system = enabled;

@@ -18,9 +18,6 @@ pub struct Settings {
     pub hotkey: String,
 
     // Window
-    pub launch_position: String,
-    pub fixed_x: i32,
-    pub fixed_y: i32,
     pub window_width: f64,
     pub window_height: f64,
     pub editor_window_width: f64,
@@ -64,9 +61,6 @@ impl Default for Settings {
         Self {
             version: SETTINGS_VERSION,
             hotkey: "Ctrl+Alt+Q".to_string(),
-            launch_position: "Cursor".to_string(),
-            fixed_x: 0,
-            fixed_y: 0,
             window_width: 460.0,
             window_height: 600.0,
             editor_window_width: 520.0,

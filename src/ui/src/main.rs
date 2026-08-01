@@ -132,7 +132,6 @@ async fn main() -> Result<()> {
 
     // ── Global shortcuts ───────────────────────────────────────────────
     {
-        let pos_settings = positioning::PositionSettings::from(&*settings.borrow());
         let ui_weak = ui.as_weak();
         let mut hotkey_rx = hotkey_rx;
         tokio::spawn(async move {
@@ -144,10 +143,8 @@ async fn main() -> Result<()> {
                 let handle = hotkeys::register_shortcuts_and_listen(
                     &[("toggle-cliptoo", main_hotkey.as_str())],
                     {
-                        let ps = pos_settings.clone();
                         let weak = ui_weak.clone();
                         move |shortcut_id| {
-                            let ps = ps.clone();
                             if shortcut_id == "toggle-cliptoo" {
                                 let _ = weak.upgrade_in_event_loop(move |ui| {
                                     use slint::ComponentHandle;
@@ -155,7 +152,6 @@ async fn main() -> Result<()> {
                                         window::hide_window(&ui);
                                     } else {
                                         let _ = window::show_window(&ui);
-                                        positioning::position_window_ex(&ui, &ps);
                                     }
                                 });
                             }
@@ -214,7 +210,6 @@ async fn main() -> Result<()> {
 
             {
                 let win = ui.as_weak();
-                let s = settings.clone();
                 tray.on_toggle_window(move || {
                     if let Some(w) = win.upgrade() {
                         use slint::ComponentHandle;
@@ -222,8 +217,6 @@ async fn main() -> Result<()> {
                             window::hide_window(&w);
                         } else {
                             let _ = window::show_window(&w);
-                            let ps = positioning::PositionSettings::from(&*s.borrow());
-                            positioning::position_window_ex(&w, &ps);
                         }
                     }
                 });
@@ -238,7 +231,6 @@ async fn main() -> Result<()> {
     }
 
     window::show_window(&ui)?;
-    positioning::position_window(&ui, &settings.borrow());
     slint::run_event_loop_until_quit()?;
 
     info!("Cliptoo exiting");
