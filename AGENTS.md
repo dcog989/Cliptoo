@@ -56,7 +56,7 @@ Pre-push hooks: `cargo test --workspace`.
 - Do not create documentation files unless explicitly requested.
 - Prefer incremental improvements over rewrites.
 - Do not run full checks (`cargo build`, `cargo clippy`, `cargo fmt --check`, `cargo test`) for trivial changes (single-line edits, string/field removal, UI copy tweaks). Run them only for non-trivial logic changes.
-- After each completed fix/update, provide a concise single line commit change text with e.g. `fix: `.
+- After each completed fix/update, provide a concise single line commit message with e.g. `fix:`, printed to a code block to allow the user to copy it.
 - Use explicit types and named constants (no magic numbers).
 - Return explicit error types; do not suppress exceptions.
 - `cargo fmt` defaults. No custom rustfmt config.
