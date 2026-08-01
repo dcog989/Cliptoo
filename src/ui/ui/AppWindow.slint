@@ -187,8 +187,8 @@ export component AppWindow inherits Window {
 
         focus-scope := FocusScope {
             key-pressed(e) => {
-                // Track Alt modifier for quick-paste overlay.
-                root.quick-paste-active = e.modifiers.alt;
+                // Track Ctrl modifier for quick-paste overlay.
+                root.quick-paste-active = e.modifiers.control;
 
                 // ── Navigation — always intercepted regardless of search state ──
             if (e.text == Key.UpArrow) {
@@ -221,8 +221,8 @@ export component AppWindow inherits Window {
                     return accept;
                 }
 
-            // ── Quick-paste: Alt + digit 1–9 ──
-            if (e.modifiers.alt && e.text >= "1" && e.text <= "\{root.quick-paste-slots}") {
+            // ── Quick-paste: Ctrl + digit 1–9 ──
+            if (e.modifiers.control && e.text >= "1" && e.text <= "\{root.quick-paste-slots}") {
                     if (e.text == "1" && root.clips.length > 0) {
                         root.item-activated(root.clips[0].id);
                     }
@@ -279,8 +279,8 @@ export component AppWindow inherits Window {
                 reject
             }
             key-released(e) => {
-            // Clear quick-paste overlay when Alt is released.
-            root.quick-paste-active = e.modifiers.alt;
+            // Clear quick-paste overlay when Ctrl is released.
+            root.quick-paste-active = e.modifiers.control;
                 reject
             }
             focus-lost(reason) => {
