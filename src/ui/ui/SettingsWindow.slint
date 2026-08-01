@@ -15,7 +15,7 @@ import {
 import { ToastNotification } from "ToastNotification.slint";
 
 export component SettingsWindow inherits Window {
-    title: "Cliptoo Settings";
+    title: @tr("Cliptoo Settings");
     width: 560px;
     height: 520px;
     background: Theme.bg-primary;
@@ -57,6 +57,12 @@ export component SettingsWindow inherits Window {
     callback font-picker();
     callback open-log();
 
+    // Tooltip text for inline controls (Tooltip.text is styled-text, so @tr is
+    // bound here and interpolated through @markdown at the use site).
+    private property <string> tip-open-log: @tr("Open the most recent log file in your default viewer");
+    private property <string> tip-font-family: @tr("Font family used for the clip list");
+    private property <string> tip-hover-delay: @tr("Delay before the image hover preview appears");
+
     forward-focus: settings-focus;
     settings-focus := FocusScope {
         key-pressed(event) => {
@@ -83,10 +89,10 @@ export component SettingsWindow inherits Window {
                 spacing: 4px;
                 alignment: start;
                 for tab[i] in [
-                    { label: "General", tip: "General settings: hotkey, startup, and logging" },
-                    { label: "Visuals", tip: "Appearance: theme, colors, fonts, and layout" },
-                    { label: "External Apps", tip: "External tools used by Cliptoo" },
-                    { label: "Data", tip: "Clipboard history: limits and maintenance" },
+                    { label: @tr("General"), tip: @tr("General settings: hotkey, startup, and logging") },
+                    { label: @tr("Visuals"), tip: @tr("Appearance: theme, colors, fonts, and layout") },
+                    { label: @tr("External Apps"), tip: @tr("External tools used by Cliptoo") },
+                    { label: @tr("Data"), tip: @tr("Clipboard history: limits and maintenance") },
                 ]: SettingsTab {
                     label: tab.label;
                     tooltip-text: tab.tip;
@@ -108,8 +114,8 @@ export component SettingsWindow inherits Window {
             if root.active-tab == 0: VerticalLayout {
                 spacing: 12px;
                 HotkeyRow {
-                    label: "Launch hotkey";
-                    tooltip-text: "Global hotkey to toggle the Cliptoo window";
+                    label: @tr("Launch hotkey");
+                    tooltip-text: @tr("Global hotkey to toggle the Cliptoo window");
                     value <=> root.s-hotkey;
                     committed(v) => {
                         root.setting-changed("hotkey", v);
@@ -117,8 +123,8 @@ export component SettingsWindow inherits Window {
                 }
 
                 ToggleRow {
-                    label: "Start with system";
-                    tooltip-text: "Launch Cliptoo automatically when you log in";
+                    label: @tr("Start with system");
+                    tooltip-text: @tr("Launch Cliptoo automatically when you log in");
                     value <=> root.s-start-with-system;
                     committed(v) => {
                         root.setting-changed("start_with_system", v ? "true" : "false");
@@ -126,8 +132,8 @@ export component SettingsWindow inherits Window {
                 }
 
                 DropRow {
-                    label: "Log level";
-                    tooltip-text: "Verbosity of messages written to the log file";
+                    label: @tr("Log level");
+                    tooltip-text: @tr("Verbosity of messages written to the log file");
                     index <=> root.s-log-level-idx;
                     options: ["Debug", "Info", "Warn", "Error"];
                     committed(v) => {
@@ -141,21 +147,21 @@ export component SettingsWindow inherits Window {
                     height: 32px;
                     Text {
                         width: 180px;
-                        text: "Log file";
+                        text: @tr("Log file");
                         color: Theme.fg-primary;
                         font-size: Theme.font-size;
                         vertical-alignment: center;
                     }
 
                     Text {
-                        text: "Open latest log";
+                        text: @tr("Open latest log");
                         color: Theme.accent-primary;
                         font-size: Theme.font-size;
                         vertical-alignment: center;
                         TouchArea {
                             mouse-cursor: pointer;
                             Tooltip {
-                                text: @markdown("Open the most recent log file in your default viewer");
+                                text: @markdown("\{root.tip-open-log}");
                             }
                             clicked => {
                                 root.open-log();
@@ -169,7 +175,7 @@ export component SettingsWindow inherits Window {
             if root.active-tab == 1: VerticalLayout {
                 spacing: 12px;
                 DropRow {
-                    label: "Theme";
+                    label: @tr("Theme");
                     index <=> root.s-theme-idx;
                     options: ["System", "Light", "Dark"];
                     committed(v) => {
@@ -183,7 +189,7 @@ export component SettingsWindow inherits Window {
                     height: 32px;
                     Text {
                         width: 180px;
-                        text: "Accent hue (0–360)";
+                        text: @tr("Accent hue (0–360)");
                         color: Theme.fg-primary;
                         font-size: Theme.font-size;
                         vertical-alignment: center;
@@ -203,7 +209,7 @@ export component SettingsWindow inherits Window {
                             cross-axis-alignment: center;
                             StepperButton {
                                 text: "−";
-                                tooltip-text: "Decrease accent hue";
+                                tooltip-text: @tr("Decrease accent hue");
                                 pressed-changed(held) => {
                                     root.hue-step(held ? "minus" : "stop");
                                 }
@@ -222,7 +228,7 @@ export component SettingsWindow inherits Window {
 
                             StepperButton {
                                 text: "+";
-                                tooltip-text: "Increase accent hue";
+                                tooltip-text: @tr("Increase accent hue");
                                 pressed-changed(held) => {
                                     root.hue-step(held ? "plus" : "stop");
                                 }
@@ -245,8 +251,8 @@ export component SettingsWindow inherits Window {
                 }
 
                 DropRow {
-                    label: "Chroma level";
-                    tooltip-text: "Color saturation of the accent color";
+                    label: @tr("Chroma level");
+                    tooltip-text: @tr("Color saturation of the accent color");
                     index <=> root.s-chroma-idx;
                     options: ["Neon", "Vibrant", "Mellow", "Muted", "Ditchwater"];
                     committed(v) => {
@@ -260,7 +266,7 @@ export component SettingsWindow inherits Window {
                     height: 32px;
                     Text {
                         width: 180px;
-                        text: "Font family";
+                        text: @tr("Font family");
                         color: Theme.fg-primary;
                         font-size: Theme.font-size;
                         vertical-alignment: center;
@@ -287,13 +293,13 @@ export component SettingsWindow inherits Window {
                             }
                         }
                         Tooltip {
-                            text: @markdown("Font family used for the clip list");
+                            text: @markdown("\{root.tip-font-family}");
                         }
                     }
 
                     StepperButton {
                         text: "…";
-                        tooltip-text: "Pick a font from the system font dialog";
+                        tooltip-text: @tr("Pick a font from the system font dialog");
                         clicked => {
                             root.font-picker();
                         }
@@ -301,8 +307,8 @@ export component SettingsWindow inherits Window {
                 }
 
                 FloatRow {
-                    label: "Font size (pt)";
-                    tooltip-text: "Base interface font size in points";
+                    label: @tr("Font size (pt)");
+                    tooltip-text: @tr("Base interface font size in points");
                     value-hundredths <=> root.s-font-size-hundredths;
                     min-hundredths: 800;
                     max-hundredths: 2400;
@@ -313,8 +319,8 @@ export component SettingsWindow inherits Window {
                 }
 
                 FloatRow {
-                    label: "Preview font size (pt)";
-                    tooltip-text: "Font size used for code and color previews";
+                    label: @tr("Preview font size (pt)");
+                    tooltip-text: @tr("Font size used for code and color previews");
                     value-hundredths <=> root.s-preview-font-size-hundredths;
                     min-hundredths: 800;
                     max-hundredths: 2400;
@@ -325,8 +331,8 @@ export component SettingsWindow inherits Window {
                 }
 
                 DropRow {
-                    label: "Row padding";
-                    tooltip-text: "Vertical padding of items in the clip list";
+                    label: @tr("Row padding");
+                    tooltip-text: @tr("Vertical padding of items in the clip list");
                     index <=> root.s-row-padding-idx;
                     options: ["Compact", "Standard", "Luxury"];
                     committed(v) => {
@@ -340,7 +346,7 @@ export component SettingsWindow inherits Window {
                     height: 32px;
                     Text {
                         width: 180px;
-                        text: "Preview hover delay";
+                        text: @tr("Preview hover delay");
                         color: Theme.fg-primary;
                         font-size: Theme.font-size;
                         vertical-alignment: center;
@@ -374,7 +380,7 @@ export component SettingsWindow inherits Window {
                             }
 
                             Text {
-                                text: root.hover-delay == 0 ? "Off" : "\{root.hover-delay} ms";
+                                text: root.hover-delay == 0 ? @tr("Off") : @tr("{} ms", root.hover-delay);
                                 color: Theme.fg-primary;
                                 font-size: Theme.font-size;
                             }
@@ -386,7 +392,7 @@ export component SettingsWindow inherits Window {
                             x: 12px;
                             y: 0px;
                             Tooltip {
-                                text: @markdown("Delay before the image hover preview appears");
+                                text: @markdown("\{root.tip-hover-delay}");
                             }
                             pointer-event(e) => {
                                 if (e.kind == PointerEventKind.down || (e.kind == PointerEventKind.move && self.pressed)) {
@@ -401,8 +407,8 @@ export component SettingsWindow inherits Window {
                 }
 
                 IntRow {
-                    label: "Image preview size (px)";
-                    tooltip-text: "Maximum width/height of hover preview images";
+                    label: @tr("Image preview size (px)");
+                    tooltip-text: @tr("Maximum width/height of hover preview images");
                     value <=> root.s-image-preview-size;
                     min-val: 100;
                     max-val: 800;
@@ -413,8 +419,8 @@ export component SettingsWindow inherits Window {
                 }
 
                 ToggleRow {
-                    label: "Paste as plain text";
-                    tooltip-text: "Strip formatting when pasting text from Cliptoo";
+                    label: @tr("Paste as plain text");
+                    tooltip-text: @tr("Strip formatting when pasting text from Cliptoo");
                     value <=> root.s-paste-as-plain-text;
                     committed(v) => {
                         root.setting-changed("paste_as_plain_text", v ? "true" : "false");
@@ -426,8 +432,8 @@ export component SettingsWindow inherits Window {
             if root.active-tab == 2: VerticalLayout {
                 spacing: 12px;
                 TextRow {
-                    label: "Diff tool path";
-                    tooltip-text: "Command used to compare two text clips";
+                    label: @tr("Diff tool path");
+                    tooltip-text: @tr("Command used to compare two text clips");
                     value <=> root.s-diff-tool-path;
                     committed(v) => {
                         root.setting-changed("compare_tool_path", v);
@@ -435,7 +441,7 @@ export component SettingsWindow inherits Window {
                 }
 
                 Text {
-                    text: "Send To apps and Blacklist are managed via JSON settings file.";
+                    text: @tr("Send To apps and Blacklist are managed via JSON settings file.");
                     color: Theme.fg-muted;
                     font-size: Theme.font-size;
                     wrap: word-wrap;
@@ -446,8 +452,8 @@ export component SettingsWindow inherits Window {
             if root.active-tab == 3: VerticalLayout {
                 spacing: 12px;
                 IntRow {
-                    label: "Max clips";
-                    tooltip-text: "Maximum number of clips kept in history";
+                    label: @tr("Max clips");
+                    tooltip-text: @tr("Maximum number of clips kept in history");
                     value <=> root.s-max-clips;
                     min-val: 100;
                     max-val: 100000;
@@ -458,8 +464,8 @@ export component SettingsWindow inherits Window {
                 }
 
                 IntRow {
-                    label: "Max age (days)";
-                    tooltip-text: "Automatically remove clips older than this many days";
+                    label: @tr("Max age (days)");
+                    tooltip-text: @tr("Automatically remove clips older than this many days");
                     value <=> root.s-max-age-days;
                     min-val: 1;
                     max-val: 3650;
@@ -472,12 +478,12 @@ export component SettingsWindow inherits Window {
                 GridLayout {
                     spacing: 8px;
                     for action[idx] in [
-                        { key: "clear-history", label: "Clear History", tip: "Delete all clips from the clipboard history" },
-                        { key: "clear-caches", label: "Clear Caches", tip: "Clear cached previews, thumbnails, and favicons" },
-                        { key: "deadhead", label: "Deadhead", tip: "Compact the database file, freeing unused space" },
-                        { key: "reclassify", label: "Reclassify All", tip: "Re-run content detection on every clip" },
-                        { key: "export", label: "Export JSON", tip: "Save all clips to a JSON file" },
-                        { key: "import", label: "Import JSON", tip: "Load clips from a JSON file" },
+                        { key: "clear-history", label: @tr("Clear History"), tip: @tr("Delete all clips from the clipboard history") },
+                        { key: "clear-caches", label: @tr("Clear Caches"), tip: @tr("Clear cached previews, thumbnails, and favicons") },
+                        { key: "deadhead", label: @tr("Deadhead"), tip: @tr("Compact the database file, freeing unused space") },
+                        { key: "reclassify", label: @tr("Reclassify All"), tip: @tr("Re-run content detection on every clip") },
+                        { key: "export", label: @tr("Export JSON"), tip: @tr("Save all clips to a JSON file") },
+                        { key: "import", label: @tr("Import JSON"), tip: @tr("Load clips from a JSON file") },
                     ]: Rectangle {
                         row: Math.floor(idx / 3);
                         col: Math.mod(idx, 3);

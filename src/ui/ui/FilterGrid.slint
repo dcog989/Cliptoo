@@ -11,22 +11,22 @@ export component FilterGrid {
     callback filter-chosen(string);
 
     property <[FilterItem]> items: [
-        { key: "all", label: "All" },
-        { key: "text", label: "Text" },
-        { key: "file_image", label: "Image" },
-        { key: "bookmarked", label: "Bookmarked" },
-        { key: "link", label: "Link" },
-        { key: "code_snippet", label: "Code" },
-        { key: "color", label: "Color" },
-        { key: "folder", label: "Folder" },
-        { key: "file_audio", label: "Audio" },
-        { key: "file_video", label: "Video" },
-        { key: "file_archive", label: "Archive" },
-        { key: "file_document", label: "Document" },
-        { key: "file_database", label: "Database" },
-        { key: "file_font", label: "Font" },
-        { key: "rtf", label: "Rich Text" },
-        { key: "file", label: "File" },
+        { key: "all", label: @tr("All") },
+        { key: "text", label: @tr("Text") },
+        { key: "file_image", label: @tr("Image") },
+        { key: "bookmarked", label: @tr("Bookmarked") },
+        { key: "link", label: @tr("Link") },
+        { key: "code_snippet", label: @tr("Code") },
+        { key: "color", label: @tr("Color") },
+        { key: "folder", label: @tr("Folder") },
+        { key: "file_audio", label: @tr("Audio") },
+        { key: "file_video", label: @tr("Video") },
+        { key: "file_archive", label: @tr("Archive") },
+        { key: "file_document", label: @tr("Document") },
+        { key: "file_database", label: @tr("Database") },
+        { key: "file_font", label: @tr("Font") },
+        { key: "rtf", label: @tr("Rich Text") },
+        { key: "file", label: @tr("File") },
     ];
 
     property <length> grid-spacing: 4px;

@@ -8,7 +8,7 @@ import { Theme } from "Theme.slint";
 import { ScrollView } from "std-widgets.slint";
 
 export component EditWindow inherits Window {
-    title: "Edit Clip";
+    title: @tr("Edit Clip");
     width: 520px;
     height: 420px;
     background: Theme.bg-primary;
@@ -113,7 +113,7 @@ export component EditWindow inherits Window {
             spacing: 8px;
             alignment: center;
             Text {
-                text: "Tags:";
+                text: @tr("Tags:");
                 color: Theme.fg-secondary;
                 font-size: Theme.font-size;
                 vertical-alignment: center;
@@ -142,7 +142,7 @@ export component EditWindow inherits Window {
                 border-radius: 6px;
                 background: Theme.bg-input;
                 Text {
-                    text: "Cancel";
+                    text: @tr("Cancel");
                     color: Theme.fg-secondary;
                     horizontal-alignment: center;
                     vertical-alignment: center;
@@ -166,7 +166,7 @@ export component EditWindow inherits Window {
                 border-radius: 6px;
                 background: Theme.accent-primary;
                 Text {
-                    text: "Save";
+                    text: @tr("Save");
                     color: white;
                     horizontal-alignment: center;
                     vertical-alignment: center;

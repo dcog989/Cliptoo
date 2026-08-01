@@ -112,28 +112,28 @@ export component ContextMenu {
             spacing: 0px;
 
             MenuRow {
-                label: "Preview";
+                label: @tr("Preview");
                 clicked => {
                     root.preview();
                 }
             }
 
             MenuRow {
-                label: "Edit";
+                label: @tr("Edit");
                 clicked => {
                     root.edit();
                 }
             }
 
             if root.is-text-type: MenuRow {
-                label: "Format";
+                label: @tr("Format");
                 has-arrow: true;
                 clicked => {
                     root.view = "format";
                 }
             }
             MenuRow {
-                label: "Delete";
+                label: @tr("Delete");
                 is-danger: true;
                 clicked => {
                     root.delete();
@@ -145,28 +145,28 @@ export component ContextMenu {
             }
 
             MenuRow {
-                label: "Move to Top";
+                label: @tr("Move to Top");
                 clicked => {
                     root.move-to-top();
                 }
             }
 
             MenuRow {
-                label: "Move to Bottom";
+                label: @tr("Move to Bottom");
                 clicked => {
                     root.move-to-bottom();
                 }
             }
 
             MenuRow {
-                label: "Move Up One";
+                label: @tr("Move Up One");
                 clicked => {
                     root.move-up-one();
                 }
             }
 
             MenuRow {
-                label: "Move Down One";
+                label: @tr("Move Down One");
                 clicked => {
                     root.move-down-one();
                 }
@@ -177,7 +177,7 @@ export component ContextMenu {
             }
 
             MenuRow {
-                label: root.clip-is-bookmarked ? "Remove Bookmark" : "Bookmark";
+                label: root.clip-is-bookmarked ? @tr("Remove Bookmark") : @tr("Bookmark");
                 clicked => {
                     root.toggle-bookmark(root.clip-id, root.clip-is-bookmarked);
                 }
@@ -187,7 +187,7 @@ export component ContextMenu {
                 is-separator: true;
             }
             if root.send-to-apps.length > 0: MenuRow {
-                label: "Send To";
+                label: @tr("Send To");
                 has-arrow: true;
                 clicked => {
                     root.view = "send-to";
@@ -202,7 +202,7 @@ export component ContextMenu {
             spacing: 0px;
 
             MenuRow {
-                label: "← Back";
+                label: @tr("← Back");
                 clicked => {
                     root.view = "main";
                 }
@@ -213,35 +213,35 @@ export component ContextMenu {
             }
 
             MenuRow {
-                label: "UPPER CASE";
+                label: @tr("UPPER CASE");
                 clicked => {
                     root.format("upper");
                 }
             }
 
             MenuRow {
-                label: "lower case";
+                label: @tr("lower case");
                 clicked => {
                     root.format("lower");
                 }
             }
 
             MenuRow {
-                label: "Capitalize Words";
+                label: @tr("Capitalize Words");
                 clicked => {
                     root.format("capitalize");
                 }
             }
 
             MenuRow {
-                label: "Sentence case";
+                label: @tr("Sentence case");
                 clicked => {
                     root.format("sentence");
                 }
             }
 
             MenuRow {
-                label: "iNVERT cASE";
+                label: @tr("iNVERT cASE");
                 clicked => {
                     root.format("invert");
                 }
@@ -252,28 +252,28 @@ export component ContextMenu {
             }
 
             MenuRow {
-                label: "kebab-case";
+                label: @tr("kebab-case");
                 clicked => {
                     root.format("kebab");
                 }
             }
 
             MenuRow {
-                label: "snake_case";
+                label: @tr("snake_case");
                 clicked => {
                     root.format("snake");
                 }
             }
 
             MenuRow {
-                label: "camelCase";
+                label: @tr("camelCase");
                 clicked => {
                     root.format("camel");
                 }
             }
 
             MenuRow {
-                label: "De-slug";
+                label: @tr("De-slug");
                 clicked => {
                     root.format("deslug");
                 }
@@ -284,28 +284,28 @@ export component ContextMenu {
             }
 
             MenuRow {
-                label: "Trim Whitespace";
+                label: @tr("Trim Whitespace");
                 clicked => {
                     root.format("trim");
                 }
             }
 
             MenuRow {
-                label: "Remove Line Breaks";
+                label: @tr("Remove Line Breaks");
                 clicked => {
                     root.format("remove_lf");
                 }
             }
 
             MenuRow {
-                label: "Normalize LF";
+                label: @tr("Normalize LF");
                 clicked => {
                     root.format("lf1");
                 }
             }
 
             MenuRow {
-                label: "Add Timestamp";
+                label: @tr("Add Timestamp");
                 clicked => {
                     root.format("timestamp");
                 }
@@ -319,7 +319,7 @@ export component ContextMenu {
             spacing: 0px;
 
             MenuRow {
-                label: "← Back";
+                label: @tr("← Back");
                 clicked => {
                     root.view = "main";
                 }

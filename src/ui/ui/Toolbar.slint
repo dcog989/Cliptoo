@@ -151,7 +151,7 @@ export component Toolbar {
                     height: 100%;
                     font-size: Theme.font-size;
                     text <=> root.search-text;
-                    placeholder-text: "Search…";
+                    placeholder-text: @tr("Search…");
                     edited => {
                         root.search-changed(self.text);
                     }
