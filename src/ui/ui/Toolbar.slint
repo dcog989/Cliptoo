@@ -120,7 +120,7 @@ export component Toolbar {
 
                 property <bool> dragging: false;
                 touch := TouchArea {
-                    mouse-cursor: MouseCursor.move;
+                    mouse-cursor: dragging ? MouseCursor.grabbing : MouseCursor.grab;
                     pointer-event(e) => {
                         if e.kind == PointerEventKind.move && touch.pressed && !dragging {
                             dragging = true;
