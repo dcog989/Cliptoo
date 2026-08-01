@@ -1,8 +1,8 @@
 # Cliptoo
 
-Advanced clipboard manager for KDE Plasma 6 / Wayland. Rust backend, Slint UI. <20 MB RAM, handles 10k+ records without blocking the UI thread.
+Advanced clipboard manager for KDE Plasma 6 / Wayland. Super fast, super slim, packed with features. Rust / Slint - handles thousands of clips without slowing down.
 
-> Rust/Slint rewrite of the original WindowsC#/.NET version. See [HLD.md](.docs/HLD.md).
+> Rust/Slint rewrite of the original Windows C#/.NET version. See [HLD.md](.docs/HLD.md).
 
 ---
 
@@ -10,11 +10,11 @@ Advanced clipboard manager for KDE Plasma 6 / Wayland. Rust backend, Slint UI. <
 
 - **Persistent History:** SQLite with FTS5 full-text search.
 - **Fast Search:** Real-time filtering with match highlighting on thousands of clips.
-- **Content-Aware Filtering:** Filter by text, links, images, colors, bookmarks.
-- **Bookmarks:** Keep items; they bypass auto-cleanup.
+- **Content-Aware Filtering:** Filter by text, links, images, colors, bookmarks, etc.
+- **Bookmarks:** Make clips permanent, avoid auto-cleanup.
 - **Virtualized Scrolling:** O(1) visible-row rendering regardless of list size.
 - **Image Previews:** Hover thumbnails for PNG, JPEG, WebP, AVIF, JXL, SVG.
-- **Color Swatches:** `#hex`, `rgb()`, `hsl()`, `oklch()` with transparency.
+- **Color Swatches:** `#hex`, `rgb()`, `hsl()`, `oklch()` - all with transparency.
 - **Code Highlighting:** Syntax-highlighted editor via `syntect`.
 - **URL Metadata:** Auto-fetches page titles and favicons.
 - **File Info:** Size, modification date, type classification.
