@@ -63,6 +63,12 @@ export component AppWindow inherits Window {
     public function reset-focus() {
         focus-scope.focus();
     }
+    // Scrolls the clip list back to the top and selects the first row.
+    // Called from Rust on every show() so the list never opens scrolled to
+    // wherever it was left last time.
+    public function reset-scroll() {
+        clip-list.nav-home();
+    }
     // Phase-5 callbacks
     callback transform-clip(int, string);       // id, transform key
     callback send-to-clip(int, string);         // id, app_path (or name)

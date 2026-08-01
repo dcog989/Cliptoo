@@ -22,6 +22,9 @@ pub fn show_window(ui: &crate::AppWindow) -> Result<(), slint::PlatformError> {
         // focused, which would silence blur-to-tray (see AppWindow.slint
         // reset-focus doc comment).
         ui.invoke_reset_focus();
+        // Always start the clip list at the top on show, rather than
+        // wherever it was last scrolled to.
+        ui.invoke_reset_scroll();
     }
     result
 }
