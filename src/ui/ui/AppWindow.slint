@@ -55,6 +55,14 @@ export component AppWindow inherits Window {
     callback menu-settings();
     callback menu-about();
     callback menu-close-to-tray();
+    // Re-anchors keyboard focus to focus-scope. forward-focus only applies
+    // the *first* time the window is activated (Slint focus docs); once
+    // search-input is clicked it keeps focus permanently, silencing the
+    // focus-lost/blur-closed path and the focus-poll fallback (gated on
+    // !toolbar.search-focused). Called from Rust on every show().
+    public function reset-focus() {
+        focus-scope.focus();
+    }
     // Phase-5 callbacks
     callback transform-clip(int, string);       // id, transform key
     callback send-to-clip(int, string);         // id, app_path (or name)
