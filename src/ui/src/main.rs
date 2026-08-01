@@ -34,11 +34,7 @@ slint::include_modules!();
 async fn main() -> Result<()> {
     let dirs = app_dirs::AppDirs::resolve()?;
     let settings = cliptoo_core::Settings::load(&dirs.settings_path);
-    let _log_guard = cliptoo_core::logger::init(
-        &dirs.logs_dir,
-        settings.log_level_filter(),
-        settings.log_retention_days,
-    );
+    let _log_guard = cliptoo_core::logger::init(&dirs.logs_dir, settings.log_level_filter());
 
     info!("Cliptoo starting");
 

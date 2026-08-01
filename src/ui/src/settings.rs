@@ -95,7 +95,6 @@ pub fn setup_settings_window(
             &s.logging_level,
             &["Debug", "Info", "Warn", "Error"],
         ));
-        settings_win.set_s_log_retention_days(s.log_retention_days as i32);
         settings_win.set_s_theme_idx(idx_of(&s.theme, &["System", "Light", "Dark"]));
         settings_win.set_s_accent_hue(s.accent_hue as i32);
         settings_win.set_s_chroma_idx(idx_of(
@@ -123,6 +122,23 @@ pub fn setup_settings_window(
         settings_win.on_maintenance_action(move |key: slint::SharedString| {
             if let Some(ui) = main_ui.upgrade() {
                 ui.invoke_maintenance_action(key);
+            }
+        });
+    }
+
+    // Open the latest log file via the system default viewer.
+    {
+        let logs_dir = dirs.logs_dir.clone();
+        settings_win.on_open_log(move || {
+            let Some(latest) = cliptoo_core::logger::latest_log_path(&logs_dir) else {
+                tracing::warn!("open-log: no log file yet in {}", logs_dir.display());
+                return;
+            };
+            if let Err(e) = std::process::Command::new("xdg-open").arg(&latest).spawn() {
+                tracing::warn!(
+                    "open-log: failed to launch xdg-open for {}: {e}",
+                    latest.display()
+                );
             }
         });
     }
@@ -234,11 +250,6 @@ if ok:
                         }
                     }
                     "logging_level" => s.logging_level = value.clone(),
-                    "log_retention_days" => {
-                        if let Ok(v) = value.parse::<u32>() {
-                            s.log_retention_days = v;
-                        }
-                    }
                     "theme" => {
                         s.theme = value.clone();
                         reapply_theme(&settings_ui, &sw, &s);

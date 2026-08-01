@@ -30,7 +30,6 @@ export component SettingsWindow inherits Window {
     in-out property <string> s-hotkey:               "Ctrl+Alt+Q";
     in-out property <bool> s-start-with-system:    true;
     in-out property <int> s-log-level-idx:        1;  // Debug/Info/Warn/Error
-    in-out property <int> s-log-retention-days:   14;
 
     // Visuals
     in-out property <int> s-theme-idx:            0;  // System/Light/Dark
@@ -56,6 +55,7 @@ export component SettingsWindow inherits Window {
     callback maintenance-action(string);
     callback hue-step(string);
     callback font-picker();
+    callback open-log();
 
     forward-focus: settings-focus;
     settings-focus := FocusScope {
@@ -126,14 +126,29 @@ export component SettingsWindow inherits Window {
                     }
                 }
 
-                IntRow {
-                    label: "Log retention (days)";
-                    value <=> root.s-log-retention-days;
-                    min-val: 1;
-                    max-val: 365;
-                    step: 1;
-                    committed(v) => {
-                        root.setting-changed("log_retention_days", "\{v}");
+                HorizontalLayout {
+                    spacing: 12px;
+                    alignment: start;
+                    height: 32px;
+                    Text {
+                        width: 180px;
+                        text: "Log file";
+                        color: Theme.fg-primary;
+                        font-size: Theme.font-size;
+                        vertical-alignment: center;
+                    }
+
+                    Text {
+                        text: "Open latest log";
+                        color: Theme.accent-primary;
+                        font-size: Theme.font-size;
+                        vertical-alignment: center;
+                        TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                root.open-log();
+                            }
+                        }
                     }
                 }
             }

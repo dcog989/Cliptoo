@@ -53,7 +53,6 @@ pub struct Settings {
     // System
     pub start_with_system: bool,
     pub logging_level: String,
-    pub log_retention_days: u32,
 }
 
 impl Default for Settings {
@@ -84,7 +83,6 @@ impl Default for Settings {
             blacklisted_apps: vec![],
             start_with_system: true,
             logging_level: "Info".to_string(),
-            log_retention_days: 14,
         }
     }
 }
