@@ -32,7 +32,15 @@ export component HamburgerMenu {
                 HorizontalLayout {
                     padding-left: 12px;
                     padding-right: 12px;
-                    alignment: center;
+                    spacing: 8px;
+                    alignment: start;
+
+                    Image {
+                        width: 16px;
+                        height: 16px;
+                        source: @image-url("icons/settings.svg");
+                        colorize: Theme.fg-secondary;
+                    }
 
                     Text {
                         text: @tr("Settings");
@@ -60,7 +68,15 @@ export component HamburgerMenu {
                 HorizontalLayout {
                     padding-left: 12px;
                     padding-right: 12px;
-                    alignment: center;
+                    spacing: 8px;
+                    alignment: start;
+
+                    Image {
+                        width: 16px;
+                        height: 16px;
+                        source: @image-url("icons/info.svg");
+                        colorize: Theme.fg-secondary;
+                    }
 
                     Text {
                         text: @tr("About");
@@ -88,7 +104,15 @@ export component HamburgerMenu {
                 HorizontalLayout {
                     padding-left: 12px;
                     padding-right: 12px;
-                    alignment: center;
+                    spacing: 8px;
+                    alignment: start;
+
+                    Image {
+                        width: 16px;
+                        height: 16px;
+                        source: @image-url("icons/minimize-2.svg");
+                        colorize: Theme.fg-secondary;
+                    }
 
                     Text {
                         text: @tr("Close to Tray");
