@@ -29,7 +29,7 @@ Hooks (lefthook): fmt + clippy on `.rs`, `slint-lsp format -i` on `.slint`; pre-
 
 - Root: `/home/bubba/Projects/Cliptoo/`
 - Allowed: all subdirectories
-- Read-Only: `.env*`, `.git/`, `~/.cargo/registry/src/**/*.slint`
+- Read-Only: `.env*`, `.git/`, `~/.cargo/registry/src/` (read freely — full source, `.rs` and `.slint` alike, for checking library internals)
 - Disallowed: `.assets/`, `.docs/ToDo.md`, `.git/`, `node_modules/`, `.docs/archive/`
 - Require confirmation: dependency add/remove, changes outside `src/`, anything outside project root
 
