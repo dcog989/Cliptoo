@@ -7,5 +7,4 @@ Type=Application
 Categories=Utility;
 Keywords=clipboard;paste;history;
 StartupNotify=false
-NoDisplay=true
 X-KDE-StartupNotify=false
