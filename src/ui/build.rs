@@ -4,6 +4,9 @@ fn main() {
 
     let mut build = cc::Build::new();
     build.cpp(true).file("src/drag_qt.cpp");
+    // Ensure editing the FFI shim re-runs the build script; without this,
+    // cargo can link a stale libdrag_qt.a missing newly added symbols.
+    println!("cargo:rerun-if-changed=src/drag_qt.cpp");
 
     // Qt6Widgets (for QWidget access in the FFI shim).
     if let Ok(lib) = pkg_config::probe_library("Qt6Widgets") {

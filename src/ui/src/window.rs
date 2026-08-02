@@ -22,6 +22,10 @@ pub fn show_window(ui: &crate::AppWindow) -> Result<(), slint::PlatformError> {
     let result = ComponentHandle::show(ui);
     if result.is_ok() {
         ui.set_window_visible(true);
+        // Activate/focus the window now. Otherwise the first click on a just-
+        // shown window is consumed merely focusing it, so controls (e.g. the
+        // hamburger menu) would need a second click.
+        crate::drag::activate_window(ui);
         // forward-focus only seeds focus-scope on the window's first-ever
         // activation. Re-anchor it explicitly on every show so a prior
         // session's click into search-input can't leave it permanently
