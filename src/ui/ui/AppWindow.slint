@@ -112,7 +112,7 @@ export component AppWindow inherits Window {
     in property <length> min-window-height: 240px;
     property <length> toolbar-height: 48px;
     property <length> hamburger-menu-width: 180px;
-    property <length> hamburger-menu-y-offset: 220px;
+    property <length> hamburger-menu-gap: 6px;
     // FilterGrid intrinsic extent: 4 cells of 36px plus 8px padding and
     // 4px grid spacing each way (matches FilterGrid.slint).
     property <length> filter-popup-size: 172px;
@@ -458,10 +458,12 @@ export component AppWindow inherits Window {
         forward-focus: focus-scope;
 
         x: root.width - (root.hamburger-menu-width + 10px);
-        y: root.height - root.hamburger-menu-y-offset;
+        // Bottom edge just above the hamburger button: the toolbar is
+        // toolbar-height tall and the button sits 8px below its top.
+        y: root.height - root.toolbar-height + 8px - hamburger.menu-height - root.hamburger-menu-gap;
         width: root.hamburger-menu-width;
 
-        HamburgerMenu {
+        hamburger := HamburgerMenu {
             width: root.hamburger-menu-width;
             menu-settings => {
                 root.menu-settings();

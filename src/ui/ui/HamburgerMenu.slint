@@ -8,7 +8,11 @@ export component HamburgerMenu {
     callback menu-about();
     callback menu-close-to-tray();
 
-    Rectangle {
+    // Intrinsic popup height, used by AppWindow to place the popup just
+    // above the hamburger button.
+    out property <length> menu-height: menu-root.height;
+
+    menu-root := Rectangle {
         border-radius: 8px;
         background: Theme.bg-header;
         border-width: 1px;
