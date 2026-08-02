@@ -118,7 +118,6 @@ export component AppWindow inherits Window {
     in property <length> min-window-width: 320px;
     in property <length> min-window-height: 240px;
     property <length> toolbar-height: 48px;
-    property <length> hamburger-menu-width: 150px;
     property <length> hamburger-menu-gap: 6px;
     // FilterGrid intrinsic extent: 4 cells of 36px plus 8px padding and
     // 4px grid spacing each way (matches FilterGrid.slint).
@@ -148,7 +147,7 @@ export component AppWindow inherits Window {
     // grows as the view switches to "format"/"send-to".
     property <length> ctx-menu-anchor-y: 0px;
     property <length> ctx-menu-y: Math.max(0px, Math.min(root.ctx-menu-anchor-y, root.height - root.ctx-menu-height));
-    property <length> ctx-menu-width: 200px;
+    property <length> ctx-menu-width: 190px;
     property <length> ctx-menu-row-height: 32px;
     property <length> ctx-menu-sep-height: 9px;
     property <bool> ctx-is-text-type:
@@ -474,14 +473,16 @@ export component AppWindow inherits Window {
         // chain hides the window the moment the user clicks the hamburger.
         forward-focus: focus-scope;
 
-        x: root.width - (root.hamburger-menu-width + 10px);
+        // Content-driven but explicit width/height — the Qt backend won't
+        // render a PopupWindow without explicit sizes.
+        x: root.width - (self.width + 10px);
         // Bottom edge just above the hamburger button: the toolbar is
         // toolbar-height tall and the button sits 8px below its top.
         y: root.height - root.toolbar-height + 8px - hamburger.menu-height - root.hamburger-menu-gap;
-        width: root.hamburger-menu-width;
+        width: hamburger.menu-width;
+        height: hamburger.menu-height;
 
         hamburger := HamburgerMenu {
-            width: root.hamburger-menu-width;
             menu-settings => {
                 root.menu-settings();
                 root.popup-just-closed = true;

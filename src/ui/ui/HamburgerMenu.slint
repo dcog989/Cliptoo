@@ -11,6 +11,9 @@ export component HamburgerMenu {
     // Intrinsic popup height, used by AppWindow to place the popup just
     // above the hamburger button.
     out property <length> menu-height: menu-root.height;
+    // Intrinsic content width; AppWindow sizes the PopupWindow to this so the
+    // popup is content-driven yet has an explicit width (Qt backend).
+    out property <length> menu-width: menu-root.preferred-width;
 
     menu-root := Rectangle {
         border-radius: 8px;
@@ -34,6 +37,7 @@ export component HamburgerMenu {
                     padding-right: 12px;
                     spacing: 8px;
                     alignment: start;
+                    cross-axis-alignment: center;
 
                     Image {
                         width: 16px;
@@ -70,6 +74,7 @@ export component HamburgerMenu {
                     padding-right: 12px;
                     spacing: 8px;
                     alignment: start;
+                    cross-axis-alignment: center;
 
                     Image {
                         width: 16px;
@@ -106,6 +111,7 @@ export component HamburgerMenu {
                     padding-right: 12px;
                     spacing: 8px;
                     alignment: start;
+                    cross-axis-alignment: center;
 
                     Image {
                         width: 16px;

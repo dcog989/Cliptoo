@@ -13,7 +13,6 @@ export component CliptooTray inherits SystemTrayIcon {
     Menu {
         MenuItem {
             title: @tr("Show / Hide");
-            icon: @image-url("icons/eye.svg");
             activated => {
                 toggle-window();
             }
@@ -23,7 +22,6 @@ export component CliptooTray inherits SystemTrayIcon {
 
         MenuItem {
             title: @tr("Quit");
-            icon: @image-url("icons/log-out.svg");
             activated => {
                 quit-app();
             }
