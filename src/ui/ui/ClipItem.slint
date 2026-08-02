@@ -31,7 +31,7 @@ export component ClipItem {
     height: Theme.row-height;
 
     Rectangle {
-        background: is-selected ? Theme.bg-row-selected : is-alt-row ? Theme.bg-row-alt : Theme.bg-primary;
+        background: is-selected ? Theme.bg-row-selected : touch.has-hover ? Theme.bg-row-hover : is-alt-row ? Theme.bg-row-alt : Theme.bg-primary;
         height: 100%;
         width: 100%;
 
