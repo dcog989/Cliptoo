@@ -45,7 +45,7 @@ Pre-push hooks: `cargo test --workspace`.
 
 - Root: `/home/bubba/Projects/Cliptoo/`
 - Allowed: All subdirectories
-- Read-Only: `.env*`, `.git/`
+- Read-Only: `.env*`, `.git/`, `~/.cargo/registry/src/**/*.slint`
 - Disallowed: `.assets/`, `.docs/ToDo.md`, `.git/`, `node_modules/`, `.docs/archive/`
 - Require confirmation: adding/removing dependencies, changes outside `src/`, any operation outside project root
 
