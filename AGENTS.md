@@ -10,6 +10,11 @@
 
 ## Build / Check
 
+**NEVER run `cargo build` unless the user explicitly asks.** No verification
+builds, no "fallback" builds — for any change, trivial or not. If the user
+wants a build, they will ask for it. The check commands below are run at the
+agent's discretion per the trivial-change rule. Reference:
+
 ```sh
 cargo build --release -p cliptoo   # production build
 cargo check                        # fast type-check
@@ -39,7 +44,8 @@ Hooks (lefthook): fmt + clippy on `.rs`, `slint-lsp format -i` on `.slint`; pre-
 - No `unsafe` except the Qt FFI shim `src/ui/src/drag.rs` (`#![allow(unsafe_code)]`); crate roots `#![deny(unsafe_code)]`. Do not introduce `unsafe` elsewhere.
 - Decompose files over 400 lines if they mix concerns.
 - Wayland-only (no X11 fallback); hotkeys via `org.freedesktop.portal.GlobalShortcuts`.
-- **NEVER** run `cargo build`/`cargo check`/`clippy`/`fmt --check`/`test`/`slint-viewer` for trivial changes (single-line edits, string/field removal, UI copy/structure tweaks like reordering menu items). This includes any "fallback" build when `slint-viewer` is missing. This rule overrides Slint rule #4 and Definition of Done for trivial changes.
+- Skip full checks (`cargo check`/`clippy`/`fmt --check`/`test`/`slint-viewer`) for trivial changes (single-line edits, string/field removal, UI copy/structure tweaks like reordering menu items).
+- **NEVER** run `cargo build` for any change — trivial or not — unless the user explicitly instructs it. No "fallback" builds when `slint-viewer` is missing, no self-verification builds. This rule overrides Slint rule #4 and Definition of Done.
 
 ## Slint rules (mandatory)
 
