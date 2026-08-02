@@ -40,10 +40,13 @@ export component ToastNotification {
         }
     }
 
-    if root.active: Rectangle {
-        // Anchored to bottom-center of the window.
-        // The parent positions this over the clip list; x/y set by the
-        // VerticalLayout constraints in AppWindow which places this last.
+    // The root is always present (toggled via `visible`) so an absolutely
+    // positioned instance keeps its content-derived size; a conditional `if`
+    // root collapses the whole component to 0x0.
+    Rectangle {
+        visible: root.active;
+        // Anchored to bottom-center of the window by the parent (x/y set at
+        // the use site).
         height: content-layout.preferred-height + 16px;
         min-width: 200px;
         max-width: 400px;

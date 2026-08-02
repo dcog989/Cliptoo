@@ -545,6 +545,7 @@ export component AppWindow inherits Window {
     // ── Toast notification overlay ────────────────────────────────────────
     // Floated over the clip list, centered horizontally, 16px above the toolbar.
     ToastNotification {
+        width: Math.min(320px, root.width - 40px);
         x: (root.width - self.width) / 2;
         y: root.height - (root.toolbar-height + 12px) - self.height;
         message: root.toast-message;

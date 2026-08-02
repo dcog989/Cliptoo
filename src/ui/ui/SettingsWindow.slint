@@ -537,6 +537,10 @@ export component SettingsWindow inherits Window {
 
     // ── Toast notification overlay ─────────────────────────────────────
     ToastNotification {
+        // Bounded width is required: an absolute instance has no layout to
+        // stretch it, so without an explicit width it collapses (and long
+        // messages would otherwise never wrap).
+        width: Math.min(320px, root.width - 40px);
         x: (root.width - self.width) / 2;
         y: root.height - self.height - 16px;
         message: root.toast-message;
