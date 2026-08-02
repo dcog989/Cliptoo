@@ -263,7 +263,11 @@ export component ClipItem {
                     for span in clip-data.match-spans: Text {
                         text: span.text;
                         font-family: Theme.font-family;
-                        overflow: elide;
+                        // `clip` (not `elide`): eliding each span independently
+                        // collapses squeezed spans to a "…" glyph — which, for a
+                        // highlighted match, renders a highlighted "…". The row
+                        // container clips the overflow once at the right edge.
+                        overflow: clip;
                         horizontal-alignment: left;
                         vertical-alignment: center;
                         color: span.is-highlight ? Theme.accent-primary : clip-data.is-bookmarked && !root.is-selected ? Theme.fg-bookmarked : root.is-selected ? Theme.fg-primary : Theme.fg-secondary;

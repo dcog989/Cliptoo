@@ -231,3 +231,49 @@ pub fn convert_vec(
         .map(|d| convert(d, thumbnails_dir, favicons_dir))
         .collect()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use slint::Model;
+
+    fn spans_to_strings(model: &slint::ModelRc<crate::MatchSpan>) -> Vec<(String, bool)> {
+        let mut out = Vec::new();
+        for i in 0..model.row_count() {
+            let s = model.row_data(i).unwrap();
+            out.push((s.text.to_string(), s.is_highlight));
+        }
+        out
+    }
+
+    #[test]
+    fn parse_highlights_only_matches_not_ellipsis() {
+        // A multi-line clip produces a long snippet with FTS5 ellipsis markers
+        // at the elided edges. The markers must stay outside highlighted spans.
+        let snippet = "…[HL]the[/HL] quick brown fox jumps\nover the lazy dog\n…[HL]These[/HL] are separate…";
+        let spans = spans_to_strings(&parse_match_spans(snippet));
+
+        for (text, is_highlight) in &spans {
+            if *is_highlight {
+                assert!(
+                    !text.contains('…'),
+                    "highlighted span contains the FTS ellipsis: {text:?}"
+                );
+            }
+        }
+        assert_eq!(spans.len(), 5, "unexpected span layout: {spans:?}");
+    }
+
+    #[test]
+    fn parse_single_line_snippet() {
+        let spans = spans_to_strings(&parse_match_spans("foo [HL]bar[/HL] baz"));
+        assert_eq!(
+            spans,
+            vec![
+                ("foo ".to_string(), false),
+                ("bar".to_string(), true),
+                (" baz".to_string(), false),
+            ]
+        );
+    }
+}
