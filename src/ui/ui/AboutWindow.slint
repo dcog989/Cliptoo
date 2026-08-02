@@ -1,0 +1,136 @@
+// AboutWindow.slint — About dialog: logo, title, tagline, easter egg, links.
+// Shown from the hamburger menu → About.
+
+import { Theme } from "Theme.slint";
+
+component ClickLink {
+    in property <string> text;
+    callback clicked;
+
+    // Link blue — readable on the dark background regardless of the user's
+    // accent color.
+    private property <color> link-blue: #4C9EFF;
+
+    min-width: 0px;
+    Rectangle {
+        width: text-el.preferred-width;
+        height: text-el.preferred-height + 3px;
+
+        text-el := Text {
+            text: root.text;
+            color: link-blue;
+            font-size: Theme.font-size;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+
+        // Underline so the row reads as a link.
+        Rectangle {
+            y: parent.height - 2px;
+            height: 1px;
+            width: parent.width;
+            background: link-blue;
+        }
+
+        TouchArea {
+            mouse-cursor: pointer;
+            clicked => {
+                root.clicked();
+            }
+        }
+    }
+}
+
+export component AboutWindow inherits Window {
+    title: @tr("About Cliptoo");
+    width: 380px;
+    height: 300px;
+    background: Theme.bg-primary;
+    default-font-size: Theme.font-size;
+
+    // The user's logs directory, filled in from Rust so the footer link shows
+    // the real path.
+    in property <string> logs-folder-path: "";
+    // App version, filled in from Rust (crate version).
+    in property <string> version: "";
+
+    callback about-closing();
+    callback open-repo();
+    callback open-logs-folder();
+
+    forward-focus: about-focus;
+    about-focus := FocusScope {
+        key-pressed(event) => {
+            if (event.text == Key.Escape) {
+                root.about-closing();
+                root.hide();
+                accept
+            } else {
+                reject
+            }
+        }
+    }
+
+    VerticalLayout {
+        padding: 24px;
+        padding-bottom: 44px;
+        spacing: 8px;
+        alignment: center;
+        cross-axis-alignment: center;
+
+        Image {
+            source: @image-url("../assets/cliptoo.svg");
+            width: 80px;
+            height: 80px;
+        }
+
+        Text {
+            text: "Cliptoo";
+            color: Theme.fg-primary;
+            font-size: 24px;
+            font-weight: 700;
+            horizontal-alignment: center;
+        }
+
+        Text {
+            text: @tr("Version {}", root.version);
+            color: Theme.fg-muted;
+            font-size: Theme.font-size - 1px;
+            horizontal-alignment: center;
+        }
+
+        Text {
+            text: @tr("The advanced clipboard manager");
+            color: Theme.fg-secondary;
+            font-size: Theme.font-size;
+            horizontal-alignment: center;
+        }
+
+        Text {
+            text: @tr("Klaatu barada nikto!");
+            color: Theme.accent-primary;
+            font-size: 18px;
+            font-italic: true;
+            horizontal-alignment: center;
+        }
+
+        // Spacer pushes the links to the foot of the window.
+        Rectangle {
+            vertical-stretch: 1;
+        }
+
+        ClickLink {
+            text: "https://github.com/dcog989/Cliptoo";
+            clicked => {
+                root.open-repo();
+            }
+        }
+
+        ClickLink {
+            text: root.logs-folder-path;
+            clicked => {
+                root.open-logs-folder();
+            }
+        }
+    }
+}

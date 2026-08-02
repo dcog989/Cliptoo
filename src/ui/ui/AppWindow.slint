@@ -9,6 +9,7 @@ import { Theme }           from "Theme.slint";
 import { ClipData }        from "ClipData.slint";
 import { EditWindow }      from "EditWindow.slint";
 import { SettingsWindow }  from "SettingsWindow.slint";
+import { AboutWindow }     from "AboutWindow.slint";
 import { HamburgerMenu }   from "HamburgerMenu.slint";
 import { ContextMenu }     from "ContextMenu.slint";
 import { ToastNotification } from "ToastNotification.slint";
@@ -17,6 +18,7 @@ export {
     Theme,
     SettingsWindow,
     EditWindow,
+    AboutWindow,
     CliptooTray,
 }
 
@@ -111,8 +113,9 @@ export component AppWindow inherits Window {
     // SettingsWindow is open. Derived from the popups' actual is-open state so
     // it can never get stuck true; Rust sets settings-open while the settings
     // window is visible.
-    property <bool> popup-open: ctx-menu-popup.is-open || hamburger_popup.is-open || filter_popup.is-open || root.settings-open;
+    property <bool> popup-open: ctx-menu-popup.is-open || hamburger_popup.is-open || filter_popup.is-open || root.settings-open || root.about-open;
     in-out property <bool> settings-open: false;
+    in-out property <bool> about-open: false;
 
     property <length> resize-handle-width: 5px;
     in property <length> min-window-width: 320px;

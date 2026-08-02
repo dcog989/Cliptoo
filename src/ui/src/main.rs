@@ -8,6 +8,7 @@ use std::sync::Arc;
 use tracing::info;
 
 mod actions;
+mod about;
 mod app_dirs;
 mod autostart;
 mod clipboard;
@@ -70,6 +71,14 @@ async fn main() -> Result<()> {
     // `Theme` global that must be filled separately from the main window's.
     theme::fill_theme(
         &settings_win.global::<crate::Theme>(),
+        &settings.borrow(),
+        is_dark,
+        system_accent,
+    );
+
+    let about_win = about::setup_about_window(&ui, &dirs.logs_dir);
+    theme::fill_theme(
+        &about_win.global::<crate::Theme>(),
         &settings.borrow(),
         is_dark,
         system_accent,

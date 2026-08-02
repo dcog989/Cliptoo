@@ -1,5 +1,4 @@
 use slint::ComponentHandle;
-use tracing::info;
 
 fn idx_of(needle: &str, haystack: &[&str]) -> i32 {
     haystack
@@ -370,11 +369,6 @@ if ok:
             }
         });
     }
-
-    // About.
-    ui.on_menu_about(move || {
-        info!("About Cliptoo — clipboard manager for Wayland/KDE Plasma 6");
-    });
 
     settings_win
 }
