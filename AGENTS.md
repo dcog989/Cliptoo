@@ -39,7 +39,7 @@ Hooks (lefthook): fmt + clippy on `.rs`, `slint-lsp format -i` on `.slint`; pre-
 - No `unsafe` except the Qt FFI shim `src/ui/src/drag.rs` (`#![allow(unsafe_code)]`); crate roots `#![deny(unsafe_code)]`. Do not introduce `unsafe` elsewhere.
 - Decompose files over 400 lines if they mix concerns.
 - Wayland-only (no X11 fallback); hotkeys via `org.freedesktop.portal.GlobalShortcuts`.
-- Skip full checks (`cargo build`/`clippy`/`fmt --check`/`test`) for trivial changes (single-line edits, string/field removal, UI copy tweaks).
+- **NEVER** run `cargo build`/`cargo check`/`clippy`/`fmt --check`/`test`/`slint-viewer` for trivial changes (single-line edits, string/field removal, UI copy/structure tweaks like reordering menu items). This includes any "fallback" build when `slint-viewer` is missing. This rule overrides Slint rule #4 and Definition of Done for trivial changes.
 
 ## Slint rules (mandatory)
 
