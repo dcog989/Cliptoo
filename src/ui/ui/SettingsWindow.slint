@@ -34,6 +34,7 @@ export component SettingsWindow inherits Window {
     // General
     in-out property <string> s-hotkey:               "Ctrl+Alt+Q";
     in-out property <bool> s-start-with-system:    true;
+    in-out property <bool> s-always-close-to-tray: true;
     in-out property <int> s-log-level-idx:        1;  // Debug/Info/Warn/Error
 
     // Visuals
@@ -138,13 +139,12 @@ export component SettingsWindow inherits Window {
                     }
                 }
 
-                DropRow {
-                    label: @tr("Log level");
-                    tooltip-text: @tr("Verbosity of messages written to the log file");
-                    index <=> root.s-log-level-idx;
-                    options: ["Debug", "Info", "Warn", "Error"];
+                ToggleRow {
+                    label: @tr("Always close to tray");
+                    tooltip-text: @tr("Hide to the system tray when the window loses focus");
+                    value <=> root.s-always-close-to-tray;
                     committed(v) => {
-                        root.setting-changed("logging_level", v);
+                        root.setting-changed("always_close_to_tray", v ? "true" : "false");
                     }
                 }
 
@@ -154,6 +154,16 @@ export component SettingsWindow inherits Window {
                     value <=> root.s-paste-as-plain-text;
                     committed(v) => {
                         root.setting-changed("paste_as_plain_text", v ? "true" : "false");
+                    }
+                }
+
+                DropRow {
+                    label: @tr("Log level");
+                    tooltip-text: @tr("Verbosity of messages written to the log file");
+                    index <=> root.s-log-level-idx;
+                    options: ["Debug", "Info", "Warn", "Error"];
+                    committed(v) => {
+                        root.setting-changed("logging_level", v);
                     }
                 }
 

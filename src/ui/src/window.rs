@@ -154,6 +154,12 @@ pub fn setup_close_handlers(
             }
             guard.set(true);
 
+            // "Always close to tray" off: losing focus leaves the window open.
+            if !s.borrow().always_close_to_tray {
+                guard.set(false);
+                return;
+            }
+
             let weak2 = weak.clone();
             let s2 = s.clone();
             let p2 = p.clone();

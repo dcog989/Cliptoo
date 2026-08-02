@@ -111,6 +111,7 @@ pub fn setup_settings_window(
         let s = settings.borrow();
         settings_win.set_s_hotkey(s.hotkey.as_str().into());
         settings_win.set_s_start_with_system(s.start_with_system);
+        settings_win.set_s_always_close_to_tray(s.always_close_to_tray);
         settings_win.set_s_log_level_idx(idx_of(
             &s.logging_level,
             &["Debug", "Info", "Warn", "Error"],
@@ -264,6 +265,7 @@ if ok:
                             let _ = crate::autostart::remove_autostart();
                         }
                     }
+                    "always_close_to_tray" => s.always_close_to_tray = value == "true",
                     "logging_level" => s.logging_level = value.clone(),
                     "theme" => {
                         s.theme = value.clone();

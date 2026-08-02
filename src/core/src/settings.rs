@@ -54,6 +54,8 @@ pub struct Settings {
 
     // System
     pub start_with_system: bool,
+    #[serde(default = "default_true")]
+    pub always_close_to_tray: bool,
     pub logging_level: String,
 }
 
@@ -82,6 +84,7 @@ impl Default for Settings {
             send_to_apps: vec![],
             blacklisted_apps: vec![],
             start_with_system: true,
+            always_close_to_tray: true,
             logging_level: "Info".to_string(),
         }
     }
@@ -153,6 +156,10 @@ impl Settings {
 
 fn default_accent_color() -> String {
     String::new()
+}
+
+fn default_true() -> bool {
+    true
 }
 
 fn chrono_now_compact() -> String {
