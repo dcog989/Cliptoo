@@ -116,7 +116,11 @@ pub fn setup_settings_window(
             &["Debug", "Info", "Warn", "Error"],
         ));
         settings_win.set_s_theme_idx(idx_of(&s.theme, &["System", "Light", "Dark"]));
-        settings_win.set_s_accent_color(crate::theme::accent_hex_to_color(&s.accent_color));
+        settings_win.set_s_accent_color(if s.accent_color.trim().is_empty() {
+            crate::theme::default_accent_color()
+        } else {
+            crate::theme::accent_hex_to_color(&s.accent_color)
+        });
         settings_win.set_accent_swatches(
             std::rc::Rc::new(slint::VecModel::<crate::AccentSwatch>::from(
                 build_accent_swatches(),

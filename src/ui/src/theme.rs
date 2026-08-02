@@ -94,8 +94,8 @@ fn blend(base: Color, accent: Color, alpha: f32) -> Color {
     Color::from_rgb_u8(r, g, b)
 }
 
-/// Fallback accent RGB used when no valid hex is stored (core settings
-/// default is `#7C6EE6`).
+/// Fallback accent RGB used when a stored hex is malformed. Empty strings are
+/// valid — they mean "use the OS accent", which is only known at runtime.
 const DEFAULT_ACCENT: (u8, u8, u8) = (0x7C, 0x6E, 0xE6);
 
 /// Parse a `#RRGGBB` hex string (leading `#` optional) into `(r, g, b)`.
@@ -262,11 +262,10 @@ pub async fn resolve_theme(settings: &Settings) -> ResolvedTheme {
         "Dark" => true,
         _ => detect_system_dark().await.unwrap_or(true),
     };
-    // Follow the OS accent in "System" theme mode, and always when the accent
-    // has been cleared (empty string) — that is the "use OS default" state.
-    let system_accent = if settings.accent_color.trim().is_empty()
-        || (settings.theme.as_str() != "Light" && settings.theme.as_str() != "Dark")
-    {
+    // Follow the OS accent only when no custom accent has been chosen
+    // (empty accent_color = "use OS default"). A user-picked accent always
+    // wins, regardless of theme mode; theme mode only controls dark vs light.
+    let system_accent = if settings.accent_color.trim().is_empty() {
         detect_system_accent().await
     } else {
         None
