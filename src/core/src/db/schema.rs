@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS clips (
     WasTrimmed            INTEGER NOT NULL DEFAULT 0,
     HasLeadingWhitespace  INTEGER NOT NULL DEFAULT 0,
     IsMultiline           INTEGER NOT NULL DEFAULT 0,
+    IsDeadhead            INTEGER NOT NULL DEFAULT 0,
     SizeInBytes           INTEGER NOT NULL DEFAULT 0,
     PasteCount            INTEGER NOT NULL DEFAULT 0,
     Tags                  TEXT
@@ -71,21 +72,6 @@ pub const PRAGMA_FOREIGN_KEYS: &str = "PRAGMA foreign_keys = ON;";
 // journal mode and `execute_batch` will succeed without error.  For this
 // single-process desktop daemon that is fine, but any external debug tool
 // opening the database will suppress WAL on that launch.
-
-/// Migrations applied after `apply_schema()` for databases created before a
-/// given column existed.  Each statement uses `ALTER TABLE … ADD COLUMN` which
-/// is a no-op-safe pattern in SQLite: it will fail if the column already
-/// exists, so callers must ignore `rusqlite::Error::SqliteFailure` with
-/// `SQLITE_ERROR` (code 1) on these statements, or gate them on a
-/// user_version PRAGMA.
-pub const MIGRATE_ADD_HAS_LEADING_WHITESPACE: &str =
-    "ALTER TABLE clips ADD COLUMN HasLeadingWhitespace INTEGER NOT NULL DEFAULT 0;";
-
-pub const MIGRATE_ADD_IS_MULTILINE: &str =
-    "ALTER TABLE clips ADD COLUMN IsMultiline INTEGER NOT NULL DEFAULT 0;";
-
-pub const MIGRATE_ADD_IS_DEADHEAD: &str =
-    "ALTER TABLE clips ADD COLUMN IsDeadhead INTEGER NOT NULL DEFAULT 0;";
 
 pub const CREATE_INDEX_CLIPS_TS: &str =
     "CREATE INDEX IF NOT EXISTS idx_clips_ts ON clips(IsBookmarked, Timestamp DESC);";

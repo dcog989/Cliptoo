@@ -36,10 +36,6 @@ impl DbPool {
             schema::CREATE_INDEX_CLIPS_TS,
         ))?;
 
-        apply_migration(&conn, schema::MIGRATE_ADD_HAS_LEADING_WHITESPACE)?;
-        apply_migration(&conn, schema::MIGRATE_ADD_IS_MULTILINE)?;
-        apply_migration(&conn, schema::MIGRATE_ADD_IS_DEADHEAD)?;
-
         Ok(Self {
             conn: tokio::sync::Mutex::new(conn),
         })
@@ -52,18 +48,4 @@ impl DbPool {
         let conn = self.conn.lock().await;
         f(&conn)
     }
-}
-
-/// Run an `ALTER TABLE … ADD COLUMN` migration.  Silently ignores
-/// SQLITE_ERROR (code 1, "duplicate column name") which is expected when the
-/// column already exists.  All other errors propagate.
-fn apply_migration(conn: &Connection, sql: &str) -> Result<()> {
-    if let Err(e) = conn.execute_batch(sql) {
-        use rusqlite::Error::SqliteFailure;
-        match &e {
-            SqliteFailure(ffi, _) if ffi.extended_code == 1 => {}
-            _ => return Err(e.into()),
-        }
-    }
-    Ok(())
 }
