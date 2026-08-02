@@ -1,6 +1,11 @@
 # Cliptoo
 
-Advanced clipboard manager for KDE Plasma 6 / Wayland. Super fast, super slim, packed with features. Rust / Slint / rusqlite - handles thousands of clips without slowing down. Store and categorise clips, links, files, images, color swatches, code snippets - use your clipboard as a library.
+- Advanced clipboard manager.
+- Cross-platform, Linux-first.
+- Super fast, super slim, packed with features.
+- Rust / Slint / rusqlite - handles thousands of clips without slowing down.
+- Store and categorise clips, links, files, images, color swatches, code snippets.
+- Use your clip history as a library.
 
 ---
 
