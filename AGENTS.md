@@ -30,7 +30,7 @@
 
 ## Development Workflow
 
-```bash
+```sh
 cargo build --release -p cliptoo   # production build
 cargo check                        # fast type-check
 cargo test --workspace             # tests in src/core only
