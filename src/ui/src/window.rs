@@ -6,6 +6,12 @@ use std::time::Duration;
 /// blur-detection poll (AppWindow.slint `focus-poll` is gated on it).
 pub fn hide_window(ui: &crate::AppWindow) {
     ui.set_window_visible(false);
+    // Closing to tray clears any active search so the next show() reopens the
+    // full list rather than a stale filtered set with an empty search box.
+    if !ui.get_search_text().is_empty() {
+        ui.set_search_text("".into());
+        ui.invoke_search_changed("".into());
+    }
     let _ = ComponentHandle::hide(ui);
 }
 
