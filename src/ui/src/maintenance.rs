@@ -177,6 +177,13 @@ pub fn setup_manual_maintenance(
                         }
                         None => Ok(None),
                     },
+                    "export-bookmarks" => match pick_path(true).await? {
+                        Some(path) => {
+                            cliptoo_core::export::export_bookmarked_to_file(&db, &path).await?;
+                            Ok(Some(format!("Exported bookmarks to {}", path.display())))
+                        }
+                        None => Ok(None),
+                    },
                     "import" => match pick_path(false).await? {
                         Some(path) => {
                             let count = cliptoo_core::export::import_from_file(&db, &path).await?;

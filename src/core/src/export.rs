@@ -41,15 +41,17 @@ pub struct ExportRow {
 
 // ── DB read helper ────────────────────────────────────────────────────────────
 
-/// Fetch all clips from the DB as `ExportRow`s, ordered by Timestamp DESC.
-pub fn fetch_all(conn: &Connection) -> Result<Vec<ExportRow>> {
-    let mut stmt = conn.prepare_cached(
+/// Fetch clip rows as `ExportRow`s, ordered by Timestamp DESC.
+/// `where_clause` is appended verbatim (e.g. `"WHERE IsBookmarked = 1"`).
+fn fetch_rows(conn: &Connection, where_clause: &str) -> Result<Vec<ExportRow>> {
+    let mut stmt = conn.prepare_cached(&format!(
         "SELECT Id, Content, PreviewContent, ContentHash, ClipType,
                 SourceApp, Timestamp, IsBookmarked, WasTrimmed,
                 HasLeadingWhitespace, IsMultiline, SizeInBytes, PasteCount, Tags
          FROM clips
-         ORDER BY Timestamp DESC",
-    )?;
+         {where_clause}
+         ORDER BY Timestamp DESC"
+    ))?;
 
     let rows = stmt
         .query_map([], |row| {
@@ -76,6 +78,16 @@ pub fn fetch_all(conn: &Connection) -> Result<Vec<ExportRow>> {
     Ok(rows)
 }
 
+/// Fetch all clips from the DB as `ExportRow`s.
+pub fn fetch_all(conn: &Connection) -> Result<Vec<ExportRow>> {
+    fetch_rows(conn, "")
+}
+
+/// Fetch only bookmarked clips from the DB as `ExportRow`s.
+pub fn fetch_bookmarked(conn: &Connection) -> Result<Vec<ExportRow>> {
+    fetch_rows(conn, "WHERE IsBookmarked = 1")
+}
+
 // ── JSON ──────────────────────────────────────────────────────────────────────
 
 /// Serialise all clips to a pretty-printed JSON byte vector.
@@ -83,6 +95,14 @@ pub fn export_json(conn: &Connection) -> Result<Vec<u8>> {
     let rows = fetch_all(conn)?;
     let json = serde_json::to_vec_pretty(&rows).context("serialise clips to JSON")?;
     info!("export_json: {} clips", rows.len());
+    Ok(json)
+}
+
+/// Serialise only bookmarked clips to a pretty-printed JSON byte vector.
+pub fn export_bookmarked_json(conn: &Connection) -> Result<Vec<u8>> {
+    let rows = fetch_bookmarked(conn)?;
+    let json = serde_json::to_vec_pretty(&rows).context("serialise bookmarks to JSON")?;
+    info!("export_bookmarked_json: {} clips", rows.len());
     Ok(json)
 }
 
@@ -163,6 +183,20 @@ pub async fn export_to_file(
         .await
         .with_context(|| format!("write export to {:?}", path))?;
     info!("export_to_file: wrote {} bytes to {:?}", len, path);
+    Ok(len)
+}
+
+/// Export only bookmarked clips to the given path in JSON format.
+pub async fn export_bookmarked_to_file(
+    db: &std::sync::Arc<crate::db::DbPool>,
+    path: &std::path::Path,
+) -> Result<usize> {
+    let bytes = db.with(export_bookmarked_json).await?;
+    let len = bytes.len();
+    tokio::fs::write(path, &bytes)
+        .await
+        .with_context(|| format!("write bookmarks export to {:?}", path))?;
+    info!("export_bookmarked_to_file: wrote {} bytes to {:?}", len, path);
     Ok(len)
 }
 

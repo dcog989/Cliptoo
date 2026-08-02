@@ -516,11 +516,12 @@ export component SettingsWindow inherits Window {
                         { key: "clear-caches", label: @tr("Clear Caches"), tip: @tr("Clear cached previews, thumbnails, and favicons") },
                         { key: "deadhead", label: @tr("Deadhead"), tip: @tr("Remove clips referencing files that no longer exist on disk") },
                         { key: "reclassify", label: @tr("Reclassify All"), tip: @tr("Re-run content detection on every clip") },
-                        { key: "export", label: @tr("Export JSON"), tip: @tr("Save all clips to a JSON file") },
-                        { key: "import", label: @tr("Import JSON"), tip: @tr("Load clips from a JSON file") },
+                        { key: "export", label: @tr("Export All Clips"), tip: @tr("Save all clips to a JSON file") },
+                        { key: "export-bookmarks", label: @tr("Export Bookmarks"), tip: @tr("Save only bookmarked clips to a JSON file") },
+                        { key: "import", label: @tr("Import Backup"), tip: @tr("Load clips from a JSON backup file") },
                     ]: Rectangle {
-                        row: Math.floor(idx / 3);
-                        col: Math.mod(idx, 3);
+                        row: Math.floor(idx / 4);
+                        col: Math.mod(idx, 4);
                         height: 30px;
                         border-radius: 6px;
                         background: action.key == "clear-history" ? #c0392b.mix(Theme.bg-primary, 0.15) : Theme.bg-input;
