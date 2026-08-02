@@ -22,7 +22,9 @@ export struct AccentSwatch {
 export component SettingsWindow inherits Window {
     title: @tr("Cliptoo Settings");
     width: 560px;
-    height: 520px;
+    // Size the window to the tallest tab's content instead of a fixed height,
+    // so shorter tabs don't leave empty space at the bottom.
+    height: root.tallest-tab-height + 40px /* tab bar */ + 40px /* content padding */;
     background: Theme.bg-primary;
     default-font-size: Theme.font-size;
 
@@ -64,6 +66,11 @@ export component SettingsWindow inherits Window {
     callback clear-accent-color();
     callback font-picker();
     callback open-log();
+
+    private property <length> tallest-tab-height: Math.max(
+        Math.max(tab-general.preferred-height, tab-visuals.preferred-height),
+        Math.max(tab-external.preferred-height, tab-data.preferred-height)
+    );
 
     // Tooltip text for inline controls (Tooltip.text is styled-text, so @tr is
     // bound here and interpolated through @markdown at the use site).
@@ -119,8 +126,20 @@ export component SettingsWindow inherits Window {
             padding: 20px;
             spacing: 0;
 
+            // Tabs are overlaid (absolute x/y) so they never stack; the
+            // container is sized to the tallest tab. Inactive tabs stay
+            // instantiated (only hidden) so their preferred-height is readable,
+            // and a `visible: false` element still reserves layout space, so
+            // they cannot be column children.
+            Rectangle {
+                width: 100%;
+                height: root.tallest-tab-height;
+
             // ── General ───────────────────────────────────────────────────────
-            if root.active-tab == 0: VerticalLayout {
+            tab-general := VerticalLayout {
+                x: 0px;
+                y: 0px;
+                visible: root.active-tab == 0;
                 spacing: 12px;
                 HotkeyRow {
                     label: @tr("Launch hotkey");
@@ -209,7 +228,10 @@ export component SettingsWindow inherits Window {
             }
 
             // ── Visuals ───────────────────────────────────────────────────────
-            if root.active-tab == 1: VerticalLayout {
+            tab-visuals := VerticalLayout {
+                x: 0px;
+                y: 0px;
+                visible: root.active-tab == 1;
                 spacing: 12px;
                 DropRow {
                     label: @tr("Theme");
@@ -425,7 +447,10 @@ export component SettingsWindow inherits Window {
             }
 
             // ── External Apps ─────────────────────────────────────────────────
-            if root.active-tab == 2: VerticalLayout {
+            tab-external := VerticalLayout {
+                x: 0px;
+                y: 0px;
+                visible: root.active-tab == 2;
                 spacing: 12px;
                 TextRow {
                     label: @tr("Diff tool path");
@@ -445,7 +470,10 @@ export component SettingsWindow inherits Window {
             }
 
             // ── Data ──────────────────────────────────────────────────────────
-            if root.active-tab == 3: VerticalLayout {
+            tab-data := VerticalLayout {
+                x: 0px;
+                y: 0px;
+                visible: root.active-tab == 3;
                 spacing: 12px;
                 IntRow {
                     label: @tr("Max clips");
@@ -505,6 +533,7 @@ export component SettingsWindow inherits Window {
                         }
                     }
                 }
+            }
             }
         }
     }
