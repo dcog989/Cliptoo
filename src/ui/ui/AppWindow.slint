@@ -294,6 +294,10 @@ export component AppWindow inherits Window {
                 reject
             }
             focus-lost(reason) => {
+                // Alt may be released while the window is unfocused (e.g.
+                // Alt+Tab task switcher), so key-released never fires and the
+                // overlay would latch on — force it off on blur.
+                root.quick-paste-active = false;
                 if (reason == FocusReason.window-activation && !root.popup-open && !root.popup-just-closed) {
                     root.blur-closed();
                 }
