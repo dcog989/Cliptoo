@@ -241,7 +241,9 @@ async fn main() -> Result<()> {
 
     // Start closed to tray. Only fall back to showing the window when the
     // tray failed to initialise, otherwise the app would be unreachable.
-    if _tray.is_some() {
+    // When "Always close to tray" is off, start with the main window visible.
+    let start_hidden = _tray.is_some() && settings.borrow().always_close_to_tray;
+    if start_hidden {
         window::hide_window(&ui);
     } else {
         window::show_window(&ui)?;
