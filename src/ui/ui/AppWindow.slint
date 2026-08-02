@@ -95,6 +95,13 @@ export component AppWindow inherits Window {
     // focus-poll timer so it never runs while the window is hidden.
     in-out property <bool> window-visible: false;
     property <int> quick-paste-slots: 9;
+    // Modifier key ("Right Alt" | "Left Alt" | "Control") that shows the
+    // quick-paste overlay; set from Rust at startup and on settings change.
+    in property <string> quick-paste-mod: "Right Alt";
+    // The encoded KeyEvent.text produced by that modifier key (Alt=U+0012,
+    // AltGr/right-alt=U+0013, Control=U+0011), used to track the held state.
+    property <string> quick-paste-mod-text:
+        root.quick-paste-mod == "Right Alt" ? "\u{0013}" : root.quick-paste-mod == "Left Alt" ? "\u{0012}" : "\u{0011}";
     in-out property <bool> popup-just-closed: false;
     // ── Toast notification ───────────────────────────────────────────
     in-out property <bool> toast-visible:   false;
@@ -197,8 +204,12 @@ export component AppWindow inherits Window {
 
         focus-scope := FocusScope {
             key-pressed(e) => {
-                // Track Alt modifier for quick-paste overlay.
-                root.quick-paste-active = e.modifiers.alt;
+                // Track the quick-paste modifier key (encoded in e.text) for
+                // the overlay. Only the modifier's own press flips it on, so a
+                // subsequent digit press keeps the overlay active.
+                if (e.text == root.quick-paste-mod-text) {
+                    root.quick-paste-active = true;
+                }
 
                 // ── Navigation — always intercepted regardless of search state ──
             if (e.text == Key.UpArrow) {
@@ -231,8 +242,8 @@ export component AppWindow inherits Window {
                     return accept;
                 }
 
-            // ── Quick-paste: Alt + digit 1–9 ──
-            if (e.modifiers.alt && e.text >= "1" && e.text <= "\{root.quick-paste-slots}") {
+            // ── Quick-paste: modifier held + digit 1–9 ──
+            if (root.quick-paste-active && e.text >= "1" && e.text <= "\{root.quick-paste-slots}") {
                     if (e.text == "1" && root.clips.length > 0) {
                         root.item-activated(root.clips[0].id);
                     }
@@ -289,8 +300,10 @@ export component AppWindow inherits Window {
                 reject
             }
             key-released(e) => {
-            // Clear quick-paste overlay when Alt is released.
-            root.quick-paste-active = e.modifiers.alt;
+            // Clear quick-paste overlay when the modifier key is released.
+            if (e.text == root.quick-paste-mod-text) {
+                root.quick-paste-active = false;
+            }
                 reject
             }
             focus-lost(reason) => {

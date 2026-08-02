@@ -41,6 +41,10 @@ pub struct Settings {
     pub hover_preview_delay: u32,
     pub hover_image_preview_size: u32,
     pub paste_as_plain_text: bool,
+    // Modifier key that activates the quick-paste overlay:
+    // "Right Alt" | "Left Alt" | "Control".
+    #[serde(default = "default_quick_paste_modifier")]
+    pub quick_paste_modifier: String,
 
     // Data / retention
     pub max_clips: u32,
@@ -77,6 +81,7 @@ impl Default for Settings {
             hover_preview_delay: 400,
             hover_image_preview_size: 300,
             paste_as_plain_text: false,
+            quick_paste_modifier: "Right Alt".to_string(),
             max_clips: 10000,
             max_age_days: 90,
             tag_prefix: "##".to_string(),
@@ -160,6 +165,10 @@ fn default_accent_color() -> String {
 
 fn default_true() -> bool {
     true
+}
+
+fn default_quick_paste_modifier() -> String {
+    "Right Alt".to_string()
 }
 
 fn chrono_now_compact() -> String {

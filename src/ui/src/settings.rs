@@ -112,6 +112,10 @@ pub fn setup_settings_window(
         settings_win.set_s_hotkey(s.hotkey.as_str().into());
         settings_win.set_s_start_with_system(s.start_with_system);
         settings_win.set_s_always_close_to_tray(s.always_close_to_tray);
+        settings_win.set_s_quick_paste_mod_idx(idx_of(
+            &s.quick_paste_modifier,
+            &["Right Alt", "Left Alt", "Control"],
+        ));
         settings_win.set_s_log_level_idx(idx_of(
             &s.logging_level,
             &["Debug", "Info", "Warn", "Error"],
@@ -266,6 +270,12 @@ if ok:
                         }
                     }
                     "always_close_to_tray" => s.always_close_to_tray = value == "true",
+                    "quick_paste_modifier" => {
+                        s.quick_paste_modifier = value.clone();
+                        if let Some(ui) = settings_ui.upgrade() {
+                            ui.set_quick_paste_mod(value.clone().into());
+                        }
+                    }
                     "logging_level" => s.logging_level = value.clone(),
                     "theme" => {
                         s.theme = value.clone();

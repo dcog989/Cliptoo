@@ -51,6 +51,7 @@ async fn main() -> Result<()> {
     let (is_dark, system_accent) = theme::apply_theme(&ui, &settings).await;
     ui.set_stored_width(settings.window_width as f32);
     ui.set_stored_height(settings.window_height as f32);
+    ui.set_quick_paste_mod(settings.quick_paste_modifier.clone().into());
 
     let settings = std::rc::Rc::new(std::cell::RefCell::new(settings));
     let tag_prefix = settings.borrow().tag_prefix.clone();

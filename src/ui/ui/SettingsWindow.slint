@@ -35,6 +35,7 @@ export component SettingsWindow inherits Window {
     in-out property <string> s-hotkey:               "Ctrl+Alt+Q";
     in-out property <bool> s-start-with-system:    true;
     in-out property <bool> s-always-close-to-tray: true;
+    in-out property <int> s-quick-paste-mod-idx: 0;  // Right Alt/Left Alt/Control
     in-out property <int> s-log-level-idx:        1;  // Debug/Info/Warn/Error
 
     // Visuals
@@ -145,6 +146,16 @@ export component SettingsWindow inherits Window {
                     value <=> root.s-always-close-to-tray;
                     committed(v) => {
                         root.setting-changed("always_close_to_tray", v ? "true" : "false");
+                    }
+                }
+
+                DropRow {
+                    label: @tr("Quick-paste modifier");
+                    tooltip-text: @tr("Modifier key to hold for the quick-paste number overlay");
+                    index <=> root.s-quick-paste-mod-idx;
+                    options: ["Right Alt", "Left Alt", "Control"];
+                    committed(v) => {
+                        root.setting-changed("quick_paste_modifier", v);
                     }
                 }
 
