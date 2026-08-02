@@ -111,8 +111,13 @@ fn load_favicon(favicons_dir: &Path, content: &str) -> Image {
 fn parse_match_spans(context: &str) -> slint::ModelRc<crate::MatchSpan> {
     use cliptoo_core::db::queries::{FTS_HL_CLOSE, FTS_HL_OPEN};
 
+    // FTS5 snippets preserve the original newlines, but the row renders on a
+    // single line. Collapse all whitespace to single spaces (matching how
+    // PreviewContent is built) so multi-line clips don't split across rows.
+    let normalized = context.split_whitespace().collect::<Vec<_>>().join(" ");
+
     let mut spans: Vec<crate::MatchSpan> = Vec::new();
-    let mut rest = context;
+    let mut rest = normalized.as_str();
     while !rest.is_empty() {
         if let Some(hl_start) = rest.find(FTS_HL_OPEN) {
             if hl_start > 0 {
