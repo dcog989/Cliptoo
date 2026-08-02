@@ -226,7 +226,13 @@ async fn main() -> Result<()> {
         Err(e) => tracing::warn!("System tray unavailable (app will still work): {e}"),
     }
 
-    window::show_window(&ui)?;
+    // Start closed to tray. Only fall back to showing the window when the
+    // tray failed to initialise, otherwise the app would be unreachable.
+    if _tray.is_some() {
+        window::hide_window(&ui);
+    } else {
+        window::show_window(&ui)?;
+    }
     slint::run_event_loop_until_quit()?;
 
     info!("Cliptoo exiting");
