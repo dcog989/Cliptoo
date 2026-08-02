@@ -543,8 +543,8 @@ msgstr "Deadhead"
 
 #: src/ui/ui/SettingsWindow.slint:483
 msgctxt "SettingsWindow"
-msgid "Compact the database file, freeing unused space"
-msgstr "Compact the database file, freeing unused space"
+msgid "Remove clips referencing files that no longer exist on disk"
+msgstr "Remove clips referencing files that no longer exist on disk"
 
 #: src/ui/ui/SettingsWindow.slint:484
 msgctxt "SettingsWindow"

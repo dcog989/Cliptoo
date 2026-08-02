@@ -148,6 +148,15 @@ export component SettingsWindow inherits Window {
                     }
                 }
 
+                ToggleRow {
+                    label: @tr("Paste as plain text");
+                    tooltip-text: @tr("Strip formatting when pasting text from Cliptoo");
+                    value <=> root.s-paste-as-plain-text;
+                    committed(v) => {
+                        root.setting-changed("paste_as_plain_text", v ? "true" : "false");
+                    }
+                }
+
                 HorizontalLayout {
                     spacing: 12px;
                     alignment: start;
@@ -392,14 +401,6 @@ export component SettingsWindow inherits Window {
                     }
                 }
 
-                ToggleRow {
-                    label: @tr("Paste as plain text");
-                    tooltip-text: @tr("Strip formatting when pasting text from Cliptoo");
-                    value <=> root.s-paste-as-plain-text;
-                    committed(v) => {
-                        root.setting-changed("paste_as_plain_text", v ? "true" : "false");
-                    }
-                }
             }
 
             // ── External Apps ─────────────────────────────────────────────────
@@ -454,7 +455,7 @@ export component SettingsWindow inherits Window {
                     for action[idx] in [
                         { key: "clear-history", label: @tr("Clear History"), tip: @tr("Delete all clips from the clipboard history") },
                         { key: "clear-caches", label: @tr("Clear Caches"), tip: @tr("Clear cached previews, thumbnails, and favicons") },
-                        { key: "deadhead", label: @tr("Deadhead"), tip: @tr("Compact the database file, freeing unused space") },
+                        { key: "deadhead", label: @tr("Deadhead"), tip: @tr("Remove clips referencing files that no longer exist on disk") },
                         { key: "reclassify", label: @tr("Reclassify All"), tip: @tr("Re-run content detection on every clip") },
                         { key: "export", label: @tr("Export JSON"), tip: @tr("Save all clips to a JSON file") },
                         { key: "import", label: @tr("Import JSON"), tip: @tr("Load clips from a JSON file") },
