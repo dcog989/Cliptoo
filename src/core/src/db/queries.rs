@@ -349,6 +349,12 @@ pub fn bump_to_top(conn: &Connection, id: i64) -> Result<()> {
     Ok(())
 }
 
+/// Total number of clips currently stored.
+pub fn count_clips(conn: &Connection) -> Result<i64> {
+    let n = conn.query_row("SELECT COUNT(*) FROM clips", [], |row| row.get(0))?;
+    Ok(n)
+}
+
 pub fn increment_paste_count(conn: &Connection, id: i64) -> Result<()> {
     conn.execute(
         "UPDATE clips SET PasteCount = PasteCount + 1 WHERE Id = ?1",
@@ -358,13 +364,14 @@ pub fn increment_paste_count(conn: &Connection, id: i64) -> Result<()> {
 }
 
 /// Atomically timestamps the clip to the top and increments its paste count.
-/// Use instead of calling `bump_to_top` + `increment_paste_count` separately.
+/// Also bumps the global paste counter. Use instead of calling `bump_to_top`
+/// + `increment_paste_count` separately.
 pub fn record_paste(conn: &Connection, id: i64) -> Result<()> {
     conn.execute(
         "UPDATE clips SET Timestamp = datetime('now'), PasteCount = PasteCount + 1 WHERE Id = ?1",
         params![id],
     )?;
-    Ok(())
+    crate::stats::increment_stat(conn, crate::stats::KEY_PASTE_COUNT)
 }
 
 pub fn bump_to_bottom(conn: &Connection, id: i64) -> Result<()> {

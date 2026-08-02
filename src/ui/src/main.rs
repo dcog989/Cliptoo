@@ -7,8 +7,8 @@ use slint::VecModel;
 use std::sync::Arc;
 use tracing::info;
 
-mod actions;
 mod about;
+mod actions;
 mod app_dirs;
 mod autostart;
 mod clipboard;
@@ -24,6 +24,7 @@ mod preview;
 mod search;
 mod settings;
 mod source_app;
+mod stats_ui;
 mod theme;
 mod thumbnail_cache;
 
@@ -83,6 +84,8 @@ async fn main() -> Result<()> {
         is_dark,
         system_accent,
     );
+
+    stats_ui::setup_stats(&settings_win, &db, &dirs.db_path);
 
     search::setup_search(&ui, &db, &dirs, &tag_prefix);
 

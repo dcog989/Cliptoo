@@ -1,10 +1,7 @@
 // about.rs — About window: logo, tagline, and links to the repo and log folder.
 use slint::ComponentHandle;
 
-pub fn setup_about_window(
-    ui: &crate::AppWindow,
-    logs_dir: &std::path::Path,
-) -> crate::AboutWindow {
+pub fn setup_about_window(ui: &crate::AppWindow, logs_dir: &std::path::Path) -> crate::AboutWindow {
     let about_win = crate::AboutWindow::new().expect("AboutWindow creation");
     about_win.set_logs_folder_path(logs_dir.display().to_string().into());
     about_win.set_version(env!("CARGO_PKG_VERSION").into());
@@ -23,7 +20,10 @@ pub fn setup_about_window(
     {
         let logs_dir = logs_dir.to_path_buf();
         about_win.on_open_logs_folder(move || {
-            if let Err(e) = std::process::Command::new("xdg-open").arg(&logs_dir).spawn() {
+            if let Err(e) = std::process::Command::new("xdg-open")
+                .arg(&logs_dir)
+                .spawn()
+            {
                 tracing::warn!(
                     "about: failed to launch xdg-open for {}: {e}",
                     logs_dir.display()

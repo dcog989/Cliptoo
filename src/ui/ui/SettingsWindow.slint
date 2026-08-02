@@ -59,12 +59,19 @@ export component SettingsWindow inherits Window {
     // Data
     in-out property <int> s-max-clips:            10000;
     in-out property <int> s-max-age-days:         90;
+    // Read-only statistics, refreshed from Rust each time the Data tab opens.
+    in-out property <string> s-total-clips: "";
+    in-out property <string> s-db-created:  "";
+    in-out property <string> s-db-size:     "";
+    in-out property <string> s-copies:      "";
+    in-out property <string> s-pastes:      "";
 
     callback settings-closing();
     callback setting-changed(string, string);
     callback maintenance-action(string);
     callback clear-accent-color();
     callback font-picker();
+    callback data-tab-shown();
     callback open-log();
 
     private property <length> tallest-tab-height: Math.max(
@@ -115,6 +122,9 @@ export component SettingsWindow inherits Window {
                     is-active: root.active-tab == i;
                     clicked => {
                         root.active-tab = i;
+                        if (i == 3) {
+                            root.data-tab-shown();
+                        }
                     }
                 }
             }
@@ -530,6 +540,87 @@ export component SettingsWindow inherits Window {
                                 root.maintenance-action(action.key);
                             }
                             mouse-cursor: pointer;
+                        }
+                    }
+                }
+
+                // Stats rows sit flush (single line spacing) as one block.
+                VerticalLayout {
+                    spacing: 0;
+
+                    HorizontalLayout {
+                        height: 32px;
+                        spacing: 12px;
+                        alignment: start;
+                        Text {
+                            width: 180px;
+                            text: @tr("Database created");
+                            color: Theme.fg-primary;
+                            font-size: Theme.font-size;
+                            vertical-alignment: center;
+                        }
+                        Text {
+                            text: root.s-db-created;
+                            color: Theme.fg-secondary;
+                            font-size: Theme.font-size;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    HorizontalLayout {
+                        height: 32px;
+                        spacing: 12px;
+                        alignment: start;
+                        Text {
+                            width: 180px;
+                            text: @tr("Database size");
+                            color: Theme.fg-primary;
+                            font-size: Theme.font-size;
+                            vertical-alignment: center;
+                        }
+                        Text {
+                            text: root.s-db-size;
+                            color: Theme.fg-secondary;
+                            font-size: Theme.font-size;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    HorizontalLayout {
+                        height: 32px;
+                        spacing: 12px;
+                        alignment: start;
+                        Text {
+                            width: 180px;
+                            text: @tr("Total clips");
+                            color: Theme.fg-primary;
+                            font-size: Theme.font-size;
+                            vertical-alignment: center;
+                        }
+                        Text {
+                            text: root.s-total-clips;
+                            color: Theme.fg-secondary;
+                            font-size: Theme.font-size;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    HorizontalLayout {
+                        height: 32px;
+                        spacing: 12px;
+                        alignment: start;
+                        Text {
+                            width: 180px;
+                            text: @tr("Copies / Pastes");
+                            color: Theme.fg-primary;
+                            font-size: Theme.font-size;
+                            vertical-alignment: center;
+                        }
+                        Text {
+                            text: @tr("{} / {}", root.s-copies, root.s-pastes);
+                            color: Theme.fg-secondary;
+                            font-size: Theme.font-size;
+                            vertical-alignment: center;
                         }
                     }
                 }
