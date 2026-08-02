@@ -89,6 +89,15 @@ cargo run                           # build and run
 cargo clean && rm -rf target/       # clean build artifacts
 ```
 
+## Local Dev Install
+
+```sh
+cd /home/bubba/Projects/Cliptoo
+cargo build --release -p cliptoo
+sudo install -Dm755 target/release/cliptoo /usr/local/bin/cliptoo
+sudo install -Dm644 packaging/cliptoo.desktop /usr/share/applications/cliptoo.desktop
+```
+
 ### Packages
 
 - **.deb:** `cargo deb -p cliptoo --no-build` (requires `cargo-deb`)
