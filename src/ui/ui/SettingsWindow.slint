@@ -1,37 +1,61 @@
-// SettingsWindow.slint — Tabbed settings interface.
-// Tabs: General | Visuals | External Apps | Data
+// SettingsWindow.slint — Single-window settings interface.
+// The main page lists options grouped by category (General | Appearance |
+// External Apps) with an instant filter search in the header. Data management
+// (retention limits, maintenance buttons, statistics) lives on a separate
+// Database page reached from the Database icon in the header.
 
 import { Theme } from "Theme.slint";
 import {
-    SettingsTab,
     TextRow,
     HotkeyRow,
     IntRow,
     FloatRow,
     DropRow,
     ToggleRow,
-    StepperButton,
 } from "SettingsComponents.slint";
 import { ToastNotification } from "ToastNotification.slint";
+import { LineEdit, ScrollView } from "std-widgets.slint";
 
 export struct AccentSwatch {
     hex: string,
     color: color,
 }
 
+// Uppercase category heading that labels a group of options.
+component SectionHeader {
+    in property <string> text;
+    in property <length> top-margin: 14px;
+
+    width: 100%;
+    VerticalLayout {
+        padding-top: root.top-margin;
+        padding-bottom: 4px;
+        Text {
+            text: root.text;
+            color: Theme.fg-secondary;
+            font-size: Theme.font-size - 1px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            horizontal-alignment: left;
+        }
+    }
+}
+
 export component SettingsWindow inherits Window {
     title: @tr("Cliptoo Settings");
     width: 560px;
-    // Size the window to the tallest tab's content instead of a fixed height,
-    // so shorter tabs don't leave empty space at the bottom.
-    height: root.tallest-tab-height + 40px /* tab bar */ + 40px /* content padding */;
+    height: 540px;
     background: Theme.bg-primary;
     default-font-size: Theme.font-size;
 
-    in-out property <int> active-tab:             0;  // 0=General 1=Visuals 2=External Apps 3=Data
+    in-out property <bool> on-database-page:   false;
     in-out property <bool> toast-visible:   false;
     in-out property <string> toast-message:   "";
     in-out property <string> toast-severity:  "info";
+    // Instant filter query from the header search box. Matched against each
+    // option's keywords by Rust (Slint strings have no substring matching);
+    // the match result drives the per-row *-visible properties below.
+    in-out property <string> settings-filter: "";
 
     // General
     in-out property <string> s-hotkey:               "Ctrl+Alt+Q";
@@ -59,28 +83,48 @@ export component SettingsWindow inherits Window {
     // Data
     in-out property <int> s-max-clips:            10000;
     in-out property <int> s-max-age-days:         90;
-    // Read-only statistics, refreshed from Rust each time the Data tab opens.
+    // Read-only statistics, refreshed from Rust each time the Database page opens.
     in-out property <string> s-total-clips: "";
     in-out property <string> s-db-created:  "";
     in-out property <string> s-db-size:     "";
     in-out property <string> s-copies:      "";
     in-out property <string> s-pastes:      "";
 
+    // Per-row filter visibility, set by Rust from `settings-filter`.
+    // General
+    in-out property <bool> row-hotkey-visible: true;
+    in-out property <bool> row-startup-visible: true;
+    in-out property <bool> row-tray-visible: true;
+    in-out property <bool> row-quickpaste-visible: true;
+    in-out property <bool> row-plaintext-visible: true;
+    in-out property <bool> row-loglevel-visible: true;
+    in-out property <bool> row-logfile-visible: true;
+    // Appearance
+    in-out property <bool> row-theme-visible: true;
+    in-out property <bool> row-accent-visible: true;
+    in-out property <bool> row-font-visible: true;
+    in-out property <bool> row-clip-font-size-visible: true;
+    in-out property <bool> row-preview-font-size-visible: true;
+    in-out property <bool> row-padding-visible: true;
+    in-out property <bool> row-hover-delay-visible: true;
+    in-out property <bool> row-image-preview-size-visible: true;
+    // External Apps
+    in-out property <bool> row-diff-tool-visible: true;
+    in-out property <bool> row-external-note-visible: true;
+
     callback settings-closing();
     callback setting-changed(string, string);
     callback maintenance-action(string);
     callback clear-accent-color();
     callback font-picker();
-    callback data-tab-shown();
+    callback database-page-shown();
     callback open-log();
-
-    private property <length> tallest-tab-height: Math.max(
-        Math.max(tab-general.preferred-height, tab-visuals.preferred-height),
-        Math.max(tab-external.preferred-height, tab-data.preferred-height)
-    );
+    callback filter-changed(string);
 
     // Tooltip text for inline controls (Tooltip.text is styled-text, so @tr is
     // bound here and interpolated through @markdown at the use site).
+    private property <string> tip-database: @tr("Database: retention, maintenance, and statistics");
+    private property <string> tip-back: @tr("Back to settings");
     private property <string> tip-open-log: @tr("Open the most recent log file in your default viewer");
     private property <string> tip-font-family: @tr("Font family used for the clip list. Click to pick a font");
     private property <string> tip-hover-delay: @tr("Delay before the image hover preview appears");
@@ -103,535 +147,670 @@ export component SettingsWindow inherits Window {
         padding: 0;
         spacing: 0;
 
-        // Tab bar
+        // ── Header: filter search + Database navigation ──────────────────
         Rectangle {
-            height: 40px;
+            height: 48px;
             background: Theme.bg-header;
             HorizontalLayout {
-                padding-left: 12px;
-                spacing: 4px;
-                alignment: start;
-                for tab[i] in [
-                    { label: @tr("General"), tip: @tr("General settings: hotkey, startup, and logging") },
-                    { label: @tr("Visuals"), tip: @tr("Appearance: theme, colors, fonts, and layout") },
-                    { label: @tr("External Apps"), tip: @tr("External tools used by Cliptoo") },
-                    { label: @tr("Data"), tip: @tr("Clipboard history: limits and maintenance") },
-                ]: SettingsTab {
-                    label: tab.label;
-                    tooltip-text: tab.tip;
-                    is-active: root.active-tab == i;
-                    clicked => {
-                        root.active-tab = i;
-                        if (i == 3) {
-                            root.data-tab-shown();
+                padding-left: 10px;
+                padding-right: 10px;
+                spacing: 8px;
+
+                // Instant filter search (settings page) / page title (database page)
+                if !root.on-database-page : Rectangle {
+                    horizontal-stretch: 1;
+                    height: 32px;
+                    border-radius: 8px;
+                    background: Theme.bg-input;
+                    clip: true;
+                    HorizontalLayout {
+                        padding-left: 8px;
+                        padding-right: 4px;
+                        spacing: 6px;
+                        cross-axis-alignment: center;
+                        Image {
+                            source: @image-url("icons/search.svg");
+                            colorize: Theme.fg-muted;
+                            width: 16px;
+                            height: 16px;
                         }
+                        search-input := LineEdit {
+                            horizontal-stretch: 1;
+                            width: 100%;
+                            height: 100%;
+                            font-size: Theme.font-size;
+                            text <=> root.settings-filter;
+                            placeholder-text: @tr("Search settings…");
+                            edited => {
+                                root.filter-changed(self.text);
+                            }
+                        }
+                    }
+                }
+                if root.on-database-page : HorizontalLayout {
+                    horizontal-stretch: 1;
+                    spacing: 8px;
+                    cross-axis-alignment: center;
+
+                    // Back to settings
+                    Rectangle {
+                        width: 32px;
+                        height: 32px;
+                        border-radius: 8px;
+                        background: Theme.bg-input;
+                        Image {
+                            source: @image-url("icons/arrow-left.svg");
+                            colorize: Theme.fg-secondary;
+                            width: 18px;
+                            height: 18px;
+                            x: (parent.width - 18px) / 2;
+                            y: (parent.height - 18px) / 2;
+                        }
+                        TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                root.on-database-page = false;
+                            }
+                        }
+                        Tooltip {
+                            text: @markdown("\{root.tip-back}");
+                        }
+                    }
+
+                    Text {
+                        text: @tr("Database");
+                        color: Theme.fg-primary;
+                        font-size: Theme.font-size + 1px;
+                        font-weight: 700;
+                        vertical-alignment: center;
+                    }
+                }
+
+                // Database icon — opens the Database page on the settings page,
+                // acts as a toggle back from the Database page itself.
+                Rectangle {
+                    width: 32px;
+                    height: 32px;
+                    border-radius: 8px;
+                    background: root.on-database-page ? Theme.accent-muted : Theme.bg-input;
+                    Image {
+                        source: @image-url("icons/database.svg");
+                        colorize: root.on-database-page ? Theme.accent-primary : Theme.fg-secondary;
+                        width: 20px;
+                        height: 20px;
+                        x: 6px;
+                        y: 6px;
+                    }
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            root.on-database-page = !root.on-database-page;
+                            if root.on-database-page {
+                                root.database-page-shown();
+                            }
+                        }
+                    }
+                    Tooltip {
+                        text: @markdown("\{root.tip-database}");
                     }
                 }
             }
         }
 
-        // Tab content
-        VerticalLayout {
+        // ── Content ───────────────────────────────────────────────────────
+        Rectangle {
+            width: 100%;
             vertical-stretch: 1;
-            padding: 20px;
-            spacing: 0;
+            clip: true;
 
-            // Tabs are overlaid (absolute x/y) so they never stack; the
-            // container is sized to the tallest tab. Inactive tabs stay
-            // instantiated (only hidden) so their preferred-height is readable,
-            // and a `visible: false` element still reserves layout space, so
-            // they cannot be column children.
-            Rectangle {
+            // Settings page — grouped, filterable option list. The two pages
+            // overlay each other (absolute x/y) so they never stack; only one
+            // is visible at a time, but both stay instantiated so the filter
+            // state and named row elements survive page switches.
+            settings-scroll := ScrollView {
+                x: 0px;
+                y: 0px;
                 width: 100%;
-                height: root.tallest-tab-height;
+                height: 100%;
+                visible: !root.on-database-page;
+                vertical-scrollbar-policy: ScrollBarPolicy.as-needed;
 
-            // ── General ───────────────────────────────────────────────────────
-            tab-general := VerticalLayout {
-                x: 0px;
-                y: 0px;
-                visible: root.active-tab == 0;
-                spacing: 12px;
-                HotkeyRow {
-                    label: @tr("Launch hotkey");
-                    tooltip-text: @tr("Global hotkey to toggle the Cliptoo window");
-                    value <=> root.s-hotkey;
-                    committed(v) => {
-                        root.setting-changed("hotkey", v);
-                    }
-                }
+                VerticalLayout {
+                    padding-left: 16px;
+                    padding-right: 16px;
+                    padding-top: 8px;
+                    padding-bottom: 24px;
+                    spacing: 6px;
 
-                ToggleRow {
-                    label: @tr("Start with system");
-                    tooltip-text: @tr("Launch Cliptoo automatically when you log in");
-                    value <=> root.s-start-with-system;
-                    committed(v) => {
-                        root.setting-changed("start_with_system", v ? "true" : "false");
-                    }
-                }
-
-                ToggleRow {
-                    label: @tr("Always close to tray");
-                    tooltip-text: @tr("Hide to the system tray when the window loses focus");
-                    value <=> root.s-always-close-to-tray;
-                    committed(v) => {
-                        root.setting-changed("always_close_to_tray", v ? "true" : "false");
-                    }
-                }
-
-                DropRow {
-                    label: @tr("Quick-paste modifier");
-                    tooltip-text: @tr("Modifier key to hold for the quick-paste number overlay");
-                    index <=> root.s-quick-paste-mod-idx;
-                    options: ["Right Alt", "Left Alt", "Control"];
-                    committed(v) => {
-                        root.setting-changed("quick_paste_modifier", v);
-                    }
-                }
-
-                ToggleRow {
-                    label: @tr("Paste as plain text");
-                    tooltip-text: @tr("Strip formatting when pasting text from Cliptoo");
-                    value <=> root.s-paste-as-plain-text;
-                    committed(v) => {
-                        root.setting-changed("paste_as_plain_text", v ? "true" : "false");
-                    }
-                }
-
-                DropRow {
-                    label: @tr("Log level");
-                    tooltip-text: @tr("Verbosity of messages written to the log file");
-                    index <=> root.s-log-level-idx;
-                    options: ["Debug", "Info", "Warn", "Error"];
-                    committed(v) => {
-                        root.setting-changed("logging_level", v);
-                    }
-                }
-
-                HorizontalLayout {
-                    spacing: 12px;
-                    alignment: start;
-                    height: 32px;
-                    Text {
-                            width: 180px;
-                            text: @tr("Log file");
-                            color: Theme.fg-primary;
-                            font-size: Theme.font-size;
-                            vertical-alignment: center;
+                    // ── General ──────────────────────────────────────────
+                    if (row-hotkey.visible || row-startup.visible || row-tray.visible
+                        || row-quickpaste.visible || row-plaintext.visible
+                        || row-loglevel.visible || row-logfile.visible): SectionHeader {
+                        text: @tr("General");
+                        top-margin: 0px;
                     }
 
-                    Text {
-                        text: @tr("Open latest log");
-                        color: Theme.accent-primary;
-                        font-size: Theme.font-size;
-                        vertical-alignment: center;
-                        TouchArea {
-                            mouse-cursor: pointer;
-                            Tooltip {
-                                text: @markdown("\{root.tip-open-log}");
-                            }
-                            clicked => {
-                                root.open-log();
-                            }
-                        }
-                    }
-                }
-            }
-
-            // ── Visuals ───────────────────────────────────────────────────────
-            tab-visuals := VerticalLayout {
-                x: 0px;
-                y: 0px;
-                visible: root.active-tab == 1;
-                spacing: 12px;
-                DropRow {
-                    label: @tr("Theme");
-                    index <=> root.s-theme-idx;
-                    options: ["System", "Light", "Dark"];
-                    committed(v) => {
-                        root.setting-changed("theme", v);
-                    }
-                }
-
-                HorizontalLayout {
-                    spacing: 12px;
-                    alignment: start;
-                    height: 32px;
-                    Text {
-                            width: 180px;
-                            text: @tr("Accent color");
-                            color: Theme.fg-primary;
-                            font-size: Theme.font-size;
-                            vertical-alignment: center;
-                    }
-
-                    Rectangle {
-                        width: 28px;
-                        height: 28px;
-                        border-radius: 5px;
-                        border-width: 1px;
-                        border-color: Theme.accent-muted;
-                        background: root.s-accent-color;
-                        TouchArea {
-                            mouse-cursor: pointer;
-                            clicked => {
-                                accent_popup.show();
-                            }
-                        }
-                        Tooltip {
-                            text: @markdown("\{root.tip-accent-picker}");
+                    row-hotkey := HotkeyRow {
+                        visible: root.row-hotkey-visible;
+                        label: @tr("Launch hotkey");
+                        tooltip-text: @tr("Global hotkey to toggle the Cliptoo window");
+                        value <=> root.s-hotkey;
+                        committed(v) => {
+                            root.setting-changed("hotkey", v);
                         }
                     }
 
-                    Text {
-                        text: @tr("Clear");
-                        color: Theme.fg-danger;
-                        font-size: Theme.font-size;
-                        vertical-alignment: center;
-                        TouchArea {
-                            mouse-cursor: pointer;
-                            clicked => {
-                                root.clear-accent-color();
-                            }
+                    row-startup := ToggleRow {
+                        visible: root.row-startup-visible;
+                        label: @tr("Start with system");
+                        tooltip-text: @tr("Launch Cliptoo automatically when you log in");
+                        value <=> root.s-start-with-system;
+                        committed(v) => {
+                            root.setting-changed("start_with_system", v ? "true" : "false");
                         }
                     }
-                }
 
-                HorizontalLayout {
-                    spacing: 12px;
-                    alignment: start;
-                    height: 32px;
-                    Text {
-                            width: 180px;
-                            text: @tr("Font family");
-                            color: Theme.fg-primary;
-                            font-size: Theme.font-size;
-                            vertical-alignment: center;
+                    row-tray := ToggleRow {
+                        visible: root.row-tray-visible;
+                        label: @tr("Always close to tray");
+                        tooltip-text: @tr("Hide to the system tray when the window loses focus");
+                        value <=> root.s-always-close-to-tray;
+                        committed(v) => {
+                            root.setting-changed("always_close_to_tray", v ? "true" : "false");
+                        }
                     }
 
-                    Rectangle {
-                        horizontal-stretch: 1;
-                        height: 28px;
-                        border-radius: 5px;
-                        border-width: 1px;
-                        border-color: font-touch.has-hover ? Theme.accent-primary : Theme.accent-muted;
-                        background: Theme.bg-input;
-                        HorizontalLayout {
-                            padding-left: 8px;
-                            padding-right: 8px;
-                            Text {
-                                text: root.s-font-family;
+                    row-quickpaste := DropRow {
+                        visible: root.row-quickpaste-visible;
+                        label: @tr("Quick-paste modifier");
+                        tooltip-text: @tr("Modifier key to hold for the quick-paste number overlay");
+                        index <=> root.s-quick-paste-mod-idx;
+                        options: ["Right Alt", "Left Alt", "Control"];
+                        committed(v) => {
+                            root.setting-changed("quick_paste_modifier", v);
+                        }
+                    }
+
+                    row-plaintext := ToggleRow {
+                        visible: root.row-plaintext-visible;
+                        label: @tr("Paste as plain text");
+                        tooltip-text: @tr("Strip formatting when pasting text from Cliptoo");
+                        value <=> root.s-paste-as-plain-text;
+                        committed(v) => {
+                            root.setting-changed("paste_as_plain_text", v ? "true" : "false");
+                        }
+                    }
+
+                    row-loglevel := DropRow {
+                        visible: root.row-loglevel-visible;
+                        label: @tr("Log level");
+                        tooltip-text: @tr("Verbosity of messages written to the log file");
+                        index <=> root.s-log-level-idx;
+                        options: ["Debug", "Info", "Warn", "Error"];
+                        committed(v) => {
+                            root.setting-changed("logging_level", v);
+                        }
+                    }
+
+                    row-logfile := HorizontalLayout {
+                        visible: root.row-logfile-visible;
+                        spacing: 12px;
+                        alignment: start;
+                        height: 32px;
+                        Text {
+                                width: 180px;
+                                text: @tr("Log file");
                                 color: Theme.fg-primary;
                                 font-size: Theme.font-size;
                                 vertical-alignment: center;
-                                overflow: elide;
-                            }
                         }
-                        Tooltip {
-                            text: @markdown("\{root.tip-font-family}");
-                        }
-                        font-touch := TouchArea {
-                            clicked => {
-                                root.font-picker();
-                            }
-                            mouse-cursor: pointer;
-                        }
-                    }
-                }
 
-                FloatRow {
-                    label: @tr("Clip list font size (px)");
-                    tooltip-text: @tr("Font size of clip entries in the main list");
-                    value-hundredths <=> root.s-font-size-hundredths;
-                    min-hundredths: 800;
-                    max-hundredths: 2400;
-                    step-hundredths: 100;
-                    committed(v) => {
-                        root.setting-changed("font_size", "\{v}");
-                    }
-                }
-
-                FloatRow {
-                    label: @tr("Preview font size (px)");
-                    tooltip-text: @tr("Font size used for code and color previews");
-                    value-hundredths <=> root.s-preview-font-size-hundredths;
-                    min-hundredths: 800;
-                    max-hundredths: 2400;
-                    step-hundredths: 100;
-                    committed(v) => {
-                        root.setting-changed("preview_font_size", "\{v}");
-                    }
-                }
-
-                DropRow {
-                    label: @tr("Row padding");
-                    tooltip-text: @tr("Vertical padding of items in the clip list");
-                    index <=> root.s-row-padding-idx;
-                    options: ["Compact", "Standard", "Luxury"];
-                    committed(v) => {
-                        root.setting-changed("clip_item_padding", v);
-                    }
-                }
-                // Hover delay slider
-                HorizontalLayout {
-                    spacing: 12px;
-                    alignment: start;
-                    height: 32px;
-                    Text {
-                            width: 180px;
-                            text: @tr("Preview hover delay");
-                            color: Theme.fg-primary;
+                        Text {
+                            text: @tr("Open latest log");
+                            color: Theme.accent-primary;
                             font-size: Theme.font-size;
                             vertical-alignment: center;
-                    }
-
-                    Rectangle {
-                        horizontal-stretch: 1;
-                        height: 28px;
-                        border-radius: 5px;
-                        border-width: 1px;
-                        border-color: Theme.accent-muted;
-                        background: Theme.bg-input;
-                        HorizontalLayout {
-                            cross-axis-alignment: center;
-                            padding-left: 12px;
-                            padding-right: 8px;
-                            spacing: 8px;
-                            track := Rectangle {
-                                width: 140px;
-                                height: 6px;
-                                border-radius: 3px;
-                                background: #555;
-                                Rectangle {
-                                    width: 16px;
-                                    height: 16px;
-                                    border-radius: 8px;
-                                    background: Theme.accent-primary;
-                                    y: -5px;
-                                    x: Math.max(0px, Math.min(parent.width - 16px, (root.hover-delay * 1.0) / 2000.0 * parent.width));
+                            TouchArea {
+                                mouse-cursor: pointer;
+                                Tooltip {
+                                    text: @markdown("\{root.tip-open-log}");
+                                }
+                                clicked => {
+                                    root.open-log();
                                 }
                             }
+                        }
+                    }
 
-                            Text {
-                                text: root.hover-delay == 0 ? @tr("Off") : @tr("{} ms", root.hover-delay);
+                    // ── Appearance ───────────────────────────────────────
+                    if (row-theme.visible || row-accent.visible || row-font.visible
+                        || row-clip-font-size.visible || row-preview-font-size.visible
+                        || row-padding.visible || row-hover-delay.visible
+                        || row-image-preview-size.visible): SectionHeader {
+                        text: @tr("Appearance");
+                    }
+
+                    row-theme := DropRow {
+                        visible: root.row-theme-visible;
+                        label: @tr("Theme");
+                        index <=> root.s-theme-idx;
+                        options: ["System", "Light", "Dark"];
+                        committed(v) => {
+                            root.setting-changed("theme", v);
+                        }
+                    }
+
+                    row-accent := HorizontalLayout {
+                        visible: root.row-accent-visible;
+                        spacing: 12px;
+                        alignment: start;
+                        height: 32px;
+                        Text {
+                                width: 180px;
+                                text: @tr("Accent color");
                                 color: Theme.fg-primary;
                                 font-size: Theme.font-size;
-                            }
+                                vertical-alignment: center;
                         }
 
-                        touch := TouchArea {
-                            width: 140px;
+                        Rectangle {
+                            width: 28px;
                             height: 28px;
-                            x: 12px;
-                            y: 0px;
-                            Tooltip {
-                                text: @markdown("\{root.tip-hover-delay}");
-                            }
-                            pointer-event(e) => {
-                                if (e.kind == PointerEventKind.down || (e.kind == PointerEventKind.move && self.pressed)) {
-                                    let raw = Math.round(touch.mouse-x / 140px * 2000 / 50) * 50;
-                                    root.hover-delay = Math.min(2000, Math.max(0, raw));
-                                    root.setting-changed("hover_preview_delay", "\{root.hover-delay}");
+                            border-radius: 5px;
+                            border-width: 1px;
+                            border-color: Theme.accent-muted;
+                            background: root.s-accent-color;
+                            TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => {
+                                    accent_popup.show();
                                 }
                             }
-                            mouse-cursor: pointer;
-                        }
-                    }
-                }
-
-                IntRow {
-                    label: @tr("Image preview size (px)");
-                    tooltip-text: @tr("Maximum width/height of hover preview images");
-                    value <=> root.s-image-preview-size;
-                    min-val: 100;
-                    max-val: 800;
-                    step: 50;
-                    committed(v) => {
-                        root.setting-changed("hover_image_preview_size", "\{v}");
-                    }
-                }
-
-            }
-
-            // ── External Apps ─────────────────────────────────────────────────
-            tab-external := VerticalLayout {
-                x: 0px;
-                y: 0px;
-                visible: root.active-tab == 2;
-                spacing: 12px;
-                TextRow {
-                    label: @tr("Diff tool path");
-                    tooltip-text: @tr("Command used to compare two text clips");
-                    value <=> root.s-diff-tool-path;
-                    committed(v) => {
-                        root.setting-changed("compare_tool_path", v);
-                    }
-                }
-
-                Text {
-                    text: @tr("Send To apps and Blacklist are managed via JSON settings file.");
-                    color: Theme.fg-muted;
-                    font-size: Theme.font-size;
-                    wrap: word-wrap;
-                }
-            }
-
-            // ── Data ──────────────────────────────────────────────────────────
-            tab-data := VerticalLayout {
-                x: 0px;
-                y: 0px;
-                visible: root.active-tab == 3;
-                spacing: 12px;
-                IntRow {
-                    label: @tr("Max clips");
-                    tooltip-text: @tr("Maximum number of clips kept in history");
-                    value <=> root.s-max-clips;
-                    min-val: 100;
-                    max-val: 100000;
-                    step: 100;
-                    committed(v) => {
-                        root.setting-changed("max_clips", "\{v}");
-                    }
-                }
-
-                IntRow {
-                    label: @tr("Max age (days)");
-                    tooltip-text: @tr("Automatically remove clips older than this many days");
-                    value <=> root.s-max-age-days;
-                    min-val: 1;
-                    max-val: 3650;
-                    step: 5;
-                    committed(v) => {
-                        root.setting-changed("max_age_days", "\{v}");
-                    }
-                }
-
-                GridLayout {
-                    spacing: 8px;
-                    for action[idx] in [
-                        { key: "clear-history", label: @tr("Clear History"), tip: @tr("Delete all clips from the clipboard history") },
-                        { key: "clear-caches", label: @tr("Clear Caches"), tip: @tr("Clear cached previews, thumbnails, and favicons") },
-                        { key: "deadhead", label: @tr("Deadhead"), tip: @tr("Remove clips referencing files that no longer exist on disk") },
-                        { key: "reclassify", label: @tr("Reclassify All"), tip: @tr("Re-run content detection on every clip") },
-                        { key: "export", label: @tr("Export All Clips"), tip: @tr("Save all clips to a JSON file") },
-                        { key: "export-bookmarks", label: @tr("Export Bookmarks"), tip: @tr("Save only bookmarked clips to a JSON file") },
-                        { key: "import", label: @tr("Import Backup"), tip: @tr("Load clips from a JSON backup file") },
-                    ]: Rectangle {
-                        row: Math.floor(idx / 4);
-                        col: Math.mod(idx, 4);
-                        height: 30px;
-                        border-radius: 6px;
-                        background: action.key == "clear-history" ? #c0392b.mix(Theme.bg-primary, 0.15) : Theme.bg-input;
-                        Text {
-                            text: action.label;
-                            color: action.key == "clear-history" ? white : Theme.fg-primary;
-                            horizontal-alignment: center;
-                            vertical-alignment: center;
-                            font-size: Theme.font-size;
-                        }
-
-                        TouchArea {
                             Tooltip {
-                                text: @markdown("\{action.tip}");
+                                text: @markdown("\{root.tip-accent-picker}");
                             }
-                            clicked => {
-                                root.maintenance-action(action.key);
+                        }
+
+                        Text {
+                            text: @tr("Clear");
+                            color: Theme.fg-danger;
+                            font-size: Theme.font-size;
+                            vertical-alignment: center;
+                            TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => {
+                                    root.clear-accent-color();
+                                }
                             }
-                            mouse-cursor: pointer;
-                        }
-                    }
-                }
-
-                // Stats rows sit flush (single line spacing) as one block.
-                VerticalLayout {
-                    spacing: 0;
-
-                    HorizontalLayout {
-                        height: 32px;
-                        spacing: 12px;
-                        alignment: start;
-                        Text {
-                            width: 180px;
-                            text: @tr("Database created");
-                            color: Theme.fg-primary;
-                            font-size: Theme.font-size;
-                            vertical-alignment: center;
-                        }
-                        Text {
-                            text: root.s-db-created;
-                            color: Theme.fg-secondary;
-                            font-size: Theme.font-size;
-                            vertical-alignment: center;
                         }
                     }
 
-                    HorizontalLayout {
-                        height: 32px;
+                    row-font := HorizontalLayout {
+                        visible: root.row-font-visible;
                         spacing: 12px;
                         alignment: start;
+                        height: 32px;
                         Text {
-                            width: 180px;
-                            text: @tr("Database size");
-                            color: Theme.fg-primary;
-                            font-size: Theme.font-size;
-                            vertical-alignment: center;
+                                width: 180px;
+                                text: @tr("Font family");
+                                color: Theme.fg-primary;
+                                font-size: Theme.font-size;
+                                vertical-alignment: center;
                         }
-                        Text {
-                            text: root.s-db-size;
-                            color: Theme.fg-secondary;
-                            font-size: Theme.font-size;
-                            vertical-alignment: center;
+
+                        Rectangle {
+                            horizontal-stretch: 1;
+                            height: 28px;
+                            border-radius: 5px;
+                            border-width: 1px;
+                            border-color: font-touch.has-hover ? Theme.accent-primary : Theme.accent-muted;
+                            background: Theme.bg-input;
+                            HorizontalLayout {
+                                padding-left: 8px;
+                                padding-right: 8px;
+                                Text {
+                                    text: root.s-font-family;
+                                    color: Theme.fg-primary;
+                                    font-size: Theme.font-size;
+                                    vertical-alignment: center;
+                                    overflow: elide;
+                                }
+                            }
+                            Tooltip {
+                                text: @markdown("\{root.tip-font-family}");
+                            }
+                            font-touch := TouchArea {
+                                clicked => {
+                                    root.font-picker();
+                                }
+                                mouse-cursor: pointer;
+                            }
                         }
                     }
 
-                    HorizontalLayout {
-                        height: 32px;
-                        spacing: 12px;
-                        alignment: start;
-                        Text {
-                            width: 180px;
-                            text: @tr("Total clips");
-                            color: Theme.fg-primary;
-                            font-size: Theme.font-size;
-                            vertical-alignment: center;
-                        }
-                        Text {
-                            text: root.s-total-clips;
-                            color: Theme.fg-secondary;
-                            font-size: Theme.font-size;
-                            vertical-alignment: center;
+                    row-clip-font-size := FloatRow {
+                        visible: root.row-clip-font-size-visible;
+                        label: @tr("Clip list font size (px)");
+                        tooltip-text: @tr("Font size of clip entries in the main list");
+                        value-hundredths <=> root.s-font-size-hundredths;
+                        min-hundredths: 800;
+                        max-hundredths: 2400;
+                        step-hundredths: 100;
+                        committed(v) => {
+                            root.setting-changed("font_size", "\{v}");
                         }
                     }
 
-                    HorizontalLayout {
-                        height: 32px;
+                    row-preview-font-size := FloatRow {
+                        visible: root.row-preview-font-size-visible;
+                        label: @tr("Preview font size (px)");
+                        tooltip-text: @tr("Font size used for code and color previews");
+                        value-hundredths <=> root.s-preview-font-size-hundredths;
+                        min-hundredths: 800;
+                        max-hundredths: 2400;
+                        step-hundredths: 100;
+                        committed(v) => {
+                            root.setting-changed("preview_font_size", "\{v}");
+                        }
+                    }
+
+                    row-padding := DropRow {
+                        visible: root.row-padding-visible;
+                        label: @tr("Row padding");
+                        tooltip-text: @tr("Vertical padding of items in the clip list");
+                        index <=> root.s-row-padding-idx;
+                        options: ["Compact", "Standard", "Luxury"];
+                        committed(v) => {
+                            root.setting-changed("clip_item_padding", v);
+                        }
+                    }
+
+                    row-hover-delay := HorizontalLayout {
+                        visible: root.row-hover-delay-visible;
                         spacing: 12px;
                         alignment: start;
+                        height: 32px;
                         Text {
-                            width: 180px;
-                            text: @tr("Copies / Pastes");
-                            color: Theme.fg-primary;
-                            font-size: Theme.font-size;
-                            vertical-alignment: center;
+                                width: 180px;
+                                text: @tr("Preview hover delay");
+                                color: Theme.fg-primary;
+                                font-size: Theme.font-size;
+                                vertical-alignment: center;
                         }
-                        Text {
-                            text: @tr("{} / {}", root.s-copies, root.s-pastes);
-                            color: Theme.fg-secondary;
-                            font-size: Theme.font-size;
-                            vertical-alignment: center;
+
+                        Rectangle {
+                            horizontal-stretch: 1;
+                            height: 28px;
+                            border-radius: 5px;
+                            border-width: 1px;
+                            border-color: Theme.accent-muted;
+                            background: Theme.bg-input;
+                            HorizontalLayout {
+                                cross-axis-alignment: center;
+                                padding-left: 12px;
+                                padding-right: 8px;
+                                spacing: 8px;
+                                track := Rectangle {
+                                    width: 140px;
+                                    height: 6px;
+                                    border-radius: 3px;
+                                    background: #555;
+                                    Rectangle {
+                                        width: 16px;
+                                        height: 16px;
+                                        border-radius: 8px;
+                                        background: Theme.accent-primary;
+                                        y: -5px;
+                                        x: Math.max(0px, Math.min(parent.width - 16px, (root.hover-delay * 1.0) / 2000.0 * parent.width));
+                                    }
+                                }
+
+                                Text {
+                                    text: root.hover-delay == 0 ? @tr("Off") : @tr("{} ms", root.hover-delay);
+                                    color: Theme.fg-primary;
+                                    font-size: Theme.font-size;
+                                }
+                            }
+
+                            touch := TouchArea {
+                                width: 140px;
+                                height: 28px;
+                                x: 12px;
+                                y: 0px;
+                                Tooltip {
+                                    text: @markdown("\{root.tip-hover-delay}");
+                                }
+                                pointer-event(e) => {
+                                    if (e.kind == PointerEventKind.down || (e.kind == PointerEventKind.move && self.pressed)) {
+                                        let raw = Math.round(touch.mouse-x / 140px * 2000 / 50) * 50;
+                                        root.hover-delay = Math.min(2000, Math.max(0, raw));
+                                        root.setting-changed("hover_preview_delay", "\{root.hover-delay}");
+                                    }
+                                }
+                                mouse-cursor: pointer;
+                            }
                         }
+                    }
+
+                    row-image-preview-size := IntRow {
+                        visible: root.row-image-preview-size-visible;
+                        label: @tr("Image preview size (px)");
+                        tooltip-text: @tr("Maximum width/height of hover preview images");
+                        value <=> root.s-image-preview-size;
+                        min-val: 100;
+                        max-val: 800;
+                        step: 50;
+                        committed(v) => {
+                            root.setting-changed("hover_image_preview_size", "\{v}");
+                        }
+                    }
+
+                    // ── External Apps ────────────────────────────────────
+                    if (row-diff-tool.visible || row-external-note.visible): SectionHeader {
+                        text: @tr("External Apps");
+                    }
+
+                    row-diff-tool := TextRow {
+                        visible: root.row-diff-tool-visible;
+                        label: @tr("Diff tool path");
+                        tooltip-text: @tr("Command used to compare two text clips");
+                        value <=> root.s-diff-tool-path;
+                        committed(v) => {
+                            root.setting-changed("compare_tool_path", v);
+                        }
+                    }
+
+                    row-external-note := Text {
+                        visible: root.row-external-note-visible;
+                        text: @tr("Send To apps and Blacklist are managed via JSON settings file.");
+                        color: Theme.fg-muted;
+                        font-size: Theme.font-size;
+                        wrap: word-wrap;
                     }
                 }
             }
+
+            // Database page — retention limits, maintenance buttons, stats.
+            database-scroll := ScrollView {
+                x: 0px;
+                y: 0px;
+                width: 100%;
+                height: 100%;
+                visible: root.on-database-page;
+                vertical-scrollbar-policy: ScrollBarPolicy.as-needed;
+
+                VerticalLayout {
+                    padding-left: 16px;
+                    padding-right: 16px;
+                    padding-top: 8px;
+                    padding-bottom: 24px;
+                    spacing: 6px;
+
+                    SectionHeader {
+                        text: @tr("Retention");
+                        top-margin: 0px;
+                    }
+
+                    IntRow {
+                        label: @tr("Max clips");
+                        tooltip-text: @tr("Maximum number of clips kept in history");
+                        value <=> root.s-max-clips;
+                        min-val: 100;
+                        max-val: 100000;
+                        step: 100;
+                        committed(v) => {
+                            root.setting-changed("max_clips", "\{v}");
+                        }
+                    }
+
+                    IntRow {
+                        label: @tr("Max age (days)");
+                        tooltip-text: @tr("Automatically remove clips older than this many days");
+                        value <=> root.s-max-age-days;
+                        min-val: 1;
+                        max-val: 3650;
+                        step: 5;
+                        committed(v) => {
+                            root.setting-changed("max_age_days", "\{v}");
+                        }
+                    }
+
+                    SectionHeader {
+                        text: @tr("Maintenance");
+                    }
+
+                    GridLayout {
+                        spacing: 8px;
+                        for action[idx] in [
+                            { key: "clear-history", label: @tr("Clear History"), tip: @tr("Delete all clips from the clipboard history") },
+                            { key: "clear-caches", label: @tr("Clear Caches"), tip: @tr("Clear cached previews, thumbnails, and favicons") },
+                            { key: "deadhead", label: @tr("Deadhead"), tip: @tr("Remove clips referencing files that no longer exist on disk") },
+                            { key: "reclassify", label: @tr("Reclassify All"), tip: @tr("Re-run content detection on every clip") },
+                            { key: "export", label: @tr("Export All Clips"), tip: @tr("Save all clips to a JSON file") },
+                            { key: "export-bookmarks", label: @tr("Export Bookmarks"), tip: @tr("Save only bookmarked clips to a JSON file") },
+                            { key: "import", label: @tr("Import Backup"), tip: @tr("Load clips from a JSON backup file") },
+                        ]: Rectangle {
+                            row: Math.floor(idx / 4);
+                            col: Math.mod(idx, 4);
+                            height: 30px;
+                            border-radius: 6px;
+                            background: action.key == "clear-history" ? #c0392b.mix(Theme.bg-primary, 0.15) : Theme.bg-input;
+                            Text {
+                                text: action.label;
+                                color: action.key == "clear-history" ? white : Theme.fg-primary;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                                font-size: Theme.font-size;
+                            }
+
+                            TouchArea {
+                                Tooltip {
+                                    text: @markdown("\{action.tip}");
+                                }
+                                clicked => {
+                                    root.maintenance-action(action.key);
+                                }
+                                mouse-cursor: pointer;
+                            }
+                        }
+                    }
+
+                    SectionHeader {
+                        text: @tr("Statistics");
+                    }
+
+                    // Stats rows sit flush (single line spacing) as one block.
+                    VerticalLayout {
+                        spacing: 0;
+
+                        HorizontalLayout {
+                            height: 32px;
+                            spacing: 12px;
+                            alignment: start;
+                            Text {
+                                width: 180px;
+                                text: @tr("Database created");
+                                color: Theme.fg-primary;
+                                font-size: Theme.font-size;
+                                vertical-alignment: center;
+                            }
+                            Text {
+                                text: root.s-db-created;
+                                color: Theme.fg-secondary;
+                                font-size: Theme.font-size;
+                                vertical-alignment: center;
+                            }
+                        }
+
+                        HorizontalLayout {
+                            height: 32px;
+                            spacing: 12px;
+                            alignment: start;
+                            Text {
+                                width: 180px;
+                                text: @tr("Database size");
+                                color: Theme.fg-primary;
+                                font-size: Theme.font-size;
+                                vertical-alignment: center;
+                            }
+                            Text {
+                                text: root.s-db-size;
+                                color: Theme.fg-secondary;
+                                font-size: Theme.font-size;
+                                vertical-alignment: center;
+                            }
+                        }
+
+                        HorizontalLayout {
+                            height: 32px;
+                            spacing: 12px;
+                            alignment: start;
+                            Text {
+                                width: 180px;
+                                text: @tr("Total clips");
+                                color: Theme.fg-primary;
+                                font-size: Theme.font-size;
+                                vertical-alignment: center;
+                            }
+                            Text {
+                                text: root.s-total-clips;
+                                color: Theme.fg-secondary;
+                                font-size: Theme.font-size;
+                                vertical-alignment: center;
+                            }
+                        }
+
+                        HorizontalLayout {
+                            height: 32px;
+                            spacing: 12px;
+                            alignment: start;
+                            Text {
+                                width: 180px;
+                                text: @tr("Copies / Pastes");
+                                color: Theme.fg-primary;
+                                font-size: Theme.font-size;
+                                vertical-alignment: center;
+                            }
+                            Text {
+                                text: @tr("{} / {}", root.s-copies, root.s-pastes);
+                                color: Theme.fg-secondary;
+                                font-size: Theme.font-size;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
             }
         }
     }
 
     // ── Accent swatch popup ─────────────────────────────────────────────
-    // Opens near the accent row in the Visuals tab. Closes on outside click
-    // (default close-policy) or after a swatch selection.
+    // Opens near the accent row in the Appearance section (top-of-scroll
+    // position). Closes on outside click (default close-policy) or after a
+    // swatch selection.
     accent_popup := PopupWindow {
         x: 30px;
-        y: 108px;
+        y: 380px;
         Rectangle {
             border-radius: 8px;
             background: Theme.bg-header;

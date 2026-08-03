@@ -154,9 +154,7 @@ pub fn setup_manual_maintenance(
                         Ok(None)
                     }
                     "deadhead" => {
-                        let n = db
-                            .with(|conn| cliptoo_core::maintenance::deadhead(conn))
-                            .await?;
+                        let n = db.with(cliptoo_core::maintenance::deadhead).await?;
                         Ok(Some(if n == 0 {
                             "No dead file clips found".to_string()
                         } else {
@@ -164,9 +162,7 @@ pub fn setup_manual_maintenance(
                         }))
                     }
                     "reclassify" => {
-                        let n = db
-                            .with(|conn| cliptoo_core::maintenance::reclassify_all(conn))
-                            .await?;
+                        let n = db.with(cliptoo_core::maintenance::reclassify_all).await?;
                         Ok(Some(if n == 0 {
                             "No clips reclassified".to_string()
                         } else {

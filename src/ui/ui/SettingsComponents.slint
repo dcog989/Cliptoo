@@ -36,48 +36,6 @@ export component StepperButton inherits Rectangle {
     }
 }
 
-export component SettingsTab {
-    in property <string> label;
-    in property <string> tooltip-text;
-    in property <bool> is-active: false;
-    callback clicked;
-
-    height: 40px;
-    width: label-text.preferred-width + 20px;
-
-    Rectangle {
-        background: transparent;
-        border-width: 0;
-        Rectangle {
-            y: parent.height - 2px;
-            height: 2px;
-            width: parent.width;
-            background: root.is-active ? Theme.accent-primary : transparent;
-            animate background { duration: Theme.anim-fast; }
-        }
-
-        label-text := Text {
-            text: root.label;
-            color: root.is-active ? Theme.fg-primary : Theme.fg-muted;
-            font-size: Theme.font-size;
-            horizontal-alignment: center;
-            vertical-alignment: center;
-            animate color { duration: Theme.anim-fast; }
-        }
-    }
-
-    TouchArea {
-        clicked => {
-            root.clicked();
-        }
-        mouse-cursor: pointer;
-    }
-
-    if root.tooltip-text != "" : Tooltip {
-        text: @markdown("\{root.tooltip-text}");
-    }
-}
-
 export component TextRow {
     in property <string> label;
     in-out property <string> value;

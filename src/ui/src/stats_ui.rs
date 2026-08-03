@@ -1,6 +1,6 @@
-// stats_ui.rs — Refreshes the Settings > Data statistics section.
-// Queries the database (async, off the UI thread) each time the Data tab is
-// shown and pushes the values into the SettingsWindow properties.
+// stats_ui.rs — Refreshes the Settings > Database statistics section.
+// Queries the database (async, off the UI thread) each time the Database page
+// is shown and pushes the values into the SettingsWindow properties.
 
 use chrono::{DateTime, Local, NaiveDateTime, Utc};
 use cliptoo_core::db::queries;
@@ -59,7 +59,7 @@ pub fn setup_stats(
     let db = db.clone();
     let db_path = db_path.to_path_buf();
 
-    settings_win.on_data_tab_shown(move || {
+    settings_win.on_database_page_shown(move || {
         let db = db.clone();
         let db_path = db_path.clone();
         let win = win.clone();
