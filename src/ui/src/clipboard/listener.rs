@@ -36,6 +36,11 @@ pub async fn run_listener(
     const POLL_INTERVAL: Duration = Duration::from_millis(500);
     const FULL_READ_INTERVAL: Duration = Duration::from_secs(5);
 
+    // True until the clipboard's state at startup has been observed. Content
+    // already present when Cliptoo starts (left over from before launch) must
+    // not be ingested as a "new" clip; only changes after startup count.
+    let mut baseline = true;
+
     loop {
         let mime_types = match tokio::task::spawn_blocking(|| {
             get_mime_types_ordered(ClipboardType::Regular, Seat::Unspecified)
@@ -44,6 +49,8 @@ pub async fn run_listener(
         {
             Ok(Ok(mt)) => Some(mt),
             Ok(Err(WlError::ClipboardEmpty | WlError::NoSeats)) => {
+                // An empty clipboard at startup seeds the baseline too.
+                baseline = false;
                 last_text_hash = None;
                 last_image_hash = None;
                 last_file_hash = None;
@@ -93,6 +100,13 @@ pub async fn run_listener(
 
         match result {
             Ok(Some(payload)) => {
+                if baseline {
+                    // First read after startup: seed the change-detection
+                    // hashes (already updated by the reader) and skip ingest.
+                    baseline = false;
+                    debug!("clipboard: baseline captured; awaiting first change");
+                    continue;
+                }
                 let sup_hash = match &payload {
                     ClipboardPayload::Text { sup_hash, .. }
                     | ClipboardPayload::FileUri { sup_hash, .. }
@@ -332,7 +346,11 @@ pub async fn run_listener(
                     }
                 }
             }
-            Ok(None) => {}
+            Ok(None) => {
+                // A readable but content-free clipboard (or no change) also
+                // means the startup state has been observed.
+                baseline = false;
+            }
             Err(e) => tracing::error!("Clipboard poll error: {e}"),
         }
 
