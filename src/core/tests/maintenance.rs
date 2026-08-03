@@ -32,6 +32,10 @@ async fn reclassify_only_updates_rows_whose_classification_changed() {
     insert_clip(&db, "https://example.com", "urlhash", "text").await;
     // Correctly classified text clip — ContentProcessor also yields "text".
     insert_clip(&db, "hello world", "texthash", "text").await;
+    // Freshly copied clip whose stored content was trimmed (leading whitespace).
+    // WasTrimmed/HasLeadingWhitespace cannot be re-derived from the stored
+    // trimmed content, so reclassify must leave it alone — type is unchanged.
+    insert_clip(&db, "  indented line  ", "indenthash", "text").await;
 
     let first = db.with(maintenance::reclassify_all).await.unwrap();
     assert_eq!(first, 1, "only the misclassified URL should be updated");
@@ -52,7 +56,24 @@ async fn reclassify_only_updates_rows_whose_classification_changed() {
         })
         .await
         .unwrap();
-    assert_eq!(types, vec!["link".to_string(), "text".to_string()]);
+    assert_eq!(
+        types,
+        vec!["link".to_string(), "text".to_string(), "text".to_string()]
+    );
+
+    // The trimmed clip's WasTrimmed / HasLeadingWhitespace flags are preserved.
+    let trim: (bool, bool) = db
+        .with(|conn| {
+            let (w, h): (i32, i32) = conn.query_row(
+                "SELECT WasTrimmed, HasLeadingWhitespace FROM clips WHERE Id = 3",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )?;
+            Ok((w != 0, h != 0))
+        })
+        .await
+        .unwrap();
+    assert_eq!(trim, (true, true));
 
     let _ = std::fs::remove_file(&dir);
     let _ = std::fs::remove_file(dir.with_extension("wal"));
