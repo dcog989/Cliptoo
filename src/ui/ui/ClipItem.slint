@@ -254,25 +254,34 @@ export component ClipItem {
                 }
 
                 // Highlighted spans (searching with FTS5 match-context)
-                if root.is-searching && clip-data.match-context != "": HorizontalLayout {
+                // Wrapped in a clipped Rectangle so overflowing spans are cut
+                // at the row's reserved width: with `overflow: clip` the span
+                // Text's min-width stays at its full intrinsic width, so the
+                // layout cannot squeeze it and would otherwise bleed past the
+                // bookmark icon's reserved zone and overlap the icon.
+                if root.is-searching && clip-data.match-context != "": Rectangle {
                     x: clip-data.has-leading-whitespace ? 22px : 0px;
                     width: parent.width - self.x - (clip-data.is-bookmarked ? 22px : 0px);
                     height: 100%;
-                    alignment: start;
-                    spacing: 0px;
-                    for span in clip-data.match-spans: Text {
-                        text: span.text;
-                        font-family: Theme.font-family;
-                        // `clip` (not `elide`): eliding each span independently
-                        // collapses squeezed spans to a "…" glyph — which, for a
-                        // highlighted match, renders a highlighted "…". The row
-                        // container clips the overflow once at the right edge.
-                        overflow: clip;
-                        horizontal-alignment: left;
-                        vertical-alignment: center;
-                        color: span.is-highlight ? Theme.accent-primary : clip-data.is-bookmarked && !root.is-selected ? Theme.fg-bookmarked : root.is-selected ? Theme.fg-primary : Theme.fg-secondary;
-                        font-weight: span.is-highlight ? 700 : 400;
-                        font-size: Theme.clip-list-font-size;
+                    clip: true;
+                    HorizontalLayout {
+                        height: 100%;
+                        alignment: start;
+                        spacing: 0px;
+                        for span in clip-data.match-spans: Text {
+                            text: span.text;
+                            font-family: Theme.font-family;
+                            // `clip` (not `elide`): eliding each span independently
+                            // collapses squeezed spans to a "…" glyph — which, for a
+                            // highlighted match, renders a highlighted "…". The row
+                            // container clips the overflow once at the right edge.
+                            overflow: clip;
+                            horizontal-alignment: left;
+                            vertical-alignment: center;
+                            color: span.is-highlight ? Theme.accent-primary : clip-data.is-bookmarked && !root.is-selected ? Theme.fg-bookmarked : root.is-selected ? Theme.fg-primary : Theme.fg-secondary;
+                            font-weight: span.is-highlight ? 700 : 400;
+                            font-size: Theme.clip-list-font-size;
+                        }
                     }
                 }
 
