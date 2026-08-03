@@ -103,12 +103,18 @@ pub fn setup_filter(
     ui: &crate::AppWindow,
     db: &Arc<cliptoo_core::db::DbPool>,
     dirs: &crate::app_dirs::AppDirs,
+    active_filter_state: &Arc<std::sync::Mutex<String>>,
 ) {
     let filter_db = db.clone();
     let filter_ui = ui.as_weak();
     let filter_td = dirs.thumbnails_dir.clone();
     let filter_fd = dirs.favicons_dir.clone();
+    let filter_state = active_filter_state.clone();
     ui.on_filter_changed(move |filter| {
+        // Keep the mirror in sync so background tasks (the clipboard listener)
+        // can refresh with the active filter, even though Slint properties are
+        // only readable on the UI thread.
+        *filter_state.lock().unwrap() = filter.to_string();
         let db = filter_db.clone();
         let ui = filter_ui.clone();
         let td = filter_td.clone();

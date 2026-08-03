@@ -88,9 +88,16 @@ async fn main() -> Result<()> {
 
     stats_ui::setup_stats(&settings_win, &db, &dirs.db_path);
 
+    // Mirror of the toolbar's active clip-type filter. Slint properties are
+    // only readable on the UI thread, so background tasks (the clipboard
+    // listener) read this instead of the live property; setup_filter keeps it
+    // in sync on every filter change.
+    let active_filter_state: Arc<std::sync::Mutex<String>> =
+        Arc::new(std::sync::Mutex::new(String::from("all")));
+
     search::setup_search(&ui, &db, &dirs, &tag_prefix);
 
-    search::setup_filter(&ui, &db, &dirs);
+    search::setup_filter(&ui, &db, &dirs, &active_filter_state);
 
     preview::setup_preview(&ui, &db, &dirs);
     preview::setup_dismiss_preview(&ui);
@@ -130,10 +137,20 @@ async fn main() -> Result<()> {
         let sup = suppression.clone();
         let blacklist = settings.borrow().blacklisted_apps.clone();
         let preview_max_dim = settings.borrow().hover_image_preview_size;
+        let afs = active_filter_state.clone();
         tokio::spawn(async move {
-            if let Err(e) =
-                clipboard::run_listener(db, ui_weak, td, fd, id, sup, blacklist, preview_max_dim)
-                    .await
+            if let Err(e) = clipboard::run_listener(
+                db,
+                ui_weak,
+                td,
+                fd,
+                id,
+                sup,
+                blacklist,
+                preview_max_dim,
+                afs,
+            )
+            .await
             {
                 tracing::error!("Clipboard listener error: {e}");
             }

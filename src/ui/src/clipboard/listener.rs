@@ -26,6 +26,7 @@ pub async fn run_listener(
     suppression: Arc<PasteSuppressionSet>,
     blacklisted_apps: Vec<String>,
     preview_max_dim: u32,
+    active_filter_state: Arc<std::sync::Mutex<String>>,
 ) -> Result<()> {
     let mut last_text_hash: Option<String> = None;
     let mut last_image_hash: Option<String> = None;
@@ -172,13 +173,14 @@ pub async fn run_listener(
                                 info!("existing clip updated: {} — text", &hash[..12]);
                             }
 
+                            let filter = active_filter_state.lock().unwrap().clone();
                             refresh_clips(
                                 &db,
                                 &ui,
                                 &thumbnails_dir,
                                 &favicons_dir,
                                 "",
-                                "all",
+                                &filter,
                                 None,
                             )
                             .await;
@@ -270,7 +272,8 @@ pub async fn run_listener(
                                 let _ = h.await;
                             }
                         }
-                        refresh_clips(&db, &ui, &thumbnails_dir, &favicons_dir, "", "all", None)
+                        let filter = active_filter_state.lock().unwrap().clone();
+                        refresh_clips(&db, &ui, &thumbnails_dir, &favicons_dir, "", &filter, None)
                             .await;
                     }
                     ClipboardPayload::Image { hash, data, .. } => {
@@ -323,7 +326,8 @@ pub async fn run_listener(
                             info!("existing image clip updated: {}", &hash[..12]);
                         }
 
-                        refresh_clips(&db, &ui, &thumbnails_dir, &favicons_dir, "", "all", None)
+                        let filter = active_filter_state.lock().unwrap().clone();
+                        refresh_clips(&db, &ui, &thumbnails_dir, &favicons_dir, "", &filter, None)
                             .await;
                     }
                 }
