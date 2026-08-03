@@ -102,14 +102,14 @@ cargo run
 ```sh
 cargo install cargo-outdated        # initialize outdated tool
 
+cargo build                         # debug build
 cargo check                         # type-check only
 cargo clippy --workspace --all-targets -- -D warnings
-cargo test --workspace              # tests
-cargo fmt --all --check             # formatting
 cargo fetch && cargo outdated -w    # check for updates above semver range
-cargo update --verbose              # update Cargo.lock within semver ranges
-cargo build                         # debug build
+cargo fmt --all --check             # formatting
 cargo run                           # build and run
+cargo test --workspace              # tests
+cargo update --verbose              # update Cargo.lock within semver ranges
 
 cargo clean && rm -rf target/       # clean build artifacts
 ```
