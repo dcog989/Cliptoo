@@ -268,14 +268,30 @@ pub fn clear_history(conn: &Connection, include_bookmarked: bool) -> Result<u64>
 /// Rows whose content is empty (image blobs stored as file paths) are skipped.
 /// Returns the number of rows updated.
 pub fn reclassify_all(conn: &Connection) -> Result<u64> {
-    // Fetch all ids + raw content in a single pass.
-    let rows: Vec<(i64, String)> = {
-        let mut stmt =
-            conn.prepare_cached("SELECT Id, Content FROM clips WHERE Content IS NOT NULL")?;
+    // Fetch all ids + raw content + currently stored classification in a single
+    // pass, so rows whose classification actually changed can be detected
+    // (otherwise every row is rewritten and reported as reclassified).
+    let rows: Vec<(i64, String, String, String, i64, bool, bool, bool)> = {
+        let mut stmt = conn.prepare_cached(
+            "SELECT Id, Content, ClipType, PreviewContent, SizeInBytes,
+                    WasTrimmed, HasLeadingWhitespace, IsMultiline
+             FROM clips WHERE Content IS NOT NULL",
+        )?;
         let mut out = Vec::new();
-        for r in stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))? {
+        for r in stmt.query_map([], |row| {
+            Ok((
+                row.get(0)?,
+                row.get(1)?,
+                row.get(2)?,
+                row.get(3)?,
+                row.get(4)?,
+                row.get::<_, i32>(5)? != 0,
+                row.get::<_, i32>(6)? != 0,
+                row.get::<_, i32>(7)? != 0,
+            ))
+        })? {
             match r {
-                Ok(pair) => out.push(pair),
+                Ok(row) => out.push(row),
                 Err(e) => warn!("reclassify_all: row read error: {e}"),
             }
         }
@@ -283,12 +299,22 @@ pub fn reclassify_all(conn: &Connection) -> Result<u64> {
     };
 
     let mut updated: u64 = 0;
-    for (id, raw) in rows {
+    for (id, raw, cur_clip_type, cur_preview, cur_size, cur_was_trimmed, cur_has_lw, cur_is_ml) in rows
+    {
         if raw.trim().is_empty() {
             continue;
         }
         let normalised = normalize_line_endings(&raw);
         if let Some(c) = ContentProcessor::process(&normalised) {
+            let changed = c.clip_type.as_str() != cur_clip_type
+                || c.preview_content != cur_preview
+                || c.size_in_bytes != cur_size
+                || c.was_trimmed != cur_was_trimmed
+                || c.has_leading_whitespace != cur_has_lw
+                || c.is_multiline != cur_is_ml;
+            if !changed {
+                continue;
+            }
             conn.execute(
                 "UPDATE clips
                  SET ClipType = ?1, PreviewContent = ?2, SizeInBytes = ?3,
