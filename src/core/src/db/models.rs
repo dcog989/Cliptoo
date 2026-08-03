@@ -71,23 +71,6 @@ impl ClipType {
             _ => Self::Text,
         }
     }
-
-    /// Returns true if this type represents a file-system path clip.
-    pub fn is_file_type(&self) -> bool {
-        matches!(
-            self,
-            Self::FileImage
-                | Self::FileVideo
-                | Self::FileAudio
-                | Self::FileArchive
-                | Self::FileDocument
-                | Self::FileDev
-                | Self::FileDanger
-                | Self::FileText
-                | Self::FileGeneric
-                | Self::Folder
-        )
-    }
 }
 
 /// Lightweight row struct returned to the Slint UI via VecModel<ClipData>.

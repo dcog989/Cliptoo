@@ -165,37 +165,12 @@ pub async fn run_listener(
                                 .await?;
 
                             if inserted {
-                                let thumb_handle = if classified.clip_type
-                                    == cliptoo_core::db::models::ClipType::FileImage
-                                {
-                                    let path = std::path::PathBuf::from(&classified.content);
-                                    let hash_c = hash.clone();
-                                    let td = thumbnails_dir.clone();
-                                    Some(tokio::task::spawn_blocking(move || {
-                                        if let Err(e) =
-                                            cliptoo_core::image::store_both_thumbnails_for_file(
-                                                &td,
-                                                &hash_c,
-                                                &path,
-                                                preview_max_dim,
-                                            )
-                                        {
-                                            tracing::error!("store_both_thumbnails_for_file: {e}");
-                                        }
-                                    }))
-                                } else {
-                                    None
-                                };
-
                                 let sa = source_app.as_deref().unwrap_or("unknown");
                                 info!(
                                     "new clip: {} — {:?} (from {sa})",
                                     &hash[..12],
                                     classified.clip_type
                                 );
-                                if let Some(h) = thumb_handle {
-                                    let _ = h.await;
-                                }
                             } else {
                                 info!("existing clip updated: {} — text", &hash[..12]);
                             }
