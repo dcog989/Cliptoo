@@ -115,8 +115,9 @@ pub async fn run_listener(
                         }
                         if let Some(classified) = classified {
                             if has_uri_list
-                                && classified.clip_type
-                                    == cliptoo_core::db::models::ClipType::FilePath
+                                && cliptoo_core::content::ContentProcessor::looks_like_path(
+                                    &classified.content,
+                                )
                             {
                                 debug!("clipboard: path text on a text/uri-list clipboard skipped");
                                 continue;

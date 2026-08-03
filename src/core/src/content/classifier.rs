@@ -112,8 +112,9 @@ impl ContentProcessor {
 
     /// True when `raw` looks like a filesystem path, regardless of whether it
     /// exists on disk. `file://` prefixes and percent-encoding are handled, so
-    /// both `file:///home/foo%20bar` and `/home/foo bar` count.
-    fn looks_like_path(raw: &str) -> bool {
+    /// both `file:///home/foo%20bar` and `/home/foo bar` count. Also accepts a
+    /// newline-joined list of paths (a multi-selection `text/uri-list` payload).
+    pub fn looks_like_path(raw: &str) -> bool {
         let without_scheme = raw.strip_prefix("file://").unwrap_or(raw);
         let decoded = crate::content::percent_decode_path(without_scheme);
         decoded.starts_with('/')
@@ -125,12 +126,16 @@ impl ContentProcessor {
                 && (decoded.as_bytes()[2] == b'\\' || decoded.as_bytes()[2] == b'/')
     }
 
-    /// Checks whether `s` looks like a filesystem path and exists on disk.
+    /// Checks whether `s` is a filesystem path (or newline-joined path list)
+    /// and classifies it.
     ///
-    /// Returns `Some((clip_type, decoded_path))` on a match, where
-    /// `decoded_path` is the percent-decoded path with any `file://` prefix
-    /// stripped — ready to store as `Content`. This avoids the caller having
-    /// to decode and strip a second time.
+    /// Returns `Some((clip_type, decoded_paths))` on a match, where
+    /// `decoded_paths` is the percent-decoded, `file://`-stripped content —
+    /// ready to store as `Content`. A single existing path gets its precise
+    /// type (`Folder` or a `file_*`); a multi-path payload (a multi-selection
+    /// copy) is `Folder` only when every path is an existing directory,
+    /// otherwise `FileGeneric`. Multi-path payloads need no existence check:
+    /// paths that are already gone become deadheads via maintenance.
     fn classify_path(s: &str) -> Option<(ClipType, String)> {
         use std::path::Path;
         if !Self::looks_like_path(s) {
@@ -140,19 +145,38 @@ impl ContentProcessor {
         // `file://` prefix before calling `process`; only decode when the scheme
         // is still present, otherwise re-decoding would corrupt paths that
         // legitimately contain percent sequences (e.g. a file named `foo%20bar`).
-        let decoded = match s.strip_prefix("file://") {
-            Some(rest) => crate::content::percent_decode_path(rest),
-            None => s.to_string(),
+        let decoded: Vec<String> = s
+            .lines()
+            .map(|line| match line.strip_prefix("file://") {
+                Some(rest) => crate::content::percent_decode_path(rest),
+                None => line.to_string(),
+            })
+            .collect();
+
+        if decoded.len() == 1 {
+            let path = Path::new(decoded[0].as_str());
+            if path.is_dir() {
+                return Some((ClipType::Folder, decoded[0].clone()));
+            }
+            if path.is_file() {
+                let ft = crate::content::filetype::FileTypeClassifier::classify(path);
+                return Some((ft, decoded[0].clone()));
+            }
+            return None;
+        }
+
+        // Multi-selection copy. Reject when a line isn't path-like at all (a
+        // stray non-path line shouldn't be silently classified as a file clip).
+        if decoded.iter().any(|l| !Self::looks_like_path(l)) {
+            return None;
+        }
+        let all_dirs = decoded.iter().all(|l| Path::new(l.as_str()).is_dir());
+        let clip_type = if all_dirs {
+            ClipType::Folder
+        } else {
+            ClipType::FileGeneric
         };
-        let path = Path::new(decoded.as_str());
-        if path.is_dir() {
-            return Some((ClipType::Folder, decoded));
-        }
-        if path.is_file() {
-            let ft = crate::content::filetype::FileTypeClassifier::classify(path);
-            return Some((ft, decoded));
-        }
-        None
+        Some((clip_type, decoded.join("\n")))
     }
 
     fn is_code_heuristic(s: &str) -> bool {
@@ -203,5 +227,75 @@ impl ContentProcessor {
         // least CODE_SCORE_PERCENT of lines, so short dense snippets still
         // qualify but long prose with two stray braces does not.
         score >= CODE_MIN_SCORE && score * 100 >= lines.len() * CODE_SCORE_PERCENT
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ContentProcessor;
+    use crate::db::models::ClipType;
+
+    fn temp_dir() -> std::path::PathBuf {
+        std::env::temp_dir().join(format!("cliptoo_classifier_{}", std::process::id()))
+    }
+
+    #[test]
+    fn single_existing_file_gets_specific_type() {
+        let dir = temp_dir();
+        let path = dir.join("sample.png");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(&path, b"x").unwrap();
+        let c = ContentProcessor::process(path.to_str().unwrap(), true).unwrap();
+        assert_eq!(c.clip_type, ClipType::FileImage);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn multi_file_selection_is_generic_file() {
+        let dir = temp_dir();
+        std::fs::create_dir_all(&dir).unwrap();
+        let a = dir.join("a.txt");
+        let b = dir.join("b.md");
+        std::fs::write(&a, b"x").unwrap();
+        std::fs::write(&b, b"x").unwrap();
+        let content = format!("{}\n{}", a.display(), b.display());
+        let c = ContentProcessor::process(&content, true).unwrap();
+        assert_eq!(c.clip_type, ClipType::FileGeneric);
+        assert!(c.is_multiline);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn multi_selection_all_dirs_is_folder() {
+        let dir = temp_dir();
+        let d1 = dir.join("one");
+        let d2 = dir.join("two");
+        std::fs::create_dir_all(&d1).unwrap();
+        std::fs::create_dir_all(&d2).unwrap();
+        let content = format!("{}\n{}", d1.display(), d2.display());
+        let c = ContentProcessor::process(&content, true).unwrap();
+        assert_eq!(c.clip_type, ClipType::Folder);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn multi_selection_missing_paths_stay_file_clips() {
+        // A path that vanished is not a reason to reclassify a multi-selection
+        // as text — deadhead maintenance handles the missing paths later.
+        let dir = temp_dir();
+        let a = dir.join("a.txt");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(&a, b"x").unwrap();
+        let gone = dir.join("gone.png");
+        let content = format!("{}\n{}", a.display(), gone.display());
+        let c = ContentProcessor::process(&content, true).unwrap();
+        assert_eq!(c.clip_type, ClipType::FileGeneric);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn single_non_path_text_stays_text() {
+        let c = ContentProcessor::process("not a path at all", true).unwrap();
+        assert_eq!(c.clip_type, ClipType::Text);
     }
 }

@@ -119,6 +119,16 @@ pub fn deadhead_collect(conn: &Connection) -> Result<Vec<(i64, String)>> {
     Ok(out)
 }
 
+/// True when any path in a file clip's `Content` still exists. Single-path
+/// clips store one path; multi-selection copies store one path per line, so a
+/// clip is only a deadhead once every referenced path is gone.
+fn clip_paths_exist(content: &str) -> bool {
+    content
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .any(|l| Path::new(l).exists())
+}
+
 /// Mark file-type clips whose path no longer exists as deadheads
 /// (`IsDeadhead = 1`) without deleting them. The UI shows these with
 /// strikethrough. Clears the flag for paths that have come back. Returns the
@@ -130,7 +140,7 @@ pub async fn mark_deadheads(db: &Arc<DbPool>) -> Result<u64> {
     let rows = db.with(deadhead_collect).await?;
     let mut marked: u64 = 0;
     for (id, path_str) in rows {
-        let exists = Path::new(&path_str).exists();
+        let exists = clip_paths_exist(&path_str);
         match db
             .with(move |conn| {
                 if !exists {
@@ -174,7 +184,7 @@ pub fn deadhead(conn: &Connection) -> Result<u64> {
     let rows = deadhead_collect(conn)?;
     let mut deleted: u64 = 0;
     for (id, path_str) in rows {
-        if !Path::new(&path_str).exists() {
+        if !clip_paths_exist(&path_str) {
             match deadhead_delete(conn, id) {
                 Ok(_) => {
                     deleted += 1;
