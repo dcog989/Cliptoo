@@ -60,6 +60,24 @@ export component ClipList {
         }
     }
 
+    public function nav-page-up() {
+        if (root.clips.length > 0) {
+            root.selected-index = max(0, root.selected-index - root.page-rows);
+            if (root.selected-index * Theme.row-height < -list-view.viewport-y) {
+                list-view.viewport-y = -root.selected-index * Theme.row-height;
+            }
+        }
+    }
+
+    public function nav-page-down() {
+        if (root.clips.length > 0) {
+            root.selected-index = min(root.clips.length - 1, root.selected-index + root.page-rows);
+            if ((root.selected-index + 1) * Theme.row-height > -list-view.viewport-y + list-view.visible-height) {
+                list-view.viewport-y = -(root.selected-index + 1) * Theme.row-height + list-view.visible-height;
+            }
+        }
+    }
+
     public function activate() {
         if (root.clips.length > 0) {
             root.item-activated(root.clips[root.selected-index].id);
@@ -70,6 +88,8 @@ export component ClipList {
     // track clicks don't register on Plasma) and replaced by the ScrollBar
     // overlay on the right edge.
     private property <length> scrollbar-width: 10px;
+    // Rows per visible page for nav-page-up/down.
+    private property <int> page-rows: max(1.0, round(list-view.visible-height / Theme.row-height));
 
     list-view := ListView {
         vertical-scrollbar-policy: ScrollBarPolicy.always-off;

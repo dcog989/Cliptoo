@@ -87,6 +87,14 @@ export component MainClipArea inherits Rectangle {
                 clip-list.nav-end();
                 return accept;
             }
+            if (e.text == Key.PageUp) {
+                clip-list.nav-page-up();
+                return accept;
+            }
+            if (e.text == Key.PageDown) {
+                clip-list.nav-page-down();
+                return accept;
+            }
             // ── ESC: clear search first, then close ──
             if (e.text == Key.Escape) {
                 if (root.popup-open || root.popup-just-closed) {
