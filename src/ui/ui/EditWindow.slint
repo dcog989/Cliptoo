@@ -124,22 +124,21 @@ export component EditWindow inherits Window {
                 height: 32px;
                 border-radius: Theme.border-radius;
                 border-width: 1px;
-                border-color: Theme.border-subtle;
+                border-color: tags-edit.has-focus ? Theme.accent-primary : Theme.accent-muted;
                 background: Theme.bg-input;
                 clip: true;
-
-                tags-edit := TextInput {
-                    // One-way initialisation: binding breaks on first user edit, which
-                    // is the desired behaviour. Rust must NOT mutate initial-tags after
-                    // the window opens, or the field will re-sync and discard user input.
-                    text: root.initial-tags;
-                    color: Theme.fg-primary;
-                    font-size: Theme.font-size;
-                    x: 8px;
-                    y: 0px;
-                    width: parent.width - 16px;
-                    height: 100%;
-                    vertical-alignment: center;
+                HorizontalLayout {
+                    padding-left: 8px;
+                    padding-right: 8px;
+                    tags-edit := TextInput {
+                        // One-way initialisation: binding breaks on first user edit, which
+                        // is the desired behaviour. Rust must NOT mutate initial-tags after
+                        // the window opens, or the field will re-sync and discard user input.
+                        text: root.initial-tags;
+                        color: Theme.fg-primary;
+                        font-size: Theme.font-size;
+                        vertical-alignment: center;
+                    }
                 }
             }
         }
