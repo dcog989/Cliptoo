@@ -71,6 +71,32 @@ pub fn setup_search(
             }
         });
     });
+
+    // Ctrl+Backspace from the app-level FocusScope (when the LineEdit isn't
+    // focused). Deletes the trailing word, mirroring Slint's own LineEdit
+    // word-boundary logic (prev_word_boundary via unicode_word_indices).
+    let word_backspace_ui = ui.as_weak();
+    ui.on_search_word_backspace(move || {
+        let ui = word_backspace_ui.clone();
+        let _ = ui.upgrade_in_event_loop(move |ui| {
+            let text = ui.get_search_text();
+            if !text.is_empty() {
+                let mut word_offset = 0;
+                for (offset, _) in unicode_segmentation::UnicodeSegmentation::unicode_word_indices(
+                    text.as_str(),
+                ) {
+                    if offset <= text.len() {
+                        word_offset = offset;
+                    } else {
+                        break;
+                    }
+                }
+                let new_text: String = text[..word_offset].to_string();
+                ui.set_search_text(new_text.clone().into());
+                ui.invoke_search_changed(new_text.into());
+            }
+        });
+    });
 }
 
 pub fn setup_filter(

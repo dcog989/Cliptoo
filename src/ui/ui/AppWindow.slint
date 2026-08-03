@@ -40,6 +40,7 @@ export component AppWindow inherits Window {
     // ── Callbacks (bridged to Rust) ───────────────────────────────────────────
     callback search-changed(string);
     callback search-backspace();
+    callback search-word-backspace();
 
     callback filter-changed(string);   // "all" | "bookmarked" | "text" | "link" | "file_image" | "color" | "code_snippet" | "folder" | "file_audio" | "file_video" | "file_archive" | "file_document" | "file_database" | "file_font" | "rtf" | "file"
     callback item-activated(int);      // paste item with given id
@@ -280,6 +281,10 @@ export component AppWindow inherits Window {
             if (!toolbar.search-focused) {
                     if (e.text == Key.Return) {
                         clip-list.activate();
+                        return accept;
+                    }
+                    if (e.text == Key.Backspace && e.modifiers.control) {
+                        root.search-word-backspace();
                         return accept;
                     }
                     if (e.text == Key.Backspace) {
