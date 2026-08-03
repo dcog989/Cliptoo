@@ -9,9 +9,10 @@ export component FilterPopup {
     in property <length> window-width: 0px;
     in property <length> window-height: 0px;
     in property <length> toolbar-height: 48px;
-    // FilterGrid intrinsic extent: 4 cells of 36px plus 8px padding and
+    // FilterGrid intrinsic extent: 5 cells of 36px plus 8px padding and
     // 4px grid spacing each way (matches FilterGrid.slint).
-    in property <length> popup-size: 172px;
+    in property <length> popup-width: 212px;
+    in property <length> popup-height: 172px;
     in property <length> right-margin: 6px;
 
     // Read-only for AppWindow: reflects whether the popup is currently open.
@@ -29,8 +30,8 @@ export component FilterPopup {
     // edge so a very short window cannot push the popup off screen (Y would
     // otherwise go negative below ~220px window height).
     popup := PopupWindow {
-        x: root.window-width - root.popup-size - root.right-margin;
-        y: Math.max(0px, root.window-height - root.toolbar-height - root.popup-size);
+        x: root.window-width - root.popup-width - root.right-margin;
+        y: Math.max(0px, root.window-height - root.toolbar-height - root.popup-height);
 
         FilterGrid {
             active-filter: root.active-filter;

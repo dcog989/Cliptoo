@@ -119,9 +119,6 @@ pub async fn run_listener(
                                 continue;
                             }
                         };
-                        if classified.is_none() {
-                            debug!("clipboard: empty/whitespace-only text skipped");
-                        }
                         if let Some(classified) = classified {
                             if has_uri_list
                                 && cliptoo_core::content::ContentProcessor::looks_like_path(

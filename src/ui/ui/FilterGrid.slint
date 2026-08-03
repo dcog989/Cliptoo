@@ -45,8 +45,8 @@ export component FilterGrid {
             spacing: root.grid-spacing;
 
             for item[idx] in root.items: Rectangle {
-                row: Math.floor(idx / 4);
-                col: Math.mod(idx, 4);
+                row: Math.floor(idx / 5);
+                col: Math.mod(idx, 5);
                 width: root.cell-size;
                 height: root.cell-size;
                 border-radius: 5px;
