@@ -9,16 +9,16 @@ fn idx_of(needle: &str, haystack: &[&str]) -> i32 {
 
 /// 24 accent swatches at 15° hue steps across the full 0–360° wheel. Each
 /// entry carries both the `color` for rendering and its hex for persistence.
-const SWATCH_SATURATION: f64 = 0.65;
-const SWATCH_VALUE: f64 = 0.95;
+/// The whole palette is rendered at one saturation and brightness (HSV value),
+/// both 0.0–1.0, taken from the user-tunable settings of the same names.
 const SWATCH_COUNT: u32 = 24;
 const SWATCH_HUE_STEP: u32 = 360 / SWATCH_COUNT;
 
-fn build_accent_swatches() -> Vec<crate::AccentSwatch> {
+fn build_accent_swatches(saturation: f64, value: f64) -> Vec<crate::AccentSwatch> {
     (0..SWATCH_COUNT)
         .map(|i| {
             let hue = (i * SWATCH_HUE_STEP) % 360;
-            let (r, g, b) = crate::theme::hsv_to_rgb(hue as f64, SWATCH_SATURATION, SWATCH_VALUE);
+            let (r, g, b) = crate::theme::hsv_to_rgb(hue as f64, saturation, value);
             crate::AccentSwatch {
                 hex: format!("#{r:02X}{g:02X}{b:02X}").into(),
                 color: slint::Color::from_rgb_u8(r, g, b),
@@ -40,6 +40,8 @@ const GENERAL_LOGLEVEL: &str = "general log level logging verbosity debug info w
 const GENERAL_LOGFILE: &str = "general log file open latest log viewer";
 const APPEARANCE_THEME: &str = "appearance theme system light dark mode";
 const APPEARANCE_ACCENT: &str = "appearance accent color swatch clear picker";
+const APPEARANCE_ACCENT_SAT: &str = "appearance accent saturation intensity color vivid swatch";
+const APPEARANCE_ACCENT_VALUE: &str = "appearance accent brightness value light dark swatch";
 const APPEARANCE_FONT: &str = "appearance font family typeface picker";
 const APPEARANCE_CLIP_FONT_SIZE: &str = "appearance clip list font size text";
 const APPEARANCE_PREVIEW_FONT_SIZE: &str = "appearance preview font size code color";
@@ -68,6 +70,8 @@ fn apply_settings_filter(win: &crate::SettingsWindow, query: &str) {
     win.set_row_logfile_visible(row_matches(GENERAL_LOGFILE, &q));
     win.set_row_theme_visible(row_matches(APPEARANCE_THEME, &q));
     win.set_row_accent_visible(row_matches(APPEARANCE_ACCENT, &q));
+    win.set_row_accent_sat_visible(row_matches(APPEARANCE_ACCENT_SAT, &q));
+    win.set_row_accent_value_visible(row_matches(APPEARANCE_ACCENT_VALUE, &q));
     win.set_row_font_visible(row_matches(APPEARANCE_FONT, &q));
     win.set_row_clip_font_size_visible(row_matches(APPEARANCE_CLIP_FONT_SIZE, &q));
     win.set_row_preview_font_size_visible(row_matches(APPEARANCE_PREVIEW_FONT_SIZE, &q));
@@ -208,9 +212,11 @@ pub fn setup_settings_window(
         } else {
             crate::theme::accent_hex_to_color(&s.accent_color)
         });
+        settings_win.set_s_accent_saturation((s.accent_saturation * 100.0).round() as i32);
+        settings_win.set_s_accent_value((s.accent_value * 100.0).round() as i32);
         settings_win.set_accent_swatches(
             std::rc::Rc::new(slint::VecModel::<crate::AccentSwatch>::from(
-                build_accent_swatches(),
+                build_accent_swatches(s.accent_saturation, s.accent_value),
             ))
             .into(),
         );
@@ -429,6 +435,24 @@ if ok:
                                 win.set_s_accent_color(crate::theme::accent_hex_to_color(hex));
                             }
                             reapply_theme(&settings_ui, &sw, &s);
+                        }
+                    }
+                    "accent_saturation" | "accent_value" => {
+                        if let Ok(percent) = value.parse::<f64>() {
+                            let tuned = (percent.clamp(0.0, 100.0)) / 100.0;
+                            if key == "accent_saturation" {
+                                s.accent_saturation = tuned;
+                            } else {
+                                s.accent_value = tuned;
+                            }
+                            if let Some(win) = sw.upgrade() {
+                                win.set_accent_swatches(
+                                    std::rc::Rc::new(slint::VecModel::<crate::AccentSwatch>::from(
+                                        build_accent_swatches(s.accent_saturation, s.accent_value),
+                                    ))
+                                    .into(),
+                                );
+                            }
                         }
                     }
                     "font_size" => {

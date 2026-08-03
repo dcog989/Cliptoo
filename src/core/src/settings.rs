@@ -34,6 +34,13 @@ pub struct Settings {
     // no longer read.
     #[serde(default = "default_accent_color")]
     pub accent_color: String,
+    // Swatch palette tuning, both 0.0–1.0: saturation and brightness (HSV
+    // value) applied when the accent swatches are built. The defaults match
+    // the fixed palette constants used before these became user-adjustable.
+    #[serde(default = "default_accent_saturation")]
+    pub accent_saturation: f64,
+    #[serde(default = "default_accent_value")]
+    pub accent_value: f64,
     pub theme: String,
 
     // Typography / layout
@@ -80,6 +87,8 @@ impl Default for Settings {
             settings_window_width: 560.0,
             settings_window_height: 540.0,
             accent_color: String::new(),
+            accent_saturation: 0.65,
+            accent_value: 0.95,
             theme: "System".to_string(),
             font_family: "Inter".to_string(),
             font_size: 13.0,
@@ -170,6 +179,14 @@ fn default_accent_color() -> String {
     String::new()
 }
 
+fn default_accent_saturation() -> f64 {
+    0.65
+}
+
+fn default_accent_value() -> f64 {
+    0.95
+}
+
 fn default_true() -> bool {
     true
 }
@@ -192,4 +209,22 @@ fn chrono_now_compact() -> String {
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_secs().to_string())
         .unwrap_or_else(|_| "0".to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Settings files written before the accent tuning fields existed must
+    /// load with the palette defaults, not 0.0 (which would make every swatch
+    /// grayscale/black).
+    #[test]
+    fn accent_tuning_defaults_for_legacy_files() {
+        let mut value = serde_json::to_value(Settings::default()).unwrap();
+        value.as_object_mut().unwrap().remove("accent_saturation");
+        value.as_object_mut().unwrap().remove("accent_value");
+        let s: Settings = serde_json::from_value(value).unwrap();
+        assert!((s.accent_saturation - 0.65).abs() < f64::EPSILON);
+        assert!((s.accent_value - 0.95).abs() < f64::EPSILON);
+    }
 }

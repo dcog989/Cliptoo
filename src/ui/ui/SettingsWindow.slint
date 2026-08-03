@@ -42,6 +42,8 @@ export component SettingsWindow inherits Window {
     // Visuals
     in-out property <int> s-theme-idx:            0;  // System/Light/Dark
     in-out property <color> s-accent-color:       #7C6EE6;
+    in-out property <int> s-accent-saturation: 65;  // 0–100 %
+    in-out property <int> s-accent-value:      95;  // 0–100 % brightness
     // 24 swatches evenly spaced across 0–360° hue; built from Rust at startup.
     in-out property <[AccentSwatch]> accent-swatches: [];
     in-out property <string> s-font-family:          "Inter";
@@ -77,6 +79,8 @@ export component SettingsWindow inherits Window {
     // Appearance
     in-out property <bool> row-theme-visible: true;
     in-out property <bool> row-accent-visible: true;
+    in-out property <bool> row-accent-sat-visible: true;
+    in-out property <bool> row-accent-value-visible: true;
     in-out property <bool> row-font-visible: true;
     in-out property <bool> row-clip-font-size-visible: true;
     in-out property <bool> row-preview-font-size-visible: true;
@@ -154,6 +158,8 @@ export component SettingsWindow inherits Window {
                 s-log-level-idx <=> root.s-log-level-idx;
                 s-theme-idx <=> root.s-theme-idx;
                 s-accent-color <=> root.s-accent-color;
+                s-accent-saturation <=> root.s-accent-saturation;
+                s-accent-value <=> root.s-accent-value;
                 s-font-family <=> root.s-font-family;
                 s-font-size-hundredths <=> root.s-font-size-hundredths;
                 s-preview-font-size-hundredths <=> root.s-preview-font-size-hundredths;
@@ -172,6 +178,8 @@ export component SettingsWindow inherits Window {
                 row-logfile-visible: root.row-logfile-visible;
                 row-theme-visible: root.row-theme-visible;
                 row-accent-visible: root.row-accent-visible;
+                row-accent-sat-visible: root.row-accent-sat-visible;
+                row-accent-value-visible: root.row-accent-value-visible;
                 row-font-visible: root.row-font-visible;
                 row-clip-font-size-visible: root.row-clip-font-size-visible;
                 row-preview-font-size-visible: root.row-preview-font-size-visible;

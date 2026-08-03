@@ -10,6 +10,7 @@ import {
     FloatRow,
     DropRow,
     ToggleRow,
+    SliderRow,
     SectionHeader,
 } from "SettingsComponents.slint";
 import { ScrollView } from "std-widgets.slint";
@@ -23,6 +24,8 @@ export component SettingsPage inherits ScrollView {
     in-out property <int> s-log-level-idx:        1;  // Debug/Info/Warn/Error
     in-out property <int> s-theme-idx:            0;  // System/Light/Dark
     in-out property <color> s-accent-color:       #7C6EE6;
+    in-out property <int> s-accent-saturation: 65;  // 0–100 %
+    in-out property <int> s-accent-value:      95;  // 0–100 % brightness
     in-out property <string> s-font-family:          "Inter";
     in-out property <int> s-font-size-hundredths: 1300;  // 13.00 pt
     in-out property <int> s-preview-font-size-hundredths: 1200;
@@ -44,6 +47,8 @@ export component SettingsPage inherits ScrollView {
     // Appearance
     in property <bool> row-theme-visible: true;
     in property <bool> row-accent-visible: true;
+    in property <bool> row-accent-sat-visible: true;
+    in property <bool> row-accent-value-visible: true;
     in property <bool> row-font-visible: true;
     in property <bool> row-clip-font-size-visible: true;
     in property <bool> row-preview-font-size-visible: true;
@@ -176,7 +181,8 @@ export component SettingsPage inherits ScrollView {
         }
 
         // ── Appearance ───────────────────────────────────────────────────
-        if (root.row-theme-visible || root.row-accent-visible || root.row-font-visible
+        if (root.row-theme-visible || root.row-accent-visible || root.row-accent-sat-visible
+            || root.row-accent-value-visible || root.row-font-visible
             || root.row-clip-font-size-visible || root.row-preview-font-size-visible
             || root.row-padding-visible || root.row-hover-delay-visible
             || root.row-image-preview-size-visible): SectionHeader {
@@ -233,6 +239,24 @@ export component SettingsPage inherits ScrollView {
                         root.clear-accent-color();
                     }
                 }
+            }
+        }
+
+        if root.row-accent-sat-visible : SliderRow {
+            label: @tr("Accent saturation");
+            tooltip-text: @tr("Color intensity of the accent swatches");
+            value <=> root.s-accent-saturation;
+            committed(v) => {
+                root.setting-changed("accent_saturation", "\{v}");
+            }
+        }
+
+        if root.row-accent-value-visible : SliderRow {
+            label: @tr("Accent brightness");
+            tooltip-text: @tr("How light or dark the accent swatches appear");
+            value <=> root.s-accent-value;
+            committed(v) => {
+                root.setting-changed("accent_value", "\{v}");
             }
         }
 

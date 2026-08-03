@@ -299,6 +299,91 @@ export component FloatRow {
     }
 }
 
+export component SliderRow {
+    in property <string> label;
+    in-out property <int> value;
+    in property <int> min-val: 0;
+    in property <int> max-val: 100;
+    in property <string> tooltip-text;
+    callback committed(int);
+
+    // Fixed track width, mirroring the hover-delay row: a native `Slider`
+    // widget collapses to ~0 width inside these `alignment: start` rows, so
+    // the track is drawn and dragged by hand instead.
+    private property <length> track-width: 160px;
+
+    height: 32px;
+    HorizontalLayout {
+        spacing: 12px;
+        alignment: start;
+        Text {
+                width: 180px;
+                text: root.label;
+                color: Theme.fg-primary;
+                font-size: Theme.font-size;
+                vertical-alignment: center;
+        }
+
+        Rectangle {
+            horizontal-stretch: 1;
+            height: 28px;
+            border-radius: 5px;
+            border-width: 1px;
+            border-color: Theme.accent-muted;
+            background: Theme.bg-input;
+            HorizontalLayout {
+                cross-axis-alignment: center;
+                padding-left: 12px;
+                padding-right: 8px;
+                spacing: 8px;
+                track := Rectangle {
+                    width: root.track-width;
+                    height: 6px;
+                    border-radius: 3px;
+                    background: #555;
+                    Rectangle {
+                        width: 16px;
+                        height: 16px;
+                        border-radius: 8px;
+                        background: Theme.accent-primary;
+                        y: -5px;
+                        x: Math.max(0px, Math.min(parent.width - 16px, (root.value - root.min-val) * 1.0 / (root.max-val - root.min-val) * parent.width));
+                    }
+                }
+
+                Text {
+                    text: "\{root.value}%";
+                    color: Theme.fg-primary;
+                    font-size: Theme.font-size;
+                }
+            }
+
+            touch := TouchArea {
+                width: root.track-width;
+                height: 28px;
+                x: 12px;
+                y: 0px;
+                Tooltip {
+                    text: @markdown("\{root.tooltip-text}");
+                }
+                pointer-event(e) => {
+                    if (e.kind == PointerEventKind.down || (e.kind == PointerEventKind.move && self.pressed)) {
+                        let span = root.max-val - root.min-val;
+                        let frac = touch.mouse-x / root.track-width;
+                        root.value = root.min-val + Math.round(Math.min(1.0, Math.max(0.0, frac)) * span);
+                        root.committed(root.value);
+                    }
+                }
+                mouse-cursor: pointer;
+            }
+        }
+    }
+
+    if root.tooltip-text != "" : Tooltip {
+        text: @markdown("\{root.tooltip-text}");
+    }
+}
+
 export component DropRow {
     in property <string> label;
     in-out property <int> index;
