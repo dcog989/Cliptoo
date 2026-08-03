@@ -60,7 +60,7 @@ impl ContentProcessor {
 
         // classify_path returns the decoded filesystem path alongside the type
         // so we don't have to decode/strip a second time below.
-        let (clip_type, content) = if content.starts_with(r"{\rtf") {
+        let (clip_type, content) = if Self::is_rtf(&content) {
             (ClipType::Rtf, content)
         } else if Self::is_url(&content) {
             (ClipType::Link, content)
@@ -102,6 +102,12 @@ impl ContentProcessor {
 
     fn is_url(s: &str) -> bool {
         s.starts_with("http://") || s.starts_with("https://") || s.starts_with("ftp://")
+    }
+
+    /// True when `s` is an RTF document, tolerating a leading UTF-8 BOM that
+    /// some Windows apps prepend to clipboard RTF.
+    fn is_rtf(s: &str) -> bool {
+        s.strip_prefix('\u{feff}').unwrap_or(s).starts_with(r"{\rtf")
     }
 
     /// True when `raw` looks like a filesystem path, regardless of whether it
@@ -328,5 +334,17 @@ mod tests {
         let code = "if (a) {\n  b();\n  c();\n}";
         let c = ContentProcessor::process(code, false).unwrap();
         assert_eq!(c.clip_type, ClipType::CodeSnippet);
+    }
+
+    #[test]
+    fn rtf_without_bom_is_rtf() {
+        let c = ContentProcessor::process(r"{\rtf1\ansi hello}", false).unwrap();
+        assert_eq!(c.clip_type, ClipType::Rtf);
+    }
+
+    #[test]
+    fn rtf_with_bom_is_rtf() {
+        let c = ContentProcessor::process("\u{feff}{\\rtf1\\ansi hello}", false).unwrap();
+        assert_eq!(c.clip_type, ClipType::Rtf);
     }
 }
