@@ -11,6 +11,9 @@ export global Theme {
     in property <color> accent-secondary:  #8A8A8A;
     in property <color> accent-muted:      #5A5A5A;
     in property <bool> accent-is-dark:    true;
+    // Foreground (black/white) that stays readable when placed on an
+    // `accent-primary` background; derived from accent luminance.
+    in property <color> accent-fg:         #ffffff;
 
     in property <color> bg-primary:        #181818;
     in property <color> bg-header:         #121212;

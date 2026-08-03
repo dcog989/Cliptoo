@@ -59,7 +59,7 @@ export component ClipItem {
                         height: 100%;
                         Text {
                             text: "\{root.row-index + 1}";
-                            color: Theme.accent-is-dark ? #ffffff : #000000;
+                            color: Theme.accent-fg;
                             font-size: 11px;
                             horizontal-alignment: center;
                             vertical-alignment: center;
@@ -96,7 +96,7 @@ export component ClipItem {
                         // Type-specific SVG icons (mapped from ClipType enum as_str())
                         if clip-data.clip-type == "folder": Image {
                             source: @image-url("icons/folder.svg");
-                            colorize: Theme.fg-muted;
+                            colorize: touch.has-hover ? Theme.accent-fg : Theme.fg-muted;
                             width: 100%;
                             height: 100%;
                         }
@@ -117,70 +117,70 @@ export component ClipItem {
                         // Generic link icon fallback (shown when no favicon cached)
                         if clip-data.clip-type == "link" && clip-data.favicon-image.width == 0: Image {
                             source: @image-url("icons/link.svg");
-                            colorize: Theme.fg-muted;
+                            colorize: touch.has-hover ? Theme.accent-fg : Theme.fg-muted;
                             width: 100%;
                             height: 100%;
                         }
 
                         if clip-data.clip-type == "code_snippet": Image {
                             source: @image-url("icons/code.svg");
-                            colorize: Theme.fg-muted;
+                            colorize: touch.has-hover ? Theme.accent-fg : Theme.fg-muted;
                             width: 100%;
                             height: 100%;
                         }
 
                         if clip-data.clip-type == "rtf": Image {
                             source: @image-url("icons/file-type.svg");
-                            colorize: Theme.fg-muted;
+                            colorize: touch.has-hover ? Theme.accent-fg : Theme.fg-muted;
                             width: 100%;
                             height: 100%;
                         }
 
                         if clip-data.clip-type == "file_audio": Image {
                             source: @image-url("icons/audio-lines.svg");
-                            colorize: Theme.fg-muted;
+                            colorize: touch.has-hover ? Theme.accent-fg : Theme.fg-muted;
                             width: 100%;
                             height: 100%;
                         }
 
                         if clip-data.clip-type == "file_video": Image {
                             source: @image-url("icons/film.svg");
-                            colorize: Theme.fg-muted;
+                            colorize: touch.has-hover ? Theme.accent-fg : Theme.fg-muted;
                             width: 100%;
                             height: 100%;
                         }
 
                         if clip-data.clip-type == "file_archive": Image {
                             source: @image-url("icons/file-archive.svg");
-                            colorize: Theme.fg-muted;
+                            colorize: touch.has-hover ? Theme.accent-fg : Theme.fg-muted;
                             width: 100%;
                             height: 100%;
                         }
 
                         if clip-data.clip-type == "file_document" || clip-data.clip-type == "file_text": Image {
                             source: @image-url("icons/file-text.svg");
-                            colorize: Theme.fg-muted;
+                            colorize: touch.has-hover ? Theme.accent-fg : Theme.fg-muted;
                             width: 100%;
                             height: 100%;
                         }
 
                         if clip-data.clip-type == "file_dev": Image {
                             source: @image-url("icons/file-code.svg");
-                            colorize: Theme.fg-muted;
+                            colorize: touch.has-hover ? Theme.accent-fg : Theme.fg-muted;
                             width: 100%;
                             height: 100%;
                         }
 
                         if clip-data.clip-type == "file_danger": Image {
                             source: @image-url("icons/triangle-alert.svg");
-                            colorize: Theme.fg-muted;
+                            colorize: touch.has-hover ? Theme.accent-fg : Theme.fg-muted;
                             width: 100%;
                             height: 100%;
                         }
 
                         if clip-data.clip-type == "file_generic": Image {
                             source: @image-url("icons/file.svg");
-                            colorize: Theme.fg-muted;
+                            colorize: touch.has-hover ? Theme.accent-fg : Theme.fg-muted;
                             width: 100%;
                             height: 100%;
                         }
@@ -188,7 +188,7 @@ export component ClipItem {
                         // File path: a text clip whose content is a file path.
                         if clip-data.clip-type == "file_path": Image {
                             source: @image-url("icons/folder-tree.svg");
-                            colorize: Theme.fg-muted;
+                            colorize: touch.has-hover ? Theme.accent-fg : Theme.fg-muted;
                             width: 100%;
                             height: 100%;
                         }
@@ -199,7 +199,7 @@ export component ClipItem {
                         // negation below to keep unknown types visually distinct.
                         if clip-data.clip-type == "text" || (clip-data.clip-type != "color" && clip-data.clip-type != "file_image" && clip-data.clip-type != "folder" && clip-data.clip-type != "link" && clip-data.clip-type != "file_path" && clip-data.clip-type != "code_snippet" && clip-data.clip-type != "rtf" && clip-data.clip-type != "file_audio" && clip-data.clip-type != "file_video" && clip-data.clip-type != "file_archive" && clip-data.clip-type != "file_document" && clip-data.clip-type != "file_text" && clip-data.clip-type != "file_dev" && clip-data.clip-type != "file_danger" && clip-data.clip-type != "file_generic"): Image {
                             source: @image-url("icons/text-align-start.svg");
-                            colorize: Theme.fg-muted;
+                            colorize: touch.has-hover ? Theme.accent-fg : Theme.fg-muted;
                             width: 100%;
                             height: 100%;
                         }
@@ -219,7 +219,7 @@ export component ClipItem {
                     width: 18px;
                     height: 18px;
                     source: @image-url("icons/space.svg");
-                    colorize: Theme.fg-muted;
+                    colorize: touch.has-hover ? Theme.accent-fg : Theme.fg-muted;
                 }
 
                 // Plain text (not searching, or no match-context available)
@@ -233,7 +233,7 @@ export component ClipItem {
                     overflow: elide;
                     horizontal-alignment: left;
                     vertical-alignment: center;
-                    color: clip-data.is-deadhead ? Theme.fg-muted : clip-data.is-bookmarked && !root.is-selected ? Theme.fg-bookmarked : root.is-selected ? Theme.fg-primary : Theme.fg-secondary;
+                    color: touch.has-hover && !root.is-selected ? Theme.accent-fg : clip-data.is-deadhead ? Theme.fg-muted : clip-data.is-bookmarked && !root.is-selected ? Theme.fg-bookmarked : root.is-selected ? Theme.fg-primary : Theme.fg-secondary;
                     font-size: Theme.clip-list-font-size;
                 }
 
@@ -243,7 +243,7 @@ export component ClipItem {
                     width: parent.width - self.x - (clip-data.is-bookmarked ? 22px : 0px);
                     y: (parent.height / 2) - 0.5px;
                     height: 1px;
-                    background: Theme.fg-muted;
+                    background: touch.has-hover ? Theme.accent-fg : Theme.fg-muted;
                     opacity: 0.6;
                 }
 
@@ -272,7 +272,7 @@ export component ClipItem {
                             overflow: clip;
                             horizontal-alignment: left;
                             vertical-alignment: center;
-                            color: span.is-highlight ? Theme.accent-primary : clip-data.is-bookmarked && !root.is-selected ? Theme.fg-bookmarked : root.is-selected ? Theme.fg-primary : Theme.fg-secondary;
+                            color: touch.has-hover && !root.is-selected ? Theme.accent-fg : span.is-highlight ? Theme.accent-primary : clip-data.is-bookmarked && !root.is-selected ? Theme.fg-bookmarked : root.is-selected ? Theme.fg-primary : Theme.fg-secondary;
                             font-weight: span.is-highlight ? 700 : 400;
                             font-size: Theme.clip-list-font-size;
                         }
@@ -282,7 +282,7 @@ export component ClipItem {
                 // Bookmark icon — printed at the right end of column 2, right after the clip text
                 if clip-data.is-bookmarked: Image {
                     source: @image-url("icons/bookmark.svg");
-                    colorize: Theme.fg-muted;
+                    colorize: touch.has-hover ? Theme.accent-fg : Theme.fg-muted;
                     x: parent.width - 18px;
                     y: (parent.height - 18px) / 2;
                     width: 18px;
@@ -297,7 +297,7 @@ export component ClipItem {
                 opacity: clip-data.is-multiline ? 1.0 : 0.0;
                 Image {
                     source: @image-url("icons/text-wrap.svg");
-                    colorize: Theme.fg-muted;
+                    colorize: touch.has-hover ? Theme.accent-fg : Theme.fg-muted;
                     x: 4px;
                     y: (parent.height - 18px) / 2;
                     width: 18px;

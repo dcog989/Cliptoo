@@ -58,7 +58,7 @@ export component EditWindow inherits Window {
 
                 Text {
                     text: root.editing ? "</>" : "✎";
-                    color: Theme.fg-primary;
+                    color: root.editing ? Theme.accent-fg : Theme.fg-primary;
                     font-size: Theme.font-size - 1px;
                     horizontal-alignment: center;
                     vertical-alignment: center;
@@ -180,7 +180,7 @@ export component EditWindow inherits Window {
                 background: Theme.accent-primary;
                 Text {
                     text: @tr("Save");
-                    color: white;
+                    color: Theme.accent-fg;
                     horizontal-alignment: center;
                     vertical-alignment: center;
                     font-size: Theme.font-size;

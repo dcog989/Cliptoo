@@ -45,26 +45,26 @@ component MenuRow {
                 width: 16px;
                 height: 16px;
                 source: root.icon;
-                colorize: root.is-danger ? Theme.fg-danger : Theme.fg-secondary;
+                colorize: touch.has-hover && !touch.pressed ? Theme.accent-fg : root.is-danger ? Theme.fg-danger : Theme.fg-secondary;
             }
 
             Text {
                 text: root.label;
-                color: root.is-danger ? Theme.fg-danger : Theme.fg-primary;
+                color: touch.has-hover && !touch.pressed ? Theme.accent-fg : root.is-danger ? Theme.fg-danger : Theme.fg-primary;
                 font-size: Theme.font-size;
                 vertical-alignment: center;
             }
 
             if root.sublabel != "": Text {
                 text: root.sublabel;
-                color: Theme.fg-muted;
+                color: touch.has-hover && !touch.pressed ? Theme.accent-fg : Theme.fg-muted;
                 font-size: Theme.font-size - 1px;
                 vertical-alignment: center;
             }
 
             if root.has-arrow: Text {
                 text: "›";
-                color: Theme.fg-muted;
+                color: touch.has-hover && !touch.pressed ? Theme.accent-fg : Theme.fg-muted;
                 font-size: Theme.font-size;
                 vertical-alignment: center;
             }

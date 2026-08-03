@@ -260,7 +260,7 @@ export component SettingsWindow inherits Window {
                     // Check mark on the selected swatch.
                     if root.s-accent-color == swatch.color: Image {
                         source: @image-url("icons/check-check.svg");
-                        colorize: white;
+                        colorize: Theme.accent-fg;
                         width: 16px;
                         height: 16px;
                         x: (parent.width - 16px) / 2;

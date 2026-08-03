@@ -43,12 +43,12 @@ export component HamburgerMenu {
                         width: 16px;
                         height: 16px;
                         source: @image-url("icons/info.svg");
-                        colorize: Theme.fg-secondary;
+                        colorize: touch-about.has-hover && !touch-about.pressed ? Theme.accent-fg : Theme.fg-secondary;
                     }
 
                     Text {
                         text: @tr("About");
-                        color: Theme.fg-primary;
+                        color: touch-about.has-hover && !touch-about.pressed ? Theme.accent-fg : Theme.fg-primary;
                         font-size: Theme.font-size;
                         vertical-alignment: center;
                     }
@@ -80,12 +80,12 @@ export component HamburgerMenu {
                         width: 16px;
                         height: 16px;
                         source: @image-url("icons/settings.svg");
-                        colorize: Theme.fg-secondary;
+                        colorize: touch-settings.has-hover && !touch-settings.pressed ? Theme.accent-fg : Theme.fg-secondary;
                     }
 
                     Text {
                         text: @tr("Settings");
-                        color: Theme.fg-primary;
+                        color: touch-settings.has-hover && !touch-settings.pressed ? Theme.accent-fg : Theme.fg-primary;
                         font-size: Theme.font-size;
                         vertical-alignment: center;
                     }
@@ -117,12 +117,12 @@ export component HamburgerMenu {
                         width: 16px;
                         height: 16px;
                         source: @image-url("icons/minimize-2.svg");
-                        colorize: Theme.fg-secondary;
+                        colorize: touch-close.has-hover && !touch-close.pressed ? Theme.accent-fg : Theme.fg-secondary;
                     }
 
                     Text {
                         text: @tr("Close to Tray");
-                        color: Theme.fg-primary;
+                        color: touch-close.has-hover && !touch-close.pressed ? Theme.accent-fg : Theme.fg-primary;
                         font-size: Theme.font-size;
                         vertical-alignment: center;
                     }

@@ -156,7 +156,14 @@ pub fn fill_theme(
     let ar = accent.red() as f32;
     let ag = accent.green() as f32;
     let ab = accent.blue() as f32;
-    t.set_accent_is_dark((0.299 * ar + 0.587 * ag + 0.114 * ab) <= 128.0);
+    let accent_is_dark = (0.299 * ar + 0.587 * ag + 0.114 * ab) <= 128.0;
+    t.set_accent_is_dark(accent_is_dark);
+    // Content sitting on an accent background flips to this for contrast.
+    t.set_accent_fg(if accent_is_dark {
+        Color::from_rgb_u8(0xFF, 0xFF, 0xFF)
+    } else {
+        Color::from_rgb_u8(0x00, 0x00, 0x00)
+    });
     t.set_accent_primary(accent);
     t.set_accent_secondary(accent_sibling(hue, base_chroma, secondary_l, 0.75));
     t.set_accent_muted(accent_sibling(hue, base_chroma, muted_l, 0.40));

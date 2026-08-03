@@ -60,7 +60,7 @@ export component FilterGrid {
                     width: 24px;
                     height: 24px;
                     source: item.key == "all" ? @image-url("icons/check-check.svg") : item.key == "text" ? @image-url("icons/text-align-start.svg") : item.key == "file_image" ? @image-url("icons/file-image.svg") : item.key == "bookmarked" ? @image-url("icons/bookmark.svg") : item.key == "link" ? @image-url("icons/link.svg") : item.key == "file_path" ? @image-url("icons/folder-tree.svg") : item.key == "code_snippet" ? @image-url("icons/code.svg") : item.key == "color" ? @image-url("icons/palette.svg") : item.key == "folder" ? @image-url("icons/folder.svg") : item.key == "file_danger" ? @image-url("icons/triangle-alert.svg") : item.key == "file_dev" ? @image-url("icons/file-code.svg") : item.key == "file_audio" ? @image-url("icons/audio-lines.svg") : item.key == "file_video" ? @image-url("icons/film.svg") : item.key == "file_archive" ? @image-url("icons/file-archive.svg") : item.key == "file_document" ? @image-url("icons/file-text.svg") : item.key == "rtf" ? @image-url("icons/file-type.svg") : @image-url("icons/file.svg");
-                    colorize: root.active-filter == item.key ? Theme.fg-secondary : Theme.fg-muted;
+                    colorize: root.active-filter == item.key ? Theme.accent-fg : Theme.fg-muted;
                     animate colorize { duration: Theme.anim-fast; }
                 }
 
