@@ -122,11 +122,6 @@ pub async fn run_listener(
                                 debug!("clipboard: path text on a text/uri-list clipboard skipped");
                                 continue;
                             }
-                            if classified.clip_type.is_file_type() {
-                                let file_hash =
-                                    cliptoo_core::content::hash::sha256_hex(&classified.content);
-                                last_file_hash = Some(file_hash);
-                            }
 
                             let source_app = crate::source_app::detect_source_app().await;
 
