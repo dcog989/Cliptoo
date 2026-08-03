@@ -78,6 +78,20 @@ fn apply_settings_filter(win: &crate::SettingsWindow, query: &str) {
     win.set_row_external_note_visible(row_matches(EXTERNAL_NOTE, &q));
 }
 
+/// Persist the settings window's current size into `Settings` so a resized
+/// window keeps its size across restarts. Called on both close paths.
+fn persist_window_size(
+    win: &crate::SettingsWindow,
+    settings: &std::rc::Rc<std::cell::RefCell<cliptoo_core::Settings>>,
+    path: &std::path::Path,
+) {
+    let size = win.window().size();
+    let mut s = settings.borrow_mut();
+    s.settings_window_width = size.width as f64;
+    s.settings_window_height = size.height as f64;
+    let _ = s.save(path);
+}
+
 /// Normalise a hotkey string captured from the settings UI. Control
 /// characters (a letter pressed with a modifier arrives as U+0001..U+001A)
 /// are mapped to letters, and the final key token is uppercased so the
@@ -154,10 +168,17 @@ pub fn setup_settings_window(
     let settings_win = crate::SettingsWindow::new().expect("SettingsWindow creation");
 
     // Reset settings-open when the settings window is closed via the window
-    // manager (ESC is handled by the settings-closing callback).
+    // manager (ESC is handled by the settings-closing callback), and persist
+    // the window size so user resizes survive restarts.
     {
         let main_ui = ui.as_weak();
+        let sw = settings_win.as_weak();
+        let s = settings.clone();
+        let p = dirs.settings_path.clone();
         settings_win.window().on_close_requested(move || {
+            if let Some(win) = sw.upgrade() {
+                persist_window_size(&win, &s, &p);
+            }
             if let Some(ui) = main_ui.upgrade() {
                 ui.set_settings_open(false);
             }
@@ -168,6 +189,8 @@ pub fn setup_settings_window(
     // Initialise all settings properties.
     {
         let s = settings.borrow();
+        settings_win.set_stored_width(s.settings_window_width as f32);
+        settings_win.set_stored_height(s.settings_window_height as f32);
         settings_win.set_s_hotkey(clean_hotkey_text(s.hotkey.as_str()).into());
         settings_win.set_s_start_with_system(s.start_with_system);
         settings_win.set_s_always_close_to_tray(s.always_close_to_tray);
@@ -297,10 +320,16 @@ pub fn setup_settings_window(
     }
 
     // When the settings window closes, reset settings-open so ESC and
-    // blur-to-tray work again on the main window.
+    // blur-to-tray work again on the main window, and persist the size.
     {
         let main_ui = ui.as_weak();
+        let sw = settings_win.as_weak();
+        let s = settings.clone();
+        let p = dirs.settings_path.clone();
         settings_win.on_settings_closing(move || {
+            if let Some(win) = sw.upgrade() {
+                persist_window_size(&win, &s, &p);
+            }
             if let Some(ui) = main_ui.upgrade() {
                 ui.set_settings_open(false);
             }

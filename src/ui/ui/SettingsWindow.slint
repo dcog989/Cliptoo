@@ -33,7 +33,7 @@ component SectionHeader {
         Text {
             text: root.text;
             color: Theme.fg-secondary;
-            font-size: Theme.font-size - 1px;
+            font-size: Theme.font-size + 2px;
             font-weight: 700;
             letter-spacing: 1px;
             horizontal-alignment: left;
@@ -43,8 +43,14 @@ component SectionHeader {
 
 export component SettingsWindow inherits Window {
     title: @tr("Cliptoo Settings");
-    width: 560px;
-    height: 540px;
+    // Resizable via the WM frame; the size is persisted in Settings
+    // (settings_window_width/height) and restored here on open.
+    in-out property <length> stored-width: 560px;
+    in-out property <length> stored-height: 540px;
+    preferred-width: root.stored-width;
+    preferred-height: root.stored-height;
+    min-width: 400px;
+    min-height: 320px;
     background: Theme.bg-primary;
     default-font-size: Theme.font-size;
 
@@ -154,6 +160,8 @@ export component SettingsWindow inherits Window {
             HorizontalLayout {
                 padding-left: 10px;
                 padding-right: 10px;
+                padding-top: 8px;
+                padding-bottom: 8px;
                 spacing: 8px;
 
                 // Instant filter search (settings page) / page title (database page)
@@ -265,8 +273,9 @@ export component SettingsWindow inherits Window {
 
             // Settings page — grouped, filterable option list. The two pages
             // overlay each other (absolute x/y) so they never stack; only one
-            // is visible at a time, but both stay instantiated so the filter
-            // state and named row elements survive page switches.
+            // is visible at a time, but both stay instantiated so filter state
+            // survives page switches. Rows are conditionally instantiated
+            // (`if`), so filtered-out options take no layout space.
             settings-scroll := ScrollView {
                 x: 0px;
                 y: 0px;
@@ -283,15 +292,14 @@ export component SettingsWindow inherits Window {
                     spacing: 6px;
 
                     // ── General ──────────────────────────────────────────
-                    if (row-hotkey.visible || row-startup.visible || row-tray.visible
-                        || row-quickpaste.visible || row-plaintext.visible
-                        || row-loglevel.visible || row-logfile.visible): SectionHeader {
+                    if (root.row-hotkey-visible || root.row-startup-visible || root.row-tray-visible
+                        || root.row-quickpaste-visible || root.row-plaintext-visible
+                        || root.row-loglevel-visible || root.row-logfile-visible): SectionHeader {
                         text: @tr("General");
                         top-margin: 0px;
                     }
 
-                    row-hotkey := HotkeyRow {
-                        visible: root.row-hotkey-visible;
+                    if root.row-hotkey-visible : HotkeyRow {
                         label: @tr("Launch hotkey");
                         tooltip-text: @tr("Global hotkey to toggle the Cliptoo window");
                         value <=> root.s-hotkey;
@@ -300,8 +308,7 @@ export component SettingsWindow inherits Window {
                         }
                     }
 
-                    row-startup := ToggleRow {
-                        visible: root.row-startup-visible;
+                    if root.row-startup-visible : ToggleRow {
                         label: @tr("Start with system");
                         tooltip-text: @tr("Launch Cliptoo automatically when you log in");
                         value <=> root.s-start-with-system;
@@ -310,8 +317,7 @@ export component SettingsWindow inherits Window {
                         }
                     }
 
-                    row-tray := ToggleRow {
-                        visible: root.row-tray-visible;
+                    if root.row-tray-visible : ToggleRow {
                         label: @tr("Always close to tray");
                         tooltip-text: @tr("Hide to the system tray when the window loses focus");
                         value <=> root.s-always-close-to-tray;
@@ -320,8 +326,7 @@ export component SettingsWindow inherits Window {
                         }
                     }
 
-                    row-quickpaste := DropRow {
-                        visible: root.row-quickpaste-visible;
+                    if root.row-quickpaste-visible : DropRow {
                         label: @tr("Quick-paste modifier");
                         tooltip-text: @tr("Modifier key to hold for the quick-paste number overlay");
                         index <=> root.s-quick-paste-mod-idx;
@@ -331,8 +336,7 @@ export component SettingsWindow inherits Window {
                         }
                     }
 
-                    row-plaintext := ToggleRow {
-                        visible: root.row-plaintext-visible;
+                    if root.row-plaintext-visible : ToggleRow {
                         label: @tr("Paste as plain text");
                         tooltip-text: @tr("Strip formatting when pasting text from Cliptoo");
                         value <=> root.s-paste-as-plain-text;
@@ -341,8 +345,7 @@ export component SettingsWindow inherits Window {
                         }
                     }
 
-                    row-loglevel := DropRow {
-                        visible: root.row-loglevel-visible;
+                    if root.row-loglevel-visible : DropRow {
                         label: @tr("Log level");
                         tooltip-text: @tr("Verbosity of messages written to the log file");
                         index <=> root.s-log-level-idx;
@@ -352,8 +355,7 @@ export component SettingsWindow inherits Window {
                         }
                     }
 
-                    row-logfile := HorizontalLayout {
-                        visible: root.row-logfile-visible;
+                    if root.row-logfile-visible : HorizontalLayout {
                         spacing: 12px;
                         alignment: start;
                         height: 32px;
@@ -383,15 +385,14 @@ export component SettingsWindow inherits Window {
                     }
 
                     // ── Appearance ───────────────────────────────────────
-                    if (row-theme.visible || row-accent.visible || row-font.visible
-                        || row-clip-font-size.visible || row-preview-font-size.visible
-                        || row-padding.visible || row-hover-delay.visible
-                        || row-image-preview-size.visible): SectionHeader {
+                    if (root.row-theme-visible || root.row-accent-visible || root.row-font-visible
+                        || root.row-clip-font-size-visible || root.row-preview-font-size-visible
+                        || root.row-padding-visible || root.row-hover-delay-visible
+                        || root.row-image-preview-size-visible): SectionHeader {
                         text: @tr("Appearance");
                     }
 
-                    row-theme := DropRow {
-                        visible: root.row-theme-visible;
+                    if root.row-theme-visible : DropRow {
                         label: @tr("Theme");
                         index <=> root.s-theme-idx;
                         options: ["System", "Light", "Dark"];
@@ -400,8 +401,7 @@ export component SettingsWindow inherits Window {
                         }
                     }
 
-                    row-accent := HorizontalLayout {
-                        visible: root.row-accent-visible;
+                    if root.row-accent-visible : HorizontalLayout {
                         spacing: 12px;
                         alignment: start;
                         height: 32px;
@@ -445,8 +445,7 @@ export component SettingsWindow inherits Window {
                         }
                     }
 
-                    row-font := HorizontalLayout {
-                        visible: root.row-font-visible;
+                    if root.row-font-visible : HorizontalLayout {
                         spacing: 12px;
                         alignment: start;
                         height: 32px;
@@ -488,8 +487,7 @@ export component SettingsWindow inherits Window {
                         }
                     }
 
-                    row-clip-font-size := FloatRow {
-                        visible: root.row-clip-font-size-visible;
+                    if root.row-clip-font-size-visible : FloatRow {
                         label: @tr("Clip list font size (px)");
                         tooltip-text: @tr("Font size of clip entries in the main list");
                         value-hundredths <=> root.s-font-size-hundredths;
@@ -501,8 +499,7 @@ export component SettingsWindow inherits Window {
                         }
                     }
 
-                    row-preview-font-size := FloatRow {
-                        visible: root.row-preview-font-size-visible;
+                    if root.row-preview-font-size-visible : FloatRow {
                         label: @tr("Preview font size (px)");
                         tooltip-text: @tr("Font size used for code and color previews");
                         value-hundredths <=> root.s-preview-font-size-hundredths;
@@ -514,8 +511,7 @@ export component SettingsWindow inherits Window {
                         }
                     }
 
-                    row-padding := DropRow {
-                        visible: root.row-padding-visible;
+                    if root.row-padding-visible : DropRow {
                         label: @tr("Row padding");
                         tooltip-text: @tr("Vertical padding of items in the clip list");
                         index <=> root.s-row-padding-idx;
@@ -525,8 +521,7 @@ export component SettingsWindow inherits Window {
                         }
                     }
 
-                    row-hover-delay := HorizontalLayout {
-                        visible: root.row-hover-delay-visible;
+                    if root.row-hover-delay-visible : HorizontalLayout {
                         spacing: 12px;
                         alignment: start;
                         height: 32px;
@@ -592,8 +587,7 @@ export component SettingsWindow inherits Window {
                         }
                     }
 
-                    row-image-preview-size := IntRow {
-                        visible: root.row-image-preview-size-visible;
+                    if root.row-image-preview-size-visible : IntRow {
                         label: @tr("Image preview size (px)");
                         tooltip-text: @tr("Maximum width/height of hover preview images");
                         value <=> root.s-image-preview-size;
@@ -606,12 +600,11 @@ export component SettingsWindow inherits Window {
                     }
 
                     // ── External Apps ────────────────────────────────────
-                    if (row-diff-tool.visible || row-external-note.visible): SectionHeader {
+                    if (root.row-diff-tool-visible || root.row-external-note-visible): SectionHeader {
                         text: @tr("External Apps");
                     }
 
-                    row-diff-tool := TextRow {
-                        visible: root.row-diff-tool-visible;
+                    if root.row-diff-tool-visible : TextRow {
                         label: @tr("Diff tool path");
                         tooltip-text: @tr("Command used to compare two text clips");
                         value <=> root.s-diff-tool-path;
@@ -620,8 +613,7 @@ export component SettingsWindow inherits Window {
                         }
                     }
 
-                    row-external-note := Text {
-                        visible: root.row-external-note-visible;
+                    if root.row-external-note-visible : Text {
                         text: @tr("Send To apps and Blacklist are managed via JSON settings file.");
                         color: Theme.fg-muted;
                         font-size: Theme.font-size;

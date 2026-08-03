@@ -22,6 +22,11 @@ pub struct Settings {
     pub window_height: f64,
     pub editor_window_width: f64,
     pub editor_window_height: f64,
+    // Settings window size, persisted so user resizes survive restarts.
+    #[serde(default = "default_settings_window_width")]
+    pub settings_window_width: f64,
+    #[serde(default = "default_settings_window_height")]
+    pub settings_window_height: f64,
 
     // Theming
     // accent_color is a "#RRGGBB" string; empty means "use the OS accent".
@@ -72,6 +77,8 @@ impl Default for Settings {
             window_height: 600.0,
             editor_window_width: 520.0,
             editor_window_height: 420.0,
+            settings_window_width: 560.0,
+            settings_window_height: 540.0,
             accent_color: String::new(),
             theme: "System".to_string(),
             font_family: "Inter".to_string(),
@@ -169,6 +176,14 @@ fn default_true() -> bool {
 
 fn default_quick_paste_modifier() -> String {
     "Right Alt".to_string()
+}
+
+fn default_settings_window_width() -> f64 {
+    560.0
+}
+
+fn default_settings_window_height() -> f64 {
+    540.0
 }
 
 fn chrono_now_compact() -> String {
