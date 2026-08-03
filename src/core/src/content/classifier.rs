@@ -3,9 +3,9 @@ use crate::db::models::ClipType;
 /// Result of running a payload through the content classification pipeline.
 ///
 /// The caller is responsible for normalizing line endings before calling
-/// `ContentProcessor::process()`.  The `content_hash` and
-/// `content_hash_prefix` are computed from the **trimmed** content that
-/// `process` returns, so suppression and DB dedup both use the same hash.
+/// `ContentProcessor::process()`.  The `content_hash` is computed from the
+/// **trimmed** content that `process` returns, so suppression and DB dedup both
+/// use the same hash.
 pub struct ClassifiedContent {
     pub content: String,
     pub clip_type: ClipType,
@@ -17,9 +17,6 @@ pub struct ClassifiedContent {
     /// Full SHA-256 hex digest of trimmed `content` (64 chars).
     /// Used for DB `ContentHash` column (UNIQUE).
     pub content_hash: String,
-    /// First 8 bytes of SHA-256 as a u64 (little-endian).
-    /// Used for fast in-memory paste suppression.
-    pub content_hash_prefix: u64,
 }
 
 /// Stateless content processor. Classifies incoming clipboard payloads.
@@ -48,9 +45,8 @@ impl ContentProcessor {
     ///
     /// The caller must have called `normalize_line_endings()` on `raw` before
     /// passing it in.  This function trims whitespace, classifies, builds the
-    /// preview, and computes `content_hash` + `content_hash_prefix` from the
-    /// **trimmed** result so that suppression and DB dedup both agree on the
-    /// same hash.
+    /// preview, and computes `content_hash` from the **trimmed** result so that
+    /// suppression and DB dedup both agree on the same hash.
     pub fn process(normalized: &str, is_copied_file: bool) -> Option<ClassifiedContent> {
         // Step 1: trim detection
         let trimmed = normalized.trim();
@@ -91,7 +87,6 @@ impl ContentProcessor {
         let is_multiline = content.contains('\n');
         let preview_content = crate::content::preview::build_preview(&content);
         let content_hash = crate::content::hash::sha256_hex(&content);
-        let content_hash_prefix = crate::content::hash::sha256_u64(&content);
 
         Some(ClassifiedContent {
             content,
@@ -102,7 +97,6 @@ impl ContentProcessor {
             size_in_bytes,
             preview_content,
             content_hash,
-            content_hash_prefix,
         })
     }
 
