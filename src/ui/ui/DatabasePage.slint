@@ -1,0 +1,185 @@
+// DatabasePage.slint — Settings > Database page: retention limits,
+// maintenance buttons, and read-only statistics.
+
+import { Theme } from "Theme.slint";
+import { IntRow, SectionHeader } from "SettingsComponents.slint";
+import { ScrollView } from "std-widgets.slint";
+
+export component DatabasePage inherits ScrollView {
+    in-out property <int> s-max-clips:            10000;
+    in-out property <int> s-max-age-days:         90;
+    // Read-only statistics, refreshed from Rust each time this page opens.
+    in property <string> s-total-clips: "";
+    in property <string> s-db-created:  "";
+    in property <string> s-db-size:     "";
+    in property <string> s-copies:      "";
+    in property <string> s-pastes:      "";
+
+    callback setting-changed(string, string);
+    callback maintenance-action(string);
+
+    vertical-scrollbar-policy: ScrollBarPolicy.as-needed;
+
+    VerticalLayout {
+        padding-left: 16px;
+        padding-right: 16px;
+        padding-top: 8px;
+        padding-bottom: 24px;
+        spacing: 6px;
+        alignment: start;
+
+        SectionHeader {
+            text: @tr("Retention");
+            top-margin: 0px;
+        }
+
+        IntRow {
+            label: @tr("Max clips");
+            tooltip-text: @tr("Maximum number of clips kept in history");
+            value <=> root.s-max-clips;
+            min-val: 100;
+            max-val: 100000;
+            step: 100;
+            committed(v) => {
+                root.setting-changed("max_clips", "\{v}");
+            }
+        }
+
+        IntRow {
+            label: @tr("Max age (days)");
+            tooltip-text: @tr("Automatically remove clips older than this many days");
+            value <=> root.s-max-age-days;
+            min-val: 1;
+            max-val: 3650;
+            step: 5;
+            committed(v) => {
+                root.setting-changed("max_age_days", "\{v}");
+            }
+        }
+
+        SectionHeader {
+            text: @tr("Maintenance");
+        }
+
+        GridLayout {
+            spacing: 8px;
+            for action[idx] in [
+                { key: "clear-history", label: @tr("Clear History"), tip: @tr("Delete all clips from the clipboard history") },
+                { key: "clear-caches", label: @tr("Clear Caches"), tip: @tr("Clear cached previews, thumbnails, and favicons") },
+                { key: "deadhead", label: @tr("Deadhead"), tip: @tr("Remove clips referencing files that no longer exist on disk") },
+                { key: "reclassify", label: @tr("Reclassify All"), tip: @tr("Re-run content detection on every clip") },
+                { key: "export", label: @tr("Export All Clips"), tip: @tr("Save all clips to a JSON file") },
+                { key: "export-bookmarks", label: @tr("Export Bookmarks"), tip: @tr("Save only bookmarked clips to a JSON file") },
+                { key: "import", label: @tr("Import Backup"), tip: @tr("Load clips from a JSON backup file") },
+            ]: Rectangle {
+                row: Math.floor(idx / 4);
+                col: Math.mod(idx, 4);
+                height: 30px;
+                border-radius: 6px;
+                background: action.key == "clear-history" ? #c0392b.mix(Theme.bg-primary, 0.15) : Theme.bg-input;
+                Text {
+                    text: action.label;
+                    color: action.key == "clear-history" ? white : Theme.fg-primary;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                    font-size: Theme.font-size;
+                }
+
+                TouchArea {
+                    Tooltip {
+                        text: @markdown("\{action.tip}");
+                    }
+                    clicked => {
+                        root.maintenance-action(action.key);
+                    }
+                    mouse-cursor: pointer;
+                }
+            }
+        }
+
+        SectionHeader {
+            text: @tr("Statistics");
+        }
+
+        // Stats rows sit flush (single line spacing) as one block.
+        VerticalLayout {
+            spacing: 0;
+
+            HorizontalLayout {
+                height: 32px;
+                spacing: 12px;
+                alignment: start;
+                Text {
+                    width: 180px;
+                    text: @tr("Database created");
+                    color: Theme.fg-primary;
+                    font-size: Theme.font-size;
+                    vertical-alignment: center;
+                }
+                Text {
+                    text: root.s-db-created;
+                    color: Theme.fg-secondary;
+                    font-size: Theme.font-size;
+                    vertical-alignment: center;
+                }
+            }
+
+            HorizontalLayout {
+                height: 32px;
+                spacing: 12px;
+                alignment: start;
+                Text {
+                    width: 180px;
+                    text: @tr("Database size");
+                    color: Theme.fg-primary;
+                    font-size: Theme.font-size;
+                    vertical-alignment: center;
+                }
+                Text {
+                    text: root.s-db-size;
+                    color: Theme.fg-secondary;
+                    font-size: Theme.font-size;
+                    vertical-alignment: center;
+                }
+            }
+
+            HorizontalLayout {
+                height: 32px;
+                spacing: 12px;
+                alignment: start;
+                Text {
+                    width: 180px;
+                    text: @tr("Total clips");
+                    color: Theme.fg-primary;
+                    font-size: Theme.font-size;
+                    vertical-alignment: center;
+                }
+                Text {
+                    text: root.s-total-clips;
+                    color: Theme.fg-secondary;
+                    font-size: Theme.font-size;
+                    vertical-alignment: center;
+                }
+            }
+
+            HorizontalLayout {
+                height: 32px;
+                spacing: 12px;
+                alignment: start;
+                Text {
+                    width: 180px;
+                    text: @tr("Copies / Pastes");
+                    color: Theme.fg-primary;
+                    font-size: Theme.font-size;
+                    vertical-alignment: center;
+                }
+                Text {
+                    text: @tr("{} / {}", root.s-copies, root.s-pastes);
+                    color: Theme.fg-secondary;
+                    font-size: Theme.font-size;
+                    vertical-alignment: center;
+                }
+            }
+        }
+    }
+}

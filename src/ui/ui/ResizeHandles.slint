@@ -1,0 +1,84 @@
+// ResizeHandles.slint — Resize edges + 1px border overlay for the frameless
+// window. Emits resize-start / resize-delta / resize-ended; Rust applies the
+// deltas to stored-width/stored-height.
+
+import { Theme } from "Theme.slint";
+
+export component ResizeHandles {
+    in property <length> handle-width: 5px;
+
+    callback resize-start();
+    callback resize-delta(float, float);
+    callback resize-ended();
+
+    x: 0px;
+    y: 0px;
+    width: 100%;
+    height: 100%;
+
+    // Use absolute window-coordinate positions so the delta stays correct
+    // even when the handle rectangle moves under the cursor (which would
+    // invalidate the handle-relative mouse-x/pressed-x).
+    property <length> press-abs-x;
+    property <length> press-abs-y;
+
+    // Right-edge resize
+    resize-right := Rectangle {
+        x: root.width - root.handle-width;
+        y: 0px;
+        width: root.handle-width;
+        height: root.height;
+        right-touch := TouchArea {
+            mouse-cursor: MouseCursor.e-resize;
+            pointer-event(e) => {
+                if e.kind == PointerEventKind.down {
+                    press-abs-x = resize-right.x + right-touch.mouse-x;
+                    root.resize-start();
+                }
+                if e.kind == PointerEventKind.move && right-touch.pressed {
+                    root.resize-delta(
+                        ((resize-right.x + right-touch.mouse-x - press-abs-x) / 1px),
+                        0);
+                }
+                if e.kind == PointerEventKind.up {
+                    root.resize-ended();
+                }
+            }
+        }
+    }
+    // Bottom-edge resize
+    resize-bottom := Rectangle {
+        x: 0px;
+        y: root.height - root.handle-width;
+        width: root.width;
+        height: root.handle-width;
+        bottom-touch := TouchArea {
+            mouse-cursor: MouseCursor.s-resize;
+            pointer-event(e) => {
+                if e.kind == PointerEventKind.down {
+                    press-abs-y = resize-bottom.y + bottom-touch.mouse-y;
+                    root.resize-start();
+                }
+                if e.kind == PointerEventKind.move && bottom-touch.pressed {
+                    root.resize-delta(
+                        0,
+                        ((resize-bottom.y + bottom-touch.mouse-y - press-abs-y) / 1px));
+                }
+                if e.kind == PointerEventKind.up {
+                    root.resize-ended();
+                }
+            }
+        }
+    }
+    // Border overlay — 1px rounded stroke around the entire window, no TouchArea
+    Rectangle {
+        x: 0;
+        y: 0;
+        width: 100%;
+        height: 100%;
+        border-radius: Theme.border-radius;
+        border-width: 1px;
+        border-color: Theme.border-subtle;
+        background: transparent;
+    }
+}

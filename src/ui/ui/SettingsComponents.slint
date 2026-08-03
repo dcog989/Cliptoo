@@ -1,5 +1,31 @@
 import { Theme } from "Theme.slint";
 
+// Accent-color palette swatch rendered in the settings accent picker popup.
+export struct AccentSwatch {
+    hex: string,
+    color: color,
+}
+
+// Uppercase category heading that labels a group of options.
+export component SectionHeader {
+    in property <string> text;
+    in property <length> top-margin: 14px;
+
+    width: 100%;
+    VerticalLayout {
+        padding-top: root.top-margin;
+        padding-bottom: 4px;
+        Text {
+            text: root.text;
+            color: Theme.fg-secondary;
+            font-size: Theme.font-size + 2px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            horizontal-alignment: left;
+        }
+    }
+}
+
 export component StepperButton inherits Rectangle {
     in property <string> text;
     in property <string> tooltip-text;

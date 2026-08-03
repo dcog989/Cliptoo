@@ -1,0 +1,414 @@
+// SettingsPage.slint — Settings > main page: options grouped by category
+// (General | Appearance | External Apps), filtered by the header search query
+// via the per-row `row-*-visible` properties driven from Rust.
+
+import { Theme } from "Theme.slint";
+import {
+    TextRow,
+    HotkeyRow,
+    IntRow,
+    FloatRow,
+    DropRow,
+    ToggleRow,
+    SectionHeader,
+} from "SettingsComponents.slint";
+import { ScrollView } from "std-widgets.slint";
+
+export component SettingsPage inherits ScrollView {
+    // ── Row values ────────────────────────────────────────────────────────────
+    in-out property <string> s-hotkey:               "Ctrl+Alt+Q";
+    in-out property <bool> s-start-with-system:    true;
+    in-out property <bool> s-always-close-to-tray: true;
+    in-out property <int> s-quick-paste-mod-idx: 0;  // Right Alt/Left Alt/Control
+    in-out property <int> s-log-level-idx:        1;  // Debug/Info/Warn/Error
+    in-out property <int> s-theme-idx:            0;  // System/Light/Dark
+    in-out property <color> s-accent-color:       #7C6EE6;
+    in-out property <string> s-font-family:          "Inter";
+    in-out property <int> s-font-size-hundredths: 1300;  // 13.00 pt
+    in-out property <int> s-preview-font-size-hundredths: 1200;
+    in-out property <int> s-row-padding-idx:      1;  // Compact/Standard/Luxury
+    in-out property <int> hover-delay:            400;
+    in-out property <int> s-image-preview-size:   300;
+    in-out property <bool> s-paste-as-plain-text:  false;
+    in-out property <string> s-diff-tool-path:       "";
+
+    // ── Per-row filter visibility, set by Rust from `settings-filter` ────────
+    // General
+    in property <bool> row-hotkey-visible: true;
+    in property <bool> row-startup-visible: true;
+    in property <bool> row-tray-visible: true;
+    in property <bool> row-quickpaste-visible: true;
+    in property <bool> row-plaintext-visible: true;
+    in property <bool> row-loglevel-visible: true;
+    in property <bool> row-logfile-visible: true;
+    // Appearance
+    in property <bool> row-theme-visible: true;
+    in property <bool> row-accent-visible: true;
+    in property <bool> row-font-visible: true;
+    in property <bool> row-clip-font-size-visible: true;
+    in property <bool> row-preview-font-size-visible: true;
+    in property <bool> row-padding-visible: true;
+    in property <bool> row-hover-delay-visible: true;
+    in property <bool> row-image-preview-size-visible: true;
+    // External Apps
+    in property <bool> row-diff-tool-visible: true;
+    in property <bool> row-external-note-visible: true;
+
+    callback setting-changed(string, string);
+    callback clear-accent-color();
+    callback font-picker();
+    callback open-log();
+    callback accent-picker-requested();
+
+    // Tooltip text for inline controls (Tooltip.text is styled-text, so @tr is
+    // bound here and interpolated through @markdown at the use site).
+    private property <string> tip-open-log: @tr("Open the most recent log file in your default viewer");
+    private property <string> tip-font-family: @tr("Font family used for the clip list. Click to pick a font");
+    private property <string> tip-hover-delay: @tr("Delay before the image hover preview appears");
+    private property <string> tip-accent-picker: @tr("Open the color picker");
+
+    vertical-scrollbar-policy: ScrollBarPolicy.as-needed;
+
+    VerticalLayout {
+        padding-left: 16px;
+        padding-right: 16px;
+        padding-top: 8px;
+        padding-bottom: 24px;
+        spacing: 6px;
+        // Non-stretch alignment: the ScrollView gives this layout the full
+        // visible height, so stretch (the default) would distribute the
+        // leftover space into every child — each SectionHeader grows, pushing
+        // results down. Pinning the children to their minimum sizes keeps the
+        // content packed at the top with any empty space at the bottom.
+        alignment: start;
+
+        // ── General ──────────────────────────────────────────────────────
+        if (root.row-hotkey-visible || root.row-startup-visible || root.row-tray-visible
+            || root.row-quickpaste-visible || root.row-plaintext-visible
+            || root.row-loglevel-visible || root.row-logfile-visible): SectionHeader {
+            text: @tr("General");
+            top-margin: 0px;
+        }
+
+        if root.row-hotkey-visible : HotkeyRow {
+            label: @tr("Launch hotkey");
+            tooltip-text: @tr("Global hotkey to toggle the Cliptoo window");
+            value <=> root.s-hotkey;
+            committed(v) => {
+                root.setting-changed("hotkey", v);
+            }
+        }
+
+        if root.row-startup-visible : ToggleRow {
+            label: @tr("Start with system");
+            tooltip-text: @tr("Launch Cliptoo automatically when you log in");
+            value <=> root.s-start-with-system;
+            committed(v) => {
+                root.setting-changed("start_with_system", v ? "true" : "false");
+            }
+        }
+
+        if root.row-tray-visible : ToggleRow {
+            label: @tr("Always close to tray");
+            tooltip-text: @tr("Hide to the system tray when the window loses focus");
+            value <=> root.s-always-close-to-tray;
+            committed(v) => {
+                root.setting-changed("always_close_to_tray", v ? "true" : "false");
+            }
+        }
+
+        if root.row-quickpaste-visible : DropRow {
+            label: @tr("Quick-paste modifier");
+            tooltip-text: @tr("Modifier key to hold for the quick-paste number overlay");
+            index <=> root.s-quick-paste-mod-idx;
+            options: ["Right Alt", "Left Alt", "Control"];
+            committed(v) => {
+                root.setting-changed("quick_paste_modifier", v);
+            }
+        }
+
+        if root.row-plaintext-visible : ToggleRow {
+            label: @tr("Paste as plain text");
+            tooltip-text: @tr("Strip formatting when pasting text from Cliptoo");
+            value <=> root.s-paste-as-plain-text;
+            committed(v) => {
+                root.setting-changed("paste_as_plain_text", v ? "true" : "false");
+            }
+        }
+
+        if root.row-loglevel-visible : DropRow {
+            label: @tr("Log level");
+            tooltip-text: @tr("Verbosity of messages written to the log file");
+            index <=> root.s-log-level-idx;
+            options: ["Debug", "Info", "Warn", "Error"];
+            committed(v) => {
+                root.setting-changed("logging_level", v);
+            }
+        }
+
+        if root.row-logfile-visible : HorizontalLayout {
+            spacing: 12px;
+            alignment: start;
+            height: 32px;
+            Text {
+                width: 180px;
+                text: @tr("Log file");
+                color: Theme.fg-primary;
+                font-size: Theme.font-size;
+                vertical-alignment: center;
+            }
+
+            Text {
+                text: @tr("Open latest log");
+                color: Theme.accent-primary;
+                font-size: Theme.font-size;
+                vertical-alignment: center;
+                TouchArea {
+                    mouse-cursor: pointer;
+                    Tooltip {
+                        text: @markdown("\{root.tip-open-log}");
+                    }
+                    clicked => {
+                        root.open-log();
+                    }
+                }
+            }
+        }
+
+        // ── Appearance ───────────────────────────────────────────────────
+        if (root.row-theme-visible || root.row-accent-visible || root.row-font-visible
+            || root.row-clip-font-size-visible || root.row-preview-font-size-visible
+            || root.row-padding-visible || root.row-hover-delay-visible
+            || root.row-image-preview-size-visible): SectionHeader {
+            text: @tr("Appearance");
+        }
+
+        if root.row-theme-visible : DropRow {
+            label: @tr("Theme");
+            index <=> root.s-theme-idx;
+            options: ["System", "Light", "Dark"];
+            committed(v) => {
+                root.setting-changed("theme", v);
+            }
+        }
+
+        if root.row-accent-visible : HorizontalLayout {
+            spacing: 12px;
+            alignment: start;
+            height: 32px;
+            Text {
+                width: 180px;
+                text: @tr("Accent color");
+                color: Theme.fg-primary;
+                font-size: Theme.font-size;
+                vertical-alignment: center;
+            }
+
+            Rectangle {
+                width: 28px;
+                height: 28px;
+                border-radius: 5px;
+                border-width: 1px;
+                border-color: Theme.accent-muted;
+                background: root.s-accent-color;
+                TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => {
+                        root.accent-picker-requested();
+                    }
+                }
+                Tooltip {
+                    text: @markdown("\{root.tip-accent-picker}");
+                }
+            }
+
+            Text {
+                text: @tr("Clear");
+                color: Theme.fg-danger;
+                font-size: Theme.font-size;
+                vertical-alignment: center;
+                TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => {
+                        root.clear-accent-color();
+                    }
+                }
+            }
+        }
+
+        if root.row-font-visible : HorizontalLayout {
+            spacing: 12px;
+            alignment: start;
+            height: 32px;
+            Text {
+                width: 180px;
+                text: @tr("Font family");
+                color: Theme.fg-primary;
+                font-size: Theme.font-size;
+                vertical-alignment: center;
+            }
+
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 28px;
+                border-radius: 5px;
+                border-width: 1px;
+                border-color: font-touch.has-hover ? Theme.accent-primary : Theme.accent-muted;
+                background: Theme.bg-input;
+                HorizontalLayout {
+                    padding-left: 8px;
+                    padding-right: 8px;
+                    Text {
+                        text: root.s-font-family;
+                        color: Theme.fg-primary;
+                        font-size: Theme.font-size;
+                        vertical-alignment: center;
+                        overflow: elide;
+                    }
+                }
+                Tooltip {
+                    text: @markdown("\{root.tip-font-family}");
+                }
+                font-touch := TouchArea {
+                    clicked => {
+                        root.font-picker();
+                    }
+                    mouse-cursor: pointer;
+                }
+            }
+        }
+
+        if root.row-clip-font-size-visible : FloatRow {
+            label: @tr("Clip list font size (px)");
+            tooltip-text: @tr("Font size of clip entries in the main list");
+            value-hundredths <=> root.s-font-size-hundredths;
+            min-hundredths: 800;
+            max-hundredths: 2400;
+            step-hundredths: 100;
+            committed(v) => {
+                root.setting-changed("font_size", "\{v}");
+            }
+        }
+
+        if root.row-preview-font-size-visible : FloatRow {
+            label: @tr("Preview font size (px)");
+            tooltip-text: @tr("Font size used for code and color previews");
+            value-hundredths <=> root.s-preview-font-size-hundredths;
+            min-hundredths: 800;
+            max-hundredths: 2400;
+            step-hundredths: 100;
+            committed(v) => {
+                root.setting-changed("preview_font_size", "\{v}");
+            }
+        }
+
+        if root.row-padding-visible : DropRow {
+            label: @tr("Row padding");
+            tooltip-text: @tr("Vertical padding of items in the clip list");
+            index <=> root.s-row-padding-idx;
+            options: ["Compact", "Standard", "Luxury"];
+            committed(v) => {
+                root.setting-changed("clip_item_padding", v);
+            }
+        }
+
+        if root.row-hover-delay-visible : HorizontalLayout {
+            spacing: 12px;
+            alignment: start;
+            height: 32px;
+            Text {
+                width: 180px;
+                text: @tr("Preview hover delay");
+                color: Theme.fg-primary;
+                font-size: Theme.font-size;
+                vertical-alignment: center;
+            }
+
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 28px;
+                border-radius: 5px;
+                border-width: 1px;
+                border-color: Theme.accent-muted;
+                background: Theme.bg-input;
+                HorizontalLayout {
+                    cross-axis-alignment: center;
+                    padding-left: 12px;
+                    padding-right: 8px;
+                    spacing: 8px;
+                    track := Rectangle {
+                        width: 140px;
+                        height: 6px;
+                        border-radius: 3px;
+                        background: #555;
+                        Rectangle {
+                            width: 16px;
+                            height: 16px;
+                            border-radius: 8px;
+                            background: Theme.accent-primary;
+                            y: -5px;
+                            x: Math.max(0px, Math.min(parent.width - 16px, (root.hover-delay * 1.0) / 2000.0 * parent.width));
+                        }
+                    }
+
+                    Text {
+                        text: root.hover-delay == 0 ? @tr("Off") : @tr("{} ms", root.hover-delay);
+                        color: Theme.fg-primary;
+                        font-size: Theme.font-size;
+                    }
+                }
+
+                touch := TouchArea {
+                    width: 140px;
+                    height: 28px;
+                    x: 12px;
+                    y: 0px;
+                    Tooltip {
+                        text: @markdown("\{root.tip-hover-delay}");
+                    }
+                    pointer-event(e) => {
+                        if (e.kind == PointerEventKind.down || (e.kind == PointerEventKind.move && self.pressed)) {
+                            let raw = Math.round(touch.mouse-x / 140px * 2000 / 50) * 50;
+                            root.hover-delay = Math.min(2000, Math.max(0, raw));
+                            root.setting-changed("hover_preview_delay", "\{root.hover-delay}");
+                        }
+                    }
+                    mouse-cursor: pointer;
+                }
+            }
+        }
+
+        if root.row-image-preview-size-visible : IntRow {
+            label: @tr("Image preview size (px)");
+            tooltip-text: @tr("Maximum width/height of hover preview images");
+            value <=> root.s-image-preview-size;
+            min-val: 100;
+            max-val: 800;
+            step: 50;
+            committed(v) => {
+                root.setting-changed("hover_image_preview_size", "\{v}");
+            }
+        }
+
+        // ── External Apps ────────────────────────────────────────────────
+        if (root.row-diff-tool-visible || root.row-external-note-visible): SectionHeader {
+            text: @tr("External Apps");
+        }
+
+        if root.row-diff-tool-visible : TextRow {
+            label: @tr("Diff tool path");
+            tooltip-text: @tr("Command used to compare two text clips");
+            value <=> root.s-diff-tool-path;
+            committed(v) => {
+                root.setting-changed("compare_tool_path", v);
+            }
+        }
+
+        if root.row-external-note-visible : Text {
+            text: @tr("Send To apps and Blacklist are managed via JSON settings file.");
+            color: Theme.fg-muted;
+            font-size: Theme.font-size;
+            wrap: word-wrap;
+        }
+    }
+}

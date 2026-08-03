@@ -1,0 +1,66 @@
+// PreviewOverlay.slint — Hover preview tooltip plus the close-on-leave logic.
+// Shows the PreviewTooltip while `visible-preview` is true and, once the cursor
+// has actually reached the tooltip, dismisses it when the cursor leaves.
+
+import { PreviewTooltip } from "PreviewTooltip.slint";
+
+export component PreviewOverlay {
+    in property <bool> visible-preview: false;
+    in property <image> preview-image;
+    in property <image> preview-favicon;
+    in property <string> preview-clip-type: "text";
+    in property <string> preview-text: "";
+    in property <color> preview-color: #888888;
+    in property <string> preview-web-title: "";
+    in property <string> preview-file-info: "";
+    in property <float> popup-x: 0.0;
+    in property <float> popup-y: 0.0;
+
+    // True while the cursor is over the tooltip itself; used by the caller's
+    // dismiss-preview guard so a cursor moving from a clip row onto the
+    // tooltip doesn't close it.
+    out property <bool> hovered: preview-tooltip.hovered;
+
+    callback dismiss-preview();
+
+    x: 0px;
+    y: 0px;
+    width: 100%;
+    height: 100%;
+
+    preview-tooltip := PreviewTooltip {
+        visible-preview: root.visible-preview;
+        preview-image: root.preview-image;
+        preview-favicon: root.preview-favicon;
+        preview-clip-type: root.preview-clip-type;
+        preview-text: root.preview-text;
+        preview-color: root.preview-color;
+        preview-web-title: root.preview-web-title;
+        preview-file-info: root.preview-file-info;
+        popup-x: root.popup-x;
+        popup-y: root.popup-y;
+    }
+
+    // Latches true once the cursor actually reaches the tooltip, so the
+    // poll below only closes it after the cursor has been on the tooltip
+    // and then leaves — not on the very first tick after showing, when the
+    // cursor is still over the originating clip row.
+    property <bool> tooltip-hover-latch: false;
+    changed visible-preview => {
+        if (root.visible-preview) {
+            root.tooltip-hover-latch = false;
+        }
+    }
+    Timer {
+        interval: 16ms;
+        running: root.visible-preview;
+        triggered => {
+            if (preview-tooltip.hovered) {
+                root.tooltip-hover-latch = true;
+            } else if (root.tooltip-hover-latch) {
+                root.tooltip-hover-latch = false;
+                root.dismiss-preview();
+            }
+        }
+    }
+}

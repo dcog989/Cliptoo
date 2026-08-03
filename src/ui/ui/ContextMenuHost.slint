@@ -1,0 +1,141 @@
+// ContextMenuHost.slint — Right-click context menu popup for clip list items,
+// together with all of its positioning state.
+//
+// AppWindow calls `open-at` (from the ClipList right-click callback); the menu
+// emits callbacks that AppWindow bridges to Rust.
+
+import { ContextMenu } from "ContextMenu.slint";
+import { Theme }       from "Theme.slint";
+
+export component ContextMenuHost {
+    // Populated by Rust from settings.send_to_apps before each show().
+    in property <[string]> send-to-apps: [];
+    in property <length> window-width: 0px;
+    in property <length> window-height: 0px;
+
+    // Read-only for AppWindow: reflects whether the popup is currently open.
+    out property <bool> popup-open: popup.is-open;
+
+    callback preview-requested(int, float, float);  // id, x, y in logical px
+    callback edit-clip(int);
+    callback transform-clip(int, string);
+    callback toggle-bookmark(int, bool);  // id, current is-bookmarked
+    callback move-to-top(int);
+    callback move-to-bottom(int);
+    callback move-up-one(int);
+    callback move-down-one(int);
+    callback send-to-clip(int, string);   // id, app name
+    callback delete-clip(int);
+
+    property <int> ctx-clip-id: 0;
+    property <bool> ctx-clip-is-bookmarked: false;
+    property <string> ctx-clip-type: "text";
+    // Which sub-view the context menu shows ("main" | "format" | "send-to").
+    // Owned here because Slint forbids touching elements inside a PopupWindow
+    // from the enclosing component; two-way bound to ContextMenu.view below.
+    // Reset to "main" before each show() so the menu never reopens on a sub-view.
+    in-out property <string> ctx-menu-view: "main";
+    property <length> ctx-menu-x: 0px;
+    // Raw y requested at right-click. ctx-menu-y below clamps it against the
+    // current ctx-menu-height, so the popup re-clamps reactively when the menu
+    // grows as the view switches to "format"/"send-to".
+    property <length> ctx-menu-anchor-y: 0px;
+    property <length> ctx-menu-y: Math.max(0px, Math.min(root.ctx-menu-anchor-y, root.window-height - root.ctx-menu-height));
+    property <length> ctx-menu-width: 190px;
+    property <length> ctx-menu-row-height: 32px;
+    property <length> ctx-menu-sep-height: 9px;
+    property <bool> ctx-is-text-type:
+        root.ctx-clip-type == "text" || root.ctx-clip-type == "code_snippet" || root.ctx-clip-type == "rtf" || root.ctx-clip-type == "link";
+    // Height of the view currently shown in the context menu (keep in sync with
+    // ContextMenu.slint). Every view adds 2×4px vertical padding; rows are
+    // 32px, separators 9px.
+    //   main    — 8 base rows + 2 seps; +Format row for text clips;
+    //             +Send To sep+row when apps are configured.
+    //   format  — Back + 13 transforms = 14 rows + 3 seps (fixed content).
+    //   send-to — Back + 1 sep + one row per configured app.
+    property <length> ctx-menu-main-height:
+        2 * 4px + 8 * root.ctx-menu-row-height + 2 * root.ctx-menu-sep-height + (root.ctx-is-text-type ? root.ctx-menu-row-height : 0px) + (root.send-to-apps.length > 0 ? root.ctx-menu-sep-height + root.ctx-menu-row-height : 0px);
+    property <length> ctx-menu-format-height:
+        2 * 4px + 14 * root.ctx-menu-row-height + 3 * root.ctx-menu-sep-height;
+    property <length> ctx-menu-send-to-height:
+        2 * 4px + 2 * root.ctx-menu-row-height + root.ctx-menu-sep-height + root.send-to-apps.length * root.ctx-menu-row-height;
+    property <length> ctx-menu-height:
+        root.ctx-menu-view == "format" ? root.ctx-menu-format-height : root.ctx-menu-view == "send-to" ? root.ctx-menu-send-to-height : root.ctx-menu-main-height;
+
+    // Called by AppWindow from the ClipList right-click callback before the
+    // popup opens.
+    public function open-at(id: int, x: float, y: float, bookmarked: bool, clip-type: string) {
+        root.ctx-clip-id = id;
+        root.ctx-clip-is-bookmarked = bookmarked;
+        root.ctx-clip-type = clip-type;
+        root.ctx-menu-view = "main";
+        root.ctx-menu-x = Math.min(x * 1px, root.window-width - (root.ctx-menu-width + 4px));
+        root.ctx-menu-anchor-y = y * 1px;
+        popup.show();
+    }
+
+    popup := PopupWindow {
+        x: root.ctx-menu-x;
+        y: root.ctx-menu-y;
+        width: root.ctx-menu-width;
+        // Explicit height needed for Qt backend — PopupWindow won't render without it.
+        height: root.ctx-menu-height;
+        // Solid fill so any extra space below the menu content is not transparent.
+        Rectangle {
+            width: 100%;
+            height: 100%;
+            background: Theme.bg-header;
+        }
+
+        ctx-menu := ContextMenu {
+            width: root.ctx-menu-width;
+            height: 100%;
+            clip-id: root.ctx-clip-id;
+            clip-is-bookmarked: root.ctx-clip-is-bookmarked;
+            clip-type: root.ctx-clip-type;
+            send-to-apps: root.send-to-apps;
+            view <=> root.ctx-menu-view;
+
+            preview => {
+                root.preview-requested(root.ctx-clip-id, root.ctx-menu-x / 1px, root.ctx-menu-y / 1px);
+                popup.close();
+            }
+            edit => {
+                root.edit-clip(root.ctx-clip-id);
+                popup.close();
+            }
+            format(key) => {
+                root.transform-clip(root.ctx-clip-id, key);
+                popup.close();
+            }
+            toggle-bookmark(id, current) => {
+                root.toggle-bookmark(id, current);
+                popup.close();
+            }
+            move-to-top => {
+                root.move-to-top(root.ctx-clip-id);
+                popup.close();
+            }
+            move-to-bottom => {
+                root.move-to-bottom(root.ctx-clip-id);
+                popup.close();
+            }
+            move-up-one => {
+                root.move-up-one(root.ctx-clip-id);
+                popup.close();
+            }
+            move-down-one => {
+                root.move-down-one(root.ctx-clip-id);
+                popup.close();
+            }
+            send-to(app-name) => {
+                root.send-to-clip(root.ctx-clip-id, app-name);
+                popup.close();
+            }
+            delete => {
+                root.delete-clip(root.ctx-clip-id);
+                popup.close();
+            }
+        }
+    }
+}

@@ -1,0 +1,59 @@
+// HamburgerMenuHost.slint — Popup menu for the hamburger icon (About,
+// Settings, Close to Tray), positioned just above the hamburger button.
+
+import { HamburgerMenu } from "HamburgerMenu.slint";
+
+export component HamburgerMenuHost {
+    // Anchoring dims provided by AppWindow so the popup stays above the button.
+    in property <length> window-width: 0px;
+    in property <length> window-height: 0px;
+    in property <length> toolbar-height: 48px;
+    in property <length> menu-gap: 6px;
+
+    // Transient guard: AppWindow sets this around close() so the focus-poll /
+    // focus-lost chains don't close-to-tray while the popup is closing.
+    in-out property <bool> popup-just-closed: false;
+    // Read-only for AppWindow: reflects whether the popup is currently open.
+    out property <bool> popup-open: popup.is-open;
+
+    callback menu-settings();
+    callback menu-about();
+    callback menu-close-to-tray();
+
+    // Called by AppWindow from the toolbar hamburger click.
+    public function show() {
+        popup.show();
+    }
+
+    // Content-driven but explicit width/height — the Qt backend won't render a
+    // PopupWindow without explicit sizes.
+    popup := PopupWindow {
+        x: root.window-width - (self.width + 10px);
+        // Bottom edge just above the hamburger button: the toolbar is
+        // toolbar-height tall and the button sits 8px below its top.
+        y: root.window-height - root.toolbar-height + 8px - hamburger.menu-height - root.menu-gap;
+        width: hamburger.menu-width;
+        height: hamburger.menu-height;
+
+        hamburger := HamburgerMenu {
+            menu-settings => {
+                root.menu-settings();
+                root.popup-just-closed = true;
+                popup.close();
+                root.popup-just-closed = false;
+            }
+            menu-about => {
+                root.menu-about();
+                root.popup-just-closed = true;
+                popup.close();
+                root.popup-just-closed = false;
+            }
+            menu-close-to-tray => {
+                root.menu-close-to-tray();
+                root.popup-just-closed = true;
+                popup.close();
+                root.popup-just-closed = false;
+            }
+        }
+    }
+}

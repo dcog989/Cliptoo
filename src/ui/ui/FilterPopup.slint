@@ -1,0 +1,43 @@
+// FilterPopup.slint — Clip-type filter grid popup, anchored above the filter
+// icon in the toolbar.
+
+import { FilterGrid } from "FilterGrid.slint";
+
+export component FilterPopup {
+    in-out property <string> active-filter: "all";
+    // Anchoring dims provided by AppWindow.
+    in property <length> window-width: 0px;
+    in property <length> window-height: 0px;
+    in property <length> toolbar-height: 48px;
+    // FilterGrid intrinsic extent: 4 cells of 36px plus 8px padding and
+    // 4px grid spacing each way (matches FilterGrid.slint).
+    in property <length> popup-size: 172px;
+    in property <length> right-margin: 6px;
+
+    // Read-only for AppWindow: reflects whether the popup is currently open.
+    out property <bool> popup-open: popup.is-open;
+
+    callback filter-chosen(string);
+
+    // Called by AppWindow from the toolbar filter-icon click.
+    public function show() {
+        popup.show();
+    }
+
+    // Opens above the filter icon, right-aligned so its right edge nearly
+    // touches the app window's right edge. Y is clamped to the window's top
+    // edge so a very short window cannot push the popup off screen (Y would
+    // otherwise go negative below ~220px window height).
+    popup := PopupWindow {
+        x: root.window-width - root.popup-size - root.right-margin;
+        y: Math.max(0px, root.window-height - root.toolbar-height - root.popup-size);
+
+        FilterGrid {
+            active-filter: root.active-filter;
+            filter-chosen(f) => {
+                root.filter-chosen(f);
+                popup.close();
+            }
+        }
+    }
+}

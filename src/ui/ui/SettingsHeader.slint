@@ -1,0 +1,130 @@
+// SettingsHeader.slint — Top bar of the settings window.
+// Instant filter search (settings page) or page title + Back (database page),
+// plus the Database icon that toggles between the two pages.
+
+import { Theme } from "Theme.slint";
+import { LineEdit } from "std-widgets.slint";
+
+export component SettingsHeader {
+    in-out property <bool> on-database-page: false;
+    in-out property <string> settings-filter: "";
+
+    callback filter-changed(string);
+    callback database-page-shown();
+
+    // Tooltip text for the header icons (Tooltip.text is styled-text, so @tr
+    // is bound here and interpolated through @markdown at the use site).
+    private property <string> tip-database: @tr("Database: retention, maintenance, and statistics");
+    private property <string> tip-back: @tr("Back to settings");
+
+    height: 48px;
+    Rectangle {
+        background: Theme.bg-header;
+        HorizontalLayout {
+            padding-left: 10px;
+            padding-right: 10px;
+            padding-top: 8px;
+            padding-bottom: 8px;
+            spacing: 8px;
+
+            // Instant filter search (settings page) / page title (database page)
+            if !root.on-database-page : Rectangle {
+                horizontal-stretch: 1;
+                height: 32px;
+                border-radius: 8px;
+                background: Theme.bg-input;
+                clip: true;
+                HorizontalLayout {
+                    padding-left: 8px;
+                    padding-right: 4px;
+                    spacing: 6px;
+                    cross-axis-alignment: center;
+                    Image {
+                        source: @image-url("icons/search.svg");
+                        colorize: Theme.fg-muted;
+                        width: 16px;
+                        height: 16px;
+                    }
+                    search-input := LineEdit {
+                        horizontal-stretch: 1;
+                        width: 100%;
+                        height: 100%;
+                        font-size: Theme.font-size;
+                        text <=> root.settings-filter;
+                        placeholder-text: @tr("Search settings…");
+                        edited => {
+                            root.filter-changed(self.text);
+                        }
+                    }
+                }
+            }
+            if root.on-database-page : HorizontalLayout {
+                horizontal-stretch: 1;
+                spacing: 8px;
+                cross-axis-alignment: center;
+
+                // Back to settings
+                Rectangle {
+                    width: 32px;
+                    height: 32px;
+                    border-radius: 8px;
+                    background: Theme.bg-input;
+                    Image {
+                        source: @image-url("icons/arrow-left.svg");
+                        colorize: Theme.fg-secondary;
+                        width: 18px;
+                        height: 18px;
+                        x: (parent.width - 18px) / 2;
+                        y: (parent.height - 18px) / 2;
+                    }
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            root.on-database-page = false;
+                        }
+                    }
+                    Tooltip {
+                        text: @markdown("\{root.tip-back}");
+                    }
+                }
+
+                Text {
+                    text: @tr("Database");
+                    color: Theme.fg-primary;
+                    font-size: Theme.font-size + 1px;
+                    font-weight: 700;
+                    vertical-alignment: center;
+                }
+            }
+
+            // Database icon — opens the Database page on the settings page,
+            // acts as a toggle back from the Database page itself.
+            Rectangle {
+                width: 32px;
+                height: 32px;
+                border-radius: 8px;
+                background: root.on-database-page ? Theme.accent-muted : Theme.bg-input;
+                Image {
+                    source: @image-url("icons/database.svg");
+                    colorize: root.on-database-page ? Theme.accent-primary : Theme.fg-secondary;
+                    width: 20px;
+                    height: 20px;
+                    x: 6px;
+                    y: 6px;
+                }
+                TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => {
+                        root.on-database-page = !root.on-database-page;
+                        if root.on-database-page {
+                            root.database-page-shown();
+                        }
+                    }
+                }
+                Tooltip {
+                    text: @markdown("\{root.tip-database}");
+                }
+            }
+        }
+    }
+}
