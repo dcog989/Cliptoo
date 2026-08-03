@@ -27,6 +27,18 @@ fn build_accent_swatches(saturation: f64, value: f64) -> Vec<crate::AccentSwatch
         .collect()
 }
 
+/// Re-render an accent hex at a different saturation/brightness, keeping its
+/// hue snapped to the nearest swatch-grid step so the result always matches a
+/// palette swatch. Used when the tuning sliders move so the selected accent
+/// follows live instead of only reshaping the palette.
+fn retune_accent(color_hex: &str, saturation: f64, value: f64) -> String {
+    let (r, g, b) = crate::theme::parse_accent_hex(color_hex);
+    let (h, _, _) = crate::theme::rgb_to_hsv(r, g, b);
+    let hue = (h / SWATCH_HUE_STEP as f64).round() * SWATCH_HUE_STEP as f64 % 360.0;
+    let (nr, ng, nb) = crate::theme::hsv_to_rgb(hue, saturation, value);
+    format!("#{nr:02X}{ng:02X}{nb:02X}")
+}
+
 /// Instant-filter keyword lists, one per setting row, grouped by section.
 /// The header search box is matched against these (case-insensitive) by
 /// `apply_settings_filter`; a row shows when the query matches any keyword.
@@ -445,6 +457,39 @@ if ok:
                             } else {
                                 s.accent_value = tuned;
                             }
+                            // Retune the selected accent in place: re-render its
+                            // hue at the new saturation/brightness so the
+                            // settings swatch and every themed element follow
+                            // the sliders live. Skipped while "Clear" is active
+                            // (empty = follow the OS accent, which has no custom
+                            // hue to retune).
+                            if !s.accent_color.trim().is_empty() {
+                                s.accent_color = retune_accent(
+                                    &s.accent_color,
+                                    s.accent_saturation,
+                                    s.accent_value,
+                                );
+                                let (is_dark, _) = crate::theme::cached_resolved_theme();
+                                if let Some(ui) = settings_ui.upgrade() {
+                                    crate::theme::fill_theme(
+                                        &ui.global::<crate::Theme>(),
+                                        &s,
+                                        is_dark,
+                                        None,
+                                    );
+                                }
+                                if let Some(win) = sw.upgrade() {
+                                    win.set_s_accent_color(crate::theme::accent_hex_to_color(
+                                        &s.accent_color,
+                                    ));
+                                    crate::theme::fill_theme(
+                                        &win.global::<crate::Theme>(),
+                                        &s,
+                                        is_dark,
+                                        None,
+                                    );
+                                }
+                            }
                             if let Some(win) = sw.upgrade() {
                                 win.set_accent_swatches(
                                     std::rc::Rc::new(slint::VecModel::<crate::AccentSwatch>::from(
@@ -533,4 +578,25 @@ if ok:
     }
 
     settings_win
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Retuning a palette swatch must keep its hue on the swatch grid, so the
+    /// result is itself a palette swatch at the new saturation/brightness.
+    #[test]
+    fn retune_accent_lands_on_swatch_grid() {
+        let (s_old, v_old) = (0.9, 0.95);
+        let (s_new, v_new) = (0.45, 0.75);
+        for hue_idx in 0..SWATCH_COUNT {
+            let hue = (hue_idx * SWATCH_HUE_STEP) % 360;
+            let (r, g, b) = crate::theme::hsv_to_rgb(hue as f64, s_old, v_old);
+            let hex = format!("#{r:02X}{g:02X}{b:02X}");
+            let retuned = retune_accent(&hex, s_new, v_new);
+            let (er, eg, eb) = crate::theme::hsv_to_rgb(hue as f64, s_new, v_new);
+            assert_eq!(retuned, format!("#{er:02X}{eg:02X}{eb:02X}"));
+        }
+    }
 }
