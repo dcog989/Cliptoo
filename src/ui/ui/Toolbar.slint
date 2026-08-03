@@ -28,6 +28,12 @@ export component Toolbar {
     callback search-changed(string);
     callback accepted();
 
+    // Localized label of the active filter, shown in the filter icon tooltip.
+    // Keys/labels mirror FilterGrid.slint's items so both stay consistent.
+    property <string> filter-label: root.active-filter == "all" ? @tr("All") : root.active-filter == "text" ? @tr("Text") : root.active-filter == "file_image" ? @tr("Image") : root.active-filter == "bookmarked" ? @tr("Bookmarked") : root.active-filter == "link" ? @tr("URL") : root.active-filter == "file_path" ? @tr("File path") : root.active-filter == "code_snippet" ? @tr("Code") : root.active-filter == "color" ? @tr("Color") : root.active-filter == "folder" ? @tr("Folder") : root.active-filter == "file_danger" ? @tr("Danger") : root.active-filter == "file_dev" ? @tr("Dev") : root.active-filter == "file_audio" ? @tr("Audio") : root.active-filter == "file_video" ? @tr("Video") : root.active-filter == "file_archive" ? @tr("Archive") : root.active-filter == "file_document" ? @tr("Document") : root.active-filter == "rtf" ? @tr("Rich Text") : @tr("File");
+    // Tooltip text for the filter icon, e.g. "Filter: Text".
+    property <string> filter-tooltip: @tr("Filter: {}", root.filter-label);
+
     out property <bool> search-focused: search-input.has-focus;
 
     height: 48px;
@@ -307,6 +313,9 @@ export component Toolbar {
                 }
 
                 TouchArea {
+                    Tooltip {
+                        text: @markdown("\{ root.filter-tooltip }");
+                    }
                     clicked => {
                         root.toggle-filter-grid();
                     }
