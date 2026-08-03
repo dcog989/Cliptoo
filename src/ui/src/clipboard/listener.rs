@@ -93,13 +93,9 @@ pub async fn run_listener(
         match result {
             Ok(Some(payload)) => {
                 let sup_hash = match &payload {
-                    ClipboardPayload::Text { content, .. }
-                    | ClipboardPayload::FileUri { content, .. } => {
-                        let normalized =
-                            cliptoo_core::content::hash::normalize_line_endings(content);
-                        cliptoo_core::content::hash::sha256_u64(&normalized)
-                    }
-                    ClipboardPayload::Image { .. } => 0,
+                    ClipboardPayload::Text { sup_hash, .. }
+                    | ClipboardPayload::FileUri { sup_hash, .. }
+                    | ClipboardPayload::Image { sup_hash, .. } => *sup_hash,
                 };
 
                 if sup_hash != 0 && suppression.check_and_remove(sup_hash) {
@@ -108,7 +104,7 @@ pub async fn run_listener(
                 }
 
                 match payload {
-                    ClipboardPayload::Text { hash, content } => {
+                    ClipboardPayload::Text { hash, content, .. } => {
                         let classified = ContentProcessor::process(&content, false);
                         if classified.is_none() {
                             debug!("clipboard: empty/whitespace-only text skipped");
@@ -203,7 +199,7 @@ pub async fn run_listener(
                             .await;
                         }
                     }
-                    ClipboardPayload::FileUri { hash, content } => {
+                    ClipboardPayload::FileUri { hash, content, .. } => {
                         let source_app = crate::source_app::detect_source_app().await;
 
                         if is_blacklisted(source_app.as_deref(), &blacklisted_apps) {
@@ -281,7 +277,7 @@ pub async fn run_listener(
                         refresh_clips(&db, &ui, &thumbnails_dir, &favicons_dir, "", "all", None)
                             .await;
                     }
-                    ClipboardPayload::Image { hash, data } => {
+                    ClipboardPayload::Image { hash, data, .. } => {
                         let source_app = crate::source_app::detect_source_app().await;
 
                         if is_blacklisted(source_app.as_deref(), &blacklisted_apps) {

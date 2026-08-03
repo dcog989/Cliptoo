@@ -33,7 +33,7 @@ async fn try_text(last_hash: &mut Option<String>) -> Result<Option<ClipboardPayl
     reader.read_to_string(&mut raw)?;
 
     let normalized = normalize_line_endings(&raw);
-    let hash = cliptoo_core::content::hash::sha256_hex(&normalized);
+    let (hash, sup_hash) = cliptoo_core::content::hash::sha256_hex_and_prefix(&normalized);
 
     if last_hash.as_deref() == Some(&hash) {
         return Ok(None);
@@ -47,6 +47,7 @@ async fn try_text(last_hash: &mut Option<String>) -> Result<Option<ClipboardPayl
     Ok(Some(ClipboardPayload::Text {
         hash,
         content: normalized,
+        sup_hash,
     }))
 }
 
@@ -83,14 +84,14 @@ async fn try_file_uri_list(last_hash: &mut Option<String>) -> Result<Option<Clip
         return Ok(None);
     }
 
-    let hash = cliptoo_core::content::hash::sha256_hex(&content);
+    let (hash, sup_hash) = cliptoo_core::content::hash::sha256_hex_and_prefix(&content);
 
     if last_hash.as_deref() == Some(&hash) {
         return Ok(None);
     }
     *last_hash = Some(hash.clone());
 
-    Ok(Some(ClipboardPayload::FileUri { hash, content }))
+    Ok(Some(ClipboardPayload::FileUri { hash, content, sup_hash }))
 }
 
 async fn try_image(last_hash: &mut Option<String>) -> Result<Option<ClipboardPayload>> {
@@ -127,7 +128,11 @@ async fn try_image(last_hash: &mut Option<String>) -> Result<Option<ClipboardPay
         }
         *last_hash = Some(hash.clone());
 
-        return Ok(Some(ClipboardPayload::Image { hash, data }));
+        return Ok(Some(ClipboardPayload::Image {
+            hash,
+            data,
+            sup_hash: 0,
+        }));
     }
 
     Ok(None)

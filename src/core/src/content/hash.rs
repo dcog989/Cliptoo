@@ -17,6 +17,18 @@ pub fn sha256_u64(content: &str) -> u64 {
     u64::from_le_bytes(arr)
 }
 
+/// Compute the SHA-256 hex digest and its first 8 bytes as a u64 in a single
+/// pass over `content`. Use this instead of `sha256_hex` + `sha256_u64` when
+/// both are needed, to avoid hashing the content twice.
+pub fn sha256_hex_and_prefix(content: &str) -> (String, u64) {
+    let mut hasher = Sha256::new();
+    hasher.update(content.as_bytes());
+    let bytes = hasher.finalize();
+    let hex = const_hex::encode(bytes.as_slice());
+    let arr: [u8; 8] = bytes[..8].try_into().expect("SHA-256 output is >= 8 bytes");
+    (hex, u64::from_le_bytes(arr))
+}
+
 /// Normalize line endings before hashing to ensure consistent deduplication.
 /// Replaces \r\n → \n.
 pub fn normalize_line_endings(s: &str) -> String {
