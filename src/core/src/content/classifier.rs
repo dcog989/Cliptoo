@@ -187,40 +187,50 @@ impl ContentProcessor {
         if lines.len() < CODE_MIN_LINES {
             return false;
         }
-        let score: usize = lines
-            .iter()
-            .map(|l| {
-                // Bracket tokens: hard structural evidence
-                let brackets = l.contains('{') || l.contains('}');
-                // Fat arrow only when followed by something (not bare YAML `key: value =>`)
-                let fat_arrow = l.contains("=> ") || l.ends_with("=>");
-                // Language keywords as whole words (not substrings of identifiers)
-                let keyword = l.contains(" fn ")
-                    || l.starts_with("fn ")
-                    || l.contains(" def ")
-                    || l.starts_with("def ")
-                    || l.contains(" func ")
-                    || l.starts_with("func ")
-                    || l.contains(" class ")
-                    || l.starts_with("class ")
-                    || l.contains(" return ")
-                    || l.contains(" return;")
-                    || l.contains(" import ")
-                    || l.starts_with("import ")
-                    || l.contains(" pub ")
-                    || l.contains(" let ")
-                    || l.contains(" const ");
-                if brackets || fat_arrow || keyword {
-                    1
-                } else {
-                    0
-                }
-            })
-            .sum();
-        // Require structural tokens in at least CODE_MIN_SCORE lines AND at
-        // least CODE_SCORE_PERCENT of lines, so short dense snippets still
-        // qualify but long prose with two stray braces does not.
+        let mut score: usize = 0;
+        for (idx, line) in lines.iter().enumerate() {
+            if Self::is_code_line(line) {
+                score += 1;
+            }
+            let processed = idx + 1;
+            let best_possible = score + (lines.len() - processed);
+            // Both thresholds met already — score only grows from here, the
+            // total line count is fixed, so the outcome cannot change.
+            if score >= CODE_MIN_SCORE && score * 100 >= lines.len() * CODE_SCORE_PERCENT {
+                return true;
+            }
+            // Even if every remaining line scored 1, a threshold is unreachable.
+            if best_possible < CODE_MIN_SCORE
+                || best_possible * 100 < lines.len() * CODE_SCORE_PERCENT
+            {
+                return false;
+            }
+        }
         score >= CODE_MIN_SCORE && score * 100 >= lines.len() * CODE_SCORE_PERCENT
+    }
+
+    fn is_code_line(l: &str) -> bool {
+        // Bracket tokens: hard structural evidence
+        let brackets = l.contains('{') || l.contains('}');
+        // Fat arrow only when followed by something (not bare YAML `key: value =>`)
+        let fat_arrow = l.contains("=> ") || l.ends_with("=>");
+        // Language keywords as whole words (not substrings of identifiers)
+        let keyword = l.contains(" fn ")
+            || l.starts_with("fn ")
+            || l.contains(" def ")
+            || l.starts_with("def ")
+            || l.contains(" func ")
+            || l.starts_with("func ")
+            || l.contains(" class ")
+            || l.starts_with("class ")
+            || l.contains(" return ")
+            || l.contains(" return;")
+            || l.contains(" import ")
+            || l.starts_with("import ")
+            || l.contains(" pub ")
+            || l.contains(" let ")
+            || l.contains(" const ");
+        brackets || fat_arrow || keyword
     }
 }
 
@@ -229,13 +239,13 @@ mod tests {
     use super::ContentProcessor;
     use crate::db::models::ClipType;
 
-    fn temp_dir() -> std::path::PathBuf {
-        std::env::temp_dir().join(format!("cliptoo_classifier_{}", std::process::id()))
+    fn temp_dir(name: &str) -> std::path::PathBuf {
+        std::env::temp_dir().join(format!("cliptoo_classifier_{}_{}", std::process::id(), name))
     }
 
     #[test]
     fn single_existing_file_gets_specific_type() {
-        let dir = temp_dir();
+        let dir = temp_dir("single");
         let path = dir.join("sample.png");
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(&path, b"x").unwrap();
@@ -246,7 +256,7 @@ mod tests {
 
     #[test]
     fn multi_file_selection_is_generic_file() {
-        let dir = temp_dir();
+        let dir = temp_dir("multi");
         std::fs::create_dir_all(&dir).unwrap();
         let a = dir.join("a.txt");
         let b = dir.join("b.md");
@@ -261,7 +271,7 @@ mod tests {
 
     #[test]
     fn multi_selection_all_dirs_is_folder() {
-        let dir = temp_dir();
+        let dir = temp_dir("dirs");
         let d1 = dir.join("one");
         let d2 = dir.join("two");
         std::fs::create_dir_all(&d1).unwrap();
@@ -276,7 +286,7 @@ mod tests {
     fn multi_selection_missing_paths_stay_file_clips() {
         // A path that vanished is not a reason to reclassify a multi-selection
         // as text — deadhead maintenance handles the missing paths later.
-        let dir = temp_dir();
+        let dir = temp_dir("missing");
         let a = dir.join("a.txt");
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(&a, b"x").unwrap();
@@ -291,5 +301,32 @@ mod tests {
     fn single_non_path_text_stays_text() {
         let c = ContentProcessor::process("not a path at all", true).unwrap();
         assert_eq!(c.clip_type, ClipType::Text);
+    }
+
+    #[test]
+    fn dense_code_is_code_snippet() {
+        let code = "fn main() {\n    let x = 1;\n    return x;\n}";
+        let c = ContentProcessor::process(code, false).unwrap();
+        assert_eq!(c.clip_type, ClipType::CodeSnippet);
+    }
+
+    #[test]
+    fn long_prose_without_tokens_stays_text() {
+        // 40 lines of plain prose must not trip the code heuristic, exercising
+        // the percent-threshold early-exit in is_code_heuristic.
+        let prose = (0..40)
+            .map(|i| format!("this is ordinary sentence number {i} with no brackets"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let c = ContentProcessor::process(&prose, false).unwrap();
+        assert_eq!(c.clip_type, ClipType::Text);
+    }
+
+    #[test]
+    fn three_line_code_is_code_snippet() {
+        // Dense short snippet satisfies the min-line + min-score thresholds.
+        let code = "if (a) {\n  b();\n  c();\n}";
+        let c = ContentProcessor::process(code, false).unwrap();
+        assert_eq!(c.clip_type, ClipType::CodeSnippet);
     }
 }

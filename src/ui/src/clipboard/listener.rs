@@ -105,7 +105,20 @@ pub async fn run_listener(
 
                 match payload {
                     ClipboardPayload::Text { hash, content, .. } => {
-                        let classified = ContentProcessor::process(&content, false);
+                        // Classification (trim, hash, preview) is O(n) on the
+                        // content; run it on the blocking pool so a large paste
+                        // doesn't stall the runtime.
+                        let classified = match tokio::task::spawn_blocking(move || {
+                            ContentProcessor::process(&content, false)
+                        })
+                        .await
+                        {
+                            Ok(c) => c,
+                            Err(e) => {
+                                tracing::error!("classification task failed: {e}");
+                                continue;
+                            }
+                        };
                         if classified.is_none() {
                             debug!("clipboard: empty/whitespace-only text skipped");
                         }
@@ -207,8 +220,20 @@ pub async fn run_listener(
                             continue;
                         }
 
-                        let inserted = {
+                        let (classified, content) = match tokio::task::spawn_blocking(move || {
                             let classified = ContentProcessor::process(&content, true);
+                            (classified, content)
+                        })
+                        .await
+                        {
+                            Ok(pair) => pair,
+                            Err(e) => {
+                                tracing::error!("classification task failed: {e}");
+                                continue;
+                            }
+                        };
+
+                        let inserted = {
                             let (clip_type, preview_content, size, is_multiline) =
                                 if let Some(ref c) = classified {
                                     (
