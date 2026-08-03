@@ -1,0 +1,139 @@
+// ScrollBar.slint — Custom vertical scrollbar overlay for the clip list.
+//
+// The std-widgets ListView draws its scrollbar through Slint's Qt backend,
+// which hit-tests track clicks against the Qt style and drops them on Plasma:
+// the Released handler only pages when the style reports SC_ScrollBarAddPage/
+// SubPage, which Breeze's overlay scrollbar never does. That logic is baked
+// into the vendored crate, so this component replaces the native scrollbar
+// with one whose track, thumb and wheel handling live entirely in Slint.
+//
+// Like the native overlay scrollbar, the visuals fade in only while the
+// cursor is over the strip. The track pages on press and keeps paging while
+// held; the thumb drags; wheel scrolling passes through.
+
+import { Theme } from "Theme.slint";
+
+export component ScrollBar {
+    in property <length> content-height: 0px;
+    in property <length> visible-height: 0px;
+    // Scroll offset in logical px, 0 = top, max-position = bottom.
+    in property <length> position: 0px;
+    out property <length> max-position: max(0px, root.content-height - root.visible-height);
+    out property <bool> hovering: track-touch.has-hover || thumb-touch.has-hover || root.dragging || root.auto-scroll;
+
+    callback position-changed(length);
+
+    visible: root.max-position > 0px;
+
+    // ── Thumb geometry ─────────────────────────────────────────────────────
+    // A minimum thumb height keeps the grip usable on very long lists.
+    private property <length> thumb-min-height: 32px;
+    private property <length> thumb-height: min(root.height, max(root.thumb-min-height, root.height * root.visible-height / max(1px, root.content-height)));
+    private property <length> thumb-y: root.max-position <= 0px ? 0px : (root.height - root.thumb-height) * (root.position / root.max-position);
+
+    // ── Drag state ──────────────────────────────────────────────────────────
+    private property <bool> dragging: false;
+    private property <length> drag-start-mouse-y: 0px;
+    private property <length> drag-start-position: 0px;
+    // Pixels the thumb must travel for the full scroll range; converts mouse
+    // delta to scroll delta while dragging.
+    private property <float> drag-scale: root.max-position / max(1px, root.height - root.thumb-height);
+
+    // ── Auto-repeat paging state ────────────────────────────────────────────
+    private property <bool> auto-scroll: false;
+    private property <bool> scroll-up: false;
+    // How often a held track press pages again after the initial page.
+    private property <duration> repeat-interval: 180ms;
+
+    // ── Track — pages on press and repeats while held, scrolls on wheel ────
+    track-touch := TouchArea {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
+
+        pointer-event(e) => {
+            if (e.kind == PointerEventKind.down && e.button == PointerEventButton.left) {
+                root.auto-scroll = true;
+                root.scroll-up = self.mouse-y < root.thumb-y;
+                if (root.scroll-up) {
+                    root.page-up();
+                } else {
+                    root.page-down();
+                }
+            } else if (e.kind == PointerEventKind.up || e.kind == PointerEventKind.cancel) {
+                root.auto-scroll = false;
+            }
+        }
+        scroll-event(e) => {
+            root.position-changed(min(root.max-position, max(0px, root.position - e.delta-y)));
+            return accept;
+        }
+    }
+
+    // ── Thumb — grabs and drags. Sits above the track so its presses never
+    // reach the track's page handler, and grabs the pointer so moves keep
+    // arriving even when the cursor outruns the thumb.
+    thumb-touch := TouchArea {
+        x: 0px;
+        y: root.thumb-y;
+        width: parent.width;
+        height: root.thumb-height;
+
+        pointer-event(e) => {
+            if (e.kind == PointerEventKind.down && e.button == PointerEventButton.left) {
+                root.dragging = true;
+                root.drag-start-mouse-y = self.mouse-y;
+                root.drag-start-position = root.position;
+            } else if (e.kind == PointerEventKind.up || e.kind == PointerEventKind.cancel) {
+                root.dragging = false;
+            } else if (e.kind == PointerEventKind.move && root.dragging) {
+                let newPos = root.drag-start-position + (self.mouse-y - root.drag-start-mouse-y) * root.drag-scale;
+                root.position-changed(min(root.max-position, max(0px, newPos)));
+            }
+        }
+        scroll-event(e) => {
+            root.position-changed(min(root.max-position, max(0px, root.position - e.delta-y)));
+            return accept;
+        }
+    }
+
+    // Continues paging while the track is held down.
+    auto-scroll-timer := Timer {
+        interval: root.repeat-interval;
+        running: root.auto-scroll;
+        triggered => {
+            if (root.scroll-up) {
+                root.page-up();
+            } else {
+                root.page-down();
+            }
+        }
+    }
+
+    public function page-up() {
+        root.position-changed(max(0px, root.position - root.visible-height));
+    }
+
+    public function page-down() {
+        root.position-changed(min(root.max-position, root.position + root.visible-height));
+    }
+
+    // ── Visuals — revealed only while hovering or interacting ───────────────
+    Rectangle {
+        border-radius: 3px;
+        background: root.hovering ? Theme.bg-row-hover : Theme.bg-row-alt;
+        opacity: root.hovering ? 1.0 : 0.0;
+        animate opacity { duration: Theme.anim-fast; }
+    }
+    Rectangle {
+        x: 2px;
+        y: root.thumb-y;
+        width: parent.width - 4px;
+        height: root.thumb-height;
+        border-radius: 2px;
+        background: root.dragging || root.hovering ? Theme.fg-secondary : Theme.fg-muted;
+        opacity: root.hovering ? 1.0 : 0.0;
+        animate opacity { duration: Theme.anim-fast; }
+    }
+}

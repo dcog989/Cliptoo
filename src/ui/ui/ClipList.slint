@@ -9,6 +9,7 @@
 import { ClipItem }  from "ClipItem.slint";
 import { Theme }     from "Theme.slint";
 import { ClipData }  from "ClipData.slint";
+import { ScrollBar } from "ScrollBar.slint";
 import { ListView }  from "std-widgets.slint";
 
 export component ClipList {
@@ -65,7 +66,13 @@ export component ClipList {
         }
     }
 
+    // Scrollbar strip width. The std-widgets scrollbar is disabled below (its
+    // track clicks don't register on Plasma) and replaced by the ScrollBar
+    // overlay on the right edge.
+    private property <length> scrollbar-width: 10px;
+
     list-view := ListView {
+        vertical-scrollbar-policy: ScrollBarPolicy.always-off;
         for clip[idx] in root.clips: ClipItem {
             clip-data: clip;
             is-selected: idx == root.selected-index;
@@ -87,6 +94,19 @@ export component ClipList {
             hover-exited => {
                 root.dismiss-preview();
             }
+        }
+    }
+
+    scrollbar := ScrollBar {
+        x: root.width - root.scrollbar-width;
+        y: 0px;
+        width: root.scrollbar-width;
+        height: root.height;
+        content-height: list-view.viewport-height;
+        visible-height: list-view.visible-height;
+        position: -list-view.viewport-y;
+        position-changed(p) => {
+            list-view.viewport-y = -p;
         }
     }
 }
