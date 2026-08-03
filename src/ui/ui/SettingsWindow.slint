@@ -82,7 +82,7 @@ export component SettingsWindow inherits Window {
     // Tooltip text for inline controls (Tooltip.text is styled-text, so @tr is
     // bound here and interpolated through @markdown at the use site).
     private property <string> tip-open-log: @tr("Open the most recent log file in your default viewer");
-    private property <string> tip-font-family: @tr("Font family used for the clip list");
+    private property <string> tip-font-family: @tr("Font family used for the clip list. Click to pick a font");
     private property <string> tip-hover-delay: @tr("Delay before the image hover preview appears");
     private property <string> tip-accent-picker: @tr("Open the color picker");
 
@@ -313,31 +313,27 @@ export component SettingsWindow inherits Window {
                         height: 28px;
                         border-radius: 5px;
                         border-width: 1px;
-                        border-color: Theme.accent-muted;
+                        border-color: font-touch.has-hover ? Theme.accent-primary : Theme.accent-muted;
                         background: Theme.bg-input;
                         HorizontalLayout {
                             padding-left: 8px;
                             padding-right: 8px;
-                            TextInput {
-                                text <=> root.s-font-family;
+                            Text {
+                                text: root.s-font-family;
                                 color: Theme.fg-primary;
                                 font-size: Theme.font-size;
                                 vertical-alignment: center;
-                                accepted => {
-                                    root.setting-changed("font_family", root.s-font-family);
-                                }
+                                overflow: elide;
                             }
                         }
                         Tooltip {
                             text: @markdown("\{root.tip-font-family}");
                         }
-                    }
-
-                    StepperButton {
-                        text: "…";
-                        tooltip-text: @tr("Pick a font from the system font dialog");
-                        clicked => {
-                            root.font-picker();
+                        font-touch := TouchArea {
+                            clicked => {
+                                root.font-picker();
+                            }
+                            mouse-cursor: pointer;
                         }
                     }
                 }
