@@ -27,8 +27,13 @@ fn build_accent_swatches() -> Vec<crate::AccentSwatch> {
         .collect()
 }
 
+/// Normalise a hotkey string captured from the settings UI. Control
+/// characters (a letter pressed with a modifier arrives as U+0001..U+001A)
+/// are mapped to letters, and the final key token is uppercased so the
+/// assigned key always displays uppercase (e.g. `Ctrl+Alt+q` → `Ctrl+Alt+Q`).
 fn clean_hotkey_text(raw: &str) -> String {
-    raw.chars()
+    let cleaned: String = raw
+        .chars()
         .map(|c| {
             let code = c as u32;
             if (1..=26).contains(&code) {
@@ -37,7 +42,11 @@ fn clean_hotkey_text(raw: &str) -> String {
                 c.to_string()
             }
         })
-        .collect()
+        .collect();
+    match cleaned.rsplit_once('+') {
+        Some((mods, key)) if !key.is_empty() => format!("{mods}+{}", key.to_uppercase()),
+        _ => cleaned.to_uppercase(),
+    }
 }
 
 /// Update a single `Theme` token on both the main window and the settings
@@ -108,7 +117,7 @@ pub fn setup_settings_window(
     // Initialise all settings properties.
     {
         let s = settings.borrow();
-        settings_win.set_s_hotkey(s.hotkey.as_str().into());
+        settings_win.set_s_hotkey(clean_hotkey_text(s.hotkey.as_str()).into());
         settings_win.set_s_start_with_system(s.start_with_system);
         settings_win.set_s_always_close_to_tray(s.always_close_to_tray);
         settings_win.set_s_quick_paste_mod_idx(idx_of(
