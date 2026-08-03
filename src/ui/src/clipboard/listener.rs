@@ -140,7 +140,7 @@ pub async fn run_listener(
                                         conn,
                                         &classified.content,
                                         &classified.preview_content,
-                                        &hash,
+                                        &classified.content_hash,
                                         classified.clip_type.as_str(),
                                         source_app.as_deref(),
                                         classified.was_trimmed,
