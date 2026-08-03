@@ -290,6 +290,13 @@ export component SettingsWindow inherits Window {
                     padding-top: 8px;
                     padding-bottom: 24px;
                     spacing: 6px;
+                    // Non-stretch alignment: the ScrollView gives this layout
+                    // the full visible height, so stretch (the default) would
+                    // distribute the leftover space into every child — each
+                    // SectionHeader grows, pushing results down. Pinning the
+                    // children to their minimum sizes keeps the content packed
+                    // at the top with any empty space at the bottom.
+                    alignment: start;
 
                     // ── General ──────────────────────────────────────────
                     if (root.row-hotkey-visible || root.row-startup-visible || root.row-tray-visible
@@ -637,6 +644,7 @@ export component SettingsWindow inherits Window {
                     padding-top: 8px;
                     padding-bottom: 24px;
                     spacing: 6px;
+                    alignment: start;
 
                     SectionHeader {
                         text: @tr("Retention");
