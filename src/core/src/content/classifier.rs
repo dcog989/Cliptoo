@@ -24,13 +24,21 @@ pub struct ClassifiedContent {
 
 /// Stateless content processor. Classifies incoming clipboard payloads.
 ///
+/// `is_copied_file` tells the classifier whether the payload was copied as an
+/// actual file/folder (via `text/uri-list`) or is plain text. This matters for
+/// path detection: a path the user typed/copied as text is a `FilePath` clip,
+/// while a file/folder copied from a file manager gets the `Folder`/`file_*`
+/// classification.
+///
 /// Classification order (first match wins):
 ///   1. Whitespace trim detection
 ///   2. Empty / whitespace-only  → discard (returns None)
 ///   3. RTF detection             → ClipType::Rtf
 ///   4. URL detection             → ClipType::Link
 ///   5. Color detection           → ClipType::Color
-///   6. File path detection       → ClipType::Folder | file_*
+///   6. Path detection:
+///      copied file → ClipType::Folder | file_*
+///      plain text  → ClipType::FilePath
 ///   7. Code heuristic            → ClipType::CodeSnippet
 ///   8. Fallback                  → ClipType::Text
 pub struct ContentProcessor;
@@ -43,7 +51,7 @@ impl ContentProcessor {
     /// preview, and computes `content_hash` + `content_hash_prefix` from the
     /// **trimmed** result so that suppression and DB dedup both agree on the
     /// same hash.
-    pub fn process(normalized: &str) -> Option<ClassifiedContent> {
+    pub fn process(normalized: &str, is_copied_file: bool) -> Option<ClassifiedContent> {
         // Step 1: trim detection
         let trimmed = normalized.trim();
         let was_trimmed = trimmed != normalized;
@@ -62,8 +70,17 @@ impl ContentProcessor {
             (ClipType::Link, content)
         } else if crate::color::ColorParser::is_color(&content) {
             (ClipType::Color, content)
-        } else if let Some((ft, decoded_path)) = Self::classify_path(&content) {
-            (ft, decoded_path)
+        } else if is_copied_file {
+            match Self::classify_path(&content) {
+                Some((ft, decoded_path)) => (ft, decoded_path),
+                None if Self::is_code_heuristic(&content) => (ClipType::CodeSnippet, content),
+                None => (ClipType::Text, content),
+            }
+        } else if !content.contains('\n') && Self::looks_like_path(&content) {
+            // Text that is wholly a single file path (to a folder or file).
+            // Multiline content (e.g. a code block that merely contains a
+            // path) never counts — only the whole clip being a path does.
+            (ClipType::FilePath, content)
         } else if Self::is_code_heuristic(&content) {
             (ClipType::CodeSnippet, content)
         } else {
@@ -93,6 +110,21 @@ impl ContentProcessor {
         s.starts_with("http://") || s.starts_with("https://") || s.starts_with("ftp://")
     }
 
+    /// True when `raw` looks like a filesystem path, regardless of whether it
+    /// exists on disk. `file://` prefixes and percent-encoding are handled, so
+    /// both `file:///home/foo%20bar` and `/home/foo bar` count.
+    fn looks_like_path(raw: &str) -> bool {
+        let without_scheme = raw.strip_prefix("file://").unwrap_or(raw);
+        let decoded = crate::content::percent_decode_path(without_scheme);
+        decoded.starts_with('/')
+            || decoded.starts_with("~/")
+            || decoded.starts_with("./")
+            || decoded.starts_with("../")
+            || decoded.len() >= 3
+                && decoded.as_bytes()[1] == b':'
+                && (decoded.as_bytes()[2] == b'\\' || decoded.as_bytes()[2] == b'/')
+    }
+
     /// Checks whether `s` looks like a filesystem path and exists on disk.
     ///
     /// Returns `Some((clip_type, decoded_path))` on a match, where
@@ -101,20 +133,12 @@ impl ContentProcessor {
     /// to decode and strip a second time.
     fn classify_path(s: &str) -> Option<(ClipType, String)> {
         use std::path::Path;
-        let without_scheme = s.strip_prefix("file://").unwrap_or(s);
-        let decoded = crate::content::percent_decode_path(without_scheme);
-        let s = decoded.as_str();
-        let looks_like_path = s.starts_with('/')
-            || s.starts_with("~/")
-            || s.starts_with("./")
-            || s.starts_with("../")
-            || s.len() >= 3
-                && s.as_bytes()[1] == b':'
-                && (s.as_bytes()[2] == b'\\' || s.as_bytes()[2] == b'/');
-        if !looks_like_path {
+        if !Self::looks_like_path(s) {
             return None;
         }
-        let path = Path::new(s);
+        let without_scheme = s.strip_prefix("file://").unwrap_or(s);
+        let decoded = crate::content::percent_decode_path(without_scheme);
+        let path = Path::new(decoded.as_str());
         if path.is_dir() {
             return Some((ClipType::Folder, decoded));
         }

@@ -102,12 +102,11 @@ pub fn retention(conn: &Connection, cfg: &RetentionConfig) -> Result<u64> {
 /// Split from the delete step so filesystem checks happen outside `db.with`.
 pub fn deadhead_collect(conn: &Connection) -> Result<Vec<(i64, String)>> {
     let mut stmt = conn.prepare_cached(
-        "SELECT Id, Content FROM clips
+         "SELECT Id, Content FROM clips
          WHERE ClipType IN (
              'file_image','file_video','file_audio','file_archive',
              'file_document','file_dev','file_danger','file_text',
-             'file_generic','file_database','file_font','file_link',
-             'file_system','folder'
+             'file_generic','folder'
          )",
     )?;
     let mut out = Vec::new();
@@ -277,11 +276,17 @@ pub fn clear_history(conn: &Connection, include_bookmarked: bool) -> Result<u64>
 /// The other fields are refreshed only alongside a type change.
 pub fn reclassify_all(conn: &Connection) -> Result<u64> {
     // Fetch all ids + raw content + currently stored ClipType in a single pass.
-    let rows: Vec<(i64, String, String)> = {
-        let mut stmt =
-            conn.prepare_cached("SELECT Id, Content, ClipType FROM clips WHERE Content IS NOT NULL")?;
+    // IsFileUri tells the classifier whether the clip was a copied file/folder,
+    // so path-looking *text* clips reclassify to FilePath while copied files
+    // keep their Folder/file_* classification.
+    let rows: Vec<(i64, String, String, bool)> = {
+        let mut stmt = conn.prepare_cached(
+            "SELECT Id, Content, ClipType, IsFileUri FROM clips WHERE Content IS NOT NULL",
+        )?;
         let mut out = Vec::new();
-        for r in stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))? {
+        for r in stmt.query_map([], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get::<_, i32>(3)? != 0))
+        })? {
             match r {
                 Ok(row) => out.push(row),
                 Err(e) => warn!("reclassify_all: row read error: {e}"),
@@ -291,12 +296,12 @@ pub fn reclassify_all(conn: &Connection) -> Result<u64> {
     };
 
     let mut updated: u64 = 0;
-    for (id, raw, cur_clip_type) in rows {
+    for (id, raw, cur_clip_type, is_copied_file) in rows {
         if raw.trim().is_empty() {
             continue;
         }
         let normalised = normalize_line_endings(&raw);
-        if let Some(c) = ContentProcessor::process(&normalised) {
+        if let Some(c) = ContentProcessor::process(&normalised, is_copied_file) {
             if c.clip_type.as_str() == cur_clip_type {
                 continue;
             }

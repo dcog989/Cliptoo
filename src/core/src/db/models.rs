@@ -6,6 +6,10 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "snake_case")]
 pub enum ClipType {
     Text,
+    /// A text clip whose content is clearly a file path (to a folder or file).
+    /// Distinct from `Folder`/`file_*`, which only ever come from files/folders
+    /// actually copied via `text/uri-list`.
+    FilePath,
     Rtf,
     Link,
     Color,
@@ -19,10 +23,6 @@ pub enum ClipType {
     FileDanger,
     FileText,
     FileGeneric,
-    FileDatabase,
-    FileFont,
-    FileLink,
-    FileSystem,
     Folder,
 }
 
@@ -30,6 +30,7 @@ impl ClipType {
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Text => "text",
+            Self::FilePath => "file_path",
             Self::Rtf => "rtf",
             Self::Link => "link",
             Self::Color => "color",
@@ -43,10 +44,6 @@ impl ClipType {
             Self::FileDanger => "file_danger",
             Self::FileText => "file_text",
             Self::FileGeneric => "file_generic",
-            Self::FileDatabase => "file_database",
-            Self::FileFont => "file_font",
-            Self::FileLink => "file_link",
-            Self::FileSystem => "file_system",
             Self::Folder => "folder",
         }
     }
@@ -54,6 +51,7 @@ impl ClipType {
     pub fn parse(s: &str) -> Self {
         match s {
             "rtf" => Self::Rtf,
+            "file_path" => Self::FilePath,
             "link" => Self::Link,
             "color" => Self::Color,
             "code_snippet" => Self::CodeSnippet,
@@ -66,11 +64,10 @@ impl ClipType {
             "file_danger" => Self::FileDanger,
             "file_text" => Self::FileText,
             "file_generic" => Self::FileGeneric,
-            "file_database" => Self::FileDatabase,
-            "file_font" => Self::FileFont,
-            "file_link" => Self::FileLink,
-            "file_system" => Self::FileSystem,
             "folder" => Self::Folder,
+            // Removed clip types (shortcut/system/db/font files) degrade to the
+            // generic File classification so existing rows don't render as text.
+            "file_database" | "file_font" | "file_link" | "file_system" => Self::FileGeneric,
             _ => Self::Text,
         }
     }
@@ -88,10 +85,6 @@ impl ClipType {
                 | Self::FileDanger
                 | Self::FileText
                 | Self::FileGeneric
-                | Self::FileDatabase
-                | Self::FileFont
-                | Self::FileLink
-                | Self::FileSystem
                 | Self::Folder
         )
     }

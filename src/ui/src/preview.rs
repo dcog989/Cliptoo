@@ -205,8 +205,7 @@ pub fn setup_preview(
                         }
                         // All other clip types (text, rtf, color, file_video,
                         // file_audio, file_archive, file_document, file_dev,
-                        // file_danger, file_text, file_generic, file_database,
-                        // file_font, file_link, file_system): show text.
+                        // file_danger, file_text, file_generic): show text.
                         _ => {
                             ui.set_preview_clip_type(clip_type.into());
                             ui.set_preview_text(content.into());

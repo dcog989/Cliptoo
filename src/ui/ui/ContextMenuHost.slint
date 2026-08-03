@@ -45,7 +45,7 @@ export component ContextMenuHost {
     property <length> ctx-menu-row-height: 32px;
     property <length> ctx-menu-sep-height: 9px;
     property <bool> ctx-is-text-type:
-        root.ctx-clip-type == "text" || root.ctx-clip-type == "code_snippet" || root.ctx-clip-type == "rtf" || root.ctx-clip-type == "link";
+        root.ctx-clip-type == "text" || root.ctx-clip-type == "file_path" || root.ctx-clip-type == "code_snippet" || root.ctx-clip-type == "rtf" || root.ctx-clip-type == "link";
     // Height of the view currently shown in the context menu (keep in sync with
     // ContextMenu.slint). Every view adds 2×4px vertical padding; rows are
     // 32px, separators 9px.

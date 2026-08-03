@@ -50,7 +50,7 @@ pub fn setup_edit_window(
                 tokio::spawn(async move {
                     let normalized = cliptoo_core::content::normalize_line_endings(&content);
                     if let Some(classified) =
-                        cliptoo_core::content::ContentProcessor::process(&normalized)
+                        cliptoo_core::content::ContentProcessor::process(&normalized, false)
                     {
                         let _ = db
                             .with(|conn| {

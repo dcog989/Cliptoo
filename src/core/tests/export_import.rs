@@ -3,7 +3,7 @@ use cliptoo_core::db::DbPool;
 use std::sync::Arc;
 
 async fn insert_text(db: &Arc<DbPool>, content: &str, clip_type: &str) {
-    let c = ContentProcessor::process(content).unwrap();
+    let c = ContentProcessor::process(content, false).unwrap();
     db.with(|conn| {
         cliptoo_core::db::queries::insert_or_bump(
             conn,
@@ -16,6 +16,7 @@ async fn insert_text(db: &Arc<DbPool>, content: &str, clip_type: &str) {
             c.has_leading_whitespace,
             c.is_multiline,
             c.size_in_bytes,
+            false,
         )
     })
     .await

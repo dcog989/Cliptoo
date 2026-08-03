@@ -4,7 +4,7 @@ use cliptoo_core::db::queries;
 use cliptoo_core::stats;
 
 async fn insert_text(db: &DbPool, content: &str, hash: &str) {
-    let c = ContentProcessor::process(content).unwrap();
+    let c = ContentProcessor::process(content, false).unwrap();
     db.with(|conn| {
         queries::insert_or_bump(
             conn,
@@ -17,6 +17,7 @@ async fn insert_text(db: &DbPool, content: &str, hash: &str) {
             c.has_leading_whitespace,
             c.is_multiline,
             c.size_in_bytes,
+            false,
         )
     })
     .await

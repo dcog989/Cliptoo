@@ -66,7 +66,7 @@ pub fn check_pending_favicons(ui: &crate::AppWindow, db: &Arc<DbPool>, favicons_
     for i in 0..model.row_count() {
         if let Some(data) = model.row_data(i) {
             let ct = data.clip_type.as_str();
-            if (ct == "link" || ct == "file_link") && data.favicon_image.size().width == 0 {
+            if ct == "link" && data.favicon_image.size().width == 0 {
                 pending.push((i, data.id as i64));
             }
         }

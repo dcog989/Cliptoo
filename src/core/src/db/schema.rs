@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS clips (
     HasLeadingWhitespace  INTEGER NOT NULL DEFAULT 0,
     IsMultiline           INTEGER NOT NULL DEFAULT 0,
     IsDeadhead            INTEGER NOT NULL DEFAULT 0,
+    IsFileUri             INTEGER NOT NULL DEFAULT 0,
     SizeInBytes           INTEGER NOT NULL DEFAULT 0,
     PasteCount            INTEGER NOT NULL DEFAULT 0,
     Tags                  TEXT
@@ -75,6 +76,12 @@ pub const PRAGMA_FOREIGN_KEYS: &str = "PRAGMA foreign_keys = ON;";
 
 pub const CREATE_INDEX_CLIPS_TS: &str =
     "CREATE INDEX IF NOT EXISTS idx_clips_ts ON clips(IsBookmarked, Timestamp DESC);";
+
+/// Migration for databases created before `IsFileUri` existed: adds the column
+/// with the text-origin default so pre-existing rows keep behaving as text.
+/// Idempotent guard (column existence check) lives in `pool.rs`.
+pub const MIGRATE_ADD_IS_FILE_URI: &str =
+    "ALTER TABLE clips ADD COLUMN IsFileUri INTEGER NOT NULL DEFAULT 0";
 
 // NOTE: FTS column name coupling.
 // `clips_fts` is declared with `content='clips'`, binding it to the `clips`

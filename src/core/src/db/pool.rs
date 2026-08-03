@@ -36,6 +36,19 @@ impl DbPool {
             schema::CREATE_INDEX_CLIPS_TS,
         ))?;
 
+        // Column migrations for databases created by older versions.
+        // `CREATE TABLE IF NOT EXISTS` never alters existing tables, so the
+        // new column must be added explicitly when it is missing.
+        if !conn
+            .prepare("PRAGMA table_info(clips)")?
+            .query_map([], |row| row.get::<_, String>(1))?
+            .collect::<Result<Vec<_>, _>>()?
+            .iter()
+            .any(|name| name == "IsFileUri")
+        {
+            conn.execute_batch(schema::MIGRATE_ADD_IS_FILE_URI)?;
+        }
+
         Ok(Self {
             conn: tokio::sync::Mutex::new(conn),
         })

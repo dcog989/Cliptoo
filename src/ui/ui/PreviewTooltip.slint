@@ -157,12 +157,11 @@ export component PreviewTooltip {
             }
 
             // ── Text preview (default) ────────────────────────────────────────
-            // Falls through for: text, rtf, file_link, file_audio, file_video,
-            // file_archive, file_document, file_text, file_danger, file_database,
-            // file_font, file_system, and any future unknown types.
-            // `file_link` is intentionally handled here (shows the file path as
-            // plain text) since the favicon/title pipeline doesn't run for it.
-            // If that changes, add an explicit branch above.
+            // Falls through for: text, rtf, file_audio, file_video,
+            // file_archive, file_document, file_text, file_danger,
+            // file_generic, and any future unknown types.
+            // These show plain text since the favicon/title pipeline doesn't
+            // run for them. If that changes, add an explicit branch above.
             //
             // Content beyond 260px is hard-clipped (actual-h cap). A gradient
             // fade-out at the bottom would signal truncation more clearly —

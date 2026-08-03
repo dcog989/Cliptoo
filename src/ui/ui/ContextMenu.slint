@@ -102,7 +102,7 @@ export component ContextMenu {
 
     // True when the clip type supports text transformations.
     property <bool> is-text-type:
-        root.clip-type == "text" || root.clip-type == "code_snippet" || root.clip-type == "rtf" || root.clip-type == "link";
+        root.clip-type == "text" || root.clip-type == "file_path" || root.clip-type == "code_snippet" || root.clip-type == "rtf" || root.clip-type == "link";
 
     Rectangle {
         border-radius: 8px;

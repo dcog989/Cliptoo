@@ -138,10 +138,14 @@ pub(super) async fn poll_clipboard(
     last_image_hash: &mut Option<String>,
     last_file_hash: &mut Option<String>,
 ) -> Result<Option<ClipboardPayload>> {
-    if let Some(payload) = try_text(last_text_hash).await? {
+    // File copies first: a file manager (e.g. Dolphin) exposes the copied
+    // path both as text/uri-list AND text/plain. If plain text were read
+    // first, a copied folder/file would be captured as a text clip and end
+    // up as a `file_path` clip instead of its real `Folder`/`file_*` type.
+    if let Some(payload) = try_file_uri_list(last_file_hash).await? {
         return Ok(Some(payload));
     }
-    if let Some(payload) = try_file_uri_list(last_file_hash).await? {
+    if let Some(payload) = try_text(last_text_hash).await? {
         return Ok(Some(payload));
     }
     try_image(last_image_hash).await

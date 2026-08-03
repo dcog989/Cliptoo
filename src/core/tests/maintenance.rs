@@ -4,7 +4,7 @@ use cliptoo_core::db::queries;
 use cliptoo_core::maintenance;
 
 async fn insert_clip(db: &DbPool, content: &str, hash: &str, clip_type: &str) {
-    let c = ContentProcessor::process(content).unwrap();
+    let c = ContentProcessor::process(content, false).unwrap();
     db.with(|conn| {
         queries::insert_or_bump(
             conn,
@@ -17,6 +17,7 @@ async fn insert_clip(db: &DbPool, content: &str, hash: &str, clip_type: &str) {
             c.has_leading_whitespace,
             c.is_multiline,
             c.size_in_bytes,
+            false,
         )
     })
     .await

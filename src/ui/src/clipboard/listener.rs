@@ -71,6 +71,15 @@ pub async fn run_listener(
             continue;
         }
 
+        // A clipboard exposing text/uri-list is a real file/folder copy. The
+        // path it also offers as text/plain is only an accessory representation,
+        // so path-like text read from it (e.g. on a stale re-read, where the
+        // uri-list has already been deduped) must not become a separate
+        // `file_path` clip alongside the real Folder/file_* clip.
+        let has_uri_list = mime_types
+            .as_deref()
+            .is_some_and(|mt| mt.iter().any(|m| m == "text/uri-list"));
+
         last_mime_types = mime_types;
         last_full_read = Some(Instant::now());
 
@@ -100,11 +109,18 @@ pub async fn run_listener(
 
                 match payload {
                     ClipboardPayload::Text { hash, content } => {
-                        let classified = ContentProcessor::process(&content);
+                        let classified = ContentProcessor::process(&content, false);
                         if classified.is_none() {
                             debug!("clipboard: empty/whitespace-only text skipped");
                         }
                         if let Some(classified) = classified {
+                            if has_uri_list
+                                && classified.clip_type
+                                    == cliptoo_core::db::models::ClipType::FilePath
+                            {
+                                debug!("clipboard: path text on a text/uri-list clipboard skipped");
+                                continue;
+                            }
                             if classified.clip_type.is_file_type() {
                                 let file_hash =
                                     cliptoo_core::content::hash::sha256_hex(&classified.content);
@@ -131,6 +147,7 @@ pub async fn run_listener(
                                         classified.has_leading_whitespace,
                                         classified.is_multiline,
                                         classified.size_in_bytes,
+                                        false,
                                     )?;
                                     if inserted {
                                         cliptoo_core::stats::increment_stat(
@@ -199,7 +216,7 @@ pub async fn run_listener(
                         }
 
                         let inserted = {
-                            let classified = ContentProcessor::process(&content);
+                            let classified = ContentProcessor::process(&content, true);
                             let (clip_type, preview_content, size, is_multiline) =
                                 if let Some(ref c) = classified {
                                     (
@@ -228,6 +245,7 @@ pub async fn run_listener(
                                     false,
                                     is_multiline,
                                     size,
+                                    true,
                                 )?;
                                 if ins {
                                     cliptoo_core::stats::increment_stat(conn, "UniqueClipsEver")?;
@@ -295,6 +313,7 @@ pub async fn run_listener(
                                     false,
                                     false,
                                     size,
+                                    false,
                                 )?;
                                 if ins {
                                     cliptoo_core::stats::increment_stat(conn, "UniqueClipsEver")?;

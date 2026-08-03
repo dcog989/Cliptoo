@@ -8,10 +8,10 @@
 // [filter] icon of the currently selected clip-type filter; click to toggle filter grid
 // [≡]      hamburger menu (settings, about, ...)
 //
-// Active filter keys: "all" | "bookmarked" | "text" | "link" | "file_image" |
-//                     "color" | "code_snippet" | "folder" | "file_audio" |
-//                     "file_video" | "file_archive" | "file_document" |
-//                     "file_database" | "file_font" | "rtf" | "file"
+// Active filter keys: "all" | "bookmarked" | "text" | "link" | "file_path" |
+//                     "file_image" | "color" | "code_snippet" | "folder" |
+//                     "file_danger" | "file_dev" | "file_audio" | "file_video" |
+//                     "file_archive" | "file_document" | "rtf" | "file"
 
 import { Theme } from "Theme.slint";
 import { LineEdit } from "std-widgets.slint";
@@ -225,6 +225,22 @@ export component Toolbar {
                     x: 6px;
                     y: 6px;
                 }
+                if root.active-filter == "file_danger": Image {
+                    source: @image-url("icons/triangle-alert.svg");
+                    colorize: Theme.fg-secondary;
+                    width: 20px;
+                    height: 20px;
+                    x: 6px;
+                    y: 6px;
+                }
+                if root.active-filter == "file_dev": Image {
+                    source: @image-url("icons/file-code.svg");
+                    colorize: Theme.fg-secondary;
+                    width: 20px;
+                    height: 20px;
+                    x: 6px;
+                    y: 6px;
+                }
                 if root.active-filter == "file_audio": Image {
                     source: @image-url("icons/audio-lines.svg");
                     colorize: Theme.fg-secondary;
@@ -249,24 +265,16 @@ export component Toolbar {
                     x: 6px;
                     y: 6px;
                 }
+                if root.active-filter == "file_path": Image {
+                    source: @image-url("icons/folder-tree.svg");
+                    colorize: Theme.fg-secondary;
+                    width: 20px;
+                    height: 20px;
+                    x: 6px;
+                    y: 6px;
+                }
                 if root.active-filter == "file_document": Image {
                     source: @image-url("icons/file-text.svg");
-                    colorize: Theme.fg-secondary;
-                    width: 20px;
-                    height: 20px;
-                    x: 6px;
-                    y: 6px;
-                }
-                if root.active-filter == "file_database": Image {
-                    source: @image-url("icons/database.svg");
-                    colorize: Theme.fg-secondary;
-                    width: 20px;
-                    height: 20px;
-                    x: 6px;
-                    y: 6px;
-                }
-                if root.active-filter == "file_font": Image {
-                    source: @image-url("icons/type-outline.svg");
                     colorize: Theme.fg-secondary;
                     width: 20px;
                     height: 20px;

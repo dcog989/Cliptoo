@@ -102,7 +102,7 @@ export component ClipItem {
                         }
 
                         // Favicon thumbnail for link clips (replaces link icon when cached)
-                        if (clip-data.clip-type == "link" || clip-data.clip-type == "file_link") && clip-data.favicon-image.width != 0: Rectangle {
+                        if clip-data.clip-type == "link" && clip-data.favicon-image.width != 0: Rectangle {
                             border-radius: 3px;
                             clip: true;
                             width: 100%;
@@ -115,7 +115,7 @@ export component ClipItem {
                             }
                         }
                         // Generic link icon fallback (shown when no favicon cached)
-                        if (clip-data.clip-type == "link" || clip-data.clip-type == "file_link") && clip-data.favicon-image.width == 0: Image {
+                        if clip-data.clip-type == "link" && clip-data.favicon-image.width == 0: Image {
                             source: @image-url("icons/link.svg");
                             colorize: Theme.fg-muted;
                             width: 100%;
@@ -178,22 +178,16 @@ export component ClipItem {
                             height: 100%;
                         }
 
-                        if clip-data.clip-type == "file_generic" || clip-data.clip-type == "file_system": Image {
+                        if clip-data.clip-type == "file_generic": Image {
                             source: @image-url("icons/file.svg");
                             colorize: Theme.fg-muted;
                             width: 100%;
                             height: 100%;
                         }
 
-                        if clip-data.clip-type == "file_database": Image {
-                            source: @image-url("icons/database.svg");
-                            colorize: Theme.fg-muted;
-                            width: 100%;
-                            height: 100%;
-                        }
-
-                        if clip-data.clip-type == "file_font": Image {
-                            source: @image-url("icons/type-outline.svg");
+                        // File path: a text clip whose content is a file path.
+                        if clip-data.clip-type == "file_path": Image {
+                            source: @image-url("icons/folder-tree.svg");
                             colorize: Theme.fg-muted;
                             width: 100%;
                             height: 100%;
@@ -203,7 +197,7 @@ export component ClipItem {
                         // variant whose as_str() value is not listed above. When adding
                         // a new ClipType, add a matching branch above *and* extend the
                         // negation below to keep unknown types visually distinct.
-                        if clip-data.clip-type == "text" || (clip-data.clip-type != "color" && clip-data.clip-type != "file_image" && clip-data.clip-type != "folder" && clip-data.clip-type != "link" && clip-data.clip-type != "file_link" && clip-data.clip-type != "code_snippet" && clip-data.clip-type != "rtf" && clip-data.clip-type != "file_audio" && clip-data.clip-type != "file_video" && clip-data.clip-type != "file_archive" && clip-data.clip-type != "file_document" && clip-data.clip-type != "file_text" && clip-data.clip-type != "file_dev" && clip-data.clip-type != "file_danger" && clip-data.clip-type != "file_generic" && clip-data.clip-type != "file_system" && clip-data.clip-type != "file_database" && clip-data.clip-type != "file_font"): Image {
+                        if clip-data.clip-type == "text" || (clip-data.clip-type != "color" && clip-data.clip-type != "file_image" && clip-data.clip-type != "folder" && clip-data.clip-type != "link" && clip-data.clip-type != "file_path" && clip-data.clip-type != "code_snippet" && clip-data.clip-type != "rtf" && clip-data.clip-type != "file_audio" && clip-data.clip-type != "file_video" && clip-data.clip-type != "file_archive" && clip-data.clip-type != "file_document" && clip-data.clip-type != "file_text" && clip-data.clip-type != "file_dev" && clip-data.clip-type != "file_danger" && clip-data.clip-type != "file_generic"): Image {
                             source: @image-url("icons/text-align-start.svg");
                             colorize: Theme.fg-muted;
                             width: 100%;

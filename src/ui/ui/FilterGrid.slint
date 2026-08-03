@@ -15,16 +15,17 @@ export component FilterGrid {
         { key: "text", label: @tr("Text") },
         { key: "file_image", label: @tr("Image") },
         { key: "bookmarked", label: @tr("Bookmarked") },
-        { key: "link", label: @tr("Link") },
+        { key: "link", label: @tr("URL") },
+        { key: "file_path", label: @tr("File path") },
         { key: "code_snippet", label: @tr("Code") },
         { key: "color", label: @tr("Color") },
         { key: "folder", label: @tr("Folder") },
+        { key: "file_danger", label: @tr("Danger") },
+        { key: "file_dev", label: @tr("Dev") },
         { key: "file_audio", label: @tr("Audio") },
         { key: "file_video", label: @tr("Video") },
         { key: "file_archive", label: @tr("Archive") },
         { key: "file_document", label: @tr("Document") },
-        { key: "file_database", label: @tr("Database") },
-        { key: "file_font", label: @tr("Font") },
         { key: "rtf", label: @tr("Rich Text") },
         { key: "file", label: @tr("File") },
     ];
@@ -58,7 +59,7 @@ export component FilterGrid {
                     y: (root.cell-size - 24px) / 2;
                     width: 24px;
                     height: 24px;
-                    source: item.key == "all" ? @image-url("icons/check-check.svg") : item.key == "text" ? @image-url("icons/text-align-start.svg") : item.key == "file_image" ? @image-url("icons/file-image.svg") : item.key == "bookmarked" ? @image-url("icons/bookmark.svg") : item.key == "link" ? @image-url("icons/link.svg") : item.key == "code_snippet" ? @image-url("icons/code.svg") : item.key == "color" ? @image-url("icons/palette.svg") : item.key == "folder" ? @image-url("icons/folder.svg") : item.key == "file_audio" ? @image-url("icons/audio-lines.svg") : item.key == "file_video" ? @image-url("icons/film.svg") : item.key == "file_archive" ? @image-url("icons/file-archive.svg") : item.key == "file_document" ? @image-url("icons/file-text.svg") : item.key == "file_database" ? @image-url("icons/database.svg") : item.key == "file_font" ? @image-url("icons/type-outline.svg") : item.key == "rtf" ? @image-url("icons/file-type.svg") : @image-url("icons/file.svg");
+                    source: item.key == "all" ? @image-url("icons/check-check.svg") : item.key == "text" ? @image-url("icons/text-align-start.svg") : item.key == "file_image" ? @image-url("icons/file-image.svg") : item.key == "bookmarked" ? @image-url("icons/bookmark.svg") : item.key == "link" ? @image-url("icons/link.svg") : item.key == "file_path" ? @image-url("icons/folder-tree.svg") : item.key == "code_snippet" ? @image-url("icons/code.svg") : item.key == "color" ? @image-url("icons/palette.svg") : item.key == "folder" ? @image-url("icons/folder.svg") : item.key == "file_danger" ? @image-url("icons/triangle-alert.svg") : item.key == "file_dev" ? @image-url("icons/file-code.svg") : item.key == "file_audio" ? @image-url("icons/audio-lines.svg") : item.key == "file_video" ? @image-url("icons/film.svg") : item.key == "file_archive" ? @image-url("icons/file-archive.svg") : item.key == "file_document" ? @image-url("icons/file-text.svg") : item.key == "rtf" ? @image-url("icons/file-type.svg") : @image-url("icons/file.svg");
                     colorize: root.active-filter == item.key ? Theme.fg-secondary : Theme.fg-muted;
                     animate colorize { duration: Theme.anim-fast; }
                 }

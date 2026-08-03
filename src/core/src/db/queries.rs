@@ -38,12 +38,17 @@ impl FilterClause {
 fn clip_type_filter(filter: &str) -> FilterClause {
     match filter {
         "bookmarked" => FilterClause::NoParam("AND c.IsBookmarked = 1"),
-        "text" | "link" | "file_image" | "color" | "code_snippet" | "folder" | "file_audio"
-        | "file_video" | "file_archive" | "file_document" | "file_database" | "file_font"
-        | "rtf" => FilterClause::BindFilter("AND c.ClipType = ?"),
-        "file" => FilterClause::NoParam(
-            "AND c.ClipType IN ('file_generic', 'file_dev', 'file_danger', 'file_text', 'file_link', 'file_system')",
+        "text" | "link" | "file_path" | "file_image" | "color" | "code_snippet" | "folder"
+        | "file_audio" | "file_video" | "file_archive" | "file_dev" | "file_danger" | "rtf" => {
+            FilterClause::BindFilter("AND c.ClipType = ?")
+        }
+        // Document covers .docx/.pdf (file_document) and plain text files
+        // (.txt/.md, file_text) — the same icon, so they share a filter.
+        "file_document" => FilterClause::NoParam(
+            "AND c.ClipType IN ('file_document', 'file_text')",
         ),
+        // A copied generic file: one that isn't any specific type.
+        "file" => FilterClause::NoParam("AND c.ClipType = 'file_generic'"),
         _ => FilterClause::NoParam(""),
     }
 }
@@ -127,12 +132,13 @@ pub fn insert_or_bump(
     has_leading_whitespace: bool,
     is_multiline: bool,
     size_in_bytes: i64,
+    is_file_uri: bool,
 ) -> Result<bool> {
     conn.execute(
         "INSERT INTO clips
              (Content, PreviewContent, ContentHash, ClipType, SourceApp, Timestamp,
-              WasTrimmed, HasLeadingWhitespace, IsMultiline, SizeInBytes)
-         VALUES (?1, ?2, ?3, ?4, ?5, datetime('now'), ?6, ?7, ?8, ?9)
+              WasTrimmed, HasLeadingWhitespace, IsMultiline, SizeInBytes, IsFileUri)
+         VALUES (?1, ?2, ?3, ?4, ?5, datetime('now'), ?6, ?7, ?8, ?9, ?10)
          ON CONFLICT(ContentHash) DO UPDATE SET Timestamp = datetime('now')",
         params![
             content,
@@ -144,6 +150,7 @@ pub fn insert_or_bump(
             has_leading_whitespace as i32,
             is_multiline as i32,
             size_in_bytes,
+            is_file_uri as i32,
         ],
     )?;
     // SQLite guarantees `last_insert_rowid()` is updated to the new rowid on a
