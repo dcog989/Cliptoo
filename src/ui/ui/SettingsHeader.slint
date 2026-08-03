@@ -17,7 +17,14 @@ export component SettingsHeader {
     private property <string> tip-database: @tr("Database: retention, maintenance, and statistics");
     private property <string> tip-back: @tr("Back to settings");
 
+    in-out property <bool> focus-search-requested: false;
+
     height: 48px;
+
+    public function focus-search() {
+        root.focus-search-requested = true;
+    }
+
     Rectangle {
         background: Theme.bg-header;
         HorizontalLayout {
@@ -55,6 +62,16 @@ export component SettingsHeader {
                         edited => {
                             root.filter-changed(self.text);
                         }
+                    }
+                }
+                // Must live inside the `if`: conditional ids aren't reachable
+                // from the enclosing component.
+                focus-timer := Timer {
+                    interval: 50ms;
+                    running: root.focus-search-requested;
+                    triggered => {
+                        search-input.focus();
+                        root.focus-search-requested = false;
                     }
                 }
             }

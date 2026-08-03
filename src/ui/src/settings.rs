@@ -503,6 +503,7 @@ if ok:
                 win.set_settings_filter("".into());
                 apply_settings_filter(&win, "");
                 win.show().ok();
+                win.invoke_focus_search();
             }
         });
     }

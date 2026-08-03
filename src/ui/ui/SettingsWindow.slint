@@ -96,6 +96,10 @@ export component SettingsWindow inherits Window {
     callback open-log();
     callback filter-changed(string);
 
+    public function focus-search() {
+        header.focus-search();
+    }
+
     forward-focus: settings-focus;
     settings-focus := FocusScope {
         key-pressed(event) => {
