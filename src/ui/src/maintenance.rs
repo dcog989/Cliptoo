@@ -154,9 +154,14 @@ pub fn setup_manual_maintenance(
                         Ok(None)
                     }
                     "deadhead" => {
-                        db.with(|conn| cliptoo_core::maintenance::deadhead(conn).map(|_| ()))
+                        let n = db
+                            .with(|conn| cliptoo_core::maintenance::deadhead(conn))
                             .await?;
-                        Ok(None)
+                        Ok(Some(if n == 0 {
+                            "No dead file clips found".to_string()
+                        } else {
+                            format!("Removed {n} dead file clips")
+                        }))
                     }
                     "reclassify" => {
                         db.with(|conn| cliptoo_core::maintenance::reclassify_all(conn).map(|_| ()))
@@ -238,7 +243,6 @@ pub fn setup_manual_maintenance(
                         "clear-history" => "History cleared",
                         "clear-history-all" => "Full history cleared",
                         "clear-caches" => "Caches pruned",
-                        "deadhead" => "Dead file clips removed",
                         "reclassify" => "Clips reclassified",
                         "prune-oversized" => "Oversized clips removed",
                         _ => "",
