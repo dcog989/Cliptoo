@@ -192,3 +192,19 @@ pub fn setup_close_to_tray(ui: &crate::AppWindow) {
         }
     });
 }
+
+/// When "always close to tray" is off, the window stays open but unfocused
+/// after losing focus (see `on_blur_closed`), so switching back to it (e.g.
+/// Alt+Tab, taskbar) never goes through `show_window()`'s `activate_window()`
+/// call. The compositor restores keyboard focus but not Qt activation, so
+/// the first click would just focus the window instead of registering on
+/// the widget beneath it. Re-activate on every regained-focus event to
+/// close that gap.
+pub fn setup_focus_regained(ui: &crate::AppWindow) {
+    let weak = ui.as_weak();
+    ui.on_focus_regained(move || {
+        if let Some(ui) = weak.upgrade() {
+            crate::drag::activate_window(&ui);
+        }
+    });
+}

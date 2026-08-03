@@ -66,6 +66,7 @@ async fn main() -> Result<()> {
     window::setup_resize(&ui);
     window::setup_close_handlers(&ui, &settings, &dirs);
     window::setup_close_to_tray(&ui);
+    window::setup_focus_regained(&ui);
 
     let settings_win = settings::setup_settings_window(&ui, &settings, &dirs, hotkey_tx);
     // Slint globals are per-window-instance: the settings window has its own

@@ -49,6 +49,7 @@ export component AppWindow inherits Window {
     callback dismiss-preview();
     callback close-window();           // ESC pressed
     callback blur-closed();            // window lost focus
+    callback focus-regained();         // window regained OS focus (e.g. Alt+Tab back in)
     callback drag-started();               // window drag started
     callback drag-ended();                 // window drag ended (pointer released)
     callback resize-start();               // window resize started (pointer down)
@@ -197,6 +198,9 @@ export component AppWindow inherits Window {
         }
         blur-closed() => {
             root.blur-closed();
+        }
+        focus-regained() => {
+            root.focus-regained();
         }
         drag-started() => {
             root.drag-started();

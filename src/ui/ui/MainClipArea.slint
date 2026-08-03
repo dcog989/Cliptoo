@@ -49,6 +49,7 @@ export component MainClipArea inherits Rectangle {
     callback open-context-menu(int, float, float, bool, string);  // id, x, y, is-bookmarked, clip-type
     callback open-hamburger-menu();
     callback open-filter-popup();
+    callback focus-regained();         // window regained OS focus (e.g. Alt+Tab back in)
 
     // Re-anchors keyboard focus to focus-scope. Called by AppWindow's
     // reset-focus() on every show() (see AppWindow.slint reset-focus doc).
@@ -175,6 +176,17 @@ export component MainClipArea inherits Rectangle {
             root.quick-paste-active = false;
             if (reason == FocusReason.window-activation && !root.popup-open && !root.popup-just-closed) {
                 root.blur-closed();
+            }
+        }
+        focus-gained(reason) => {
+            // When "always close to tray" is off, the window stays open but
+            // unfocused after Alt+Tab away; switching back only restores
+            // keyboard focus, not Qt/compositor activation, so the first
+            // click would still just focus the window rather than register
+            // on the widget beneath it. Re-request activation here, mirroring
+            // show_window()'s activate_window() call.
+            if (reason == FocusReason.window-activation) {
+                root.focus-regained();
             }
         }
 
