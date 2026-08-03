@@ -164,9 +164,14 @@ pub fn setup_manual_maintenance(
                         }))
                     }
                     "reclassify" => {
-                        db.with(|conn| cliptoo_core::maintenance::reclassify_all(conn).map(|_| ()))
+                        let n = db
+                            .with(|conn| cliptoo_core::maintenance::reclassify_all(conn))
                             .await?;
-                        Ok(None)
+                        Ok(Some(if n == 0 {
+                            "No clips reclassified".to_string()
+                        } else {
+                            format!("Reclassified {n} clips")
+                        }))
                     }
                     "prune-oversized" => {
                         db.with(|conn| {
@@ -243,7 +248,6 @@ pub fn setup_manual_maintenance(
                         "clear-history" => "History cleared",
                         "clear-history-all" => "Full history cleared",
                         "clear-caches" => "Caches pruned",
-                        "reclassify" => "Clips reclassified",
                         "prune-oversized" => "Oversized clips removed",
                         _ => "",
                     };
