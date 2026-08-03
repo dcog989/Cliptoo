@@ -136,8 +136,14 @@ impl ContentProcessor {
         if !Self::looks_like_path(s) {
             return None;
         }
-        let without_scheme = s.strip_prefix("file://").unwrap_or(s);
-        let decoded = crate::content::percent_decode_path(without_scheme);
+        // The uri-list ingestion path already percent-decodes and strips the
+        // `file://` prefix before calling `process`; only decode when the scheme
+        // is still present, otherwise re-decoding would corrupt paths that
+        // legitimately contain percent sequences (e.g. a file named `foo%20bar`).
+        let decoded = match s.strip_prefix("file://") {
+            Some(rest) => crate::content::percent_decode_path(rest),
+            None => s.to_string(),
+        };
         let path = Path::new(decoded.as_str());
         if path.is_dir() {
             return Some((ClipType::Folder, decoded));
