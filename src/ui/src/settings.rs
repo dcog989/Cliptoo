@@ -172,13 +172,47 @@ pub fn setup_settings_window(
         let s = settings.clone();
         let p = dirs.settings_path.clone();
         settings_win.on_clear_accent_color(move || {
-            let mut s = s.borrow_mut();
-            s.accent_color = String::new();
-            if let Some(win) = sw.upgrade() {
-                win.set_s_accent_color(crate::theme::default_accent_color());
+            // Clear synchronously: Rc<RefCell<Settings>> is !Send, so it must
+            // not cross into the spawned task. Snapshot the cleared settings.
+            let s_snap;
+            {
+                let mut s = s.borrow_mut();
+                s.accent_color = String::new();
+                s_snap = s.clone();
             }
-            reapply_theme(&settings_ui, &sw, &s);
-            let _ = s.save(&p);
+            let sw = sw.clone();
+            let settings_ui = settings_ui.clone();
+            let p = p.clone();
+            tokio::spawn(async move {
+                // Resolve first so the shared cache holds the freshly detected
+                // OS accent; the settings swatch reads that cache. Without this,
+                // a previously custom accent leaves the cache stale and "Clear"
+                // shows the fallback color until a second click.
+                let (is_dark, system_accent) = crate::theme::resolve_theme(&s_snap).await;
+                let swatch = crate::theme::default_accent_color();
+                let main_weak = settings_ui.clone();
+                let settings_weak = sw.clone();
+                let s_main = s_snap.clone();
+                let s_settings = s_snap.clone();
+                let _ = main_weak.upgrade_in_event_loop(move |ui| {
+                    crate::theme::fill_theme(
+                        &ui.global::<crate::Theme>(),
+                        &s_main,
+                        is_dark,
+                        system_accent,
+                    );
+                });
+                let _ = settings_weak.upgrade_in_event_loop(move |win| {
+                    crate::theme::fill_theme(
+                        &win.global::<crate::Theme>(),
+                        &s_settings,
+                        is_dark,
+                        system_accent,
+                    );
+                    win.set_s_accent_color(swatch);
+                });
+                let _ = s_snap.save(&p);
+            });
         });
     }
 
