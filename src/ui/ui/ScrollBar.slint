@@ -122,7 +122,7 @@ export component ScrollBar {
     // ── Visuals — revealed only while hovering or interacting ───────────────
     Rectangle {
         border-radius: 3px;
-        background: root.hovering ? Theme.bg-row-hover : Theme.bg-row-alt;
+        background: root.hovering ? Theme.bg-input : Theme.bg-row-alt;
         opacity: root.hovering ? 1.0 : 0.0;
         animate opacity { duration: Theme.anim-fast; }
     }

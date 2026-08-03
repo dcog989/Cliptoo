@@ -87,13 +87,6 @@ pub async fn detect_system_accent() -> Option<(u8, u8, u8)> {
     read_kdeglobals_accent()
 }
 
-fn blend(base: Color, accent: Color, alpha: f32) -> Color {
-    let r = (alpha * accent.red() as f32 + (1.0 - alpha) * base.red() as f32) as u8;
-    let g = (alpha * accent.green() as f32 + (1.0 - alpha) * base.green() as f32) as u8;
-    let b = (alpha * accent.blue() as f32 + (1.0 - alpha) * base.blue() as f32) as u8;
-    Color::from_rgb_u8(r, g, b)
-}
-
 /// Fallback accent RGB used when a stored hex is malformed. Empty strings are
 /// valid — they mean "use the OS accent", which is only known at runtime.
 const DEFAULT_ACCENT: (u8, u8, u8) = (0x7C, 0x6E, 0xE6);
@@ -172,7 +165,7 @@ pub fn fill_theme(
         t.set_bg_primary(Color::from_rgb_u8(0x18, 0x18, 0x18));
         t.set_bg_header(Color::from_rgb_u8(0x12, 0x12, 0x12));
         t.set_bg_row_alt(Color::from_rgb_u8(0x1C, 0x1C, 0x1C));
-        t.set_bg_row_hover(blend(Color::from_rgb_u8(0x1C, 0x1C, 0x1C), accent, 0.30));
+        t.set_bg_row_hover(accent);
         t.set_bg_row_selected(Color::from_rgb_u8(0x28, 0x28, 0x28));
         t.set_bg_input(Color::from_rgb_u8(0x24, 0x24, 0x24));
         t.set_fg_primary(Color::from_rgb_u8(0xE4, 0xE4, 0xE4));
@@ -188,7 +181,7 @@ pub fn fill_theme(
         t.set_bg_primary(Color::from_rgb_u8(0xF5, 0xF5, 0xF5));
         t.set_bg_header(Color::from_rgb_u8(0xE8, 0xE8, 0xE8));
         t.set_bg_row_alt(Color::from_rgb_u8(0xEE, 0xEE, 0xEE));
-        t.set_bg_row_hover(blend(Color::from_rgb_u8(0xEE, 0xEE, 0xEE), accent, 0.25));
+        t.set_bg_row_hover(accent);
         t.set_bg_row_selected(Color::from_rgb_u8(0xDD, 0xDD, 0xDD));
         t.set_bg_input(Color::from_rgb_u8(0xFF, 0xFF, 0xFF));
         t.set_fg_primary(Color::from_rgb_u8(0x1C, 0x1C, 0x1C));
