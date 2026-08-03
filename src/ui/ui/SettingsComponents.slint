@@ -213,7 +213,6 @@ export component IntRow {
         }
 
         Rectangle {
-            horizontal-stretch: 1;
             height: 28px;
             border-radius: 5px;
             border-width: 1px;
@@ -233,7 +232,6 @@ export component IntRow {
                 }
 
                 Text {
-                    horizontal-stretch: 1;
                     text: "\{root.value}";
                     color: Theme.fg-primary;
                     font-size: Theme.font-size;
@@ -277,7 +275,6 @@ export component FloatRow {
         }
 
         Rectangle {
-            horizontal-stretch: 1;
             height: 28px;
             border-radius: 5px;
             border-width: 1px;
@@ -297,7 +294,6 @@ export component FloatRow {
                 }
 
                 Text {
-                    horizontal-stretch: 1;
                     min-width: 50px;
                     text: "\{root.value-hundredths / 100}";
                     color: Theme.fg-primary;
@@ -340,7 +336,6 @@ export component DropRow {
         }
 
         Rectangle {
-            horizontal-stretch: 1;
             height: 28px;
             border-radius: 5px;
             border-width: 1px;
@@ -360,8 +355,6 @@ export component DropRow {
                 }
 
                 swatch-area := Rectangle {
-                    horizontal-stretch: 1;
-                    min-width: 110px;
                     Text {
                         text: root.options[root.index];
                         color: Theme.fg-primary;
