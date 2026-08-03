@@ -339,24 +339,24 @@ export component SettingsWindow inherits Window {
                 }
 
                 FloatRow {
-                    label: @tr("Clip list font size (pt)");
+                    label: @tr("Clip list font size (px)");
                     tooltip-text: @tr("Font size of clip entries in the main list");
                     value-hundredths <=> root.s-font-size-hundredths;
                     min-hundredths: 800;
                     max-hundredths: 2400;
-                    step-hundredths: 50;
+                    step-hundredths: 100;
                     committed(v) => {
                         root.setting-changed("font_size", "\{v}");
                     }
                 }
 
                 FloatRow {
-                    label: @tr("Preview font size (pt)");
+                    label: @tr("Preview font size (px)");
                     tooltip-text: @tr("Font size used for code and color previews");
                     value-hundredths <=> root.s-preview-font-size-hundredths;
                     min-hundredths: 800;
                     max-hundredths: 2400;
-                    step-hundredths: 50;
+                    step-hundredths: 100;
                     committed(v) => {
                         root.setting-changed("preview_font_size", "\{v}");
                     }
