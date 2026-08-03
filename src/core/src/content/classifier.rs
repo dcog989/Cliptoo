@@ -101,7 +101,19 @@ impl ContentProcessor {
     }
 
     fn is_url(s: &str) -> bool {
-        s.starts_with("http://") || s.starts_with("https://") || s.starts_with("ftp://")
+        // Case-insensitive scheme matching (HTTP://, Https://, ...); mailto:
+        // takes a single colon and bare www. domains carry no scheme at all.
+        Self::starts_with_ci(s, "http://")
+            || Self::starts_with_ci(s, "https://")
+            || Self::starts_with_ci(s, "ftp://")
+            || Self::starts_with_ci(s, "mailto:")
+            || Self::starts_with_ci(s, "www.")
+    }
+
+    /// Case-insensitive prefix match that is safe on non-ASCII content.
+    fn starts_with_ci(s: &str, prefix: &str) -> bool {
+        s.get(..prefix.len())
+            .is_some_and(|p| p.eq_ignore_ascii_case(prefix))
     }
 
     /// True when `s` is an RTF document, tolerating a leading UTF-8 BOM that
@@ -346,5 +358,38 @@ mod tests {
     fn rtf_with_bom_is_rtf() {
         let c = ContentProcessor::process("\u{feff}{\\rtf1\\ansi hello}", false).unwrap();
         assert_eq!(c.clip_type, ClipType::Rtf);
+    }
+
+    #[test]
+    fn urls_are_links() {
+        for url in [
+            "http://example.com",
+            "https://example.com",
+            "ftp://example.com",
+            "HTTP://EXAMPLE.COM",
+            "Https://example.com",
+            "mailto:user@example.com",
+            "MAILTO:user@example.com",
+            "www.example.com",
+            "WWW.EXAMPLE.COM",
+        ] {
+            let c = ContentProcessor::process(url, false).unwrap();
+            assert_eq!(c.clip_type, ClipType::Link, "for {url}");
+        }
+    }
+
+    #[test]
+    fn url_lookalikes_stay_text() {
+        for s in [
+            "example.com",
+            "httpx://example.com",
+            "mailto",
+            "www",
+            "wwwish.com",
+            "not a url",
+        ] {
+            let c = ContentProcessor::process(s, false).unwrap();
+            assert_eq!(c.clip_type, ClipType::Text, "for {s}");
+        }
     }
 }

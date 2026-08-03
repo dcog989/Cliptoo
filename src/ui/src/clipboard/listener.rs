@@ -208,23 +208,22 @@ pub async fn run_listener(
                             }
                         };
 
+                        // `classified` is always `Some`: the reader rejects
+                        // empty uri-list payloads, and `process` only returns
+                        // `None` for empty content. Guard so a future reader
+                        // change can't silently store a bogus clip.
+                        let Some(c) = classified else {
+                            tracing::error!("file-uri clip classified as empty; skipping");
+                            continue;
+                        };
+
                         let inserted = {
-                            let (clip_type, preview_content, size, is_multiline) =
-                                if let Some(ref c) = classified {
-                                    (
-                                        c.clip_type.as_str().to_string(),
-                                        c.preview_content.clone(),
-                                        c.size_in_bytes,
-                                        c.is_multiline,
-                                    )
-                                } else {
-                                    (
-                                        "file_generic".to_string(),
-                                        content[..content.len().min(200)].to_string(),
-                                        content.len() as i64,
-                                        content.contains('\n'),
-                                    )
-                                };
+                            let (clip_type, preview_content, size, is_multiline) = (
+                                c.clip_type.as_str().to_string(),
+                                c.preview_content.clone(),
+                                c.size_in_bytes,
+                                c.is_multiline,
+                            );
                             db.with(|conn| {
                                 let ins = insert_or_bump(
                                     conn,
