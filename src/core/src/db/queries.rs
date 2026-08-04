@@ -154,6 +154,22 @@ pub fn insert_or_bump(
     size_in_bytes: i64,
     is_file_uri: bool,
 ) -> Result<bool> {
+    // Determine insert-vs-bump by checking existence *before* the upsert,
+    // rather than comparing `last_insert_rowid()` to the row's `Id` afterwards.
+    // The latter is unreliable on a connection's very first statement: SQLite
+    // only guarantees `last_insert_rowid()` is "left unchanged" on the
+    // DO-UPDATE branch, and on a fresh connection "unchanged" means it is
+    // still 0 — which would wrongly compare unequal to a real existing Id and
+    // report a duplicate as newly inserted.
+    let already_existed: bool = conn
+        .query_row(
+            "SELECT 1 FROM clips WHERE ContentHash = ?1",
+            params![content_hash],
+            |_| Ok(()),
+        )
+        .optional()?
+        .is_some();
+
     conn.execute(
         "INSERT INTO clips
              (Content, PreviewContent, ContentHash, ClipType, SourceApp, Timestamp,
@@ -173,16 +189,8 @@ pub fn insert_or_bump(
             is_file_uri as i32,
         ],
     )?;
-    // SQLite guarantees `last_insert_rowid()` is updated to the new rowid on a
-    // true INSERT and left unchanged (existing rowid) on DO UPDATE.  Compare it
-    // to the row's actual Id to distinguish the two cases.
-    let last = conn.last_insert_rowid();
-    let existing_id: i64 = conn.query_row(
-        "SELECT Id FROM clips WHERE ContentHash = ?1",
-        params![content_hash],
-        |row| row.get(0),
-    )?;
-    Ok(existing_id == last)
+
+    Ok(!already_existed)
 }
 
 /// Shared SELECT projections for `search_clips`, kept in `row_to_clipdata`
