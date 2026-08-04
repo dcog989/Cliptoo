@@ -103,8 +103,15 @@ const KEY_STRESS_DELAY: Duration = Duration::from_millis(10);
 const PRESSED: i32 = 1;
 const RELEASED: i32 = 0;
 
-fn simulate_ctrl_v() -> Result<()> {
-    let mut device = VirtualDevice::builder()
+/// Lazily-created, persistent uinput device — built once on the first paste
+/// and reused for every subsequent one. Previously a new `VirtualDevice` was
+/// created and destroyed on every paste, paying the 50ms compositor hotplug
+/// settle delay each time and causing KWin to see an input device appear and
+/// disappear on every single paste.
+static VIRTUAL_KEYBOARD: Mutex<Option<VirtualDevice>> = Mutex::new(None);
+
+fn create_virtual_keyboard() -> Result<VirtualDevice> {
+    let device = VirtualDevice::builder()
         .context("open /dev/uinput")?
         .name(DEVICE_NAME)
         .with_keys(
@@ -117,8 +124,21 @@ fn simulate_ctrl_v() -> Result<()> {
         .context("create uinput keyboard device")?;
 
     // Let the compositor hotplug the new input device before emitting, so the
-    // first keystroke is not dropped during device setup.
+    // first keystroke is not dropped during device setup. Paid once, at
+    // first-paste time, since the device is now created lazily and reused.
     std::thread::sleep(VIRTUAL_DEVICE_SETTLE);
+
+    Ok(device)
+}
+
+fn simulate_ctrl_v() -> Result<()> {
+    let mut guard = VIRTUAL_KEYBOARD
+        .lock()
+        .expect("virtual keyboard mutex poisoned");
+    if guard.is_none() {
+        *guard = Some(create_virtual_keyboard()?);
+    }
+    let device = guard.as_mut().expect("just initialized above");
 
     device
         .emit(&[
