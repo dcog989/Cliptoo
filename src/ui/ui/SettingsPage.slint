@@ -341,7 +341,6 @@ export component SettingsPage inherits ScrollView {
 
         if root.row-hover-delay-visible : HorizontalLayout {
             spacing: 12px;
-            alignment: start;
             height: 32px;
             Text {
                 width: 180px;
@@ -364,17 +363,37 @@ export component SettingsPage inherits ScrollView {
                     padding-right: 8px;
                     spacing: 8px;
                     track := Rectangle {
-                        width: 140px;
-                        height: 6px;
-                        border-radius: 3px;
-                        background: #555;
+                        horizontal-stretch: 1;
+                        min-width: 140px;
+                        height: 28px;
+
                         Rectangle {
-                            width: 16px;
-                            height: 16px;
-                            border-radius: 8px;
-                            background: Theme.accent-primary;
-                            y: -5px;
-                            x: Math.max(0px, Math.min(parent.width - 16px, (root.hover-delay * 1.0) / 2000.0 * parent.width));
+                            height: 6px;
+                            border-radius: 3px;
+                            background: #555;
+                            y: (parent.height - 6px) / 2;
+                            Rectangle {
+                                width: 16px;
+                                height: 16px;
+                                border-radius: 8px;
+                                background: Theme.accent-primary;
+                                y: (parent.height - 16px) / 2;
+                                x: Math.max(0px, Math.min(parent.width - 16px, (root.hover-delay * 1.0) / 2000.0 * parent.width));
+                            }
+                        }
+
+                        touch := TouchArea {
+                            Tooltip {
+                                text: @markdown("\{root.tip-hover-delay}");
+                            }
+                            pointer-event(e) => {
+                                if (e.kind == PointerEventKind.down || (e.kind == PointerEventKind.move && self.pressed)) {
+                                    let raw = Math.round(touch.mouse-x / track.width * 2000 / 50) * 50;
+                                    root.hover-delay = Math.min(2000, Math.max(0, raw));
+                                    root.setting-changed("hover_preview_delay", "\{root.hover-delay}");
+                                }
+                            }
+                            mouse-cursor: pointer;
                         }
                     }
 
@@ -383,24 +402,6 @@ export component SettingsPage inherits ScrollView {
                         color: Theme.fg-primary;
                         font-size: Theme.font-size;
                     }
-                }
-
-                touch := TouchArea {
-                    width: 140px;
-                    height: 28px;
-                    x: 12px;
-                    y: 0px;
-                    Tooltip {
-                        text: @markdown("\{root.tip-hover-delay}");
-                    }
-                    pointer-event(e) => {
-                        if (e.kind == PointerEventKind.down || (e.kind == PointerEventKind.move && self.pressed)) {
-                            let raw = Math.round(touch.mouse-x / 140px * 2000 / 50) * 50;
-                            root.hover-delay = Math.min(2000, Math.max(0, raw));
-                            root.setting-changed("hover_preview_delay", "\{root.hover-delay}");
-                        }
-                    }
-                    mouse-cursor: pointer;
                 }
             }
         }

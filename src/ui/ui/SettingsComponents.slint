@@ -65,7 +65,6 @@ export component TextRow {
     height: 32px;
     HorizontalLayout {
         spacing: 12px;
-        alignment: start;
         Text {
                 width: 180px;
                 text: root.label;
@@ -302,15 +301,17 @@ export component SliderRow {
     in property <string> tooltip-text;
     callback committed(int);
 
-    // Fixed track width, mirroring the hover-delay row: a native `Slider`
-    // widget collapses to ~0 width inside these `alignment: start` rows, so
-    // the track is drawn and dragged by hand instead.
-    private property <length> track-width: 160px;
+    // The track stretches to fill the row width; the drag math uses the live
+    // track width. `track-min-width` keeps it usable in narrow windows. (A
+    // native `Slider` widget collapses to ~0 width inside these rows, so the
+    // track is drawn and dragged by hand. The outer layout must use stretch
+    // alignment — `alignment: start` pins children to their preferred size and
+    // disables `horizontal-stretch`.)
+    private property <length> track-min-width: 160px;
 
     height: 32px;
     HorizontalLayout {
         spacing: 12px;
-        alignment: start;
         Text {
                 width: 180px;
                 text: root.label;
@@ -332,17 +333,38 @@ export component SliderRow {
                 padding-right: 8px;
                 spacing: 8px;
                 track := Rectangle {
-                    width: root.track-width;
-                    height: 6px;
-                    border-radius: 3px;
-                    background: #555;
+                    horizontal-stretch: 1;
+                    min-width: root.track-min-width;
+                    height: 28px;
+
                     Rectangle {
-                        width: 16px;
-                        height: 16px;
-                        border-radius: 8px;
-                        background: Theme.accent-primary;
-                        y: -5px;
-                        x: Math.max(0px, Math.min(parent.width - 16px, (root.value - root.min-val) * 1.0 / (root.max-val - root.min-val) * parent.width));
+                        height: 6px;
+                        border-radius: 3px;
+                        background: #555;
+                        y: (parent.height - 6px) / 2;
+                        Rectangle {
+                            width: 16px;
+                            height: 16px;
+                            border-radius: 8px;
+                            background: Theme.accent-primary;
+                            y: (parent.height - 16px) / 2;
+                            x: Math.max(0px, Math.min(parent.width - 16px, (root.value - root.min-val) * 1.0 / (root.max-val - root.min-val) * parent.width));
+                        }
+                    }
+
+                    touch := TouchArea {
+                        Tooltip {
+                            text: @markdown("\{root.tooltip-text}");
+                        }
+                        pointer-event(e) => {
+                            if (e.kind == PointerEventKind.down || (e.kind == PointerEventKind.move && self.pressed)) {
+                                let span = root.max-val - root.min-val;
+                                let frac = touch.mouse-x / track.width;
+                                root.value = root.min-val + Math.round(Math.min(1.0, Math.max(0.0, frac)) * span);
+                                root.committed(root.value);
+                            }
+                        }
+                        mouse-cursor: pointer;
                     }
                 }
 
@@ -351,25 +373,6 @@ export component SliderRow {
                     color: Theme.fg-primary;
                     font-size: Theme.font-size;
                 }
-            }
-
-            touch := TouchArea {
-                width: root.track-width;
-                height: 28px;
-                x: 12px;
-                y: 0px;
-                Tooltip {
-                    text: @markdown("\{root.tooltip-text}");
-                }
-                pointer-event(e) => {
-                    if (e.kind == PointerEventKind.down || (e.kind == PointerEventKind.move && self.pressed)) {
-                        let span = root.max-val - root.min-val;
-                        let frac = touch.mouse-x / root.track-width;
-                        root.value = root.min-val + Math.round(Math.min(1.0, Math.max(0.0, frac)) * span);
-                        root.committed(root.value);
-                    }
-                }
-                mouse-cursor: pointer;
             }
         }
     }
