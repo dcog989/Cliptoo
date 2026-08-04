@@ -104,6 +104,10 @@ export component SettingsWindow inherits Window {
     }
 
     forward-focus: settings-focus;
+    // Keyboard focus scope. Its `key-pressed` handles ESC to close the window;
+    // the whole window content lives *inside* the scope so key events from any
+    // focused child (e.g. the search LineEdit) bubble up to it. A sibling scope
+    // only sees keys the focused widget rejected.
     settings-focus := FocusScope {
         key-pressed(event) => {
             if (event.text == Key.Escape) {
@@ -114,117 +118,117 @@ export component SettingsWindow inherits Window {
                 reject
             }
         }
-    }
 
-    VerticalLayout {
-        padding: 0;
-        spacing: 0;
+        VerticalLayout {
+            padding: 0;
+            spacing: 0;
 
-        // ── Header: filter search + Database navigation ──────────────────
-        header := SettingsHeader {
-            on-database-page <=> root.on-database-page;
-            settings-filter <=> root.settings-filter;
-            filter-changed(q) => {
-                root.filter-changed(q);
+            // ── Header: filter search + Database navigation ──────────────────
+            header := SettingsHeader {
+                on-database-page <=> root.on-database-page;
+                settings-filter <=> root.settings-filter;
+                filter-changed(q) => {
+                    root.filter-changed(q);
+                }
+                database-page-shown() => {
+                    root.database-page-shown();
+                }
             }
-            database-page-shown() => {
-                root.database-page-shown();
-            }
-        }
 
-        // ── Content: settings page / database page overlay ───────────────
-        Rectangle {
-            width: 100%;
-            vertical-stretch: 1;
-            clip: true;
-
-            // Settings page — grouped, filterable option list. The two pages
-            // overlay each other (absolute x/y) so they never stack; only one
-            // is visible at a time, but both stay instantiated so filter state
-            // survives page switches. Rows are conditionally instantiated
-            // (`if`), so filtered-out options take no layout space.
-            settings-page := SettingsPage {
-                x: 0px;
-                y: 0px;
+            // ── Content: settings page / database page overlay ───────────────
+            Rectangle {
                 width: 100%;
-                height: 100%;
-                visible: !root.on-database-page;
+                vertical-stretch: 1;
+                clip: true;
 
-                s-hotkey <=> root.s-hotkey;
-                s-start-with-system <=> root.s-start-with-system;
-                s-always-close-to-tray <=> root.s-always-close-to-tray;
-                s-quick-paste-mod-idx <=> root.s-quick-paste-mod-idx;
-                s-log-level-idx <=> root.s-log-level-idx;
-                s-theme-idx <=> root.s-theme-idx;
-                s-accent-color <=> root.s-accent-color;
-                s-accent-hue <=> root.s-accent-hue;
-                s-accent-saturation <=> root.s-accent-saturation;
-                s-accent-value <=> root.s-accent-value;
-                s-font-family <=> root.s-font-family;
-                s-font-size-hundredths <=> root.s-font-size-hundredths;
-                s-preview-font-size-hundredths <=> root.s-preview-font-size-hundredths;
-                s-row-padding-idx <=> root.s-row-padding-idx;
-                hover-delay <=> root.hover-delay;
-                s-image-preview-size <=> root.s-image-preview-size;
-                s-paste-as-plain-text <=> root.s-paste-as-plain-text;
-                s-diff-tool-path <=> root.s-diff-tool-path;
+                // Settings page — grouped, filterable option list. The two pages
+                // overlay each other (absolute x/y) so they never stack; only one
+                // is visible at a time, but both stay instantiated so filter state
+                // survives page switches. Rows are conditionally instantiated
+                // (`if`), so filtered-out options take no layout space.
+                settings-page := SettingsPage {
+                    x: 0px;
+                    y: 0px;
+                    width: 100%;
+                    height: 100%;
+                    visible: !root.on-database-page;
 
-                row-hotkey-visible: root.row-hotkey-visible;
-                row-startup-visible: root.row-startup-visible;
-                row-tray-visible: root.row-tray-visible;
-                row-quickpaste-visible: root.row-quickpaste-visible;
-                row-plaintext-visible: root.row-plaintext-visible;
-                row-loglevel-visible: root.row-loglevel-visible;
-                row-logfile-visible: root.row-logfile-visible;
-                row-theme-visible: root.row-theme-visible;
-                row-accent-visible: root.row-accent-visible;
-                row-accent-hue-visible: root.row-accent-hue-visible;
-                row-accent-sat-visible: root.row-accent-sat-visible;
-                row-accent-value-visible: root.row-accent-value-visible;
-                row-font-visible: root.row-font-visible;
-                row-clip-font-size-visible: root.row-clip-font-size-visible;
-                row-preview-font-size-visible: root.row-preview-font-size-visible;
-                row-padding-visible: root.row-padding-visible;
-                row-hover-delay-visible: root.row-hover-delay-visible;
-                row-image-preview-size-visible: root.row-image-preview-size-visible;
-                row-diff-tool-visible: root.row-diff-tool-visible;
-                row-external-note-visible: root.row-external-note-visible;
+                    s-hotkey <=> root.s-hotkey;
+                    s-start-with-system <=> root.s-start-with-system;
+                    s-always-close-to-tray <=> root.s-always-close-to-tray;
+                    s-quick-paste-mod-idx <=> root.s-quick-paste-mod-idx;
+                    s-log-level-idx <=> root.s-log-level-idx;
+                    s-theme-idx <=> root.s-theme-idx;
+                    s-accent-color <=> root.s-accent-color;
+                    s-accent-hue <=> root.s-accent-hue;
+                    s-accent-saturation <=> root.s-accent-saturation;
+                    s-accent-value <=> root.s-accent-value;
+                    s-font-family <=> root.s-font-family;
+                    s-font-size-hundredths <=> root.s-font-size-hundredths;
+                    s-preview-font-size-hundredths <=> root.s-preview-font-size-hundredths;
+                    s-row-padding-idx <=> root.s-row-padding-idx;
+                    hover-delay <=> root.hover-delay;
+                    s-image-preview-size <=> root.s-image-preview-size;
+                    s-paste-as-plain-text <=> root.s-paste-as-plain-text;
+                    s-diff-tool-path <=> root.s-diff-tool-path;
 
-                setting-changed(k, v) => {
-                    root.setting-changed(k, v);
+                    row-hotkey-visible: root.row-hotkey-visible;
+                    row-startup-visible: root.row-startup-visible;
+                    row-tray-visible: root.row-tray-visible;
+                    row-quickpaste-visible: root.row-quickpaste-visible;
+                    row-plaintext-visible: root.row-plaintext-visible;
+                    row-loglevel-visible: root.row-loglevel-visible;
+                    row-logfile-visible: root.row-logfile-visible;
+                    row-theme-visible: root.row-theme-visible;
+                    row-accent-visible: root.row-accent-visible;
+                    row-accent-hue-visible: root.row-accent-hue-visible;
+                    row-accent-sat-visible: root.row-accent-sat-visible;
+                    row-accent-value-visible: root.row-accent-value-visible;
+                    row-font-visible: root.row-font-visible;
+                    row-clip-font-size-visible: root.row-clip-font-size-visible;
+                    row-preview-font-size-visible: root.row-preview-font-size-visible;
+                    row-padding-visible: root.row-padding-visible;
+                    row-hover-delay-visible: root.row-hover-delay-visible;
+                    row-image-preview-size-visible: root.row-image-preview-size-visible;
+                    row-diff-tool-visible: root.row-diff-tool-visible;
+                    row-external-note-visible: root.row-external-note-visible;
+
+                    setting-changed(k, v) => {
+                        root.setting-changed(k, v);
+                    }
+                    clear-accent-color() => {
+                        root.clear-accent-color();
+                    }
+                    font-picker() => {
+                        root.font-picker();
+                    }
+                    open-log() => {
+                        root.open-log();
+                    }
                 }
-                clear-accent-color() => {
-                    root.clear-accent-color();
-                }
-                font-picker() => {
-                    root.font-picker();
-                }
-                open-log() => {
-                    root.open-log();
-                }
-            }
 
-            // Database page — retention limits, maintenance buttons, stats.
-            database-page := DatabasePage {
-                x: 0px;
-                y: 0px;
-                width: 100%;
-                height: 100%;
-                visible: root.on-database-page;
+                // Database page — retention limits, maintenance buttons, stats.
+                database-page := DatabasePage {
+                    x: 0px;
+                    y: 0px;
+                    width: 100%;
+                    height: 100%;
+                    visible: root.on-database-page;
 
-                s-max-clips <=> root.s-max-clips;
-                s-max-age-days <=> root.s-max-age-days;
-                s-total-clips: root.s-total-clips;
-                s-db-created: root.s-db-created;
-                s-db-size: root.s-db-size;
-                s-copies: root.s-copies;
-                s-pastes: root.s-pastes;
+                    s-max-clips <=> root.s-max-clips;
+                    s-max-age-days <=> root.s-max-age-days;
+                    s-total-clips: root.s-total-clips;
+                    s-db-created: root.s-db-created;
+                    s-db-size: root.s-db-size;
+                    s-copies: root.s-copies;
+                    s-pastes: root.s-pastes;
 
-                setting-changed(k, v) => {
-                    root.setting-changed(k, v);
-                }
-                maintenance-action(key) => {
-                    root.maintenance-action(key);
+                    setting-changed(k, v) => {
+                        root.setting-changed(k, v);
+                    }
+                    maintenance-action(key) => {
+                        root.maintenance-action(key);
+                    }
                 }
             }
         }
