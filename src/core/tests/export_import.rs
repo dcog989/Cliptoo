@@ -17,9 +17,7 @@ async fn export_bookmarks_only() {
     insert_text(&db, "fav clip", "text").await;
 
     let fav_id = db
-        .with(|conn| {
-            cliptoo_core::db::queries::search_clips(conn, "fav", "all", 10, 0, None)
-        })
+        .with(|conn| cliptoo_core::db::queries::search_clips(conn, "fav", "all", 10, 0, None))
         .await
         .unwrap()[0]
         .id;
@@ -33,8 +31,14 @@ async fn export_bookmarks_only() {
         .unwrap();
     let text = tokio::fs::read_to_string(&out).await.unwrap();
 
-    assert!(text.contains("fav clip"), "bookmarked clip must be exported");
-    assert!(!text.contains("plain clip"), "non-bookmarked clip must be skipped");
+    assert!(
+        text.contains("fav clip"),
+        "bookmarked clip must be exported"
+    );
+    assert!(
+        !text.contains("plain clip"),
+        "non-bookmarked clip must be skipped"
+    );
     assert_eq!(text.matches("\"content\": \"fav clip\"").count(), 1);
 
     let _ = std::fs::remove_file(&out);

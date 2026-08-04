@@ -196,7 +196,10 @@ pub async fn export_bookmarked_to_file(
     tokio::fs::write(path, &bytes)
         .await
         .with_context(|| format!("write bookmarks export to {:?}", path))?;
-    info!("export_bookmarked_to_file: wrote {} bytes to {:?}", len, path);
+    info!(
+        "export_bookmarked_to_file: wrote {} bytes to {:?}",
+        len, path
+    );
     Ok(len)
 }
 

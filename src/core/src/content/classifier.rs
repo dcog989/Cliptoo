@@ -119,7 +119,9 @@ impl ContentProcessor {
     /// True when `s` is an RTF document, tolerating a leading UTF-8 BOM that
     /// some Windows apps prepend to clipboard RTF.
     fn is_rtf(s: &str) -> bool {
-        s.strip_prefix('\u{feff}').unwrap_or(s).starts_with(r"{\rtf")
+        s.strip_prefix('\u{feff}')
+            .unwrap_or(s)
+            .starts_with(r"{\rtf")
     }
 
     /// True when `raw` looks like a filesystem path, regardless of whether it
@@ -258,7 +260,11 @@ mod tests {
     use crate::db::models::ClipType;
 
     fn temp_dir(name: &str) -> std::path::PathBuf {
-        std::env::temp_dir().join(format!("cliptoo_classifier_{}_{}", std::process::id(), name))
+        std::env::temp_dir().join(format!(
+            "cliptoo_classifier_{}_{}",
+            std::process::id(),
+            name
+        ))
     }
 
     #[test]

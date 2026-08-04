@@ -247,5 +247,3 @@ pub fn store_both_thumbnails_for_file(
         }
     }
 }
-
-

@@ -51,7 +51,11 @@ fn retune_accent(
     match key {
         "accent_hue" => (value.clamp(0.0, 360.0), current_saturation, current_value),
         "accent_saturation" => (current_hue, value.clamp(0.0, 100.0) / 100.0, current_value),
-        _ => (current_hue, current_saturation, value.clamp(0.0, 100.0) / 100.0),
+        _ => (
+            current_hue,
+            current_saturation,
+            value.clamp(0.0, 100.0) / 100.0,
+        ),
     }
 }
 

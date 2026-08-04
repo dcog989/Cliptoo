@@ -12,8 +12,8 @@ use tracing::{info, warn};
 
 use crate::content::classifier::ContentProcessor;
 use crate::content::hash::normalize_line_endings;
-use crate::db::models::ClipType;
 use crate::db::DbPool;
+use crate::db::models::ClipType;
 use crate::stats;
 use crate::time::utc_now_iso;
 
@@ -304,7 +304,12 @@ pub fn reclassify_all(conn: &Connection) -> Result<u64> {
         )?;
         let mut out = Vec::new();
         for r in stmt.query_map([], |row| {
-            Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get::<_, i32>(3)? != 0))
+            Ok((
+                row.get(0)?,
+                row.get(1)?,
+                row.get(2)?,
+                row.get::<_, i32>(3)? != 0,
+            ))
         })? {
             match r {
                 Ok(row) => out.push(row),

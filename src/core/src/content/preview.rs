@@ -50,10 +50,7 @@ mod tests {
 
     #[test]
     fn collapses_whitespace_runs() {
-        assert_eq!(
-            build_preview("a\n  b\t\tc\r\nd"),
-            "a b c d"
-        );
+        assert_eq!(build_preview("a\n  b\t\tc\r\nd"), "a b c d");
     }
 
     #[test]

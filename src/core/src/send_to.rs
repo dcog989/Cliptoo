@@ -34,15 +34,12 @@ pub async fn send_to(app_path: &str, content: &str) -> Result<()> {
 }
 
 async fn send_to_exe(exe: &std::path::Path, content: &str) -> Result<()> {
-    crate::temp::launch_with_temp_files(
-        &[("cliptoo_sendto_{}.txt", content.as_bytes())],
-        |paths| {
-            std::process::Command::new(exe)
-                .arg(&paths[0])
-                .spawn()
-                .map(|_| ())
-                .map_err(|e| anyhow::anyhow!("spawn '{}': {e}", exe.display()))
-        },
-    )
+    crate::temp::launch_with_temp_files(&[("cliptoo_sendto_{}.txt", content.as_bytes())], |paths| {
+        std::process::Command::new(exe)
+            .arg(&paths[0])
+            .spawn()
+            .map(|_| ())
+            .map_err(|e| anyhow::anyhow!("spawn '{}': {e}", exe.display()))
+    })
     .await
 }

@@ -82,9 +82,9 @@ pub fn setup_search(
             let text = ui.get_search_text();
             if !text.is_empty() {
                 let mut word_offset = 0;
-                for (offset, _) in unicode_segmentation::UnicodeSegmentation::unicode_word_indices(
-                    text.as_str(),
-                ) {
+                for (offset, _) in
+                    unicode_segmentation::UnicodeSegmentation::unicode_word_indices(text.as_str())
+                {
                     if offset <= text.len() {
                         word_offset = offset;
                     } else {

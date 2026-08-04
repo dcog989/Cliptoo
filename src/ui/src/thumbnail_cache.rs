@@ -250,7 +250,8 @@ mod tests {
     fn parse_highlights_only_matches_not_ellipsis() {
         // A multi-line clip produces a long snippet with FTS5 ellipsis markers
         // at the elided edges. The markers must stay outside highlighted spans.
-        let snippet = "…[HL]the[/HL] quick brown fox jumps\nover the lazy dog\n…[HL]These[/HL] are separate…";
+        let snippet =
+            "…[HL]the[/HL] quick brown fox jumps\nover the lazy dog\n…[HL]These[/HL] are separate…";
         let spans = spans_to_strings(&parse_match_spans(snippet));
 
         for (text, is_highlight) in &spans {

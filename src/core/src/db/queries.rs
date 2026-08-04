@@ -61,9 +61,9 @@ fn clip_type_filter(filter: &str) -> FilterClause {
         "bookmarked" => FilterClause::NoParam("AND c.IsBookmarked = 1"),
         // Document covers .docx/.pdf (file_document) and plain text files
         // (.txt/.md, file_text) — the same icon, so they share a filter.
-        "file_document" => FilterClause::NoParam(
-            "AND c.ClipType IN ('file_document', 'file_text')",
-        ),
+        "file_document" => {
+            FilterClause::NoParam("AND c.ClipType IN ('file_document', 'file_text')")
+        }
         // A copied generic file: one that isn't any specific type.
         "file" => FilterClause::NoParam("AND c.ClipType = 'file_generic'"),
         _ if FILTERABLE_TYPES.iter().any(|t| t.as_str() == filter) => {
