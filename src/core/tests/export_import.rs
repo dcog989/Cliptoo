@@ -47,6 +47,75 @@ async fn export_bookmarks_only() {
     let _ = std::fs::remove_file(dir.with_extension("shm"));
 }
 
+/// Bookmarked clips must be weighted above regular clips in full-text search:
+/// a bookmark ranks ahead of a non-bookmark even when its raw match is slightly
+/// worse (the rank bonus outweighs the gap, so ties and close matches both win).
+#[tokio::test]
+async fn search_ranks_bookmarks_first() {
+    // Distinct content + hashes (insert_or_bump dedupes on hash), so the FTS
+    // ranks differ; the bookmark rank bonus must still lift it to the top.
+    let dir = std::env::temp_dir().join(format!("cliptoo_bmrank_{}", std::process::id()));
+    let db = Arc::new(DbPool::open(&dir).unwrap());
+    let clips = [
+        ("the quick brown fox", "hash_plain_best"),
+        ("quick fox runs fast", "hash_bm"),
+        ("a quick fox", "hash_plain_2"),
+    ];
+
+    for (content, hash) in clips {
+        db.with(|conn| {
+            let c = cliptoo_core::content::classifier::ContentProcessor::process(content, false)
+                .unwrap();
+            cliptoo_core::db::queries::insert_or_bump(
+                conn,
+                content,
+                &c.preview_content,
+                hash,
+                "text",
+                None,
+                c.was_trimmed,
+                c.has_leading_whitespace,
+                c.is_multiline,
+                c.size_in_bytes,
+                false,
+            )
+        })
+        .await
+        .unwrap();
+    }
+
+    // Identify the bookmark row by hash, then bookmark it.
+    let all = db
+        .with(|conn| cliptoo_core::db::queries::search_clips(conn, "quick fox", "all", 10, 0, None))
+        .await
+        .unwrap();
+    let bookmarked = all
+        .iter()
+        .find(|c| c.content_hash == "hash_bm")
+        .expect("bookmark clip present")
+        .id;
+    db.with(|conn| cliptoo_core::db::queries::set_bookmarked(conn, bookmarked, true))
+        .await
+        .unwrap();
+
+    let results = db
+        .with(|conn| cliptoo_core::db::queries::search_clips(conn, "quick fox", "all", 10, 0, None))
+        .await
+        .unwrap();
+    assert!(
+        results.len() >= 3,
+        "expected all three clips to match the FTS query"
+    );
+    assert_eq!(
+        results[0].id, bookmarked,
+        "bookmarked clip must be weighted above non-bookmarked matches"
+    );
+
+    let _ = std::fs::remove_file(&dir);
+    let _ = std::fs::remove_file(dir.with_extension("wal"));
+    let _ = std::fs::remove_file(dir.with_extension("shm"));
+}
+
 #[tokio::test]
 async fn export_import_roundtrip() {
     let dir = std::env::temp_dir().join(format!("cliptoo_ei_{}", std::process::id()));

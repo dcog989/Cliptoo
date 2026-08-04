@@ -20,6 +20,12 @@ const EPOCH_TIMESTAMP: &str = "1970-01-01 00:00:00";
 /// Default row limit for `search_clips` — bounds the list view.
 pub const SEARCH_RESULT_LIMIT: i64 = 1000;
 
+/// Rank bonus subtracted from FTS5 `rank` for bookmarked clips (lower rank =
+/// better match), so bookmarks sort above comparable non-bookmark matches.
+/// FTS5 BM25 ranks are small negative floats; a bonus of 1.0 lifts a bookmark
+/// above any non-bookmark whose match is at most ~1.0 rank better.
+const BOOKMARK_RANK_BONUS: &str = "1.0";
+
 enum FilterClause {
     /// SQL fragment with no extra bind parameter.
     NoParam(&'static str),
@@ -275,7 +281,7 @@ pub fn search_clips(
              FROM clips_fts
              JOIN clips c ON c.Id = clips_fts.rowid
              WHERE clips_fts MATCH ? {filter_sql}
-             ORDER BY rank
+             ORDER BY rank - (c.IsBookmarked * {BOOKMARK_RANK_BONUS})
              LIMIT ? OFFSET ?",
             projection = fts_projection(1, TAG_SNIPPET_TOKENS),
             filter_sql = ft.sql(),
@@ -294,7 +300,7 @@ pub fn search_clips(
          FROM clips_fts
          JOIN clips c ON c.Id = clips_fts.rowid
          WHERE clips_fts MATCH ? {filter_sql}
-         ORDER BY rank
+         ORDER BY rank - (c.IsBookmarked * {BOOKMARK_RANK_BONUS})
          LIMIT ? OFFSET ?",
         projection = fts_projection(0, CONTENT_SNIPPET_TOKENS),
         filter_sql = ft.sql(),
