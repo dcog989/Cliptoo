@@ -45,6 +45,7 @@ Hooks (lefthook): fmt + clippy on `.rs`, `slint-lsp format -i` on `.slint`; pre-
 - Decompose files over 400 lines if they mix concerns.
 - Wayland-only (no X11 fallback); hotkeys via `org.freedesktop.portal.GlobalShortcuts`.
 - Skip full checks (`cargo check`/`clippy`/`fmt --check`/`test`/`slint-viewer`) for trivial changes (single-line edits, string/field removal, UI copy/structure tweaks like reordering menu items).
+- Do NOT run `cargo test` after every change. Reserve it for changes that touch tested logic (new/changed code paths or tests in `src/core`, new unit tests) or when the user asks. `cargo clippy` is the default verification for Rust changes — it type-checks and catches Slint compile errors without the test-suite overhead. Run the full `cargo test --workspace` once per task when warranted, not per edit.
 - **NEVER** run `cargo build` for any change — trivial or not — unless the user explicitly instructs it. No "fallback" builds when `slint-viewer` is missing, no self-verification builds. This rule overrides Slint rule #4 and Definition of Done.
 
 ## Slint rules (mandatory)
