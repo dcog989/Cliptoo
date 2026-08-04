@@ -75,7 +75,7 @@ pub struct Settings {
 
     // System
     pub start_with_system: bool,
-    #[serde(default = "default_true")]
+    #[serde(default = "default_always_close_to_tray")]
     pub always_close_to_tray: bool,
     pub logging_level: String,
 }
@@ -181,36 +181,39 @@ impl Settings {
     }
 }
 
+// Serde `default =` hooks. Each delegates to `Settings::default()` so the
+// `Default` impl is the single source of truth for every default value.
+
 fn default_accent_color() -> String {
-    String::new()
+    Settings::default().accent_color
 }
 
 fn default_accent_hue() -> f64 {
-    247.0
+    Settings::default().accent_hue
 }
 
 fn default_accent_saturation() -> f64 {
-    0.65
+    Settings::default().accent_saturation
 }
 
 fn default_accent_value() -> f64 {
-    0.95
+    Settings::default().accent_value
 }
 
-fn default_true() -> bool {
-    true
+fn default_always_close_to_tray() -> bool {
+    Settings::default().always_close_to_tray
 }
 
 fn default_quick_paste_modifier() -> String {
-    "Right Alt".to_string()
+    Settings::default().quick_paste_modifier
 }
 
 fn default_settings_window_width() -> f64 {
-    560.0
+    Settings::default().settings_window_width
 }
 
 fn default_settings_window_height() -> f64 {
-    540.0
+    Settings::default().settings_window_height
 }
 
 fn chrono_now_compact() -> String {
