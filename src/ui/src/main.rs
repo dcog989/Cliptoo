@@ -128,34 +128,17 @@ async fn main() -> Result<()> {
     maintenance::setup_manual_maintenance(&ui, &db, &dirs, &settings, &settings_win);
 
     // ── Clipboard listener ─────────────────────────────────────────────
-    {
-        let db = db.clone();
-        let ui_weak = ui.as_weak();
-        let td = dirs.thumbnails_dir.clone();
-        let fd = dirs.favicons_dir.clone();
-        let id = dirs.images_dir.clone();
-        let sup = suppression.clone();
-        let blacklist = settings.borrow().blacklisted_apps.clone();
-        let preview_max_dim = settings.borrow().hover_image_preview_size;
-        let afs = active_filter_state.clone();
-        tokio::spawn(async move {
-            if let Err(e) = clipboard::run_listener(
-                db,
-                ui_weak,
-                td,
-                fd,
-                id,
-                sup,
-                blacklist,
-                preview_max_dim,
-                afs,
-            )
-            .await
-            {
-                tracing::error!("Clipboard listener error: {e}");
-            }
-        });
-    }
+    clipboard::spawn_listener(
+        db.clone(),
+        ui.as_weak(),
+        dirs.thumbnails_dir.clone(),
+        dirs.favicons_dir.clone(),
+        dirs.images_dir.clone(),
+        suppression.clone(),
+        settings.borrow().blacklisted_apps.clone(),
+        settings.borrow().hover_image_preview_size,
+        active_filter_state.clone(),
+    );
 
     // Populate the clip list from history on startup. The listener no longer
     // ingests the pre-existing clipboard at launch (it seeds the change-detection
