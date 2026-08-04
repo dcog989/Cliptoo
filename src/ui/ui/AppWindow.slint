@@ -107,7 +107,7 @@ export component AppWindow inherits Window {
 
     in property <length> min-window-width: 320px;
     in property <length> min-window-height: 240px;
-    property <length> toolbar-height: 48px;
+    property <length> toolbar-height: Theme.toolbar-height;
     in-out property <string> active-filter: "all";
     in-out property <int> selected-index: 0;  // reset by Rust on search/filter change
     // search-text is owned jointly: Slint appends printable chars, Rust handles

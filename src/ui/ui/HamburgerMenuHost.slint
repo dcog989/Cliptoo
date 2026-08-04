@@ -2,12 +2,13 @@
 // Settings, Close to Tray), positioned just above the hamburger button.
 
 import { HamburgerMenu } from "HamburgerMenu.slint";
+import { Theme }         from "Theme.slint";
 
 export component HamburgerMenuHost {
     // Anchoring dims provided by AppWindow so the popup stays above the button.
     in property <length> window-width: 0px;
     in property <length> window-height: 0px;
-    in property <length> toolbar-height: 48px;
+    in property <length> toolbar-height: Theme.toolbar-height;
     in property <length> menu-gap: 6px;
 
     // Transient guard: AppWindow sets this around close() so the focus-poll /

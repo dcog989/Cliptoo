@@ -6,11 +6,15 @@ export component FilterGrid {
 
     callback filter-chosen(string);
 
+    // Intrinsic grid extent, used by FilterPopup for popup anchor math.
+    out property <length> grid-width: grid-root.preferred-width;
+    out property <length> grid-height: grid-root.preferred-height;
+
     property <length> grid-spacing: 4px;
     property <length> grid-padding: 8px;
     property <length> cell-size: 36px;
 
-    Rectangle {
+    grid-root := Rectangle {
         border-radius: 8px;
         background: Theme.bg-header;
         border-width: 1px;
