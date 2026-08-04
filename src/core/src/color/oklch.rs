@@ -120,7 +120,7 @@ const CHROMA_SEARCH_ITERS: u32 = 10;
 
 /// Binary search for the maximum in-gamut chroma at given L and H.
 /// 10 iterations → precision of ~0.4 / 1024 ≈ 0.0004.
-pub fn find_max_chroma(l: f64, h_deg: f64) -> f64 {
+fn find_max_chroma(l: f64, h_deg: f64) -> f64 {
     let mut low: f64 = 0.0;
     let mut high: f64 = CHROMA_SEARCH_MAX;
     for _ in 0..CHROMA_SEARCH_ITERS {
@@ -187,16 +187,4 @@ pub fn srgb_bytes_to_oklch(r: u8, g: u8, b: u8) -> (f64, f64, f64) {
         h += 360.0;
     }
     (l, c, h)
-}
-
-/// Chroma level multipliers (proportion of FindMaxChroma result).
-pub fn chroma_level_factor(level: &str) -> f64 {
-    match level {
-        "Neon" => 1.0,
-        "Vibrant" => 0.70,
-        "Mellow" => 0.50,
-        "Muted" => 0.35,
-        "Ditchwater" => 0.20,
-        _ => 0.50,
-    }
 }

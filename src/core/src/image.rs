@@ -1,13 +1,12 @@
 use anyhow::{Context, Result};
-use std::io::Cursor;
 use std::path::{Path, PathBuf};
 
 use crate::icon;
 
 const THUMB_MAX_DIM: u32 = 36;
-// PREVIEW_FALLBACK_DIM is used by generate_both_thumbnails (the in-memory path
-// that has no access to settings). The disk-write path accepts preview_max_dim
-// as a parameter so the user's hover_image_preview_size setting is honoured.
+// PREVIEW_FALLBACK_DIM is the default preview dimension for callers without
+// access to settings. The disk-write path accepts preview_max_dim as a
+// parameter so the user's hover_image_preview_size setting is honoured.
 pub const PREVIEW_FALLBACK_DIM: u32 = 400;
 pub const HASH_FILENAME_PREFIX_LEN: usize = 16;
 
@@ -108,18 +107,6 @@ pub fn store_image(dir: &Path, hash: &str, data: &[u8]) -> Result<PathBuf> {
     let img = decode_image(data)?;
     img.save(&path)?;
     Ok(path)
-}
-
-/// Load stored full-resolution image bytes from disk by content hash.
-pub fn load_image(dir: &Path, hash: &str) -> Result<Vec<u8>> {
-    let path = dir.join(format!("{}.png", &hash[..HASH_FILENAME_PREFIX_LEN]));
-    Ok(std::fs::read(path)?)
-}
-
-/// Check if a stored full-resolution image exists for the given hash.
-pub fn image_exists(dir: &Path, hash: &str) -> bool {
-    dir.join(format!("{}.png", &hash[..HASH_FILENAME_PREFIX_LEN]))
-        .exists()
 }
 
 // ── Thumbnail store (WebP, thumbnails_dir) ────────────────────────────────────
@@ -263,35 +250,4 @@ pub fn store_both_thumbnails_for_file(
     }
 }
 
-// ── In-memory thumbnail generation ───────────────────────────────────────────
 
-/// Decode once and return both `(thumb_webp, preview_webp)` bytes without
-/// touching disk. Prefer this over two separate `generate_thumbnail` calls
-/// when both sizes are needed in-memory.
-pub fn generate_both_thumbnails(data: &[u8]) -> Result<(Vec<u8>, Vec<u8>)> {
-    let img = decode_image(data)?;
-    let mut thumb_buf = Cursor::new(Vec::new());
-    resize_to(img.clone(), THUMB_MAX_DIM).write_to(&mut thumb_buf, image::ImageFormat::WebP)?;
-    let mut preview_buf = Cursor::new(Vec::new());
-    resize_to(img, PREVIEW_FALLBACK_DIM).write_to(&mut preview_buf, image::ImageFormat::WebP)?;
-    Ok((thumb_buf.into_inner(), preview_buf.into_inner()))
-}
-
-/// Generate a single thumbnail at `max_dim` and return WebP bytes.
-/// For callers that need both sizes, prefer [`generate_both_thumbnails`].
-pub fn generate_thumbnail(data: &[u8], max_dim: u32) -> Result<Vec<u8>> {
-    let img = decode_image(data)?;
-    let mut buf = Cursor::new(Vec::new());
-    resize_to(img, max_dim).write_to(&mut buf, image::ImageFormat::WebP)?;
-    Ok(buf.into_inner())
-}
-
-// ── Pixel data ────────────────────────────────────────────────────────────────
-
-/// Decode image bytes into raw RGBA pixel data. Supports all formats including JXL.
-pub fn decode_to_rgba(data: &[u8]) -> Result<(Vec<u8>, u32, u32)> {
-    let img = decode_image(data)?;
-    let rgba = img.to_rgba8();
-    let (w, h) = rgba.dimensions();
-    Ok((rgba.into_raw(), w, h))
-}

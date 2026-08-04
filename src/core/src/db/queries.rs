@@ -362,17 +362,9 @@ pub fn count_clips(conn: &Connection) -> Result<i64> {
     Ok(n)
 }
 
-pub fn increment_paste_count(conn: &Connection, id: i64) -> Result<()> {
-    conn.execute(
-        "UPDATE clips SET PasteCount = PasteCount + 1 WHERE Id = ?1",
-        params![id],
-    )?;
-    Ok(())
-}
-
 /// Atomically timestamps the clip to the top and increments its paste count.
 /// Also bumps the global paste counter. Use instead of calling `bump_to_top`
-/// + `increment_paste_count` separately.
+/// separately.
 pub fn record_paste(conn: &Connection, id: i64) -> Result<()> {
     conn.execute(
         "UPDATE clips SET Timestamp = datetime('now'), PasteCount = PasteCount + 1 WHERE Id = ?1",
