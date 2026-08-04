@@ -111,6 +111,27 @@ pub fn store_image(dir: &Path, hash: &str, data: &[u8]) -> Result<PathBuf> {
 
 // ── Thumbnail store (WebP, thumbnails_dir) ────────────────────────────────────
 
+/// Write the list-cell and preview thumbnails as WebP, skipping any file that
+/// already exists. `render(dim)` produces the image for a given target
+/// dimension and is only called for sizes that actually get written.
+fn write_thumbnails_pair(
+    thumb_path: &Path,
+    preview_path: &Path,
+    thumb_dim: u32,
+    preview_dim: u32,
+    render: impl Fn(u32) -> image::DynamicImage,
+) -> Result<()> {
+    if !thumb_path.exists() {
+        let mut file = std::fs::File::create(thumb_path)?;
+        render(thumb_dim).write_to(&mut file, image::ImageFormat::WebP)?;
+    }
+    if !preview_path.exists() {
+        let mut file = std::fs::File::create(preview_path)?;
+        render(preview_dim).write_to(&mut file, image::ImageFormat::WebP)?;
+    }
+    Ok(())
+}
+
 /// Decode once and write both list-cell (36px) and preview thumbnails
 /// as WebP to `thumbnails_dir`. This is the sole thumbnail write path.
 ///
@@ -128,29 +149,19 @@ pub fn store_both_thumbnails(
         &hash[..HASH_FILENAME_PREFIX_LEN]
     ));
 
-    let need_thumb = !thumb_path.exists();
-    let need_preview = !preview_path.exists();
-
-    if !need_thumb && !need_preview {
+    // Skip decoding entirely when both files already exist.
+    if thumb_path.exists() && preview_path.exists() {
         return Ok(());
     }
 
     let img = decode_image(data)?;
-
-    if need_thumb && need_preview {
-        let mut file = std::fs::File::create(&thumb_path)?;
-        resize_to(img.clone(), THUMB_MAX_DIM).write_to(&mut file, image::ImageFormat::WebP)?;
-        let mut file = std::fs::File::create(&preview_path)?;
-        resize_to(img, preview_max_dim).write_to(&mut file, image::ImageFormat::WebP)?;
-    } else if need_thumb {
-        let mut file = std::fs::File::create(&thumb_path)?;
-        resize_to(img, THUMB_MAX_DIM).write_to(&mut file, image::ImageFormat::WebP)?;
-    } else if need_preview {
-        let mut file = std::fs::File::create(&preview_path)?;
-        resize_to(img, preview_max_dim).write_to(&mut file, image::ImageFormat::WebP)?;
-    }
-
-    Ok(())
+    write_thumbnails_pair(
+        &thumb_path,
+        &preview_path,
+        THUMB_MAX_DIM,
+        preview_max_dim,
+        |dim| resize_to(img.clone(), dim),
+    )
 }
 
 /// Check whether `ext` (lowercased) is one of the IMAGE-classified formats
@@ -223,26 +234,13 @@ pub fn store_both_thumbnails_for_file(
             }
             Ok(())
         }
-        Some(e) if UNDECODABLE_IMAGE_EXTS.contains(&e) => {
-            let need_thumb = !thumb_webp.exists();
-            let need_preview = !preview_webp.exists();
-            if !need_thumb && !need_preview {
-                return Ok(());
-            }
-            if need_thumb && need_preview {
-                let mut f = std::fs::File::create(&thumb_webp)?;
-                make_placeholder(THUMB_MAX_DIM).write_to(&mut f, image::ImageFormat::WebP)?;
-                let mut f = std::fs::File::create(&preview_webp)?;
-                make_placeholder(preview_max_dim).write_to(&mut f, image::ImageFormat::WebP)?;
-            } else if need_thumb {
-                let mut f = std::fs::File::create(&thumb_webp)?;
-                make_placeholder(THUMB_MAX_DIM).write_to(&mut f, image::ImageFormat::WebP)?;
-            } else if need_preview {
-                let mut f = std::fs::File::create(&preview_webp)?;
-                make_placeholder(preview_max_dim).write_to(&mut f, image::ImageFormat::WebP)?;
-            }
-            Ok(())
-        }
+        Some(e) if UNDECODABLE_IMAGE_EXTS.contains(&e) => write_thumbnails_pair(
+            &thumb_webp,
+            &preview_webp,
+            THUMB_MAX_DIM,
+            preview_max_dim,
+            make_placeholder,
+        ),
         _ => {
             let data = std::fs::read(file_path)?;
             store_both_thumbnails(dir, hash, &data, preview_max_dim)
