@@ -183,7 +183,8 @@ async fn main() -> Result<()> {
                 hotkeys::check_portal_presence().await;
 
                 let handle = hotkeys::register_shortcuts_and_listen(
-                    &[("toggle-cliptoo", main_hotkey.as_str())],
+                    "toggle-cliptoo",
+                    main_hotkey.as_str(),
                     {
                         let weak = ui_weak.clone();
                         move |shortcut_id| {
@@ -228,7 +229,7 @@ async fn main() -> Result<()> {
                 // the portal treats the shortcut as new (and applies the new
                 // preferred_trigger), then loop to re-register.
                 handle.map(|h| h.abort()).ok();
-                hotkeys::clear_kglobalaccel_bindings(&["toggle-cliptoo"]).await;
+                hotkeys::clear_kglobalaccel_bindings("toggle-cliptoo").await;
             }
         });
     }

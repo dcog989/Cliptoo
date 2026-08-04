@@ -195,7 +195,7 @@ pub async fn check_portal_presence() {
     }
 }
 
-/// Register `shortcuts` as global hotkeys via the XDG Desktop Portal and
+/// Register a single global shortcut via the XDG Desktop Portal and
 /// dispatch activations to `handler`.
 ///
 /// # Platform note — Wayland only
@@ -228,7 +228,8 @@ pub async fn check_portal_presence() {
 /// at startup so the user gets an informational heads-up before the
 /// session bus is first exercised.
 pub async fn register_shortcuts_and_listen<F>(
-    shortcuts: &[(&str, &str)],
+    shortcut_id: &str,
+    trigger: &str,
     mut handler: F,
 ) -> Result<tokio::task::JoinHandle<()>>
 where
@@ -272,7 +273,7 @@ where
     // Start listening BEFORE calling CreateSession to avoid race.
     let mut signal_stream = MessageStream::from(&conn);
 
-    let handle_token = format!("cliptoo_req_{}", sanitize_dbus_token(shortcuts[0].0));
+    let handle_token = format!("cliptoo_req_{}", sanitize_dbus_token(shortcut_id));
     let mut options = HashMap::<&str, Value>::new();
     options.insert("session_handle_token", Value::from("cliptoo_session"));
     options.insert("handle_token", Value::from(handle_token.as_str()));
@@ -314,25 +315,20 @@ where
     // ── Bind shortcuts ────────────────────────────────────────────────────
     let mut bind_stream = MessageStream::from(&conn);
 
-    let bind_handle_token = format!("cliptoo_bind_{}", sanitize_dbus_token(shortcuts[0].0));
+    let bind_handle_token = format!("cliptoo_bind_{}", sanitize_dbus_token(shortcut_id));
     let mut bind_options = HashMap::<String, Value>::new();
     bind_options.insert(
         "handle_token".into(),
         Value::from(bind_handle_token.as_str()),
     );
 
-    let shortcut_defs: Vec<(&str, HashMap<String, Value>)> = shortcuts
-        .iter()
-        .map(|(id, trigger)| {
-            let mut opts = HashMap::<String, Value>::new();
-            opts.insert("description".into(), Value::from(*id));
-            opts.insert(
-                "preferred_trigger".into(),
-                Value::from(to_xdg_trigger(trigger)),
-            );
-            (*id, opts)
-        })
-        .collect();
+    let mut shortcut_opts = HashMap::<String, Value>::new();
+    shortcut_opts.insert("description".into(), Value::from(shortcut_id));
+    shortcut_opts.insert(
+        "preferred_trigger".into(),
+        Value::from(to_xdg_trigger(trigger)),
+    );
+    let shortcut_defs = vec![(shortcut_id, shortcut_opts)];
 
     let session_op =
         OwnedObjectPath::try_from(session_handle.as_str()).context("invalid session handle")?;
@@ -359,21 +355,8 @@ where
 
     // Wait for the BindShortcuts response signal (log outcome, don't fail)
     match expect_response_value(&mut bind_stream, &bind_handle, "shortcuts", 10).await {
-        Ok(Some(_)) => {
-            info!("registered {} global shortcut(s)", shortcuts.len());
-            for (id, trigger) in shortcuts {
-                info!("  shortcut {id}: {trigger}");
-            }
-        }
-        Ok(None) => {
-            info!("registered shortcuts (no shortcuts detail in response)");
-            for (id, trigger) in shortcuts {
-                info!("  shortcut {id}: {trigger}");
-            }
-        }
-        Err(e) => {
-            tracing::warn!("BindShortcuts response err (shortcuts may still work): {e}");
-        }
+        Ok(_) => info!("registered global shortcut {shortcut_id}: {trigger}"),
+        Err(e) => tracing::warn!("BindShortcuts response err (shortcuts may still work): {e}"),
     }
 
     // ── Listen for Activated signals ──────────────────────────────────────
@@ -402,15 +385,15 @@ where
     Ok(handle)
 }
 
-/// Best-effort: remove `actions` from KGlobalAccel so a changed hotkey takes
+/// Best-effort: remove `action` from KGlobalAccel so a changed hotkey takes
 /// effect.
 ///
 /// The portal's `BindShortcuts` keeps the keys already stored for a shortcut
 /// that exists in KGlobalAccel (it treats it as "returning" and restores the
-/// stored keys, ignoring the new `preferred_trigger`). Removing the actions
-/// first makes the portal see them as new and apply the changed trigger.
+/// stored keys, ignoring the new `preferred_trigger`). Removing the action
+/// first makes the portal see it as new and apply the changed trigger.
 /// KDE-specific; on other backends this is a harmless no-op.
-pub async fn clear_kglobalaccel_bindings(actions: &[&str]) {
+pub async fn clear_kglobalaccel_bindings(action: &str) {
     const KGLOBALACCEL_DEST: &str = "org.kde.kglobalaccel";
     const KGLOBALACCEL_PATH: &str = "/kglobalaccel";
     const KGLOBALACCEL_IFACE: &str = "org.kde.KGlobalAccel";
@@ -418,15 +401,13 @@ pub async fn clear_kglobalaccel_bindings(actions: &[&str]) {
     let Ok(conn) = Connection::session().await else {
         return;
     };
-    for action in actions {
-        let _ = conn
-            .call_method(
-                Some(KGLOBALACCEL_DEST),
-                KGLOBALACCEL_PATH,
-                Some(KGLOBALACCEL_IFACE),
-                "unregister",
-                &(APP_ID, action),
-            )
-            .await;
-    }
+    let _ = conn
+        .call_method(
+            Some(KGLOBALACCEL_DEST),
+            KGLOBALACCEL_PATH,
+            Some(KGLOBALACCEL_IFACE),
+            "unregister",
+            &(APP_ID, action),
+        )
+        .await;
 }
