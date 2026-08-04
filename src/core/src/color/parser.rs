@@ -248,13 +248,10 @@ fn parse_hsl_body(body: &str) -> Option<ParsedColor> {
     })
 }
 
-fn hsl_to_rgb(h: f64, s: f64, l: f64) -> Option<(u8, u8, u8)> {
-    let h = ((h % 360.0) + 360.0) % 360.0;
-    let s = s.clamp(0.0, 1.0);
-    let l = l.clamp(0.0, 1.0);
-    let c = (1.0 - (2.0 * l - 1.0).abs()) * s;
+/// Convert a normalized hue (0–360) plus the model-specific chroma `c` and
+/// offset `m` (computed differently for HSL vs HSV) into clamped sRGB bytes.
+fn hue_sector_rgb(h: f64, c: f64, m: f64) -> (u8, u8, u8) {
     let x = c * (1.0 - ((h / 60.0) % 2.0 - 1.0).abs());
-    let m = l - c / 2.0;
     let (r1, g1, b1) = match h as u32 {
         0..=59 => (c, x, 0.0),
         60..=119 => (x, c, 0.0),
@@ -263,11 +260,20 @@ fn hsl_to_rgb(h: f64, s: f64, l: f64) -> Option<(u8, u8, u8)> {
         240..=299 => (x, 0.0, c),
         _ => (c, 0.0, x),
     };
-    Some((
+    (
         ((r1 + m) * 255.0).round() as u8,
         ((g1 + m) * 255.0).round() as u8,
         ((b1 + m) * 255.0).round() as u8,
-    ))
+    )
+}
+
+fn hsl_to_rgb(h: f64, s: f64, l: f64) -> Option<(u8, u8, u8)> {
+    let h = ((h % 360.0) + 360.0) % 360.0;
+    let s = s.clamp(0.0, 1.0);
+    let l = l.clamp(0.0, 1.0);
+    let c = (1.0 - (2.0 * l - 1.0).abs()) * s;
+    let m = l - c / 2.0;
+    Some(hue_sector_rgb(h, c, m))
 }
 
 fn parse_hsv_body(body: &str) -> Option<ParsedColor> {
@@ -296,21 +302,8 @@ fn hsv_to_rgb(h: f64, s: f64, v: f64) -> Option<(u8, u8, u8)> {
     let s = s.clamp(0.0, 1.0);
     let v = v.clamp(0.0, 1.0);
     let c = v * s;
-    let x = c * (1.0 - ((h / 60.0) % 2.0 - 1.0).abs());
     let m = v - c;
-    let (r1, g1, b1) = match h as u32 {
-        0..=59 => (c, x, 0.0),
-        60..=119 => (x, c, 0.0),
-        120..=179 => (0.0, c, x),
-        180..=239 => (0.0, x, c),
-        240..=299 => (x, 0.0, c),
-        _ => (c, 0.0, x),
-    };
-    Some((
-        ((r1 + m) * 255.0).round() as u8,
-        ((g1 + m) * 255.0).round() as u8,
-        ((b1 + m) * 255.0).round() as u8,
-    ))
+    Some(hue_sector_rgb(h, c, m))
 }
 
 fn parse_cmyk_body(body: &str) -> Option<ParsedColor> {
