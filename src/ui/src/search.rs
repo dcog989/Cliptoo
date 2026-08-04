@@ -2,8 +2,6 @@ use std::sync::Arc;
 
 use slint::ComponentHandle;
 
-use cliptoo_core::db::queries::SEARCH_RESULT_LIMIT;
-
 pub fn setup_search(
     ui: &crate::AppWindow,
     db: &Arc<cliptoo_core::db::DbPool>,
@@ -21,38 +19,25 @@ pub fn setup_search(
         let td = search_td.clone();
         let fd = search_fd.clone();
         // Match highlighting in ClipItem only applies while a query is active.
-        if let Some(u) = search_ui.upgrade() {
-            u.set_is_searching(!query.is_empty());
-        }
         let current_filter = search_ui
             .upgrade()
-            .map(|u| u.get_active_filter().to_string())
+            .map(|u| {
+                u.set_is_searching(!query.is_empty());
+                u.get_active_filter().to_string()
+            })
             .unwrap_or_default();
         let pfx = tag_prefix.clone();
         tokio::spawn(async move {
-            let result = db
-                .with(|conn| {
-                    cliptoo_core::db::queries::search_clips(
-                        conn,
-                        query.as_str(),
-                        &current_filter,
-                        SEARCH_RESULT_LIMIT,
-                        0,
-                        Some(pfx.as_str()),
-                    )
-                })
-                .await;
-            if let Ok(clips) = result {
-                let db2 = db.clone();
-                let _ = ui.upgrade_in_event_loop(move |ui| {
-                    let slint_clips = crate::thumbnail_cache::convert_vec(clips, &td, &fd);
-                    let model =
-                        std::rc::Rc::new(slint::VecModel::<crate::ClipData>::from(slint_clips));
-                    ui.set_clips(model.into());
-                    ui.set_selected_index(0);
-                    crate::favicon::check_pending_favicons(&ui, &db2, &fd);
-                });
-            }
+            crate::helpers::refresh_clips(
+                &db,
+                &ui,
+                &td,
+                &fd,
+                query.as_str(),
+                &current_filter,
+                Some(&pfx),
+            )
+            .await;
         });
     });
 
@@ -122,32 +107,11 @@ pub fn setup_filter(
         // A filter change clears the search text, so FTS highlighting is off.
         if let Some(u) = filter_ui.upgrade() {
             u.set_is_searching(false);
+            u.set_search_text("".into());
         }
+        let f = filter.to_string();
         tokio::spawn(async move {
-            let result = db
-                .with(|conn| {
-                    cliptoo_core::db::queries::search_clips(
-                        conn,
-                        "",
-                        filter.as_str(),
-                        SEARCH_RESULT_LIMIT,
-                        0,
-                        None,
-                    )
-                })
-                .await;
-            if let Ok(clips) = result {
-                let db2 = db.clone();
-                let _ = ui.upgrade_in_event_loop(move |ui| {
-                    let slint_clips = crate::thumbnail_cache::convert_vec(clips, &td, &fd);
-                    let model =
-                        std::rc::Rc::new(slint::VecModel::<crate::ClipData>::from(slint_clips));
-                    ui.set_clips(model.into());
-                    ui.set_selected_index(0);
-                    ui.set_search_text("".into());
-                    crate::favicon::check_pending_favicons(&ui, &db2, &fd);
-                });
-            }
+            crate::helpers::refresh_clips(&db, &ui, &td, &fd, "", &f, None).await;
         });
     });
 }

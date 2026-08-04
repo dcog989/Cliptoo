@@ -8,8 +8,6 @@ use zbus::{
     zvariant::{OwnedObjectPath, OwnedValue, Value},
 };
 
-use cliptoo_core::db::queries::SEARCH_RESULT_LIMIT;
-
 const PORTAL_DEST: &str = "org.freedesktop.portal.Desktop";
 const PORTAL_PATH: &str = "/org/freedesktop/portal/desktop";
 const FILE_CHOOSER_IFACE: &str = "org.freedesktop.portal.FileChooser";
@@ -194,33 +192,7 @@ pub fn setup_manual_maintenance(
                         Some(path) => {
                             let count = cliptoo_core::export::import_from_file(&db, &path).await?;
                             let msg = format!("Imported {count} clips from {}", path.display());
-                            let td_import = td2.clone();
-                            let fd_import = fd.clone();
-                            if let Ok(clips) = db
-                                .with(|conn| {
-                                    cliptoo_core::db::queries::search_clips(
-                                        conn,
-                                        "",
-                                        "",
-                                        SEARCH_RESULT_LIMIT,
-                                        0,
-                                        None,
-                                    )
-                                })
-                                .await
-                            {
-                                let db_import = db.clone();
-                                let _ = ui.upgrade_in_event_loop(move |ui| {
-                                    let slint_clips = crate::thumbnail_cache::convert_vec(
-                                        clips, &td_import, &fd_import,
-                                    );
-                                    ui.set_clips(slint::ModelRc::from(slint_clips.as_slice()));
-                                    ui.set_selected_index(0);
-                                    crate::favicon::check_pending_favicons(
-                                        &ui, &db_import, &fd_import,
-                                    );
-                                });
-                            }
+                            crate::helpers::refresh_clips(&db, &ui, &td2, &fd, "", "", None).await;
                             Ok(Some(msg))
                         }
                         None => Ok(None),
@@ -260,29 +232,8 @@ pub fn setup_manual_maintenance(
 
             if !cancelled {
                 let need_refresh = key != "import";
-                if need_refresh
-                    && let Ok(clips) = db
-                        .with(|conn| {
-                            cliptoo_core::db::queries::search_clips(
-                                conn,
-                                "",
-                                "",
-                                SEARCH_RESULT_LIMIT,
-                                0,
-                                None,
-                            )
-                        })
-                        .await
-                {
-                    let fd_refresh = fd.clone();
-                    let db_refresh = db.clone();
-                    let _ = ui.upgrade_in_event_loop(move |ui| {
-                        let slint_clips =
-                            crate::thumbnail_cache::convert_vec(clips, &td2, &fd_refresh);
-                        ui.set_clips(slint::ModelRc::from(slint_clips.as_slice()));
-                        ui.set_selected_index(0);
-                        crate::favicon::check_pending_favicons(&ui, &db_refresh, &fd_refresh);
-                    });
+                if need_refresh {
+                    crate::helpers::refresh_clips(&db, &ui, &td2, &fd, "", "", None).await;
                 }
 
                 match key.as_str() {
