@@ -14,15 +14,24 @@ fn accent_hex(hue: f64, saturation: f64, value: f64) -> String {
     format!("#{r:02X}{g:02X}{b:02X}")
 }
 
-/// The accent hue currently in effect, in degrees: read back from the custom
-/// hex when one is set (the hex is authoritative for a color chosen before
-/// the tuning sliders existed), otherwise the persisted tuning value.
-fn current_accent_hue(s: &cliptoo_core::Settings) -> f64 {
-    if s.accent_color.trim().is_empty() {
-        s.accent_hue
-    } else {
+/// The HSV of the accent currently in effect. A custom hex is authoritative
+/// (a color chosen before the tuning sliders existed may not match the
+/// persisted tuning values); with no custom color ("Clear" / OS accent) the
+/// detected OS accent is used, falling back to the persisted tuning values.
+/// Returning all three components means the sliders always start from the
+/// accent that is actually shown, so tuning one of them (e.g. brightness on a
+/// muted OS green) never makes the other components jump to stored defaults.
+fn current_accent_hsv(
+    s: &cliptoo_core::Settings,
+    system_accent: Option<(u8, u8, u8)>,
+) -> (f64, f64, f64) {
+    if !s.accent_color.trim().is_empty() {
         let (r, g, b) = crate::theme::parse_accent_hex(&s.accent_color);
-        crate::theme::rgb_to_hsv(r, g, b).0
+        crate::theme::rgb_to_hsv(r, g, b)
+    } else if let Some((r, g, b)) = system_accent {
+        crate::theme::rgb_to_hsv(r, g, b)
+    } else {
+        (s.accent_hue, s.accent_saturation, s.accent_value)
     }
 }
 
@@ -213,9 +222,11 @@ pub fn setup_settings_window(
         } else {
             crate::theme::accent_hex_to_color(&s.accent_color)
         });
-        settings_win.set_s_accent_hue(current_accent_hue(&s).round() as i32);
-        settings_win.set_s_accent_saturation((s.accent_saturation * 100.0).round() as i32);
-        settings_win.set_s_accent_value((s.accent_value * 100.0).round() as i32);
+        let (accent_h, accent_s, accent_v) =
+            current_accent_hsv(&s, crate::theme::cached_resolved_theme().1);
+        settings_win.set_s_accent_hue(accent_h.round() as i32);
+        settings_win.set_s_accent_saturation((accent_s * 100.0).round() as i32);
+        settings_win.set_s_accent_value((accent_v * 100.0).round() as i32);
         settings_win.set_s_font_family(s.font_family.as_str().into());
         settings_win.set_s_font_size_hundredths((s.font_size * 100.0) as i32);
         settings_win.set_s_preview_font_size_hundredths((s.preview_font_size * 100.0) as i32);
@@ -278,6 +289,10 @@ pub fn setup_settings_window(
                 // shows the fallback color until a second click.
                 let (is_dark, system_accent) = crate::theme::resolve_theme(&s_snap).await;
                 let swatch = crate::theme::default_accent_color();
+                // Seed the tuning sliders from the OS accent so they reflect
+                // the swatch instead of the stale custom tuning values; the
+                // persisted fields are refreshed on the first slider move.
+                let os_hsv = system_accent.map(|(r, g, b)| crate::theme::rgb_to_hsv(r, g, b));
                 let main_weak = settings_ui.clone();
                 let settings_weak = sw.clone();
                 let s_main = s_snap.clone();
@@ -298,6 +313,11 @@ pub fn setup_settings_window(
                         system_accent,
                     );
                     win.set_s_accent_color(swatch);
+                    if let Some((h, sat, val)) = os_hsv {
+                        win.set_s_accent_hue(h.round() as i32);
+                        win.set_s_accent_saturation((sat * 100.0).round() as i32);
+                        win.set_s_accent_value((val * 100.0).round() as i32);
+                    }
                 });
                 let _ = s_snap.save(&p);
             });
@@ -435,35 +455,28 @@ if ok:
                     }
                     "accent_hue" | "accent_saturation" | "accent_value" => {
                         if let Ok(v) = value.parse::<f64>() {
-                            // Hue arrives in degrees (0–360), saturation and
-                            // brightness in percent.
-                            match key.as_str() {
-                                "accent_hue" => s.accent_hue = v.clamp(0.0, 360.0),
-                                "accent_saturation" => {
-                                    s.accent_saturation = v.clamp(0.0, 100.0) / 100.0;
-                                }
-                                _ => s.accent_value = v.clamp(0.0, 100.0) / 100.0,
-                            }
-                            // Hue is authoritative when the hue slider moved; a
-                            // saturation/brightness change instead keeps the
-                            // hue read back from the current custom hex (a
-                            // color chosen before these tuning sliders existed
-                            // may not match the persisted hue value).
-                            let hue = if key == "accent_hue"
-                                || s.accent_color.trim().is_empty()
-                            {
-                                s.accent_hue
-                            } else {
-                                let (r, g, b) = crate::theme::parse_accent_hex(&s.accent_color);
-                                crate::theme::rgb_to_hsv(r, g, b).0
+                            // Start from the accent currently shown — a custom
+                            // hex, the OS accent while "Clear" is active, or
+                            // the persisted tuning as last resort — then apply
+                            // only the moved slider (hue in degrees 0–360,
+                            // saturation/brightness in percent). This keeps
+                            // tuning from a "Clear" start on the muted green
+                            // that is actually displayed instead of snapping
+                            // the other components to stored defaults.
+                            let (is_dark, system_accent) = crate::theme::cached_resolved_theme();
+                            let (h, sat, val) = current_accent_hsv(&s, system_accent);
+                            let (h, sat, val) = match key.as_str() {
+                                "accent_hue" => (v.clamp(0.0, 360.0), sat, val),
+                                "accent_saturation" => (h, v.clamp(0.0, 100.0) / 100.0, val),
+                                _ => (h, sat, v.clamp(0.0, 100.0) / 100.0),
                             };
-                            s.accent_hue = hue;
-                            // Re-derive the accent hex from the three sliders.
                             // Moving any slider defines a custom accent, so this
                             // also works from a "Clear" (OS accent) start
                             // instead of doing nothing until a color is picked.
-                            s.accent_color = accent_hex(hue, s.accent_saturation, s.accent_value);
-                            let (is_dark, _) = crate::theme::cached_resolved_theme();
+                            s.accent_hue = h;
+                            s.accent_saturation = sat;
+                            s.accent_value = val;
+                            s.accent_color = accent_hex(h, sat, val);
                             if let Some(ui) = settings_ui.upgrade() {
                                 crate::theme::fill_theme(
                                     &ui.global::<crate::Theme>(),
@@ -473,7 +486,9 @@ if ok:
                                 );
                             }
                             if let Some(win) = sw.upgrade() {
-                                win.set_s_accent_hue(hue.round() as i32);
+                                win.set_s_accent_hue(h.round() as i32);
+                                win.set_s_accent_saturation((sat * 100.0).round() as i32);
+                                win.set_s_accent_value((val * 100.0).round() as i32);
                                 win.set_s_accent_color(crate::theme::accent_hex_to_color(
                                     &s.accent_color,
                                 ));
@@ -590,15 +605,31 @@ mod tests {
         }
     }
 
-    /// The hue slider position: read back from a custom hex when one is set,
-    /// otherwise the persisted tuning hue.
+    /// Tuning from a "Clear" (OS accent) start must start from the OS accent's
+    /// hue, saturation and brightness — not the stored tuning defaults — so a
+    /// muted green stays green and muted when its brightness is adjusted.
     #[test]
-    fn current_accent_hue_reads_custom_hex() {
-        let mut s = cliptoo_core::Settings::default();
-        assert_eq!(current_accent_hue(&s), s.accent_hue);
-        s.accent_color = "#7C6EE6".into();
+    fn current_accent_hsv_uses_os_accent_when_clear() {
+        let s = cliptoo_core::Settings::default();
+        let (r, g, b) = crate::theme::hsv_to_rgb(120.0, 0.3, 0.5);
+        let (h, sat, val) = current_accent_hsv(&s, Some((r, g, b)));
+        assert!((h - 120.0).abs() < 2.0, "OS hue drifted: {h}");
+        assert!((sat - 0.3).abs() < 0.02, "OS saturation drifted: {sat}");
+        assert!((val - 0.5).abs() < 0.02, "OS brightness drifted: {val}");
+    }
+
+    /// A custom hex is authoritative for all three tuning components.
+    #[test]
+    fn current_accent_hsv_reads_custom_hex() {
+        let s = cliptoo_core::Settings {
+            accent_color: "#7C6EE6".into(),
+            ..cliptoo_core::Settings::default()
+        };
         let (r, g, b) = crate::theme::parse_accent_hex(&s.accent_color);
-        let expected = crate::theme::rgb_to_hsv(r, g, b).0.round() as i32;
-        assert_eq!(current_accent_hue(&s).round() as i32, expected);
+        let (eh, es, ev) = crate::theme::rgb_to_hsv(r, g, b);
+        let (h, sat, val) = current_accent_hsv(&s, None);
+        assert!((h - eh).abs() < f64::EPSILON);
+        assert!((sat - es).abs() < f64::EPSILON);
+        assert!((val - ev).abs() < f64::EPSILON);
     }
 }
