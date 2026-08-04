@@ -6,7 +6,6 @@
 
 import { ContextMenu } from "ContextMenu.slint";
 import { Theme }       from "Theme.slint";
-import { ClipTypeMap } from "ClipTypes.slint";
 
 export component ContextMenuHost {
     // Populated by Rust from settings.send_to_apps before each show().
@@ -36,32 +35,11 @@ export component ContextMenuHost {
     // from the enclosing component; two-way bound to ContextMenu.view below.
     // Reset to "main" before each show() so the menu never reopens on a sub-view.
     in-out property <string> ctx-menu-view: "main";
+    // Raw right-click position. The popup's x/y bindings clamp these against
+    // the current menu size, so the popup re-clamps reactively as the view
+    // switches to "format"/"send-to".
     property <length> ctx-menu-x: 0px;
-    // Raw y requested at right-click. ctx-menu-y below clamps it against the
-    // current ctx-menu-height, so the popup re-clamps reactively when the menu
-    // grows as the view switches to "format"/"send-to".
     property <length> ctx-menu-anchor-y: 0px;
-    property <length> ctx-menu-y: Math.max(0px, Math.min(root.ctx-menu-anchor-y, root.window-height - root.ctx-menu-height));
-    property <length> ctx-menu-width: 190px;
-    property <length> ctx-menu-row-height: 32px;
-    property <length> ctx-menu-sep-height: 9px;
-    property <bool> ctx-is-text-type:
-        ClipTypeMap.is-text-type(root.ctx-clip-type);
-    // Height of the view currently shown in the context menu (keep in sync with
-    // ContextMenu.slint). Every view adds 2×4px vertical padding; rows are
-    // 32px, separators 9px.
-    //   main    — 8 base rows + 2 seps; +Format row for text clips;
-    //             +Send To sep+row when apps are configured.
-    //   format  — Back + 13 transforms = 14 rows + 3 seps (fixed content).
-    //   send-to — Back + 1 sep + one row per configured app.
-    property <length> ctx-menu-main-height:
-        2 * 4px + 8 * root.ctx-menu-row-height + 2 * root.ctx-menu-sep-height + (root.ctx-is-text-type ? root.ctx-menu-row-height : 0px) + (root.send-to-apps.length > 0 ? root.ctx-menu-sep-height + root.ctx-menu-row-height : 0px);
-    property <length> ctx-menu-format-height:
-        2 * 4px + 14 * root.ctx-menu-row-height + 3 * root.ctx-menu-sep-height;
-    property <length> ctx-menu-send-to-height:
-        2 * 4px + 2 * root.ctx-menu-row-height + root.ctx-menu-sep-height + root.send-to-apps.length * root.ctx-menu-row-height;
-    property <length> ctx-menu-height:
-        root.ctx-menu-view == "format" ? root.ctx-menu-format-height : root.ctx-menu-view == "send-to" ? root.ctx-menu-send-to-height : root.ctx-menu-main-height;
 
     // Called by AppWindow from the ClipList right-click callback before the
     // popup opens.
@@ -70,17 +48,18 @@ export component ContextMenuHost {
         root.ctx-clip-is-bookmarked = bookmarked;
         root.ctx-clip-type = clip-type;
         root.ctx-menu-view = "main";
-        root.ctx-menu-x = Math.min(x * 1px, root.window-width - (root.ctx-menu-width + 4px));
+        root.ctx-menu-x = x * 1px;
         root.ctx-menu-anchor-y = y * 1px;
         popup.show();
     }
 
     popup := PopupWindow {
-        x: root.ctx-menu-x;
-        y: root.ctx-menu-y;
-        width: root.ctx-menu-width;
-        // Explicit height needed for Qt backend — PopupWindow won't render without it.
-        height: root.ctx-menu-height;
+        x: Math.min(root.ctx-menu-x, root.window-width - (ctx-menu.menu-width + 4px));
+        y: Math.max(0px, Math.min(root.ctx-menu-anchor-y, root.window-height - ctx-menu.menu-height));
+        // Explicit size for the Qt backend — PopupWindow won't render without it.
+        // Sized to the menu's content; grows/shrinks as the sub-view switches.
+        width: ctx-menu.menu-width;
+        height: ctx-menu.menu-height;
         // Solid fill so any extra space below the menu content is not transparent.
         Rectangle {
             width: 100%;
@@ -89,7 +68,7 @@ export component ContextMenuHost {
         }
 
         ctx-menu := ContextMenu {
-            width: root.ctx-menu-width;
+            width: 100%;
             height: 100%;
             clip-id: root.ctx-clip-id;
             clip-is-bookmarked: root.ctx-clip-is-bookmarked;
@@ -98,7 +77,7 @@ export component ContextMenuHost {
             view <=> root.ctx-menu-view;
 
             preview => {
-                root.preview-requested(root.ctx-clip-id, root.ctx-menu-x / 1px, root.ctx-menu-y / 1px);
+                root.preview-requested(root.ctx-clip-id, popup.x / 1px, popup.y / 1px);
                 popup.close();
             }
             edit => {

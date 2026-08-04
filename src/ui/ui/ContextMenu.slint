@@ -104,7 +104,11 @@ export component ContextMenu {
     // True when the clip type supports text transformations.
     property <bool> is-text-type: ClipTypeMap.is-text-type(root.clip-type);
 
-    Rectangle {
+    // Intrinsic content size, used by ContextMenuHost to size the popup.
+    out property <length> menu-width: menu-root.preferred-width;
+    out property <length> menu-height: menu-root.preferred-height;
+
+    menu-root := Rectangle {
         border-radius: 8px;
         background: Theme.bg-header;
         border-width: 1px;
