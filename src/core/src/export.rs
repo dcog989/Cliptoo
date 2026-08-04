@@ -108,29 +108,33 @@ pub fn export_bookmarked_json(conn: &Connection) -> Result<Vec<u8>> {
 
 /// Import clips from a JSON byte slice.  Existing rows (by ContentHash) are
 /// skipped.  Returns the number of rows actually inserted.
+///
+/// Runs as a single explicit transaction with existing hashes preloaded into
+/// a `HashSet`, rather than a per-row `SELECT` + autocommitted `INSERT`: for
+/// a large import that was N*2 unbatched round-trips (each one committing
+/// individually in WAL mode) instead of one lookup pass plus one transaction.
 pub fn import_json(conn: &Connection, data: &[u8]) -> Result<u64> {
     let rows: Vec<ExportRow> = serde_json::from_slice(data).context("parse import JSON")?;
 
+    let mut existing_hashes: std::collections::HashSet<String> = {
+        let mut stmt = conn.prepare_cached("SELECT ContentHash FROM clips")?;
+        stmt.query_map([], |row| row.get::<_, String>(0))?
+            .collect::<std::result::Result<_, _>>()
+            .context("fetch existing hashes for import")?
+    };
+
+    conn.execute_batch("BEGIN;")
+        .context("begin import transaction")?;
+
     let mut inserted: u64 = 0;
     for row in &rows {
-        let exists: bool = match conn.query_row(
-            "SELECT 1 FROM clips WHERE ContentHash = ?1",
-            params![row.content_hash],
-            |_| Ok(true),
-        ) {
-            Ok(v) => v,
-            Err(rusqlite::Error::QueryReturnedNoRows) => false,
-            Err(e) => {
-                tracing::warn!("import: hash lookup failed for {}: {e}", row.content_hash);
-                false
-            }
-        };
-
-        if exists {
+        // Also catches duplicate hashes *within* the same import file, since
+        // the set is updated below as each row is inserted.
+        if existing_hashes.contains(&row.content_hash) {
             continue;
         }
 
-        conn.execute(
+        if let Err(e) = conn.execute(
             "INSERT INTO clips (
                 Content, PreviewContent, ContentHash, ClipType, SourceApp,
                 Timestamp, IsBookmarked, WasTrimmed, HasLeadingWhitespace,
@@ -151,20 +155,28 @@ pub fn import_json(conn: &Connection, data: &[u8]) -> Result<u64> {
                 row.paste_count,
                 row.tags,
             ],
-        )
-        .with_context(|| format!("insert imported clip hash={}", row.content_hash))?;
+        ) {
+            let _ = conn.execute_batch("ROLLBACK;");
+            return Err(e).with_context(|| format!("insert imported clip hash={}", row.content_hash));
+        }
 
+        existing_hashes.insert(row.content_hash.clone());
         inserted += 1;
     }
 
-    if inserted > 0 {
-        conn.execute(
+    if inserted > 0
+        && let Err(e) = conn.execute(
             "UPDATE stats SET Value = CAST(CAST(Value AS INTEGER) + ?1 AS TEXT)
              WHERE Key = 'UniqueClipsEver'",
             params![inserted as i64],
         )
-        .context("increment UniqueClipsEver")?;
+    {
+        let _ = conn.execute_batch("ROLLBACK;");
+        return Err(e).context("increment UniqueClipsEver");
     }
+
+    conn.execute_batch("COMMIT;")
+        .context("commit import transaction")?;
 
     info!("import_json: {} / {} rows inserted", inserted, rows.len());
     Ok(inserted)
