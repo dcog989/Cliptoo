@@ -53,6 +53,11 @@ export global ClipTypeMap {
         return @image-url("icons/file.svg");
     }
 
+    // True when the clip type supports text transformations.
+    public pure function is-text-type(key: string) -> bool {
+        return key == "text" || key == "file_path" || key == "code_snippet" || key == "rtf" || key == "link";
+    }
+
     // Localized label per filter key. Unknown keys fall back to the key itself.
     public pure function label-for(key: string) -> string {
         if key == "all" { return @tr("All"); }

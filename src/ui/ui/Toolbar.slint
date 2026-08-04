@@ -165,6 +165,7 @@ export component Toolbar {
                         root.accepted();
                     }
                 }
+
                 Text {
                     x: 12px;
                     width: parent.width - self.x;
@@ -201,8 +202,9 @@ export component Toolbar {
 
                 TouchArea {
                     Tooltip {
-                        text: @markdown("\{ root.filter-tooltip }");
+                        text: @markdown("\{ root.filter-tooltip}");
                     }
+
                     clicked => {
                         root.toggle-filter-grid();
                     }

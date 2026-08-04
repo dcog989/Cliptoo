@@ -6,6 +6,7 @@
 
 import { ContextMenu } from "ContextMenu.slint";
 import { Theme }       from "Theme.slint";
+import { ClipTypeMap } from "ClipTypes.slint";
 
 export component ContextMenuHost {
     // Populated by Rust from settings.send_to_apps before each show().
@@ -45,7 +46,7 @@ export component ContextMenuHost {
     property <length> ctx-menu-row-height: 32px;
     property <length> ctx-menu-sep-height: 9px;
     property <bool> ctx-is-text-type:
-        root.ctx-clip-type == "text" || root.ctx-clip-type == "file_path" || root.ctx-clip-type == "code_snippet" || root.ctx-clip-type == "rtf" || root.ctx-clip-type == "link";
+        ClipTypeMap.is-text-type(root.ctx-clip-type);
     // Height of the view currently shown in the context menu (keep in sync with
     // ContextMenu.slint). Every view adds 2×4px vertical padding; rows are
     // 32px, separators 9px.
