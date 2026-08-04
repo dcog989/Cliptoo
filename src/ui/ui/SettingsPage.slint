@@ -308,24 +308,26 @@ export component SettingsPage inherits ScrollView {
         }
 
         if root.row-clip-font-size-visible: FloatRow {
-            label: @tr("Clip list font size (px)");
+            label: @tr("Clip list font size");
             tooltip-text: @tr("Font size of clip entries in the main list");
             value-hundredths <=> root.s-font-size-hundredths;
             min-hundredths: 800;
             max-hundredths: 2400;
             step-hundredths: 100;
+            unit: " px";
             committed(v) => {
                 root.setting-changed("font_size", "\{v}");
             }
         }
 
         if root.row-preview-font-size-visible: FloatRow {
-            label: @tr("Preview font size (px)");
+            label: @tr("Preview font size");
             tooltip-text: @tr("Font size used for code and color previews");
             value-hundredths <=> root.s-preview-font-size-hundredths;
             min-hundredths: 800;
             max-hundredths: 2400;
             step-hundredths: 100;
+            unit: " px";
             committed(v) => {
                 root.setting-changed("preview_font_size", "\{v}");
             }
@@ -356,12 +358,13 @@ export component SettingsPage inherits ScrollView {
         }
 
         if root.row-image-preview-size-visible: IntRow {
-            label: @tr("Image preview size (px)");
+            label: @tr("Image preview size");
             tooltip-text: @tr("Maximum width/height of hover preview images");
             value <=> root.s-image-preview-size;
             min-val: 100;
             max-val: 800;
             step: 50;
+            unit: " px";
             committed(v) => {
                 root.setting-changed("hover_image_preview_size", "\{v}");
             }

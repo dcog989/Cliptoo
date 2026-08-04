@@ -186,6 +186,7 @@ export component IntRow {
     in property <int> min-val: 0;
     in property <int> max-val: 99999;
     in property <int> step: 1;
+    in property <string> unit: "";
     in property <string> tooltip-text;
     callback committed(int);
 
@@ -206,7 +207,7 @@ export component IntRow {
             }
 
             Text {
-                text: "\{root.value}";
+                text: "\{root.value}\{root.unit}";
                 color: Theme.fg-primary;
                 font-size: Theme.font-size;
             }
@@ -228,6 +229,7 @@ export component FloatRow {
     in property <int> min-hundredths: 0;
     in property <int> max-hundredths: 9999;
     in property <int> step-hundredths: 50;
+    in property <string> unit: "";
     in property <string> tooltip-text;
     callback committed(float);
 
@@ -248,7 +250,7 @@ export component FloatRow {
             }
 
             Text {
-                text: "\{root.value-hundredths / 100}";
+                text: "\{root.value-hundredths / 100}\{root.unit}";
                 color: Theme.fg-primary;
                 font-size: Theme.font-size;
             }
