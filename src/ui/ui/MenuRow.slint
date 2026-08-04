@@ -1,0 +1,74 @@
+// MenuRow.slint — A single row for a popup menu: optional icon + label +
+// optional sublabel + optional right-arrow, with hover/press accent styling.
+// Used by ContextMenu (32px rows) and HamburgerMenu (36px rows).
+
+import { Theme } from "Theme.slint";
+
+export component MenuRow {
+    in property <image> icon;
+    in property <string> label;
+    in property <string> sublabel: "";
+    in property <bool> is-danger: false;
+    in property <bool> has-arrow: false;
+    in property <bool> is-separator: false;
+    in property <length> row-height: 32px;
+    callback clicked;
+
+    height: root.is-separator ? 9px : root.row-height;
+
+    if root.is-separator: Rectangle {
+        y: 4px;
+        height: 1px;
+        background: Theme.border-subtle;
+    }
+
+    if !root.is-separator: Rectangle {
+        border-radius: 5px;
+        border-width: 1px;
+        border-color: touch.has-hover || touch.pressed ? Theme.accent-primary : transparent;
+        background: touch.pressed ? Theme.bg-row-selected : touch.has-hover ? Theme.bg-row-hover : transparent;
+
+        HorizontalLayout {
+            padding-left: 12px;
+            padding-right: 10px;
+            spacing: 8px;
+            alignment: start;
+            cross-axis-alignment: center;
+
+            if root.icon.width > 0: Image {
+                width: 16px;
+                height: 16px;
+                source: root.icon;
+                colorize: touch.has-hover && !touch.pressed ? Theme.accent-fg : root.is-danger ? Theme.fg-danger : Theme.fg-secondary;
+            }
+
+            Text {
+                text: root.label;
+                color: touch.has-hover && !touch.pressed ? Theme.accent-fg : root.is-danger ? Theme.fg-danger : Theme.fg-primary;
+                font-size: Theme.font-size;
+                vertical-alignment: center;
+            }
+
+            if root.sublabel != "": Text {
+                text: root.sublabel;
+                color: touch.has-hover && !touch.pressed ? Theme.accent-fg : Theme.fg-muted;
+                font-size: Theme.font-size - 1px;
+                vertical-alignment: center;
+            }
+
+            if root.has-arrow: Text {
+                text: "›";
+                color: touch.has-hover && !touch.pressed ? Theme.accent-fg : Theme.fg-muted;
+                font-size: Theme.font-size;
+                vertical-alignment: center;
+            }
+        }
+
+        touch := TouchArea {
+            clicked => {
+                root.clicked();
+            }
+            mouse-cursor: pointer;
+        }
+    }
+}
