@@ -411,3 +411,63 @@ pub async fn clear_kglobalaccel_bindings(action: &str) {
         )
         .await;
 }
+
+/// Keep the global toggle shortcut registered, re-registering whenever the
+/// user changes the hotkey in Settings.
+///
+/// The settings UI commits on every key-press, so typing `Ctrl+Alt+Q` fires
+/// several `watch` updates in quick succession. Debounce: only act once the
+/// value has been stable for a quiet period, so the KDE confirmation dialog
+/// appears for the complete combo, not the first modifier key.
+pub async fn run_hotkey_loop(
+    ui: slint::Weak<crate::AppWindow>,
+    mut hotkey_rx: tokio::sync::watch::Receiver<String>,
+) {
+    const HOTKEY_DEBOUNCE_MS: u64 = 800;
+    const TOGGLE_ID: &str = "toggle-cliptoo";
+
+    loop {
+        let main_hotkey = hotkey_rx.borrow().clone();
+
+        check_portal_presence().await;
+
+        let handle = register_shortcuts_and_listen(TOGGLE_ID, main_hotkey.as_str(), {
+            let weak = ui.clone();
+            move |shortcut_id| {
+                if shortcut_id == TOGGLE_ID {
+                    let _ = weak.upgrade_in_event_loop(move |ui| {
+                        crate::window::toggle_window(&ui);
+                    });
+                }
+            }
+        })
+        .await;
+
+        if let Err(e) = &handle {
+            tracing::warn!("Global shortcuts unavailable: {e}");
+        }
+
+        // Wait for the user to change a hotkey in Settings.
+        if hotkey_rx.changed().await.is_err() {
+            break;
+        }
+        loop {
+            match tokio::time::timeout(
+                std::time::Duration::from_millis(HOTKEY_DEBOUNCE_MS),
+                hotkey_rx.changed(),
+            )
+            .await
+            {
+                Err(_) => break,
+                Ok(Err(_)) => break,
+                Ok(Ok(())) => continue,
+            }
+        }
+
+        // Drop the old listener, clear the stale KGlobalAccel keys so the
+        // portal treats the shortcut as new (and applies the new
+        // preferred_trigger), then loop to re-register.
+        handle.map(|h| h.abort()).ok();
+        clear_kglobalaccel_bindings(TOGGLE_ID).await;
+    }
+}

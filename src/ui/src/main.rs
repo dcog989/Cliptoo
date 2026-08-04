@@ -175,62 +175,8 @@ async fn main() -> Result<()> {
     // ── Global shortcuts ───────────────────────────────────────────────
     {
         let ui_weak = ui.as_weak();
-        let mut hotkey_rx = hotkey_rx;
         tokio::spawn(async move {
-            loop {
-                let main_hotkey = hotkey_rx.borrow().clone();
-
-                hotkeys::check_portal_presence().await;
-
-                let handle = hotkeys::register_shortcuts_and_listen(
-                    "toggle-cliptoo",
-                    main_hotkey.as_str(),
-                    {
-                        let weak = ui_weak.clone();
-                        move |shortcut_id| {
-                            if shortcut_id == "toggle-cliptoo" {
-                                let _ = weak.upgrade_in_event_loop(move |ui| {
-                                    window::toggle_window(&ui);
-                                });
-                            }
-                        }
-                    },
-                )
-                .await;
-
-                if let Err(e) = &handle {
-                    tracing::warn!("Global shortcuts unavailable: {e}");
-                }
-
-                // Wait for the user to change a hotkey in Settings. The
-                // settings UI commits on every key-press, so a user typing
-                // `Ctrl+Alt+Q` fires several changes in quick succession.
-                // Debounce: only act once the value has been stable for a
-                // quiet period, so the KDE confirmation dialog appears for
-                // the complete combo, not the first modifier key.
-                const HOTKEY_DEBOUNCE_MS: u64 = 800;
-                if hotkey_rx.changed().await.is_err() {
-                    break;
-                }
-                loop {
-                    match tokio::time::timeout(
-                        std::time::Duration::from_millis(HOTKEY_DEBOUNCE_MS),
-                        hotkey_rx.changed(),
-                    )
-                    .await
-                    {
-                        Err(_) => break,
-                        Ok(Err(_)) => break,
-                        Ok(Ok(())) => continue,
-                    }
-                }
-
-                // Drop the old listener, clear the stale KGlobalAccel keys so
-                // the portal treats the shortcut as new (and applies the new
-                // preferred_trigger), then loop to re-register.
-                handle.map(|h| h.abort()).ok();
-                hotkeys::clear_kglobalaccel_bindings("toggle-cliptoo").await;
-            }
+            hotkeys::run_hotkey_loop(ui_weak, hotkey_rx).await;
         });
     }
 
