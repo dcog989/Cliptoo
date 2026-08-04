@@ -152,6 +152,9 @@ pub fn setup_clip_actions(
                     });
                     if let Some(ui) = ui.upgrade() {
                         crate::positioning::position_editor_relative_to_main(&edit, &ui);
+                        // Guard blur-to-tray while the editor is visible; cleared
+                        // when the editor closes (see edit.rs).
+                        ui.set_edit_open(true);
                     }
 
                     edit.set_editing(!is_code);

@@ -11,12 +11,14 @@ pub fn setup_edit_window(
     db: &Arc<cliptoo_core::db::DbPool>,
 ) -> crate::EditWindow {
     let edit_win = crate::EditWindow::new().expect("EditWindow creation");
+    let main_ui = ui.as_weak();
 
     // Save editor size on close.
     let ew = edit_win.as_weak();
     {
         let s = settings.clone();
         let p = dirs.settings_path.clone();
+        let main_ui = main_ui.clone();
         edit_win.window().on_close_requested(move || {
             if let Some(win) = ew.upgrade() {
                 let size = win.window().size();
@@ -25,6 +27,9 @@ pub fn setup_edit_window(
                 s.editor_window_height = size.height as f64;
                 let _ = s.save(&p);
             }
+            if let Some(ui) = main_ui.upgrade() {
+                ui.set_edit_open(false);
+            }
             slint::CloseRequestResponse::HideWindow
         });
     }
@@ -32,9 +37,13 @@ pub fn setup_edit_window(
     // Cancel closes the editor.
     {
         let ew = edit_win.as_weak();
+        let main_ui = main_ui.clone();
         edit_win.on_cancel_clicked(move || {
             if let Some(win) = ew.upgrade() {
                 let _ = win.hide();
+            }
+            if let Some(ui) = main_ui.upgrade() {
+                ui.set_edit_open(false);
             }
         });
     }
@@ -46,6 +55,7 @@ pub fn setup_edit_window(
         let edit_db = db.clone();
         let edit_td = dirs.thumbnails_dir.clone();
         let edit_fd = dirs.favicons_dir.clone();
+        let edit_main_ui = main_ui.clone();
         edit_win.on_save_clicked(
             move |id: i32, content: slint::SharedString, tags: slint::SharedString| {
                 let db = edit_db.clone();
@@ -53,6 +63,7 @@ pub fn setup_edit_window(
                 let ui = edit_ui.clone();
                 let td = edit_td.clone();
                 let fd = edit_fd.clone();
+                let main_ui = edit_main_ui.clone();
                 let content = content.to_string();
                 let tags = tags.to_string();
                 tokio::spawn(async move {
@@ -87,6 +98,9 @@ pub fn setup_edit_window(
                     helpers::refresh_clips(&db, &ui, &td, &fd, "", "", None).await;
                     let _ = win.upgrade_in_event_loop(move |win| {
                         let _ = win.hide();
+                        if let Some(ui) = main_ui.upgrade() {
+                            ui.set_edit_open(false);
+                        }
                     });
                 });
             },

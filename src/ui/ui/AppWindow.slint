@@ -100,10 +100,11 @@ export component AppWindow inherits Window {
     // it can never get stuck true; Rust sets settings-open while the settings
     // window is visible. popup-opening is set by the popup-open handlers so the
     // guard is already true the moment a host popup's show() runs.
-    property <bool> popup-open: root.popup-opening || ctx-menu-host.popup-open || hamburger-host.popup-open || filter-popup.popup-open || root.settings-open || root.about-open;
+    property <bool> popup-open: root.popup-opening || ctx-menu-host.popup-open || hamburger-host.popup-open || filter-popup.popup-open || root.settings-open || root.about-open || root.edit-open;
     property <bool> popup-opening: false;
     in-out property <bool> settings-open: false;
     in-out property <bool> about-open: false;
+    in-out property <bool> edit-open: false;
 
     in property <length> min-window-width: 320px;
     in property <length> min-window-height: 240px;
