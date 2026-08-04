@@ -18,6 +18,10 @@ export component PreviewTooltip {
     // cursor has simply moved onto the tooltip rather than away from it.
     out property <bool> hovered: hover-catch.has-hover;
 
+    // Cap on the tooltip content height; taller content is hard-clipped and
+    // signalled by the bottom fade-out gradient below.
+    private property <length> max-content-height: 260px;
+
     // Fills the window so the inner Rectangle can use absolute x/y coordinates.
     // No background — transparent overlay.
     x: 0px;
@@ -34,7 +38,7 @@ export component PreviewTooltip {
         x: root.popup-x * 1px;
         // Shift the popup up if it would clip at the bottom edge (8px margin).
         // content-layout.preferred-height reflects the actual text-wrapped height.
-        property <length> actual-h: content-layout.preferred-height > 260px ? 260px : content-layout.preferred-height;
+        property <length> actual-h: content-layout.preferred-height > root.max-content-height ? root.max-content-height : content-layout.preferred-height;
         y: (root.popup-y * 1px + actual-h > root.height - 8px) ? (root.height - actual-h - 8px) : root.popup-y * 1px;
         width: root.preview-clip-type == "code_snippet" ? 560px : 400px;
         height: actual-h;
@@ -180,9 +184,9 @@ export component PreviewTooltip {
             }
         }
         // Gradient fade at the bottom to signal truncation when content
-        // exceeds the 260px actual-h cap. Visible only for the text branch
+        // exceeds the max-content-height cap. Visible only for the text branch
         // (code_snippet has its own ScrollView; color/image are fixed height).
-        if root.preview-clip-type != "code_snippet" && root.preview-clip-type != "color" && root.preview-clip-type != "file_image" && content-layout.preferred-height > 260px: Rectangle {
+        if root.preview-clip-type != "code_snippet" && root.preview-clip-type != "color" && root.preview-clip-type != "file_image" && content-layout.preferred-height > root.max-content-height: Rectangle {
             x: 0;
             y: actual-h - 32px;
             width: 100%;
