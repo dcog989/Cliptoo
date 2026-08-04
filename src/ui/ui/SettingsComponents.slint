@@ -12,10 +12,17 @@ component SettingsRow {
     in property <length> min-content-width: 0px;
 
     height: 32px;
+    // Fill the host row's width: as a child of a non-layout component root
+    // (the row), an implicit-size custom component would otherwise be centered
+    // at its preferred width instead of stretching across the row.
+    width: 100%;
 
     HorizontalLayout {
         spacing: 12px;
-        alignment: start;
+        // Stretch alignment lets a `fill` content box consume the remaining
+        // row width (via horizontal-stretch); `start` pins non-fill boxes to
+        // their preferred size. A single fixed alignment can't serve both.
+        alignment: root.fill ? LayoutAlignment.stretch : LayoutAlignment.start;
 
         Text {
             width: 180px;
