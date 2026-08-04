@@ -14,25 +14,10 @@ const FILE_CHOOSER_IFACE: &str = "org.freedesktop.portal.FileChooser";
 const REQUEST_IFACE: &str = "org.freedesktop.portal.Request";
 
 /// Convert a `file://` URI to a plain filesystem path, or `None` if the URI
-/// is not a file URI. Minimal percent-decoding for the path segment.
+/// is not a file URI.
 fn file_uri_to_path(uri: &str) -> Option<String> {
     let rest = uri.strip_prefix("file://")?;
-    let mut out = String::with_capacity(rest.len());
-    let bytes = rest.as_bytes();
-    let mut i = 0;
-    while i < bytes.len() {
-        if bytes[i] == b'%' && i + 2 < bytes.len() {
-            let hex = &rest[i + 1..i + 3];
-            if let Ok(v) = u8::from_str_radix(hex, 16) {
-                out.push(v as char);
-                i += 3;
-                continue;
-            }
-        }
-        out.push(rest[i..].chars().next().unwrap_or('?'));
-        i += rest[i..].chars().next().unwrap_or('?').len_utf8();
-    }
-    Some(out)
+    Some(cliptoo_core::content::percent_decode_path(rest))
 }
 
 /// Ask the user for a file path via the XDG portal FileChooser.
