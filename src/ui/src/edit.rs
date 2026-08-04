@@ -2,8 +2,10 @@ use std::sync::Arc;
 
 use slint::ComponentHandle;
 
+use crate::helpers;
+
 pub fn setup_edit_window(
-    _ui: &crate::AppWindow,
+    ui: &crate::AppWindow,
     settings: &std::rc::Rc<std::cell::RefCell<cliptoo_core::Settings>>,
     dirs: &crate::app_dirs::AppDirs,
     db: &Arc<cliptoo_core::db::DbPool>,
@@ -37,22 +39,27 @@ pub fn setup_edit_window(
         });
     }
 
-    // Save updated clip content to DB.
+    // Save updated clip content to DB, then refresh the list.
     {
         let ew = edit_win.as_weak();
+        let edit_ui = ui.as_weak();
         let edit_db = db.clone();
+        let edit_td = dirs.thumbnails_dir.clone();
+        let edit_fd = dirs.favicons_dir.clone();
         edit_win.on_save_clicked(
             move |id: i32, content: slint::SharedString, tags: slint::SharedString| {
                 let db = edit_db.clone();
                 let win = ew.clone();
+                let ui = edit_ui.clone();
+                let td = edit_td.clone();
+                let fd = edit_fd.clone();
                 let content = content.to_string();
                 let tags = tags.to_string();
                 tokio::spawn(async move {
                     let normalized = cliptoo_core::content::normalize_line_endings(&content);
                     if let Some(classified) =
                         cliptoo_core::content::ContentProcessor::process(&normalized, false)
-                    {
-                        let _ = db
+                        && let Err(e) = db
                             .with(|conn| {
                                 cliptoo_core::db::queries::update_clip_content(
                                     conn,
@@ -67,11 +74,17 @@ pub fn setup_edit_window(
                                     classified.size_in_bytes,
                                 )
                             })
-                            .await;
+                            .await
+                    {
+                        tracing::error!("edit: failed to update clip {id} content: {e:#}");
                     }
-                    let _ = db
+                    if let Err(e) = db
                         .with(|conn| cliptoo_core::db::queries::update_tags(conn, id as i64, &tags))
-                        .await;
+                        .await
+                    {
+                        tracing::error!("edit: failed to update clip {id} tags: {e:#}");
+                    }
+                    helpers::refresh_clips(&db, &ui, &td, &fd, "", "", None).await;
                     let _ = win.upgrade_in_event_loop(move |win| {
                         let _ = win.hide();
                     });
