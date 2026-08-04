@@ -316,7 +316,10 @@ export component Toolbar {
                 }
                 if root.active-filter == "all": Image {
                     source: @image-url("icons/check-check.svg");
-                    colorize: Theme.accent-fg;
+                    // "All" sits on a neutral bg-input button (not the accent),
+                    // so it uses the neutral secondary foreground — accent-fg
+                    // goes black when the accent is light.
+                    colorize: Theme.fg-secondary;
                     width: 20px;
                     height: 20px;
                     x: 6px;
