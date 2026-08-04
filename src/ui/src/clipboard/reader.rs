@@ -125,7 +125,17 @@ async fn try_image(last_hash: &mut Option<String>) -> Result<Option<ClipboardPay
             continue;
         }
 
-        let hash = const_hex::encode(sha2::Sha256::digest(&data));
+        let digest = sha2::Sha256::digest(&data);
+        let hash = const_hex::encode(digest);
+        // Same convention as `cliptoo_core::content::hash::sha256_hex_and_prefix`:
+        // first 8 bytes of the digest, little-endian, for the fast in-memory
+        // paste-suppression set. Previously hard-coded to 0, which meant a
+        // self-pasted image could never be recognised as our own paste.
+        let sup_hash = u64::from_le_bytes(
+            digest[..8]
+                .try_into()
+                .expect("SHA-256 output is >= 8 bytes"),
+        );
 
         if last_hash.as_deref() == Some(&hash) {
             return Ok(None);
@@ -135,7 +145,7 @@ async fn try_image(last_hash: &mut Option<String>) -> Result<Option<ClipboardPay
         return Ok(Some(ClipboardPayload::Image {
             hash,
             data,
-            sup_hash: 0,
+            sup_hash,
         }));
     }
 
