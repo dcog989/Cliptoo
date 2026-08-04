@@ -111,32 +111,9 @@ export component MainClipArea inherits Rectangle {
 
             // ── Quick-paste: modifier held + digit 1–9 ──
             if (root.quick-paste-active && e.text >= "1" && e.text <= "\{root.quick-paste-slots}") {
-                if (e.text == "1" && root.clips.length > 0) {
-                    root.item-activated(root.clips[0].id);
-                }
-                if (e.text == "2" && root.clips.length > 1) {
-                    root.item-activated(root.clips[1].id);
-                }
-                if (e.text == "3" && root.clips.length > 2) {
-                    root.item-activated(root.clips[2].id);
-                }
-                if (e.text == "4" && root.clips.length > 3) {
-                    root.item-activated(root.clips[3].id);
-                }
-                if (e.text == "5" && root.clips.length > 4) {
-                    root.item-activated(root.clips[4].id);
-                }
-                if (e.text == "6" && root.clips.length > 5) {
-                    root.item-activated(root.clips[5].id);
-                }
-                if (e.text == "7" && root.clips.length > 6) {
-                    root.item-activated(root.clips[6].id);
-                }
-                if (e.text == "8" && root.clips.length > 7) {
-                    root.item-activated(root.clips[7].id);
-                }
-                if (e.text == "9" && root.clips.length > 8) {
-                    root.item-activated(root.clips[8].id);
+                let digit = Math.floor(e.text.to-float());
+                if (digit >= 1 && digit <= root.quick-paste-slots && root.clips.length > digit - 1) {
+                    root.item-activated(root.clips[digit - 1].id);
                 }
                 return accept;
             }
