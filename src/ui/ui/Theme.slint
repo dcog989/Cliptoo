@@ -34,6 +34,14 @@ export global Theme {
     in property <color> border-subtle:     #2A2A2A;
     in property <color> shadow:            #00000030;
 
+    // ── Status & control colors (static, not accent-derived) ───────────────
+    in property <color> error-base:     #c0392b;  // deep red fill (destructive buttons)
+    in property <color> error-fg:       #e74c3c;  // bright red text (error toasts)
+    in property <color> warn-base:      #e67e22;  // amber fill (warning toasts)
+    in property <color> warn-fg:        #f39c12;  // bright amber text (warning toasts)
+    in property <color> link-fg:        #4C9EFF;  // link blue, readable on any background
+    in property <color> bg-track:       #555555;  // slider track / toggle-off background
+
     // ── Typography ────────────────────────────────────────────────────────────
     in property <string> font-family:      "Inter";
     // Base UI font, fixed at the theme default. The user-facing "font size"

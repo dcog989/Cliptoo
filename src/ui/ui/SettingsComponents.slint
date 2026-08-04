@@ -51,7 +51,7 @@ export component StepperButton inherits Rectangle {
         }
     }
 
-    if root.tooltip-text != "" : Tooltip {
+    if root.tooltip-text != "": Tooltip {
         text: @markdown("\{root.tooltip-text}");
     }
 }
@@ -66,11 +66,11 @@ export component TextRow {
     HorizontalLayout {
         spacing: 12px;
         Text {
-                width: 180px;
-                text: root.label;
-                color: Theme.fg-primary;
-                font-size: Theme.font-size;
-                vertical-alignment: center;
+            width: 180px;
+            text: root.label;
+            color: Theme.fg-primary;
+            font-size: Theme.font-size;
+            vertical-alignment: center;
         }
 
         Rectangle {
@@ -97,7 +97,7 @@ export component TextRow {
         }
     }
 
-    if root.tooltip-text != "" : Tooltip {
+    if root.tooltip-text != "": Tooltip {
         text: @markdown("\{root.tooltip-text}");
     }
 }
@@ -115,11 +115,11 @@ export component HotkeyRow {
         spacing: 12px;
         alignment: start;
         Text {
-                width: 180px;
-                text: root.label;
-                color: Theme.fg-primary;
-                font-size: Theme.font-size;
-                vertical-alignment: center;
+            width: 180px;
+            text: root.label;
+            color: Theme.fg-primary;
+            font-size: Theme.font-size;
+            vertical-alignment: center;
         }
 
         Rectangle {
@@ -154,6 +154,7 @@ export component HotkeyRow {
                     }
                 }
             }
+
             TouchArea {
                 clicked => {
                     root.captured = false;
@@ -163,7 +164,7 @@ export component HotkeyRow {
         }
     }
 
-    if root.tooltip-text != "" : Tooltip {
+    if root.tooltip-text != "": Tooltip {
         text: @markdown("\{root.tooltip-text}");
     }
 }
@@ -182,11 +183,11 @@ export component IntRow {
         spacing: 12px;
         alignment: start;
         Text {
-                width: 180px;
-                text: root.label;
-                color: Theme.fg-primary;
-                font-size: Theme.font-size;
-                vertical-alignment: center;
+            width: 180px;
+            text: root.label;
+            color: Theme.fg-primary;
+            font-size: Theme.font-size;
+            vertical-alignment: center;
         }
 
         Rectangle {
@@ -225,7 +226,7 @@ export component IntRow {
         }
     }
 
-    if root.tooltip-text != "" : Tooltip {
+    if root.tooltip-text != "": Tooltip {
         text: @markdown("\{root.tooltip-text}");
     }
 }
@@ -244,11 +245,11 @@ export component FloatRow {
         spacing: 12px;
         alignment: start;
         Text {
-                width: 180px;
-                text: root.label;
-                color: Theme.fg-primary;
-                font-size: Theme.font-size;
-                vertical-alignment: center;
+            width: 180px;
+            text: root.label;
+            color: Theme.fg-primary;
+            font-size: Theme.font-size;
+            vertical-alignment: center;
         }
 
         Rectangle {
@@ -287,7 +288,7 @@ export component FloatRow {
         }
     }
 
-    if root.tooltip-text != "" : Tooltip {
+    if root.tooltip-text != "": Tooltip {
         text: @markdown("\{root.tooltip-text}");
     }
 }
@@ -313,11 +314,11 @@ export component SliderRow {
     HorizontalLayout {
         spacing: 12px;
         Text {
-                width: 180px;
-                text: root.label;
-                color: Theme.fg-primary;
-                font-size: Theme.font-size;
-                vertical-alignment: center;
+            width: 180px;
+            text: root.label;
+            color: Theme.fg-primary;
+            font-size: Theme.font-size;
+            vertical-alignment: center;
         }
 
         Rectangle {
@@ -340,7 +341,7 @@ export component SliderRow {
                     Rectangle {
                         height: 6px;
                         border-radius: 3px;
-                        background: #555;
+                        background: Theme.bg-track;
                         y: (parent.height - 6px) / 2;
                         Rectangle {
                             width: 16px;
@@ -356,6 +357,7 @@ export component SliderRow {
                         Tooltip {
                             text: @markdown("\{root.tooltip-text}");
                         }
+
                         pointer-event(e) => {
                             if (e.kind == PointerEventKind.down || (e.kind == PointerEventKind.move && self.pressed)) {
                                 let span = root.max-val - root.min-val;
@@ -377,7 +379,7 @@ export component SliderRow {
         }
     }
 
-    if root.tooltip-text != "" : Tooltip {
+    if root.tooltip-text != "": Tooltip {
         text: @markdown("\{root.tooltip-text}");
     }
 }
@@ -394,11 +396,11 @@ export component DropRow {
         spacing: 12px;
         alignment: start;
         Text {
-                width: 180px;
-                text: root.label;
-                color: Theme.fg-primary;
-                font-size: Theme.font-size;
-                vertical-alignment: center;
+            width: 180px;
+            text: root.label;
+            color: Theme.fg-primary;
+            font-size: Theme.font-size;
+            vertical-alignment: center;
         }
 
         Rectangle {
@@ -440,7 +442,7 @@ export component DropRow {
         }
     }
 
-    if root.tooltip-text != "" : Tooltip {
+    if root.tooltip-text != "": Tooltip {
         text: @markdown("\{root.tooltip-text}");
     }
 }
@@ -456,11 +458,11 @@ export component ToggleRow {
         spacing: 12px;
         alignment: start;
         Text {
-                width: 180px;
-                text: root.label;
-                color: Theme.fg-primary;
-                font-size: Theme.font-size;
-                vertical-alignment: center;
+            width: 180px;
+            text: root.label;
+            color: Theme.fg-primary;
+            font-size: Theme.font-size;
+            vertical-alignment: center;
         }
 
         Rectangle {
@@ -475,7 +477,7 @@ export component ToggleRow {
                     width: 44px;
                     height: 22px;
                     border-radius: 11px;
-                    background: root.value ? Theme.accent-primary : #555;
+                    background: root.value ? Theme.accent-primary : Theme.bg-track;
                     animate background { duration: Theme.anim-fast; }
                     Rectangle {
                         width: 18px;
@@ -498,7 +500,7 @@ export component ToggleRow {
         }
     }
 
-    if root.tooltip-text != "" : Tooltip {
+    if root.tooltip-text != "": Tooltip {
         text: @markdown("\{root.tooltip-text}");
     }
 }

@@ -95,7 +95,7 @@ export component SettingsPage inherits ScrollView {
             top-margin: 0px;
         }
 
-        if root.row-hotkey-visible : HotkeyRow {
+        if root.row-hotkey-visible: HotkeyRow {
             label: @tr("Launch hotkey");
             tooltip-text: @tr("Global hotkey to toggle the Cliptoo window");
             value <=> root.s-hotkey;
@@ -104,7 +104,7 @@ export component SettingsPage inherits ScrollView {
             }
         }
 
-        if root.row-startup-visible : ToggleRow {
+        if root.row-startup-visible: ToggleRow {
             label: @tr("Start with system");
             tooltip-text: @tr("Launch Cliptoo automatically when you log in");
             value <=> root.s-start-with-system;
@@ -113,7 +113,7 @@ export component SettingsPage inherits ScrollView {
             }
         }
 
-        if root.row-tray-visible : ToggleRow {
+        if root.row-tray-visible: ToggleRow {
             label: @tr("Always close to tray");
             tooltip-text: @tr("Hide to the system tray when the window loses focus");
             value <=> root.s-always-close-to-tray;
@@ -122,7 +122,7 @@ export component SettingsPage inherits ScrollView {
             }
         }
 
-        if root.row-quickpaste-visible : DropRow {
+        if root.row-quickpaste-visible: DropRow {
             label: @tr("Quick-paste modifier");
             tooltip-text: @tr("Modifier key to hold for the quick-paste number overlay");
             index <=> root.s-quick-paste-mod-idx;
@@ -132,7 +132,7 @@ export component SettingsPage inherits ScrollView {
             }
         }
 
-        if root.row-plaintext-visible : ToggleRow {
+        if root.row-plaintext-visible: ToggleRow {
             label: @tr("Paste as plain text");
             tooltip-text: @tr("Strip formatting when pasting text from Cliptoo");
             value <=> root.s-paste-as-plain-text;
@@ -141,7 +141,7 @@ export component SettingsPage inherits ScrollView {
             }
         }
 
-        if root.row-loglevel-visible : DropRow {
+        if root.row-loglevel-visible: DropRow {
             label: @tr("Log level");
             tooltip-text: @tr("Verbosity of messages written to the log file");
             index <=> root.s-log-level-idx;
@@ -151,7 +151,7 @@ export component SettingsPage inherits ScrollView {
             }
         }
 
-        if root.row-logfile-visible : HorizontalLayout {
+        if root.row-logfile-visible: HorizontalLayout {
             spacing: 12px;
             alignment: start;
             height: 32px;
@@ -173,6 +173,7 @@ export component SettingsPage inherits ScrollView {
                     Tooltip {
                         text: @markdown("\{root.tip-open-log}");
                     }
+
                     clicked => {
                         root.open-log();
                     }
@@ -189,7 +190,7 @@ export component SettingsPage inherits ScrollView {
             text: @tr("Appearance");
         }
 
-        if root.row-theme-visible : DropRow {
+        if root.row-theme-visible: DropRow {
             label: @tr("Theme");
             index <=> root.s-theme-idx;
             options: ["System", "Light", "Dark"];
@@ -198,7 +199,7 @@ export component SettingsPage inherits ScrollView {
             }
         }
 
-        if root.row-accent-visible : HorizontalLayout {
+        if root.row-accent-visible: HorizontalLayout {
             spacing: 12px;
             alignment: start;
             height: 32px;
@@ -233,7 +234,7 @@ export component SettingsPage inherits ScrollView {
             }
         }
 
-        if root.row-accent-hue-visible : SliderRow {
+        if root.row-accent-hue-visible: SliderRow {
             label: @tr("Accent hue");
             tooltip-text: @tr("Hue of the accent color");
             value <=> root.s-accent-hue;
@@ -245,7 +246,7 @@ export component SettingsPage inherits ScrollView {
             }
         }
 
-        if root.row-accent-sat-visible : SliderRow {
+        if root.row-accent-sat-visible: SliderRow {
             label: @tr("Accent saturation");
             tooltip-text: @tr("Color intensity of the accent swatches");
             value <=> root.s-accent-saturation;
@@ -254,7 +255,7 @@ export component SettingsPage inherits ScrollView {
             }
         }
 
-        if root.row-accent-value-visible : SliderRow {
+        if root.row-accent-value-visible: SliderRow {
             label: @tr("Accent brightness");
             tooltip-text: @tr("How light or dark the accent swatches appear");
             value <=> root.s-accent-value;
@@ -263,7 +264,7 @@ export component SettingsPage inherits ScrollView {
             }
         }
 
-        if root.row-font-visible : HorizontalLayout {
+        if root.row-font-visible: HorizontalLayout {
             spacing: 12px;
             alignment: start;
             height: 32px;
@@ -293,9 +294,11 @@ export component SettingsPage inherits ScrollView {
                         overflow: elide;
                     }
                 }
+
                 Tooltip {
                     text: @markdown("\{root.tip-font-family}");
                 }
+
                 font-touch := TouchArea {
                     clicked => {
                         root.font-picker();
@@ -305,7 +308,7 @@ export component SettingsPage inherits ScrollView {
             }
         }
 
-        if root.row-clip-font-size-visible : FloatRow {
+        if root.row-clip-font-size-visible: FloatRow {
             label: @tr("Clip list font size (px)");
             tooltip-text: @tr("Font size of clip entries in the main list");
             value-hundredths <=> root.s-font-size-hundredths;
@@ -317,7 +320,7 @@ export component SettingsPage inherits ScrollView {
             }
         }
 
-        if root.row-preview-font-size-visible : FloatRow {
+        if root.row-preview-font-size-visible: FloatRow {
             label: @tr("Preview font size (px)");
             tooltip-text: @tr("Font size used for code and color previews");
             value-hundredths <=> root.s-preview-font-size-hundredths;
@@ -329,7 +332,7 @@ export component SettingsPage inherits ScrollView {
             }
         }
 
-        if root.row-padding-visible : DropRow {
+        if root.row-padding-visible: DropRow {
             label: @tr("Row padding");
             tooltip-text: @tr("Vertical padding of items in the clip list");
             index <=> root.s-row-padding-idx;
@@ -339,7 +342,7 @@ export component SettingsPage inherits ScrollView {
             }
         }
 
-        if root.row-hover-delay-visible : HorizontalLayout {
+        if root.row-hover-delay-visible: HorizontalLayout {
             spacing: 12px;
             height: 32px;
             Text {
@@ -370,7 +373,7 @@ export component SettingsPage inherits ScrollView {
                         Rectangle {
                             height: 6px;
                             border-radius: 3px;
-                            background: #555;
+                            background: Theme.bg-track;
                             y: (parent.height - 6px) / 2;
                             Rectangle {
                                 width: 16px;
@@ -386,6 +389,7 @@ export component SettingsPage inherits ScrollView {
                             Tooltip {
                                 text: @markdown("\{root.tip-hover-delay}");
                             }
+
                             pointer-event(e) => {
                                 if (e.kind == PointerEventKind.down || (e.kind == PointerEventKind.move && self.pressed)) {
                                     let raw = Math.round(touch.mouse-x / track.width * 2000 / 50) * 50;
@@ -406,7 +410,7 @@ export component SettingsPage inherits ScrollView {
             }
         }
 
-        if root.row-image-preview-size-visible : IntRow {
+        if root.row-image-preview-size-visible: IntRow {
             label: @tr("Image preview size (px)");
             tooltip-text: @tr("Maximum width/height of hover preview images");
             value <=> root.s-image-preview-size;
@@ -423,7 +427,7 @@ export component SettingsPage inherits ScrollView {
             text: @tr("External Apps");
         }
 
-        if root.row-diff-tool-visible : TextRow {
+        if root.row-diff-tool-visible: TextRow {
             label: @tr("Diff tool path");
             tooltip-text: @tr("Command used to compare two text clips");
             value <=> root.s-diff-tool-path;
@@ -432,7 +436,7 @@ export component SettingsPage inherits ScrollView {
             }
         }
 
-        if root.row-external-note-visible : Text {
+        if root.row-external-note-visible: Text {
             text: @tr("Send To apps and Blacklist are managed via JSON settings file.");
             color: Theme.fg-muted;
             font-size: Theme.font-size;
