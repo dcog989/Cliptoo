@@ -197,6 +197,439 @@ fn reapply_theme(
     });
 }
 
+/// Reset settings-open and persist the window size when the settings window
+/// is closed via the window manager (ESC is handled by the settings-closing
+/// callback).
+fn setup_close_persistence(
+    settings_win: &crate::SettingsWindow,
+    main_ui: &crate::AppWindow,
+    settings: &std::rc::Rc<std::cell::RefCell<cliptoo_core::Settings>>,
+    settings_path: &std::path::Path,
+) {
+    let main_ui = main_ui.as_weak();
+    let sw = settings_win.as_weak();
+    let s = settings.clone();
+    let p = settings_path.to_path_buf();
+    settings_win.window().on_close_requested(move || {
+        if let Some(win) = sw.upgrade() {
+            persist_window_size(&win, &s, &p);
+        }
+        if let Some(ui) = main_ui.upgrade() {
+            ui.set_settings_open(false);
+        }
+        slint::CloseRequestResponse::HideWindow
+    });
+}
+
+/// Push every persisted setting into the window's properties.
+fn init_settings_properties(
+    settings_win: &crate::SettingsWindow,
+    settings: &std::rc::Rc<std::cell::RefCell<cliptoo_core::Settings>>,
+) {
+    let s = settings.borrow();
+    settings_win.set_stored_width(s.settings_window_width as f32);
+    settings_win.set_stored_height(s.settings_window_height as f32);
+    settings_win.set_s_hotkey(clean_hotkey_text(s.hotkey.as_str()).into());
+    settings_win.set_s_start_with_system(s.start_with_system);
+    settings_win.set_s_always_close_to_tray(s.always_close_to_tray);
+    settings_win.set_s_quick_paste_mod_idx(idx_of(
+        &s.quick_paste_modifier,
+        &["Right Alt", "Left Alt", "Control"],
+    ));
+    settings_win.set_s_log_level_idx(idx_of(
+        &s.logging_level,
+        &["Debug", "Info", "Warn", "Error"],
+    ));
+    settings_win.set_s_theme_idx(idx_of(&s.theme, &["System", "Light", "Dark"]));
+    settings_win.set_s_accent_color(if s.accent_color.trim().is_empty() {
+        crate::theme::default_accent_color()
+    } else {
+        crate::theme::accent_hex_to_color(&s.accent_color)
+    });
+    let (accent_h, accent_s, accent_v) =
+        current_accent_hsv(&s, crate::theme::cached_resolved_theme().1);
+    settings_win.set_s_accent_hue(accent_h.round() as i32);
+    settings_win.set_s_accent_saturation((accent_s * 100.0).round() as i32);
+    settings_win.set_s_accent_value((accent_v * 100.0).round() as i32);
+    settings_win.set_s_font_family(s.font_family.as_str().into());
+    settings_win.set_s_font_size_hundredths((s.font_size * 100.0) as i32);
+    settings_win.set_s_preview_font_size_hundredths((s.preview_font_size * 100.0) as i32);
+    settings_win.set_s_row_padding_idx(idx_of(
+        &s.clip_item_padding,
+        &["Compact", "Standard", "Luxury"],
+    ));
+    settings_win.set_hover_delay(s.hover_preview_delay as i32);
+    settings_win.set_s_image_preview_size(s.hover_image_preview_size as i32);
+    settings_win.set_s_paste_as_plain_text(s.paste_as_plain_text);
+    settings_win.set_s_diff_tool_path(s.compare_tool_path.as_str().into());
+    settings_win.set_s_max_clips(s.max_clips as i32);
+    settings_win.set_s_max_age_days(s.max_age_days as i32);
+}
+
+/// Forward maintenance actions from the settings window to the main window.
+fn setup_maintenance_forwarding(settings_win: &crate::SettingsWindow, main_ui: &crate::AppWindow) {
+    let main_ui = main_ui.as_weak();
+    settings_win.on_maintenance_action(move |key: slint::SharedString| {
+        if let Some(ui) = main_ui.upgrade() {
+            ui.invoke_maintenance_action(key);
+        }
+    });
+}
+
+/// Instant filter search: the header query is matched against each option
+/// row's keywords and drives the row visibility. Runs on the UI thread (the
+/// callback fires from Slint's edited handler), so setters are safe here.
+fn setup_settings_filter(settings_win: &crate::SettingsWindow) {
+    let sw = settings_win.as_weak();
+    settings_win.on_filter_changed(move |query: slint::SharedString| {
+        if let Some(win) = sw.upgrade() {
+            apply_settings_filter(&win, &query);
+        }
+    });
+}
+
+/// Clear accent: empty accent_color means "use the OS default accent".
+fn setup_clear_accent(
+    settings_win: &crate::SettingsWindow,
+    main_ui: &crate::AppWindow,
+    settings: &std::rc::Rc<std::cell::RefCell<cliptoo_core::Settings>>,
+    settings_path: &std::path::Path,
+) {
+    let sw = settings_win.as_weak();
+    let settings_ui = main_ui.as_weak();
+    let s = settings.clone();
+    let p = settings_path.to_path_buf();
+    settings_win.on_clear_accent_color(move || {
+        // Clear synchronously: Rc<RefCell<Settings>> is !Send, so it must
+        // not cross into the spawned task. Snapshot the cleared settings.
+        let s_snap;
+        {
+            let mut s = s.borrow_mut();
+            s.accent_color = String::new();
+            s_snap = s.clone();
+        }
+        let sw = sw.clone();
+        let settings_ui = settings_ui.clone();
+        let p = p.clone();
+        tokio::spawn(async move {
+            // Resolve first so the shared cache holds the freshly detected
+            // OS accent; the settings swatch reads that cache. Without this,
+            // a previously custom accent leaves the cache stale and "Clear"
+            // shows the fallback color until a second click.
+            let (is_dark, system_accent) = crate::theme::resolve_theme(&s_snap).await;
+            let swatch = crate::theme::default_accent_color();
+            // Seed the tuning sliders from the OS accent so they reflect
+            // the swatch instead of the stale custom tuning values; the
+            // persisted fields are refreshed on the first slider move.
+            let os_hsv = system_accent.map(|(r, g, b)| crate::theme::rgb_to_hsv(r, g, b));
+            let main_weak = settings_ui.clone();
+            let settings_weak = sw.clone();
+            let s_main = s_snap.clone();
+            let s_settings = s_snap.clone();
+            let _ = main_weak.upgrade_in_event_loop(move |ui| {
+                crate::theme::fill_theme(
+                    &ui.global::<crate::Theme>(),
+                    &s_main,
+                    is_dark,
+                    system_accent,
+                );
+            });
+            let _ = settings_weak.upgrade_in_event_loop(move |win| {
+                crate::theme::fill_theme(
+                    &win.global::<crate::Theme>(),
+                    &s_settings,
+                    is_dark,
+                    system_accent,
+                );
+                win.set_s_accent_color(swatch);
+                if let Some((h, sat, val)) = os_hsv {
+                    win.set_s_accent_hue(h.round() as i32);
+                    win.set_s_accent_saturation((sat * 100.0).round() as i32);
+                    win.set_s_accent_value((val * 100.0).round() as i32);
+                }
+            });
+            let _ = s_snap.save(&p);
+        });
+    });
+}
+
+/// Open the latest log file via the system default viewer.
+fn setup_open_log(settings_win: &crate::SettingsWindow, logs_dir: &std::path::Path) {
+    let logs_dir = logs_dir.to_path_buf();
+    settings_win.on_open_log(move || {
+        let Some(latest) = cliptoo_core::logger::latest_log_path(&logs_dir) else {
+            tracing::warn!("open-log: no log file yet in {}", logs_dir.display());
+            return;
+        };
+        if let Err(e) = std::process::Command::new("xdg-open").arg(&latest).spawn() {
+            tracing::warn!(
+                "open-log: failed to launch xdg-open for {}: {e}",
+                latest.display()
+            );
+        }
+    });
+}
+
+/// When the settings window closes, reset settings-open so ESC and blur-to-tray
+/// work again on the main window, and persist the size.
+fn setup_settings_closing(
+    settings_win: &crate::SettingsWindow,
+    main_ui: &crate::AppWindow,
+    settings: &std::rc::Rc<std::cell::RefCell<cliptoo_core::Settings>>,
+    settings_path: &std::path::Path,
+) {
+    let main_ui = main_ui.as_weak();
+    let sw = settings_win.as_weak();
+    let s = settings.clone();
+    let p = settings_path.to_path_buf();
+    settings_win.on_settings_closing(move || {
+        if let Some(win) = sw.upgrade() {
+            persist_window_size(&win, &s, &p);
+        }
+        if let Some(ui) = main_ui.upgrade() {
+            ui.set_settings_open(false);
+        }
+    });
+}
+
+/// Font picker — native KDE font dialog via Qt (PyQt6).
+fn setup_font_picker(
+    settings_win: &crate::SettingsWindow,
+    main_ui: &crate::AppWindow,
+    settings: &std::rc::Rc<std::cell::RefCell<cliptoo_core::Settings>>,
+    settings_path: &std::path::Path,
+) {
+    let sw = settings_win.as_weak();
+    let settings_ui = main_ui.as_weak();
+    let s = settings.clone();
+    let p = settings_path.to_path_buf();
+    settings_win.on_font_picker(move || {
+        let script = r#"
+from PyQt6.QtWidgets import QApplication, QFontDialog
+app = QApplication([])
+font, ok = QFontDialog.getFont()
+if ok:
+    print(font.family())
+"#;
+        let Ok(output) = std::process::Command::new("python3")
+            .arg("-c")
+            .arg(script)
+            .output()
+        else {
+            return;
+        };
+        let family = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if family.is_empty() {
+            return;
+        }
+        let mut s = s.borrow_mut();
+        s.font_family.clone_from(&family);
+        if let Some(win) = sw.upgrade() {
+            win.set_s_font_family(family.as_str().into());
+        }
+        apply_theme_to_windows(&settings_ui, &sw, |t| {
+            t.set_font_family(family.as_str().into());
+        });
+        let _ = s.save(&p);
+    });
+}
+
+/// Handle setting changes: persist each key/value into `Settings` and re-apply
+/// live effects (theme, fonts, hotkeys).
+fn setup_setting_commit(
+    settings_win: &crate::SettingsWindow,
+    main_ui: &crate::AppWindow,
+    settings: &std::rc::Rc<std::cell::RefCell<cliptoo_core::Settings>>,
+    settings_path: &std::path::Path,
+    hotkey_tx: tokio::sync::watch::Sender<String>,
+) {
+    let s = settings.clone();
+    let p = settings_path.to_path_buf();
+    let settings_ui = main_ui.as_weak();
+    let sw = settings_win.as_weak();
+    settings_win.on_setting_changed(
+        move |key: slint::SharedString, value: slint::SharedString| {
+            let key = key.to_string();
+            let value = value.to_string();
+            let mut s = s.borrow_mut();
+
+            match key.as_str() {
+                "hotkey" => {
+                    let cleaned = clean_hotkey_text(value.trim_end_matches('+'));
+                    s.hotkey = cleaned.clone();
+                    if let Some(win) = sw.upgrade() {
+                        win.set_s_hotkey(cleaned.into());
+                    }
+                    let _ = hotkey_tx.send(s.hotkey.clone());
+                }
+                "start_with_system" => {
+                    let enabled = value == "true";
+                    s.start_with_system = enabled;
+                    if enabled {
+                        let _ = crate::autostart::ensure_autostart();
+                    } else {
+                        let _ = crate::autostart::remove_autostart();
+                    }
+                }
+                "always_close_to_tray" => s.always_close_to_tray = value == "true",
+                "quick_paste_modifier" => {
+                    s.quick_paste_modifier = value.clone();
+                    if let Some(ui) = settings_ui.upgrade() {
+                        ui.set_quick_paste_mod(value.clone().into());
+                    }
+                }
+                "logging_level" => s.logging_level = value.clone(),
+                "theme" => {
+                    s.theme = value.clone();
+                    reapply_theme(&settings_ui, &sw, &s);
+                }
+                "font_family" => {
+                    s.font_family = value.clone();
+                    apply_theme_to_windows(&settings_ui, &sw, |t| {
+                        t.set_font_family(value.as_str().into());
+                    });
+                }
+                "accent_color" => {
+                    let hex = value.trim();
+                    if hex.starts_with('#') && hex.len() == 7 {
+                        s.accent_color = value.clone();
+                        if let Some(win) = sw.upgrade() {
+                            win.set_s_accent_color(crate::theme::accent_hex_to_color(hex));
+                        }
+                        reapply_theme(&settings_ui, &sw, &s);
+                    }
+                }
+                "accent_hue" | "accent_saturation" | "accent_value" => {
+                    if let Ok(v) = value.parse::<f64>() {
+                        // Baseline from the sliders as currently shown: the
+                        // full HSV of the accent in effect (a custom hex,
+                        // the OS accent while "Clear" is active, or the
+                        // persisted tuning) was folded into them when the
+                        // window opened or "Clear" ran. Only the moved
+                        // slider changes — the others stay locked at their
+                        // displayed values. Re-deriving the baseline from
+                        // `s.accent_color` (a hex round-trip) let the
+                        // untouched sliders wobble by ±1 unit per move.
+                        let (is_dark, _) = crate::theme::cached_resolved_theme();
+                        let (h, sat, val) = if let Some(win) = sw.upgrade() {
+                            retune_accent(
+                                win.get_s_accent_hue() as f64,
+                                win.get_s_accent_saturation() as f64 / 100.0,
+                                win.get_s_accent_value() as f64 / 100.0,
+                                &key,
+                                v,
+                            )
+                        } else {
+                            (s.accent_hue, s.accent_saturation, s.accent_value)
+                        };
+                        // Moving any slider defines a custom accent, so this
+                        // also works from a "Clear" (OS accent) start
+                        // instead of doing nothing until a color is picked.
+                        s.accent_hue = h;
+                        s.accent_saturation = sat;
+                        s.accent_value = val;
+                        s.accent_color = accent_hex(h, sat, val);
+                        if let Some(ui) = settings_ui.upgrade() {
+                            crate::theme::fill_theme(
+                                &ui.global::<crate::Theme>(),
+                                &s,
+                                is_dark,
+                                None,
+                            );
+                        }
+                        if let Some(win) = sw.upgrade() {
+                            win.set_s_accent_hue(h.round() as i32);
+                            win.set_s_accent_saturation((sat * 100.0).round() as i32);
+                            win.set_s_accent_value((val * 100.0).round() as i32);
+                            win.set_s_accent_color(crate::theme::accent_hex_to_color(
+                                &s.accent_color,
+                            ));
+                            crate::theme::fill_theme(
+                                &win.global::<crate::Theme>(),
+                                &s,
+                                is_dark,
+                                None,
+                            );
+                        }
+                    }
+                }
+                "font_size" => {
+                    if let Ok(v) = value.parse::<f64>() {
+                        s.font_size = v;
+                        apply_theme_to_windows(&settings_ui, &sw, |t| {
+                            t.set_clip_list_font_size(v as f32)
+                        });
+                    }
+                }
+                "preview_font_size" => {
+                    if let Ok(v) = value.parse::<f64>() {
+                        s.preview_font_size = v;
+                        apply_theme_to_windows(&settings_ui, &sw, |t| {
+                            t.set_preview_font_size(v as f32);
+                        });
+                    }
+                }
+                "clip_item_padding" => {
+                    s.clip_item_padding = value.clone();
+                    apply_theme_to_windows(&settings_ui, &sw, |t| {
+                        t.set_row_height(crate::positioning::row_height(value.as_str()) as f32);
+                    });
+                }
+                "hover_preview_delay" => {
+                    if let Ok(ms) = value.parse::<u32>() {
+                        s.hover_preview_delay = ms;
+                        apply_theme_to_windows(&settings_ui, &sw, |t| {
+                            t.set_hover_preview_delay(ms as i64);
+                        });
+                    }
+                }
+                "hover_image_preview_size" => {
+                    if let Ok(v) = value.parse::<u32>() {
+                        s.hover_image_preview_size = v;
+                    }
+                }
+                "paste_as_plain_text" => s.paste_as_plain_text = value == "true",
+                "compare_tool_path" => s.compare_tool_path = value.clone(),
+                "max_clips" => {
+                    if let Ok(v) = value.parse::<u32>() {
+                        s.max_clips = v;
+                    }
+                }
+                "max_age_days" => {
+                    if let Ok(v) = value.parse::<u32>() {
+                        s.max_age_days = v;
+                    }
+                }
+                _ => {}
+            }
+
+            let _ = s.save(&p);
+        },
+    );
+}
+
+/// Show the settings window from the hamburger menu.
+fn setup_menu_open(settings_win: &crate::SettingsWindow, main_ui: &crate::AppWindow) {
+    let sw = settings_win.as_weak();
+    let weak_ui = main_ui.as_weak();
+    main_ui.on_menu_settings(move || {
+        if let Some(win) = sw.upgrade() {
+            if let Some(ui) = weak_ui.upgrade() {
+                // Guard blur-to-tray while the settings window is visible;
+                // cleared when the settings window closes.
+                ui.set_settings_open(true);
+            }
+            // Always reopen on the settings page (not the Database page),
+            // with a cleared filter, regardless of where the user left off.
+            win.set_on_database_page(false);
+            win.set_settings_filter("".into());
+            apply_settings_filter(&win, "");
+            win.show().ok();
+            win.invoke_focus_search();
+        }
+    });
+}
+
 pub fn setup_settings_window(
     ui: &crate::AppWindow,
     settings: &std::rc::Rc<std::cell::RefCell<cliptoo_core::Settings>>,
@@ -205,408 +638,16 @@ pub fn setup_settings_window(
 ) -> crate::SettingsWindow {
     let settings_win = crate::SettingsWindow::new().expect("SettingsWindow creation");
 
-    // Reset settings-open when the settings window is closed via the window
-    // manager (ESC is handled by the settings-closing callback), and persist
-    // the window size so user resizes survive restarts.
-    {
-        let main_ui = ui.as_weak();
-        let sw = settings_win.as_weak();
-        let s = settings.clone();
-        let p = dirs.settings_path.clone();
-        settings_win.window().on_close_requested(move || {
-            if let Some(win) = sw.upgrade() {
-                persist_window_size(&win, &s, &p);
-            }
-            if let Some(ui) = main_ui.upgrade() {
-                ui.set_settings_open(false);
-            }
-            slint::CloseRequestResponse::HideWindow
-        });
-    }
-
-    // Initialise all settings properties.
-    {
-        let s = settings.borrow();
-        settings_win.set_stored_width(s.settings_window_width as f32);
-        settings_win.set_stored_height(s.settings_window_height as f32);
-        settings_win.set_s_hotkey(clean_hotkey_text(s.hotkey.as_str()).into());
-        settings_win.set_s_start_with_system(s.start_with_system);
-        settings_win.set_s_always_close_to_tray(s.always_close_to_tray);
-        settings_win.set_s_quick_paste_mod_idx(idx_of(
-            &s.quick_paste_modifier,
-            &["Right Alt", "Left Alt", "Control"],
-        ));
-        settings_win.set_s_log_level_idx(idx_of(
-            &s.logging_level,
-            &["Debug", "Info", "Warn", "Error"],
-        ));
-        settings_win.set_s_theme_idx(idx_of(&s.theme, &["System", "Light", "Dark"]));
-        settings_win.set_s_accent_color(if s.accent_color.trim().is_empty() {
-            crate::theme::default_accent_color()
-        } else {
-            crate::theme::accent_hex_to_color(&s.accent_color)
-        });
-        let (accent_h, accent_s, accent_v) =
-            current_accent_hsv(&s, crate::theme::cached_resolved_theme().1);
-        settings_win.set_s_accent_hue(accent_h.round() as i32);
-        settings_win.set_s_accent_saturation((accent_s * 100.0).round() as i32);
-        settings_win.set_s_accent_value((accent_v * 100.0).round() as i32);
-        settings_win.set_s_font_family(s.font_family.as_str().into());
-        settings_win.set_s_font_size_hundredths((s.font_size * 100.0) as i32);
-        settings_win.set_s_preview_font_size_hundredths((s.preview_font_size * 100.0) as i32);
-        settings_win.set_s_row_padding_idx(idx_of(
-            &s.clip_item_padding,
-            &["Compact", "Standard", "Luxury"],
-        ));
-        settings_win.set_hover_delay(s.hover_preview_delay as i32);
-        settings_win.set_s_image_preview_size(s.hover_image_preview_size as i32);
-        settings_win.set_s_paste_as_plain_text(s.paste_as_plain_text);
-        settings_win.set_s_diff_tool_path(s.compare_tool_path.as_str().into());
-        settings_win.set_s_max_clips(s.max_clips as i32);
-        settings_win.set_s_max_age_days(s.max_age_days as i32);
-    }
-
-    // Forward maintenance actions from SettingsWindow to AppWindow.
-    {
-        let main_ui = ui.as_weak();
-        settings_win.on_maintenance_action(move |key: slint::SharedString| {
-            if let Some(ui) = main_ui.upgrade() {
-                ui.invoke_maintenance_action(key);
-            }
-        });
-    }
-
-    // Instant filter search: the header query is matched against each option
-    // row's keywords and drives the row visibility. Runs on the UI thread (the
-    // callback fires from Slint's edited handler), so setters are safe here.
-    {
-        let sw = settings_win.as_weak();
-        settings_win.on_filter_changed(move |query: slint::SharedString| {
-            if let Some(win) = sw.upgrade() {
-                apply_settings_filter(&win, &query);
-            }
-        });
-    }
-
-    // Clear accent: empty accent_color means "use the OS default accent".
-    {
-        let sw = settings_win.as_weak();
-        let settings_ui = ui.as_weak();
-        let s = settings.clone();
-        let p = dirs.settings_path.clone();
-        settings_win.on_clear_accent_color(move || {
-            // Clear synchronously: Rc<RefCell<Settings>> is !Send, so it must
-            // not cross into the spawned task. Snapshot the cleared settings.
-            let s_snap;
-            {
-                let mut s = s.borrow_mut();
-                s.accent_color = String::new();
-                s_snap = s.clone();
-            }
-            let sw = sw.clone();
-            let settings_ui = settings_ui.clone();
-            let p = p.clone();
-            tokio::spawn(async move {
-                // Resolve first so the shared cache holds the freshly detected
-                // OS accent; the settings swatch reads that cache. Without this,
-                // a previously custom accent leaves the cache stale and "Clear"
-                // shows the fallback color until a second click.
-                let (is_dark, system_accent) = crate::theme::resolve_theme(&s_snap).await;
-                let swatch = crate::theme::default_accent_color();
-                // Seed the tuning sliders from the OS accent so they reflect
-                // the swatch instead of the stale custom tuning values; the
-                // persisted fields are refreshed on the first slider move.
-                let os_hsv = system_accent.map(|(r, g, b)| crate::theme::rgb_to_hsv(r, g, b));
-                let main_weak = settings_ui.clone();
-                let settings_weak = sw.clone();
-                let s_main = s_snap.clone();
-                let s_settings = s_snap.clone();
-                let _ = main_weak.upgrade_in_event_loop(move |ui| {
-                    crate::theme::fill_theme(
-                        &ui.global::<crate::Theme>(),
-                        &s_main,
-                        is_dark,
-                        system_accent,
-                    );
-                });
-                let _ = settings_weak.upgrade_in_event_loop(move |win| {
-                    crate::theme::fill_theme(
-                        &win.global::<crate::Theme>(),
-                        &s_settings,
-                        is_dark,
-                        system_accent,
-                    );
-                    win.set_s_accent_color(swatch);
-                    if let Some((h, sat, val)) = os_hsv {
-                        win.set_s_accent_hue(h.round() as i32);
-                        win.set_s_accent_saturation((sat * 100.0).round() as i32);
-                        win.set_s_accent_value((val * 100.0).round() as i32);
-                    }
-                });
-                let _ = s_snap.save(&p);
-            });
-        });
-    }
-
-    // Open the latest log file via the system default viewer.
-    {
-        let logs_dir = dirs.logs_dir.clone();
-        settings_win.on_open_log(move || {
-            let Some(latest) = cliptoo_core::logger::latest_log_path(&logs_dir) else {
-                tracing::warn!("open-log: no log file yet in {}", logs_dir.display());
-                return;
-            };
-            if let Err(e) = std::process::Command::new("xdg-open").arg(&latest).spawn() {
-                tracing::warn!(
-                    "open-log: failed to launch xdg-open for {}: {e}",
-                    latest.display()
-                );
-            }
-        });
-    }
-
-    // When the settings window closes, reset settings-open so ESC and
-    // blur-to-tray work again on the main window, and persist the size.
-    {
-        let main_ui = ui.as_weak();
-        let sw = settings_win.as_weak();
-        let s = settings.clone();
-        let p = dirs.settings_path.clone();
-        settings_win.on_settings_closing(move || {
-            if let Some(win) = sw.upgrade() {
-                persist_window_size(&win, &s, &p);
-            }
-            if let Some(ui) = main_ui.upgrade() {
-                ui.set_settings_open(false);
-            }
-        });
-    }
-
-    // Font picker — native KDE font dialog via Qt (PyQt6).
-    {
-        let sw = settings_win.as_weak();
-        let settings_ui = ui.as_weak();
-        let s = settings.clone();
-        let p = dirs.settings_path.clone();
-        settings_win.on_font_picker(move || {
-            let script = r#"
-from PyQt6.QtWidgets import QApplication, QFontDialog
-app = QApplication([])
-font, ok = QFontDialog.getFont()
-if ok:
-    print(font.family())
-"#;
-            let Ok(output) = std::process::Command::new("python3")
-                .arg("-c")
-                .arg(script)
-                .output()
-            else {
-                return;
-            };
-            let family = String::from_utf8_lossy(&output.stdout).trim().to_string();
-            if family.is_empty() {
-                return;
-            }
-            let mut s = s.borrow_mut();
-            s.font_family.clone_from(&family);
-            if let Some(win) = sw.upgrade() {
-                win.set_s_font_family(family.as_str().into());
-            }
-            apply_theme_to_windows(&settings_ui, &sw, |t| {
-                t.set_font_family(family.as_str().into());
-            });
-            let _ = s.save(&p);
-        });
-    }
-
-    // Handle setting changes.
-    {
-        let s = settings.clone();
-        let p = dirs.settings_path.clone();
-        let settings_ui = ui.as_weak();
-        let sw = settings_win.as_weak();
-        settings_win.on_setting_changed(
-            move |key: slint::SharedString, value: slint::SharedString| {
-                let key = key.to_string();
-                let value = value.to_string();
-                let mut s = s.borrow_mut();
-
-                match key.as_str() {
-                    "hotkey" => {
-                        let cleaned = clean_hotkey_text(value.trim_end_matches('+'));
-                        s.hotkey = cleaned.clone();
-                        if let Some(win) = sw.upgrade() {
-                            win.set_s_hotkey(cleaned.into());
-                        }
-                        let _ = hotkey_tx.send(s.hotkey.clone());
-                    }
-                    "start_with_system" => {
-                        let enabled = value == "true";
-                        s.start_with_system = enabled;
-                        if enabled {
-                            let _ = crate::autostart::ensure_autostart();
-                        } else {
-                            let _ = crate::autostart::remove_autostart();
-                        }
-                    }
-                    "always_close_to_tray" => s.always_close_to_tray = value == "true",
-                    "quick_paste_modifier" => {
-                        s.quick_paste_modifier = value.clone();
-                        if let Some(ui) = settings_ui.upgrade() {
-                            ui.set_quick_paste_mod(value.clone().into());
-                        }
-                    }
-                    "logging_level" => s.logging_level = value.clone(),
-                    "theme" => {
-                        s.theme = value.clone();
-                        reapply_theme(&settings_ui, &sw, &s);
-                    }
-                    "font_family" => {
-                        s.font_family = value.clone();
-                        apply_theme_to_windows(&settings_ui, &sw, |t| {
-                            t.set_font_family(value.as_str().into());
-                        });
-                    }
-                    "accent_color" => {
-                        let hex = value.trim();
-                        if hex.starts_with('#') && hex.len() == 7 {
-                            s.accent_color = value.clone();
-                            if let Some(win) = sw.upgrade() {
-                                win.set_s_accent_color(crate::theme::accent_hex_to_color(hex));
-                            }
-                            reapply_theme(&settings_ui, &sw, &s);
-                        }
-                    }
-                    "accent_hue" | "accent_saturation" | "accent_value" => {
-                        if let Ok(v) = value.parse::<f64>() {
-                            // Baseline from the sliders as currently shown: the
-                            // full HSV of the accent in effect (a custom hex,
-                            // the OS accent while "Clear" is active, or the
-                            // persisted tuning) was folded into them when the
-                            // window opened or "Clear" ran. Only the moved
-                            // slider changes — the others stay locked at their
-                            // displayed values. Re-deriving the baseline from
-                            // `s.accent_color` (a hex round-trip) let the
-                            // untouched sliders wobble by ±1 unit per move.
-                            let (is_dark, _) = crate::theme::cached_resolved_theme();
-                            let (h, sat, val) = if let Some(win) = sw.upgrade() {
-                                retune_accent(
-                                    win.get_s_accent_hue() as f64,
-                                    win.get_s_accent_saturation() as f64 / 100.0,
-                                    win.get_s_accent_value() as f64 / 100.0,
-                                    &key,
-                                    v,
-                                )
-                            } else {
-                                (s.accent_hue, s.accent_saturation, s.accent_value)
-                            };
-                            // Moving any slider defines a custom accent, so this
-                            // also works from a "Clear" (OS accent) start
-                            // instead of doing nothing until a color is picked.
-                            s.accent_hue = h;
-                            s.accent_saturation = sat;
-                            s.accent_value = val;
-                            s.accent_color = accent_hex(h, sat, val);
-                            if let Some(ui) = settings_ui.upgrade() {
-                                crate::theme::fill_theme(
-                                    &ui.global::<crate::Theme>(),
-                                    &s,
-                                    is_dark,
-                                    None,
-                                );
-                            }
-                            if let Some(win) = sw.upgrade() {
-                                win.set_s_accent_hue(h.round() as i32);
-                                win.set_s_accent_saturation((sat * 100.0).round() as i32);
-                                win.set_s_accent_value((val * 100.0).round() as i32);
-                                win.set_s_accent_color(crate::theme::accent_hex_to_color(
-                                    &s.accent_color,
-                                ));
-                                crate::theme::fill_theme(
-                                    &win.global::<crate::Theme>(),
-                                    &s,
-                                    is_dark,
-                                    None,
-                                );
-                            }
-                        }
-                    }
-                    "font_size" => {
-                        if let Ok(v) = value.parse::<f64>() {
-                            s.font_size = v;
-                            apply_theme_to_windows(&settings_ui, &sw, |t| {
-                                t.set_clip_list_font_size(v as f32)
-                            });
-                        }
-                    }
-                    "preview_font_size" => {
-                        if let Ok(v) = value.parse::<f64>() {
-                            s.preview_font_size = v;
-                            apply_theme_to_windows(&settings_ui, &sw, |t| {
-                                t.set_preview_font_size(v as f32);
-                            });
-                        }
-                    }
-                    "clip_item_padding" => {
-                        s.clip_item_padding = value.clone();
-                        apply_theme_to_windows(&settings_ui, &sw, |t| {
-                            t.set_row_height(crate::positioning::row_height(value.as_str()) as f32);
-                        });
-                    }
-                    "hover_preview_delay" => {
-                        if let Ok(ms) = value.parse::<u32>() {
-                            s.hover_preview_delay = ms;
-                            apply_theme_to_windows(&settings_ui, &sw, |t| {
-                                t.set_hover_preview_delay(ms as i64);
-                            });
-                        }
-                    }
-                    "hover_image_preview_size" => {
-                        if let Ok(v) = value.parse::<u32>() {
-                            s.hover_image_preview_size = v;
-                        }
-                    }
-                    "paste_as_plain_text" => s.paste_as_plain_text = value == "true",
-                    "compare_tool_path" => s.compare_tool_path = value.clone(),
-                    "max_clips" => {
-                        if let Ok(v) = value.parse::<u32>() {
-                            s.max_clips = v;
-                        }
-                    }
-                    "max_age_days" => {
-                        if let Ok(v) = value.parse::<u32>() {
-                            s.max_age_days = v;
-                        }
-                    }
-                    _ => {}
-                }
-
-                let _ = s.save(&p);
-            },
-        );
-    }
-
-    // Show settings window from hamburger menu.
-    {
-        let sw = settings_win.as_weak();
-        let main_ui = ui.as_weak();
-        ui.on_menu_settings(move || {
-            if let Some(win) = sw.upgrade() {
-                if let Some(ui) = main_ui.upgrade() {
-                    // Guard blur-to-tray while the settings window is visible;
-                    // cleared when the settings window closes.
-                    ui.set_settings_open(true);
-                }
-                // Always reopen on the settings page (not the Database page),
-                // with a cleared filter, regardless of where the user left off.
-                win.set_on_database_page(false);
-                win.set_settings_filter("".into());
-                apply_settings_filter(&win, "");
-                win.show().ok();
-                win.invoke_focus_search();
-            }
-        });
-    }
+    setup_close_persistence(&settings_win, ui, settings, &dirs.settings_path);
+    init_settings_properties(&settings_win, settings);
+    setup_maintenance_forwarding(&settings_win, ui);
+    setup_settings_filter(&settings_win);
+    setup_clear_accent(&settings_win, ui, settings, &dirs.settings_path);
+    setup_open_log(&settings_win, &dirs.logs_dir);
+    setup_settings_closing(&settings_win, ui, settings, &dirs.settings_path);
+    setup_font_picker(&settings_win, ui, settings, &dirs.settings_path);
+    setup_setting_commit(&settings_win, ui, settings, &dirs.settings_path, hotkey_tx);
+    setup_menu_open(&settings_win, ui);
 
     settings_win
 }
