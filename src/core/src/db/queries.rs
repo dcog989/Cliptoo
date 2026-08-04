@@ -165,6 +165,28 @@ pub fn insert_or_bump(
     Ok(existing_id == last)
 }
 
+/// Shared SELECT projections for `search_clips`, kept in `row_to_clipdata`
+/// column order (indices 0–14).
+///
+/// Browse-mode projection (plain `clips` scan). Column 13 is `NULL` because
+/// there is no FTS match to highlight.
+const BROWSE_PROJECTION: &str = "Id, PreviewContent, ContentHash, ClipType, SourceApp, Timestamp,
+        IsBookmarked, WasTrimmed, HasLeadingWhitespace, SizeInBytes, PasteCount, Tags, NULL,
+        IsMultiline, IsDeadhead";
+
+/// FTS-mode projection — `c.`-prefixed (JOIN against `clips`) with the
+/// highlight snippet in the match-context column.
+fn fts_projection(fts_col: i32, tokens: i32) -> String {
+    format!(
+        "c.Id, c.PreviewContent, c.ContentHash, c.ClipType, c.SourceApp, c.Timestamp,
+         c.IsBookmarked, c.WasTrimmed, c.HasLeadingWhitespace, c.SizeInBytes, c.PasteCount, c.Tags,
+         snippet(clips_fts, {fts_col}, '{hl_open}', '{hl_close}', '…', {tokens}),
+         c.IsMultiline, c.IsDeadhead",
+        hl_open = FTS_HL_OPEN,
+        hl_close = FTS_HL_CLOSE,
+    )
+}
+
 /// Search clips by full-text query and/or type filter.
 ///
 /// `tag_prefix`: when the raw user query starts with this string, the search is
@@ -190,14 +212,13 @@ pub fn search_clips(
     // ── Browse (no query text) ────────────────────────────────────────────────
     if effective_query.is_empty() && !is_tag_search {
         let sql = format!(
-            "SELECT Id, PreviewContent, ContentHash, ClipType, SourceApp, Timestamp,
-                    IsBookmarked, WasTrimmed, HasLeadingWhitespace, SizeInBytes, PasteCount, Tags, NULL,
-                    IsMultiline, IsDeadhead
+            "SELECT {projection}
              FROM clips c
-             WHERE 1=1 {}
+             WHERE 1=1 {filter_sql}
              ORDER BY Timestamp DESC
              LIMIT ? OFFSET ?",
-            ft.sql()
+            projection = BROWSE_PROJECTION,
+            filter_sql = ft.sql(),
         );
         return run_search(conn, &sql, &ft, filter, &[], limit, offset);
     }
@@ -207,14 +228,13 @@ pub fn search_clips(
         if effective_query.is_empty() {
             // "##" alone — return all clips that have any tags (no FTS needed).
             let sql = format!(
-                "SELECT Id, PreviewContent, ContentHash, ClipType, SourceApp, Timestamp,
-                        IsBookmarked, WasTrimmed, HasLeadingWhitespace, SizeInBytes, PasteCount, Tags, NULL,
-                        IsMultiline, IsDeadhead
+                "SELECT {projection}
                  FROM clips c
-                 WHERE Tags IS NOT NULL AND Tags != '' {}
+                 WHERE Tags IS NOT NULL AND Tags != '' {filter_sql}
                  ORDER BY Timestamp DESC
                  LIMIT ? OFFSET ?",
-                ft.sql()
+                projection = BROWSE_PROJECTION,
+                filter_sql = ft.sql(),
             );
             return run_search(conn, &sql, &ft, filter, &[], limit, offset);
         }
@@ -223,18 +243,13 @@ pub fn search_clips(
         let fts_query = build_fts_query(effective_query);
         let fts_col_query = format!("Tags : {fts_query}");
         let sql = format!(
-            "SELECT c.Id, c.PreviewContent, c.ContentHash, c.ClipType, c.SourceApp, c.Timestamp,
-                    c.IsBookmarked, c.WasTrimmed, c.HasLeadingWhitespace, c.SizeInBytes, c.PasteCount, c.Tags,
-                    snippet(clips_fts, 1, '{hl_open}', '{hl_close}', '…', {tokens}),
-                    c.IsMultiline, c.IsDeadhead
+            "SELECT {projection}
              FROM clips_fts
              JOIN clips c ON c.Id = clips_fts.rowid
              WHERE clips_fts MATCH ? {filter_sql}
              ORDER BY rank
              LIMIT ? OFFSET ?",
-            hl_open = FTS_HL_OPEN,
-            hl_close = FTS_HL_CLOSE,
-            tokens = TAG_SNIPPET_TOKENS,
+            projection = fts_projection(1, TAG_SNIPPET_TOKENS),
             filter_sql = ft.sql(),
         );
         return run_search(conn, &sql, &ft, filter, &[&fts_col_query], limit, offset);
@@ -247,18 +262,13 @@ pub fn search_clips(
     // FTS5 special characters.
     let fts_query = build_fts_query(query);
     let sql = format!(
-        "SELECT c.Id, c.PreviewContent, c.ContentHash, c.ClipType, c.SourceApp, c.Timestamp,
-                c.IsBookmarked, c.WasTrimmed, c.HasLeadingWhitespace, c.SizeInBytes, c.PasteCount, c.Tags,
-                snippet(clips_fts, 0, '{hl_open}', '{hl_close}', '…', {tokens}),
-                c.IsMultiline, c.IsDeadhead
+        "SELECT {projection}
          FROM clips_fts
          JOIN clips c ON c.Id = clips_fts.rowid
          WHERE clips_fts MATCH ? {filter_sql}
          ORDER BY rank
          LIMIT ? OFFSET ?",
-        hl_open = FTS_HL_OPEN,
-        hl_close = FTS_HL_CLOSE,
-        tokens = CONTENT_SNIPPET_TOKENS,
+        projection = fts_projection(0, CONTENT_SNIPPET_TOKENS),
         filter_sql = ft.sql(),
     );
     run_search(conn, &sql, &ft, filter, &[&fts_query], limit, offset)
