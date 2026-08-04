@@ -9,7 +9,7 @@ use std::sync::Mutex;
 /// Portal's `Read` returns `(v)` where `v` is the value; zbus unwraps
 /// the variant transparently, so we deserialize as `(u32,)`.
 pub async fn detect_system_dark() -> Option<bool> {
-    let conn = zbus::Connection::session().await.ok()?;
+    let conn = crate::dbus::session().await.ok()?;
     let msg = conn
         .call_method(
             Some("org.freedesktop.portal.Desktop"),
@@ -65,7 +65,7 @@ fn read_kdeglobals_accent() -> Option<(u8, u8, u8)> {
 /// Returns `(r, g, b)` in 0–255, or `None` if undetectable.
 pub async fn detect_system_accent() -> Option<(u8, u8, u8)> {
     // Try the portal (org.freedesktop.appearance.accent-color)
-    if let Ok(conn) = zbus::Connection::session().await
+    if let Ok(conn) = crate::dbus::session().await
         && let Ok(msg) = conn
             .call_method(
                 Some("org.freedesktop.portal.Desktop"),

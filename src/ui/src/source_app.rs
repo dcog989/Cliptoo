@@ -5,7 +5,7 @@ pub async fn detect_source_app() -> Option<String> {
 }
 
 async fn try_kwin_active_window() -> Option<String> {
-    let conn = zbus::Connection::session().await.ok()?;
+    let conn = crate::dbus::session().await.ok()?;
 
     let msg = conn
         .call_method(

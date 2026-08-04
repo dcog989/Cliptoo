@@ -12,6 +12,7 @@ mod actions;
 mod app_dirs;
 mod autostart;
 mod clipboard;
+mod dbus;
 mod drag;
 mod edit;
 mod favicon;
