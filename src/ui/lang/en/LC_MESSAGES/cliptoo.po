@@ -386,6 +386,16 @@ msgctxt "SettingsWindow"
 msgid "Accent hue (0–360)"
 msgstr "Accent hue (0–360)"
 
+#: src/ui/ui/SettingsPage.slint:237
+msgctxt "SettingsPage"
+msgid "Accent hue"
+msgstr "Accent hue"
+
+#: src/ui/ui/SettingsPage.slint:238
+msgctxt "SettingsPage"
+msgid "Hue of the accent color"
+msgstr "Hue of the accent color"
+
 #: src/ui/ui/SettingsWindow.slint:212
 msgctxt "SettingsWindow"
 msgid "Decrease accent hue"

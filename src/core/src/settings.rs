@@ -34,9 +34,14 @@ pub struct Settings {
     // no longer read.
     #[serde(default = "default_accent_color")]
     pub accent_color: String,
-    // Swatch palette tuning, both 0.0–1.0: saturation and brightness (HSV
-    // value) applied when the accent swatches are built. The defaults match
-    // the fixed palette constants used before these became user-adjustable.
+    // Accent tuning: the accent color is fully described by a hue (degrees,
+    // 0–360) plus a saturation and brightness (HSV value, both 0.0–1.0); the
+    // stored accent_color hex is derived from these by the settings UI. Hue
+    // is kept separately so the settings hue slider keeps its position while
+    // "Clear" (OS accent) is active and there is no custom hex to read it back
+    // from. The defaults match the fallback accent (#7C6EE6, hue 247°).
+    #[serde(default = "default_accent_hue")]
+    pub accent_hue: f64,
     #[serde(default = "default_accent_saturation")]
     pub accent_saturation: f64,
     #[serde(default = "default_accent_value")]
@@ -87,6 +92,7 @@ impl Default for Settings {
             settings_window_width: 560.0,
             settings_window_height: 540.0,
             accent_color: String::new(),
+            accent_hue: 247.0,
             accent_saturation: 0.65,
             accent_value: 0.95,
             theme: "System".to_string(),
@@ -179,6 +185,10 @@ fn default_accent_color() -> String {
     String::new()
 }
 
+fn default_accent_hue() -> f64 {
+    247.0
+}
+
 fn default_accent_saturation() -> f64 {
     0.65
 }
@@ -216,14 +226,16 @@ mod tests {
     use super::*;
 
     /// Settings files written before the accent tuning fields existed must
-    /// load with the palette defaults, not 0.0 (which would make every swatch
-    /// grayscale/black).
+    /// load with the tuning defaults, not 0.0 (which would make the accent
+    /// black / grayscale).
     #[test]
     fn accent_tuning_defaults_for_legacy_files() {
         let mut value = serde_json::to_value(Settings::default()).unwrap();
+        value.as_object_mut().unwrap().remove("accent_hue");
         value.as_object_mut().unwrap().remove("accent_saturation");
         value.as_object_mut().unwrap().remove("accent_value");
         let s: Settings = serde_json::from_value(value).unwrap();
+        assert!((s.accent_hue - 247.0).abs() < f64::EPSILON);
         assert!((s.accent_saturation - 0.65).abs() < f64::EPSILON);
         assert!((s.accent_value - 0.95).abs() < f64::EPSILON);
     }

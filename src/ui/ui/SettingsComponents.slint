@@ -1,11 +1,5 @@
 import { Theme } from "Theme.slint";
 
-// Accent-color palette swatch rendered in the settings accent picker popup.
-export struct AccentSwatch {
-    hex: string,
-    color: color,
-}
-
 // Uppercase category heading that labels a group of options.
 export component SectionHeader {
     in property <string> text;
@@ -304,6 +298,7 @@ export component SliderRow {
     in-out property <int> value;
     in property <int> min-val: 0;
     in property <int> max-val: 100;
+    in property <string> unit: "%";
     in property <string> tooltip-text;
     callback committed(int);
 
@@ -352,7 +347,7 @@ export component SliderRow {
                 }
 
                 Text {
-                    text: "\{root.value}%";
+                    text: "\{root.value}\{root.unit}";
                     color: Theme.fg-primary;
                     font-size: Theme.font-size;
                 }

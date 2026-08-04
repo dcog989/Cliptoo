@@ -1,10 +1,9 @@
 // SettingsWindow.slint — Single-window settings interface (shell).
 // The header, the settings page, and the database page live in separate
-// components; this file owns the window, the cross-page state, the accent
-// swatch popup, and the toast overlay.
+// components; this file owns the window, the cross-page state, and the toast
+// overlay.
 
 import { Theme } from "Theme.slint";
-import { AccentSwatch } from "SettingsComponents.slint";
 import { SettingsHeader } from "SettingsHeader.slint";
 import { SettingsPage } from "SettingsPage.slint";
 import { DatabasePage } from "DatabasePage.slint";
@@ -42,10 +41,9 @@ export component SettingsWindow inherits Window {
     // Visuals
     in-out property <int> s-theme-idx:            0;  // System/Light/Dark
     in-out property <color> s-accent-color:       #7C6EE6;
+    in-out property <int> s-accent-hue:       247;  // 0–360 degrees
     in-out property <int> s-accent-saturation: 65;  // 0–100 %
     in-out property <int> s-accent-value:      95;  // 0–100 % brightness
-    // 24 swatches evenly spaced across 0–360° hue; built from Rust at startup.
-    in-out property <[AccentSwatch]> accent-swatches: [];
     in-out property <string> s-font-family:          "Inter";
     in-out property <int> s-font-size-hundredths: 1300;  // 13.00 pt
     in-out property <int> s-preview-font-size-hundredths: 1200;
@@ -79,6 +77,7 @@ export component SettingsWindow inherits Window {
     // Appearance
     in-out property <bool> row-theme-visible: true;
     in-out property <bool> row-accent-visible: true;
+    in-out property <bool> row-accent-hue-visible: true;
     in-out property <bool> row-accent-sat-visible: true;
     in-out property <bool> row-accent-value-visible: true;
     in-out property <bool> row-font-visible: true;
@@ -158,6 +157,7 @@ export component SettingsWindow inherits Window {
                 s-log-level-idx <=> root.s-log-level-idx;
                 s-theme-idx <=> root.s-theme-idx;
                 s-accent-color <=> root.s-accent-color;
+                s-accent-hue <=> root.s-accent-hue;
                 s-accent-saturation <=> root.s-accent-saturation;
                 s-accent-value <=> root.s-accent-value;
                 s-font-family <=> root.s-font-family;
@@ -178,6 +178,7 @@ export component SettingsWindow inherits Window {
                 row-logfile-visible: root.row-logfile-visible;
                 row-theme-visible: root.row-theme-visible;
                 row-accent-visible: root.row-accent-visible;
+                row-accent-hue-visible: root.row-accent-hue-visible;
                 row-accent-sat-visible: root.row-accent-sat-visible;
                 row-accent-value-visible: root.row-accent-value-visible;
                 row-font-visible: root.row-font-visible;
@@ -200,9 +201,6 @@ export component SettingsWindow inherits Window {
                 }
                 open-log() => {
                     root.open-log();
-                }
-                accent-picker-requested() => {
-                    accent_popup.show();
                 }
             }
 
@@ -227,54 +225,6 @@ export component SettingsWindow inherits Window {
                 }
                 maintenance-action(key) => {
                     root.maintenance-action(key);
-                }
-            }
-        }
-    }
-
-    // ── Accent swatch popup ─────────────────────────────────────────────
-    // Opens near the accent row in the Appearance section (top-of-scroll
-    // position). Closes on outside click (default close-policy) or after a
-    // swatch selection.
-    accent_popup := PopupWindow {
-        x: 30px;
-        y: 380px;
-        Rectangle {
-            border-radius: 8px;
-            background: Theme.bg-header;
-            border-width: 1px;
-            border-color: Theme.border-subtle;
-            GridLayout {
-                padding: 10px;
-                spacing: 6px;
-                for swatch[idx] in root.accent-swatches: Rectangle {
-                    row: Math.floor(idx / 8);
-                    col: Math.mod(idx, 8);
-                    width: 34px;
-                    height: 34px;
-                    border-radius: 6px;
-                    background: swatch.color;
-                    border-width: root.s-accent-color == swatch.color ? 2px : 1px;
-                    border-color: root.s-accent-color == swatch.color ? Theme.fg-primary : Theme.border-subtle;
-
-                    // Check mark on the selected swatch.
-                    if root.s-accent-color == swatch.color: Image {
-                        source: @image-url("icons/check-check.svg");
-                        colorize: Theme.accent-fg;
-                        width: 16px;
-                        height: 16px;
-                        x: (parent.width - 16px) / 2;
-                        y: (parent.height - 16px) / 2;
-                    }
-
-                    TouchArea {
-                        mouse-cursor: pointer;
-                        clicked => {
-                            root.s-accent-color = swatch.color;
-                            root.setting-changed("accent_color", swatch.hex);
-                            accent_popup.close();
-                        }
-                    }
                 }
             }
         }

@@ -24,6 +24,7 @@ export component SettingsPage inherits ScrollView {
     in-out property <int> s-log-level-idx:        1;  // Debug/Info/Warn/Error
     in-out property <int> s-theme-idx:            0;  // System/Light/Dark
     in-out property <color> s-accent-color:       #7C6EE6;
+    in-out property <int> s-accent-hue:       247;  // 0–360 degrees
     in-out property <int> s-accent-saturation: 65;  // 0–100 %
     in-out property <int> s-accent-value:      95;  // 0–100 % brightness
     in-out property <string> s-font-family:          "Inter";
@@ -47,6 +48,7 @@ export component SettingsPage inherits ScrollView {
     // Appearance
     in property <bool> row-theme-visible: true;
     in property <bool> row-accent-visible: true;
+    in property <bool> row-accent-hue-visible: true;
     in property <bool> row-accent-sat-visible: true;
     in property <bool> row-accent-value-visible: true;
     in property <bool> row-font-visible: true;
@@ -63,14 +65,12 @@ export component SettingsPage inherits ScrollView {
     callback clear-accent-color();
     callback font-picker();
     callback open-log();
-    callback accent-picker-requested();
 
     // Tooltip text for inline controls (Tooltip.text is styled-text, so @tr is
     // bound here and interpolated through @markdown at the use site).
     private property <string> tip-open-log: @tr("Open the most recent log file in your default viewer");
     private property <string> tip-font-family: @tr("Font family used for the clip list. Click to pick a font");
     private property <string> tip-hover-delay: @tr("Delay before the image hover preview appears");
-    private property <string> tip-accent-picker: @tr("Open the color picker");
 
     vertical-scrollbar-policy: ScrollBarPolicy.as-needed;
 
@@ -181,8 +181,8 @@ export component SettingsPage inherits ScrollView {
         }
 
         // ── Appearance ───────────────────────────────────────────────────
-        if (root.row-theme-visible || root.row-accent-visible || root.row-accent-sat-visible
-            || root.row-accent-value-visible || root.row-font-visible
+        if (root.row-theme-visible || root.row-accent-visible || root.row-accent-hue-visible
+            || root.row-accent-sat-visible || root.row-accent-value-visible || root.row-font-visible
             || root.row-clip-font-size-visible || root.row-preview-font-size-visible
             || root.row-padding-visible || root.row-hover-delay-visible
             || root.row-image-preview-size-visible): SectionHeader {
@@ -217,15 +217,6 @@ export component SettingsPage inherits ScrollView {
                 border-width: 1px;
                 border-color: Theme.accent-muted;
                 background: root.s-accent-color;
-                TouchArea {
-                    mouse-cursor: pointer;
-                    clicked => {
-                        root.accent-picker-requested();
-                    }
-                }
-                Tooltip {
-                    text: @markdown("\{root.tip-accent-picker}");
-                }
             }
 
             Text {
@@ -239,6 +230,18 @@ export component SettingsPage inherits ScrollView {
                         root.clear-accent-color();
                     }
                 }
+            }
+        }
+
+        if root.row-accent-hue-visible : SliderRow {
+            label: @tr("Accent hue");
+            tooltip-text: @tr("Hue of the accent color");
+            value <=> root.s-accent-hue;
+            min-val: 0;
+            max-val: 360;
+            unit: "°";
+            committed(v) => {
+                root.setting-changed("accent_hue", "\{v}");
             }
         }
 

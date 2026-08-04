@@ -239,7 +239,8 @@ pub fn cached_resolved_theme() -> ResolvedTheme {
 }
 
 /// Convert HSV (hue 0–360, s/v 0–1) to an sRGB color. Standard algorithm;
-/// used to build the evenly-hue-spaced accent swatch palette.
+/// used to derive the accent color from the settings hue/saturation/brightness
+/// tuning sliders.
 pub(crate) fn hsv_to_rgb(h: f64, s: f64, v: f64) -> (u8, u8, u8) {
     let c = v * s;
     let x = c * (1.0 - ((h / 60.0) % 2.0 - 1.0).abs());
