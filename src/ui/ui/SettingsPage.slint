@@ -70,7 +70,6 @@ export component SettingsPage inherits ScrollView {
     // bound here and interpolated through @markdown at the use site).
     private property <string> tip-open-log: @tr("Open the most recent log file in your default viewer");
     private property <string> tip-font-family: @tr("Font family used for the clip list. Click to pick a font");
-    private property <string> tip-hover-delay: @tr("Delay before the image hover preview appears");
 
     vertical-scrollbar-policy: ScrollBarPolicy.as-needed;
 
@@ -342,71 +341,17 @@ export component SettingsPage inherits ScrollView {
             }
         }
 
-        if root.row-hover-delay-visible: HorizontalLayout {
-            spacing: 12px;
-            height: 32px;
-            Text {
-                width: 180px;
-                text: @tr("Preview hover delay");
-                color: Theme.fg-primary;
-                font-size: Theme.font-size;
-                vertical-alignment: center;
-            }
-
-            Rectangle {
-                horizontal-stretch: 1;
-                height: 28px;
-                border-radius: 5px;
-                border-width: 1px;
-                border-color: Theme.accent-muted;
-                background: Theme.bg-input;
-                HorizontalLayout {
-                    cross-axis-alignment: center;
-                    padding-left: 12px;
-                    padding-right: 8px;
-                    spacing: 8px;
-                    track := Rectangle {
-                        horizontal-stretch: 1;
-                        min-width: 140px;
-                        height: 28px;
-
-                        Rectangle {
-                            height: 6px;
-                            border-radius: 3px;
-                            background: Theme.bg-track;
-                            y: (parent.height - 6px) / 2;
-                            Rectangle {
-                                width: 16px;
-                                height: 16px;
-                                border-radius: 8px;
-                                background: Theme.accent-primary;
-                                y: (parent.height - 16px) / 2;
-                                x: Math.max(0px, Math.min(parent.width - 16px, (root.hover-delay * 1.0) / 2000.0 * parent.width));
-                            }
-                        }
-
-                        touch := TouchArea {
-                            Tooltip {
-                                text: @markdown("\{root.tip-hover-delay}");
-                            }
-
-                            pointer-event(e) => {
-                                if (e.kind == PointerEventKind.down || (e.kind == PointerEventKind.move && self.pressed)) {
-                                    let raw = Math.round(touch.mouse-x / track.width * 2000 / 50) * 50;
-                                    root.hover-delay = Math.min(2000, Math.max(0, raw));
-                                    root.setting-changed("hover_preview_delay", "\{root.hover-delay}");
-                                }
-                            }
-                            mouse-cursor: pointer;
-                        }
-                    }
-
-                    Text {
-                        text: root.hover-delay == 0 ? @tr("Off") : @tr("{} ms", root.hover-delay);
-                        color: Theme.fg-primary;
-                        font-size: Theme.font-size;
-                    }
-                }
+        if root.row-hover-delay-visible: SliderRow {
+            label: @tr("Preview hover delay");
+            tooltip-text: @tr("Delay before the image hover preview appears");
+            value <=> root.hover-delay;
+            min-val: 0;
+            max-val: 2000;
+            step: 50;
+            unit: " ms";
+            zero-is-off: true;
+            committed(v) => {
+                root.setting-changed("hover_preview_delay", "\{v}");
             }
         }
 

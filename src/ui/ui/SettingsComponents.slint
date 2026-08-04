@@ -262,7 +262,10 @@ export component SliderRow {
     in-out property <int> value;
     in property <int> min-val: 0;
     in property <int> max-val: 100;
+    in property <int> step: 1;
     in property <string> unit: "%";
+    // When true, a value of 0 is displayed as "Off" instead of "0<unit>".
+    in property <bool> zero-is-off: false;
     in property <string> tooltip-text;
     callback committed(int);
 
@@ -308,7 +311,8 @@ export component SliderRow {
                         if (e.kind == PointerEventKind.down || (e.kind == PointerEventKind.move && self.pressed)) {
                             let span = root.max-val - root.min-val;
                             let frac = touch.mouse-x / track.width;
-                            root.value = root.min-val + Math.round(Math.min(1.0, Math.max(0.0, frac)) * span);
+                            let raw = root.min-val + Math.round(Math.min(1.0, Math.max(0.0, frac)) * span);
+                            root.value = Math.min(root.max-val, Math.max(root.min-val, Math.round(raw / root.step) * root.step));
                             root.committed(root.value);
                         }
                     }
@@ -317,7 +321,7 @@ export component SliderRow {
             }
 
             Text {
-                text: "\{root.value}\{root.unit}";
+                text: root.zero-is-off && root.value == 0 ? @tr("Off") : "\{root.value}\{root.unit}";
                 color: Theme.fg-primary;
                 font-size: Theme.font-size;
             }
