@@ -36,9 +36,13 @@ export component ContextMenu {
     // True when the clip type supports text transformations.
     property <bool> is-text-type: ClipTypeMap.is-text-type(root.clip-type);
 
-    // Intrinsic content size, used by ContextMenuHost to size the popup.
-    out property <length> menu-width: menu-root.preferred-width;
-    out property <length> menu-height: menu-root.preferred-height;
+    // Intrinsic content size, used by ContextMenuHost to size the popup. The
+    // three view layouts are always instantiated (visibility-toggled) so they
+    // keep content-based preferred sizes; if-conditional layouts resolve to 0.
+    out property <length> menu-width:
+        Math.max(main-view.preferred-width, Math.max(format-view.preferred-width, send-view.preferred-width));
+    out property <length> menu-height:
+        root.view == "format" ? format-view.preferred-height : root.view == "send-to" ? send-view.preferred-height : main-view.preferred-height;
 
     menu-root := Rectangle {
         border-radius: 8px;
@@ -50,7 +54,8 @@ export component ContextMenu {
         drop-shadow-offset-y: 4px;
 
         // ── Main view ─────────────────────────────────────────────────────────
-        if root.view == "main": VerticalLayout {
+        main-view := VerticalLayout {
+            visible: root.view == "main";
             alignment: start;
             padding: 4px;
             spacing: 0px;
@@ -150,7 +155,8 @@ export component ContextMenu {
         }
 
         // ── Format sub-view ───────────────────────────────────────────────────
-        if root.view == "format": VerticalLayout {
+        format-view := VerticalLayout {
+            visible: root.view == "format";
             alignment: start;
             padding: 4px;
             spacing: 0px;
@@ -281,7 +287,8 @@ export component ContextMenu {
         }
 
         // ── Send To sub-view ──────────────────────────────────────────────────
-        if root.view == "send-to": VerticalLayout {
+        send-view := VerticalLayout {
+            visible: root.view == "send-to";
             alignment: start;
             padding: 4px;
             spacing: 0px;

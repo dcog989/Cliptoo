@@ -16,13 +16,18 @@ export component MenuRow {
 
     height: root.is-separator ? 9px : root.row-height;
 
-    if root.is-separator: Rectangle {
+    // Separator line; only visible for separator rows. Always instantiated so
+    // the row keeps a content-based preferred size (if-conditional children
+    // contribute no preferred-size constraint to the row).
+    sep := Rectangle {
+        visible: root.is-separator;
         y: 4px;
         height: 1px;
         background: Theme.border-subtle;
     }
 
-    if !root.is-separator: Rectangle {
+    content := Rectangle {
+        visible: !root.is-separator;
         border-radius: 5px;
         border-width: 1px;
         border-color: touch.has-hover || touch.pressed ? Theme.accent-primary : transparent;
