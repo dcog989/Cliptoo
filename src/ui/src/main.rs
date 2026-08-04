@@ -189,12 +189,7 @@ async fn main() -> Result<()> {
                         move |shortcut_id| {
                             if shortcut_id == "toggle-cliptoo" {
                                 let _ = weak.upgrade_in_event_loop(move |ui| {
-                                    use slint::ComponentHandle;
-                                    if ComponentHandle::window(&ui).is_visible() {
-                                        window::hide_window(&ui);
-                                    } else {
-                                        let _ = window::show_window(&ui);
-                                    }
+                                    window::toggle_window(&ui);
                                 });
                             }
                         }
@@ -254,12 +249,7 @@ async fn main() -> Result<()> {
                 let win = ui.as_weak();
                 tray.on_toggle_window(move || {
                     if let Some(w) = win.upgrade() {
-                        use slint::ComponentHandle;
-                        if w.window().is_visible() {
-                            window::hide_window(&w);
-                        } else {
-                            let _ = window::show_window(&w);
-                        }
+                        window::toggle_window(&w);
                     }
                 });
             }

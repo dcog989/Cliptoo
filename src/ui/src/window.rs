@@ -39,6 +39,16 @@ pub fn show_window(ui: &crate::AppWindow) -> Result<(), slint::PlatformError> {
     result
 }
 
+/// Toggle the main window's visibility: hide when visible, show when hidden.
+/// Shared by the global-hotkey and system-tray handlers.
+pub fn toggle_window(ui: &crate::AppWindow) {
+    if ComponentHandle::window(ui).is_visible() {
+        hide_window(ui);
+    } else {
+        let _ = show_window(ui);
+    }
+}
+
 /// Window drag via Qt FFI (xdg-shell _move protocol).
 pub fn setup_drag(ui: &crate::AppWindow) {
     let drag_started = std::rc::Rc::new(std::cell::Cell::new(false));
