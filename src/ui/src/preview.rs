@@ -12,6 +12,19 @@ const DEFAULT_PREVIEW_WIDTH: f32 = 400.0;
 const POPUP_MARGIN: f32 = 8.0;
 const POPUP_OFFSET_X: f32 = 20.0;
 
+/// Everything a preview handler needs, bundled so the per-type handlers can
+/// share one uniform `fn(&PreviewContext)` signature and be dispatched from a
+/// table instead of a growing `match`.
+struct PreviewContext<'a> {
+    ui: &'a crate::AppWindow,
+    clip_type: &'a str,
+    content: &'a str,
+    content_hash: &'a str,
+    clip_id: i32,
+    fav_dir: &'a Path,
+    td: &'a Path,
+}
+
 /// Position the preview popup next to the pointer, clamped inside the window.
 fn position_popup(ui: &crate::AppWindow, clip_type: &str, x: f32, y: f32) {
     let popup_w: f32 = if clip_type == "code_snippet" {
@@ -29,20 +42,22 @@ fn position_popup(ui: &crate::AppWindow, clip_type: &str, x: f32, y: f32) {
 }
 
 /// Preview for a code-snippet clip: the snippet text in a fixed-width popup.
-fn show_code_preview(ui: &crate::AppWindow, content: &str) {
-    ui.set_preview_clip_type("code_snippet".into());
-    ui.set_preview_text(content.into());
+fn show_code_preview(ctx: &PreviewContext) {
+    ctx.ui.set_preview_clip_type("code_snippet".into());
+    ctx.ui.set_preview_text(ctx.content.into());
 }
 
 /// Preview for a link clip: the URL plus the cached or fetched page title and
 /// favicon, updating the row in-place when the favicon arrives.
-fn show_link_preview(ui: &crate::AppWindow, content: &str, clip_id: i32, fav_dir: &Path) {
+fn show_link_preview(ctx: &PreviewContext) {
+    let ui = ctx.ui;
     ui.set_preview_clip_type("link".into());
-    ui.set_preview_text(content.into());
+    ui.set_preview_text(ctx.content.into());
     ui.set_preview_favicon(slint::Image::default());
     ui.set_preview_web_title("".into());
-    let c = content.to_string();
-    let fd = fav_dir.to_path_buf();
+    let c = ctx.content.to_string();
+    let fd = ctx.fav_dir.to_path_buf();
+    let clip_id = ctx.clip_id;
     let w = ui.as_weak();
     if let Some(t) = crate::favicon::load_cached_page_title(&c, &fd) {
         ui.set_preview_web_title(t.into());
@@ -85,7 +100,11 @@ fn show_link_preview(ui: &crate::AppWindow, content: &str, clip_id: i32, fav_dir
 
 /// Preview for a file-image clip: the stored preview WebP/SVG if present,
 /// otherwise generate it in the background and load the result when ready.
-fn show_image_preview(ui: &crate::AppWindow, content: &str, content_hash: &str, td: &Path) {
+fn show_image_preview(ctx: &PreviewContext) {
+    let ui = ctx.ui;
+    let content = ctx.content;
+    let content_hash = ctx.content_hash;
+    let td = ctx.td;
     let preview_webp = td.join(format!(
         "{}_preview.webp",
         &content_hash[..HASH_FILENAME_PREFIX_LEN]
@@ -141,7 +160,9 @@ fn show_image_preview(ui: &crate::AppWindow, content: &str, content_hash: &str, 
 
 /// Preview for a folder clip: the path plus an entry count, total size and the
 /// latest file modification date.
-fn show_folder_preview(ui: &crate::AppWindow, content: &str) {
+fn show_folder_preview(ctx: &PreviewContext) {
+    let ui = ctx.ui;
+    let content = ctx.content;
     let path = Path::new(content);
     let info = if path.is_dir() {
         let mut count = 0u64;
@@ -187,10 +208,24 @@ fn show_folder_preview(ui: &crate::AppWindow, content: &str) {
 }
 
 /// Preview for every other clip type (text, rtf, color, file_*): show text.
-fn show_text_preview(ui: &crate::AppWindow, clip_type: &str, content: &str) {
-    ui.set_preview_clip_type(clip_type.into());
-    ui.set_preview_text(content.into());
+fn show_text_preview(ctx: &PreviewContext) {
+    ctx.ui.set_preview_clip_type(ctx.clip_type.into());
+    ctx.ui.set_preview_text(ctx.content.into());
 }
+
+/// Uniform signature for a per-clip-type preview handler, so handlers can be
+/// dispatched from a table keyed by clip type.
+type PreviewHandler = fn(&PreviewContext<'_>);
+
+/// Per-type preview handlers. Adding a new preview type only needs a new
+/// `show_*_preview` function plus one entry here — the dispatcher itself
+/// stays unchanged.
+const PREVIEW_HANDLERS: &[(&str, PreviewHandler)] = &[
+    ("code_snippet", show_code_preview),
+    ("link", show_link_preview),
+    ("file_image", show_image_preview),
+    ("folder", show_folder_preview),
+];
 
 pub fn setup_preview(
     ui: &crate::AppWindow,
@@ -213,13 +248,20 @@ pub fn setup_preview(
             if let Ok((content, clip_type, content_hash)) = result {
                 let _ = ui.upgrade_in_event_loop(move |ui| {
                     position_popup(&ui, &clip_type, x, y);
-                    match clip_type.as_str() {
-                        "code_snippet" => show_code_preview(&ui, &content),
-                        "link" => show_link_preview(&ui, &content, id, &fav_dir),
-                        "file_image" => show_image_preview(&ui, &content, &content_hash, &td),
-                        "folder" => show_folder_preview(&ui, &content),
-                        _ => show_text_preview(&ui, &clip_type, &content),
-                    }
+                    let ctx = PreviewContext {
+                        ui: &ui,
+                        clip_type: &clip_type,
+                        content: &content,
+                        content_hash: &content_hash,
+                        clip_id: id,
+                        fav_dir: &fav_dir,
+                        td: &td,
+                    };
+                    let handler = PREVIEW_HANDLERS
+                        .iter()
+                        .find(|(t, _)| *t == clip_type.as_str())
+                        .map_or(show_text_preview as PreviewHandler, |(_, h)| *h);
+                    handler(&ctx);
                     ui.set_preview_visible(true);
                 });
             }
