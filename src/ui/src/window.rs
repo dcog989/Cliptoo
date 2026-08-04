@@ -128,67 +128,81 @@ fn save_size_and_hide(
     hide_window(ui);
 }
 
+/// Reentrancy guard shared by the close handlers. Marks the guard cell active
+/// while the returned handle is alive and releases it on drop, so every exit
+/// path (early returns, dropped weak handle, timer callback) resets it without
+/// a manual `set(false)`. Blur-close and window-close can fire back-to-back;
+/// the guard keeps the second from re-entering `save_size_and_hide` while the
+/// first is still mid-flight.
+struct CloseGuard(std::rc::Rc<std::cell::Cell<bool>>);
+
+impl CloseGuard {
+    /// Acquire the guard if it is free; returns `None` when a close handler is
+    /// already running.
+    fn try_acquire(guard: &std::rc::Rc<std::cell::Cell<bool>>) -> Option<Self> {
+        if guard.get() {
+            return None;
+        }
+        guard.set(true);
+        Some(Self(guard.clone()))
+    }
+}
+
+impl Drop for CloseGuard {
+    fn drop(&mut self) {
+        self.0.set(false);
+    }
+}
+
 pub fn setup_close_handlers(
     ui: &crate::AppWindow,
     settings: &std::rc::Rc<std::cell::RefCell<cliptoo_core::Settings>>,
     dirs: &crate::app_dirs::AppDirs,
 ) {
-    let hide_guard = std::rc::Rc::new(std::cell::Cell::new(false));
+    let guard = std::rc::Rc::new(std::cell::Cell::new(false));
     let path = dirs.settings_path.clone();
 
     {
-        let guard = hide_guard.clone();
+        let guard = guard.clone();
         let s = settings.clone();
         let p = path.clone();
         let weak = ui.as_weak();
         ui.on_close_window(move || {
-            if guard.get() {
+            let Some(_guard) = CloseGuard::try_acquire(&guard) else {
                 return;
-            }
-            guard.set(true);
-            let ui = match weak.upgrade() {
-                Some(u) => u,
-                None => {
-                    guard.set(false);
-                    return;
-                }
+            };
+            let Some(ui) = weak.upgrade() else {
+                return;
             };
             save_size_and_hide(&ui, &s, &p);
-            guard.set(false);
         });
     }
     {
-        let guard = hide_guard;
+        let guard = guard.clone();
         let s = settings.clone();
         let p = path;
         let weak = ui.as_weak();
         ui.on_blur_closed(move || {
-            if guard.get() {
+            let Some(guard) = CloseGuard::try_acquire(&guard) else {
                 return;
-            }
-            guard.set(true);
+            };
 
             // "Always close to tray" off: losing focus leaves the window open.
             if !s.borrow().always_close_to_tray {
-                guard.set(false);
                 return;
             }
 
             let weak2 = weak.clone();
             let s2 = s.clone();
             let p2 = p.clone();
-            let guard2 = guard.clone();
-
             slint::Timer::single_shot(Duration::ZERO, move || {
-                let ui = match weak2.upgrade() {
-                    Some(u) => u,
-                    None => {
-                        guard2.set(false);
-                        return;
-                    }
+                // Hold the guard for the whole callback, not just the outer
+                // blur event, so a close fired while this runs is blocked.
+                let _guard = guard;
+                let Some(ui) = weak2.upgrade() else {
+                    return;
                 };
                 save_size_and_hide(&ui, &s2, &p2);
-                guard2.set(false);
             });
         });
     }
