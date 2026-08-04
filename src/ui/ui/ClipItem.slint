@@ -233,7 +233,7 @@ export component ClipItem {
                     overflow: elide;
                     horizontal-alignment: left;
                     vertical-alignment: center;
-                    color: touch.has-hover && !root.is-selected ? Theme.accent-fg : clip-data.is-deadhead ? Theme.fg-muted : clip-data.is-bookmarked && !root.is-selected ? Theme.fg-bookmarked : root.is-selected ? Theme.fg-primary : Theme.fg-secondary;
+                    color: touch.has-hover && !root.is-selected ? Theme.accent-fg : clip-data.is-deadhead ? Theme.fg-muted : clip-data.is-bookmarked && !root.is-selected ? Theme.fg-bookmarked : root.is-selected ? Theme.fg-primary : Theme.fg-clip-list;
                     font-size: Theme.clip-list-font-size;
                 }
 
@@ -272,7 +272,7 @@ export component ClipItem {
                             overflow: clip;
                             horizontal-alignment: left;
                             vertical-alignment: center;
-                            color: touch.has-hover && !root.is-selected ? Theme.accent-fg : span.is-highlight ? Theme.accent-primary : clip-data.is-bookmarked && !root.is-selected ? Theme.fg-bookmarked : root.is-selected ? Theme.fg-primary : Theme.fg-secondary;
+                            color: touch.has-hover && !root.is-selected ? Theme.accent-fg : span.is-highlight ? Theme.accent-primary : clip-data.is-bookmarked && !root.is-selected ? Theme.fg-bookmarked : root.is-selected ? Theme.fg-primary : Theme.fg-clip-list;
                             font-weight: span.is-highlight ? 700 : 400;
                             font-size: Theme.clip-list-font-size;
                         }

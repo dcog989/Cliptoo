@@ -157,13 +157,24 @@ export component Toolbar {
                     height: 100%;
                     font-size: Theme.font-size;
                     text <=> root.search-text;
-                    placeholder-text: @tr("Search…");
                     edited => {
                         root.search-changed(self.text);
                     }
                     accepted => {
                         root.accepted();
                     }
+                }
+                Text {
+                    x: 12px;
+                    width: parent.width - self.x;
+                    height: 100%;
+                    vertical-alignment: center;
+                    text: @tr("Search…");
+                    color: Theme.fg-muted;
+                    font-family: Theme.font-family;
+                    font-size: Theme.font-size;
+                    visible: root.search-text == "";
+                    accessible-role: none;
                 }
             }
 
