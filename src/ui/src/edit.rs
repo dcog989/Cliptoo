@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::time::Duration;
 
 use slint::ComponentHandle;
 
@@ -29,6 +30,14 @@ pub fn setup_edit_window(
             }
             if let Some(ui) = main_ui.upgrade() {
                 ui.set_edit_open(false);
+                // Re-focus the main window once the editor is gone; it lost
+                // focus to the editor and otherwise blur-to-tray would hide it.
+                let ui = ui.as_weak();
+                slint::Timer::single_shot(Duration::ZERO, move || {
+                    if let Some(ui) = ui.upgrade() {
+                        crate::drag::activate_window(&ui);
+                    }
+                });
             }
             slint::CloseRequestResponse::HideWindow
         });
@@ -44,6 +53,7 @@ pub fn setup_edit_window(
             }
             if let Some(ui) = main_ui.upgrade() {
                 ui.set_edit_open(false);
+                crate::drag::activate_window(&ui);
             }
         });
     }
@@ -100,6 +110,7 @@ pub fn setup_edit_window(
                         let _ = win.hide();
                         if let Some(ui) = main_ui.upgrade() {
                             ui.set_edit_open(false);
+                            crate::drag::activate_window(&ui);
                         }
                     });
                 });
