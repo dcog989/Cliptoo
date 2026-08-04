@@ -1,43 +1,23 @@
-use cliptoo_core::content::classifier::ContentProcessor;
+mod common;
+
 use cliptoo_core::db::DbPool;
 use cliptoo_core::db::queries;
 use cliptoo_core::stats;
-
-async fn insert_text(db: &DbPool, content: &str, hash: &str) {
-    let c = ContentProcessor::process(content, false).unwrap();
-    db.with(|conn| {
-        queries::insert_or_bump(
-            conn,
-            content,
-            &c.preview_content,
-            hash,
-            "text",
-            None,
-            c.was_trimmed,
-            c.has_leading_whitespace,
-            c.is_multiline,
-            c.size_in_bytes,
-            false,
-        )
-    })
-    .await
-    .unwrap();
-}
 
 #[tokio::test]
 async fn count_clips_counts_stored_rows() {
     let dir = std::env::temp_dir().join(format!("cliptoo_stats_{}", std::process::id()));
     let db = DbPool::open(&dir).unwrap();
 
-    insert_text(&db, "first", "h1").await;
-    insert_text(&db, "second", "h2").await;
-    insert_text(&db, "third", "h3").await;
+    common::insert_clip(&db, "first", "h1", "text").await;
+    common::insert_clip(&db, "second", "h2", "text").await;
+    common::insert_clip(&db, "third", "h3", "text").await;
 
     let total = db.with(queries::count_clips).await.unwrap();
     assert_eq!(total, 3);
 
     // Re-copying an existing hash bumps it to the top, not a new row.
-    insert_text(&db, "second", "h2").await;
+    common::insert_clip(&db, "second", "h2", "text").await;
     let total = db.with(queries::count_clips).await.unwrap();
     assert_eq!(total, 3);
 
@@ -51,8 +31,7 @@ async fn record_paste_bumps_global_paste_counter() {
     let dir = std::env::temp_dir().join(format!("cliptoo_paste_{}", std::process::id()));
     let db = DbPool::open(&dir).unwrap();
 
-    insert_text(&db, "hello", "h1").await;
-
+    common::insert_clip(&db, "hello", "h1", "text").await;
     let id = db
         .with(|conn| queries::search_clips(conn, "", "all", 10, 0, None))
         .await

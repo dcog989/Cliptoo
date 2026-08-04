@@ -1,28 +1,7 @@
-use cliptoo_core::content::classifier::ContentProcessor;
-use cliptoo_core::db::DbPool;
-use cliptoo_core::db::queries;
-use cliptoo_core::maintenance;
+mod common;
 
-async fn insert_clip(db: &DbPool, content: &str, hash: &str, clip_type: &str) {
-    let c = ContentProcessor::process(content, false).unwrap();
-    db.with(|conn| {
-        queries::insert_or_bump(
-            conn,
-            content,
-            &c.preview_content,
-            hash,
-            clip_type,
-            None,
-            c.was_trimmed,
-            c.has_leading_whitespace,
-            c.is_multiline,
-            c.size_in_bytes,
-            false,
-        )
-    })
-    .await
-    .unwrap();
-}
+use cliptoo_core::db::DbPool;
+use cliptoo_core::maintenance;
 
 #[tokio::test]
 async fn reclassify_only_updates_rows_whose_classification_changed() {
@@ -30,13 +9,13 @@ async fn reclassify_only_updates_rows_whose_classification_changed() {
     let db = DbPool::open(&dir).unwrap();
 
     // URL stored with the wrong type — ContentProcessor classifies it as "link".
-    insert_clip(&db, "https://example.com", "urlhash", "text").await;
+    common::insert_clip(&db, "https://example.com", "urlhash", "text").await;
     // Correctly classified text clip — ContentProcessor also yields "text".
-    insert_clip(&db, "hello world", "texthash", "text").await;
+    common::insert_clip(&db, "hello world", "texthash", "text").await;
     // Freshly copied clip whose stored content was trimmed (leading whitespace).
     // WasTrimmed/HasLeadingWhitespace cannot be re-derived from the stored
     // trimmed content, so reclassify must leave it alone — type is unchanged.
-    insert_clip(&db, "  indented line  ", "indenthash", "text").await;
+    common::insert_clip(&db, "  indented line  ", "indenthash", "text").await;
 
     let first = db.with(maintenance::reclassify_all).await.unwrap();
     assert_eq!(first, 1, "only the misclassified URL should be updated");

@@ -1,26 +1,11 @@
-use cliptoo_core::content::classifier::ContentProcessor;
+mod common;
+
 use cliptoo_core::db::DbPool;
 use std::sync::Arc;
 
+/// Insert a text clip, deriving its hash from the content.
 async fn insert_text(db: &Arc<DbPool>, content: &str, clip_type: &str) {
-    let c = ContentProcessor::process(content, false).unwrap();
-    db.with(|conn| {
-        cliptoo_core::db::queries::insert_or_bump(
-            conn,
-            content,
-            &c.preview_content,
-            &format!("testhash_{content}"),
-            clip_type,
-            None,
-            c.was_trimmed,
-            c.has_leading_whitespace,
-            c.is_multiline,
-            c.size_in_bytes,
-            false,
-        )
-    })
-    .await
-    .unwrap();
+    common::insert_clip(db, content, &format!("testhash_{content}"), clip_type).await;
 }
 
 #[tokio::test]
@@ -28,8 +13,8 @@ async fn export_bookmarks_only() {
     let dir = std::env::temp_dir().join(format!("cliptoo_bm_{}", std::process::id()));
     let db = Arc::new(DbPool::open(&dir).unwrap());
 
-    insert_text(&db, "plain clip", "hash_plain").await;
-    insert_text(&db, "fav clip", "hash_fav").await;
+    insert_text(&db, "plain clip", "text").await;
+    insert_text(&db, "fav clip", "text").await;
 
     let fav_id = db
         .with(|conn| {
