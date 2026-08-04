@@ -151,30 +151,20 @@ pub async fn run_listener(
                                 continue;
                             }
 
-                            let inserted = db
-                                .with(|conn| {
-                                    let inserted = insert_or_bump(
-                                        conn,
-                                        &classified.content,
-                                        &classified.preview_content,
-                                        &classified.content_hash,
-                                        classified.clip_type.as_str(),
-                                        source_app.as_deref(),
-                                        classified.was_trimmed,
-                                        classified.has_leading_whitespace,
-                                        classified.is_multiline,
-                                        classified.size_in_bytes,
-                                        false,
-                                    )?;
-                                    if inserted {
-                                        cliptoo_core::stats::increment_stat(
-                                            conn,
-                                            "UniqueClipsEver",
-                                        )?;
-                                    }
-                                    Ok(inserted)
-                                })
-                                .await?;
+                            let inserted = insert_clip_with_stat(
+                                &db,
+                                &classified.content,
+                                &classified.preview_content,
+                                &classified.content_hash,
+                                classified.clip_type.as_str(),
+                                source_app.as_deref(),
+                                classified.was_trimmed,
+                                classified.has_leading_whitespace,
+                                classified.is_multiline,
+                                classified.size_in_bytes,
+                                false,
+                            )
+                            .await?;
 
                             if inserted {
                                 let sa = source_app.as_deref().unwrap_or("unknown");
@@ -230,37 +220,23 @@ pub async fn run_listener(
                             continue;
                         };
 
-                        let inserted = {
-                            let (clip_type, preview_content, size, is_multiline) = (
-                                c.clip_type.as_str().to_string(),
-                                c.preview_content.clone(),
-                                c.size_in_bytes,
-                                c.is_multiline,
-                            );
-                            db.with(|conn| {
-                                let ins = insert_or_bump(
-                                    conn,
-                                    &content,
-                                    &preview_content,
-                                    &hash,
-                                    &clip_type,
-                                    source_app.as_deref(),
-                                    false,
-                                    false,
-                                    is_multiline,
-                                    size,
-                                    true,
-                                )?;
-                                if ins {
-                                    cliptoo_core::stats::increment_stat(conn, "UniqueClipsEver")?;
-                                }
-                                Ok((ins, clip_type))
-                            })
-                            .await?
-                        };
+                        let inserted = insert_clip_with_stat(
+                            &db,
+                            &content,
+                            &c.preview_content,
+                            &hash,
+                            c.clip_type.as_str(),
+                            source_app.as_deref(),
+                            false,
+                            false,
+                            c.is_multiline,
+                            c.size_in_bytes,
+                            true,
+                        )
+                        .await?;
 
-                        if inserted.0 {
-                            let clip_type = &inserted.1;
+                        if inserted {
+                            let clip_type = c.clip_type.as_str();
                             let thumb_handle = if clip_type == "file_image" {
                                 let path = std::path::Path::new(&content).to_owned();
                                 let hash_c = hash.clone();
@@ -305,27 +281,20 @@ pub async fn run_listener(
                         let preview = format!("clipboard-image-{}.png", &hash[..12]);
                         let size = data.len() as i64;
 
-                        let inserted = db
-                            .with(|conn| {
-                                let ins = insert_or_bump(
-                                    conn,
-                                    &content_str,
-                                    &preview,
-                                    &hash,
-                                    "file_image",
-                                    source_app.as_deref(),
-                                    false,
-                                    false,
-                                    false,
-                                    size,
-                                    false,
-                                )?;
-                                if ins {
-                                    cliptoo_core::stats::increment_stat(conn, "UniqueClipsEver")?;
-                                }
-                                Ok(ins)
-                            })
-                            .await?;
+                        let inserted = insert_clip_with_stat(
+                            &db,
+                            &content_str,
+                            &preview,
+                            &hash,
+                            "file_image",
+                            source_app.as_deref(),
+                            false,
+                            false,
+                            false,
+                            size,
+                            false,
+                        )
+                        .await?;
 
                         if inserted {
                             cliptoo_core::image::store_image(&images_dir, &hash, &data)?;
@@ -356,4 +325,45 @@ pub async fn run_listener(
 
         tokio::time::sleep(POLL_INTERVAL).await;
     }
+}
+
+/// Insert (or bump) a clip and, only when a genuinely new row was created,
+/// record it in the "UniqueClipsEver" lifetime stat.
+///
+/// Shared ingest path for the text, file-uri and image listener branches;
+/// callers supply the classification arguments themselves.
+#[allow(clippy::too_many_arguments)]
+async fn insert_clip_with_stat(
+    db: &DbPool,
+    content: &str,
+    preview_content: &str,
+    content_hash: &str,
+    clip_type: &str,
+    source_app: Option<&str>,
+    was_trimmed: bool,
+    has_leading_whitespace: bool,
+    is_multiline: bool,
+    size_in_bytes: i64,
+    is_file_uri: bool,
+) -> Result<bool> {
+    db.with(|conn| {
+        let inserted = insert_or_bump(
+            conn,
+            content,
+            preview_content,
+            content_hash,
+            clip_type,
+            source_app,
+            was_trimmed,
+            has_leading_whitespace,
+            is_multiline,
+            size_in_bytes,
+            is_file_uri,
+        )?;
+        if inserted {
+            cliptoo_core::stats::increment_stat(conn, "UniqueClipsEver")?;
+        }
+        Ok(inserted)
+    })
+    .await
 }
