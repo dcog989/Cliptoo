@@ -5,7 +5,12 @@
 /// RTF control words.  Handles the common subset produced by office
 /// applications; does not attempt full RTF spec compliance.
 pub fn strip_rtf(rtf: &str) -> String {
-    let mut out = String::with_capacity(rtf.len());
+    // Accumulated as raw bytes, not `char`s: passthrough content may contain
+    // multi-byte UTF-8 sequences, and pushing each byte individually via
+    // `byte as char` would reinterpret every byte >= 0x80 as its own Latin-1
+    // codepoint instead of reassembling the original character. Decoding once
+    // at the end (via `from_utf8_lossy`) keeps multi-byte sequences intact.
+    let mut out: Vec<u8> = Vec::with_capacity(rtf.len());
     let mut depth: u32 = 0;
     let mut skip_group = false;
     let mut skip_stack: Vec<bool> = Vec::new();
@@ -38,7 +43,7 @@ pub fn strip_rtf(rtf: &str) -> String {
                 // Escaped char literal (e.g. \\{ \\} \\\\)
                 if i < bytes.len() && (bytes[i] == b'{' || bytes[i] == b'}' || bytes[i] == b'\\') {
                     if !skip_group && depth > 0 {
-                        out.push(bytes[i] as char);
+                        out.push(bytes[i]);
                     }
                     i += 1;
                     continue;
@@ -63,8 +68,8 @@ pub fn strip_rtf(rtf: &str) -> String {
                 }
                 if !skip_group {
                     match word {
-                        "par" | "line" => out.push('\n'),
-                        "tab" => out.push('\t'),
+                        "par" | "line" => out.push(b'\n'),
+                        "tab" => out.push(b'\t'),
                         _ => {}
                     }
                 }
@@ -74,14 +79,17 @@ pub fn strip_rtf(rtf: &str) -> String {
             }
             ch => {
                 if !skip_group && depth > 0 {
-                    out.push(ch as char);
+                    out.push(ch);
                 }
                 i += 1;
             }
         }
     }
+    // Decode once, now that every passthrough byte (including multi-byte
+    // UTF-8 sequences) has been accumulated intact.
+    let text = String::from_utf8_lossy(&out);
     // Collapse runs of blank lines
-    out.lines()
+    text.lines()
         .filter(|l| !l.trim().is_empty())
         .collect::<Vec<_>>()
         .join("\n")
