@@ -12,6 +12,7 @@ use tracing::{info, warn};
 
 use crate::content::classifier::ContentProcessor;
 use crate::content::hash::normalize_line_endings;
+use crate::db::models::ClipType;
 use crate::db::DbPool;
 use crate::stats;
 use crate::time::utc_now_iso;
@@ -98,17 +99,25 @@ pub fn retention(conn: &Connection, cfg: &RetentionConfig) -> Result<u64> {
     Ok(deleted)
 }
 
+/// SQL `IN (...)` list of the clip types deadhead detection applies to,
+/// derived from `ClipType::is_file_clip()` so it cannot drift from the model's
+/// stored string values.
+fn deadhead_clip_types() -> String {
+    ClipType::ALL
+        .iter()
+        .filter(|t| t.is_file_clip())
+        .map(|t| format!("'{}'", t.as_str()))
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
 /// Collect file-type clip ids and paths for deadhead processing.
 /// Split from the delete step so filesystem checks happen outside `db.with`.
 pub fn deadhead_collect(conn: &Connection) -> Result<Vec<(i64, String)>> {
-    let mut stmt = conn.prepare_cached(
-         "SELECT Id, Content FROM clips
-         WHERE ClipType IN (
-             'file_image','file_video','file_audio','file_archive',
-             'file_document','file_dev','file_danger','file_text',
-             'file_generic','folder'
-         )",
-    )?;
+    let mut stmt = conn.prepare_cached(&format!(
+        "SELECT Id, Content FROM clips WHERE ClipType IN ({types})",
+        types = deadhead_clip_types(),
+    ))?;
     let mut out = Vec::new();
     for r in stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))? {
         match r {
@@ -359,4 +368,19 @@ pub fn spawn_scheduler(
             tokio::time::sleep(std::time::Duration::from_secs(interval_secs)).await;
         }
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::deadhead_clip_types;
+
+    #[test]
+    fn deadhead_list_covers_expected_file_clip_types() {
+        // In `ClipType::ALL` declaration order, filtered to file clips only.
+        assert_eq!(
+            deadhead_clip_types(),
+            "'file_image', 'file_video', 'file_audio', 'file_archive', 'file_document', \
+             'file_dev', 'file_danger', 'file_text', 'file_generic', 'folder'"
+        );
+    }
 }

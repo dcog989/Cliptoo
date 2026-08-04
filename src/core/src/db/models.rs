@@ -27,6 +27,46 @@ pub enum ClipType {
 }
 
 impl ClipType {
+    /// All variants, in declaration order.
+    pub const ALL: [Self; 16] = [
+        Self::Text,
+        Self::FilePath,
+        Self::Rtf,
+        Self::Link,
+        Self::Color,
+        Self::CodeSnippet,
+        Self::FileImage,
+        Self::FileVideo,
+        Self::FileAudio,
+        Self::FileArchive,
+        Self::FileDocument,
+        Self::FileDev,
+        Self::FileDanger,
+        Self::FileText,
+        Self::FileGeneric,
+        Self::Folder,
+    ];
+
+    /// True when the clip represents an on-disk path copied via
+    /// `text/uri-list` (a file type or a folder). These are the clips deadhead
+    /// detection checks for missing paths; the pure-text clips never reference
+    /// disk state.
+    pub fn is_file_clip(&self) -> bool {
+        matches!(
+            self,
+            Self::FileImage
+                | Self::FileVideo
+                | Self::FileAudio
+                | Self::FileArchive
+                | Self::FileDocument
+                | Self::FileDev
+                | Self::FileDanger
+                | Self::FileText
+                | Self::FileGeneric
+                | Self::Folder
+        )
+    }
+
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Text => "text",
