@@ -19,6 +19,10 @@ const HOST_REGISTRY_IFACE: &str = "org.freedesktop.host.portal.Registry";
 /// of an installed `.desktop` file (the PKGBUILD installs `cliptoo.desktop`).
 const APP_ID: &str = "cliptoo";
 
+/// How long a hotkey value must stay unchanged before a re-registration is
+/// triggered (see `wait_for_stable_hotkey`).
+const HOTKEY_DEBOUNCE: Duration = Duration::from_millis(800);
+
 /// Replace characters that are invalid in D-Bus object path elements with `_`.
 /// Valid chars are `[A-Za-z0-9_]`.
 fn sanitize_dbus_token(s: &str) -> String {
@@ -415,15 +419,14 @@ pub async fn clear_kglobalaccel_bindings(action: &str) {
 /// Keep the global toggle shortcut registered, re-registering whenever the
 /// user changes the hotkey in Settings.
 ///
-/// The settings UI commits on every key-press, so typing `Ctrl+Alt+Q` fires
-/// several `watch` updates in quick succession. Debounce: only act once the
-/// value has been stable for a quiet period, so the KDE confirmation dialog
-/// appears for the complete combo, not the first modifier key.
+/// The settings UI commits on every key-press, so `wait_for_stable_hotkey`
+/// debounces the re-registration until the combo has been stable for a quiet
+/// period (so the KDE confirmation dialog sees the complete combo, not the
+/// first modifier key).
 pub async fn run_hotkey_loop(
     ui: slint::Weak<crate::AppWindow>,
     mut hotkey_rx: tokio::sync::watch::Receiver<String>,
 ) {
-    const HOTKEY_DEBOUNCE_MS: u64 = 800;
     const TOGGLE_ID: &str = "toggle-cliptoo";
 
     loop {
@@ -447,21 +450,9 @@ pub async fn run_hotkey_loop(
             tracing::warn!("Global shortcuts unavailable: {e}");
         }
 
-        // Wait for the user to change a hotkey in Settings.
-        if hotkey_rx.changed().await.is_err() {
+        // Wait for the user to finish editing the hotkey in Settings.
+        if wait_for_stable_hotkey(&mut hotkey_rx).await {
             break;
-        }
-        loop {
-            match tokio::time::timeout(
-                std::time::Duration::from_millis(HOTKEY_DEBOUNCE_MS),
-                hotkey_rx.changed(),
-            )
-            .await
-            {
-                Err(_) => break,
-                Ok(Err(_)) => break,
-                Ok(Ok(())) => continue,
-            }
         }
 
         // Drop the old listener, clear the stale KGlobalAccel keys so the
@@ -469,5 +460,24 @@ pub async fn run_hotkey_loop(
         // preferred_trigger), then loop to re-register.
         handle.map(|h| h.abort()).ok();
         clear_kglobalaccel_bindings(TOGGLE_ID).await;
+    }
+}
+
+/// Wait for the user to finish editing the hotkey in Settings.
+///
+/// First waits for a change to arrive, then restarts the debounce timer on
+/// every further change until the value has stayed stable for
+/// `HOTKEY_DEBOUNCE`. Returns `true` when the sender has been dropped
+/// (shutdown).
+async fn wait_for_stable_hotkey(hotkey_rx: &mut tokio::sync::watch::Receiver<String>) -> bool {
+    if hotkey_rx.changed().await.is_err() {
+        return true;
+    }
+    loop {
+        match timeout(HOTKEY_DEBOUNCE, hotkey_rx.changed()).await {
+            Err(_) => return false,
+            Ok(Err(_)) => return true,
+            Ok(Ok(())) => continue,
+        }
     }
 }
