@@ -1,9 +1,8 @@
 // Compare tool integration.
 // See PORTING.md §12 for the temp-file workflow.
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Result, bail};
 use std::path::{Path, PathBuf};
-use uuid::Uuid;
 
 /// Candidates searched in order when `compare_tool_path` is empty.
 const TOOL_CANDIDATES: &[(&str, &[&str])] = &[
@@ -62,54 +61,21 @@ pub async fn compare_clips(
 ) -> Result<()> {
     let (tool, extra_args) = discover_tool(compare_tool_path)?;
 
-    let tmp_dir = std::env::temp_dir().join("Cliptoo");
-    tokio::fs::create_dir_all(&tmp_dir)
-        .await
-        .context("create Cliptoo tmp dir")?;
-
-    let uid = Uuid::new_v4().to_string();
-    let left_path = tmp_dir.join(format!("cliptoo_compare_left_{uid}.txt"));
-    let right_path = tmp_dir.join(format!("cliptoo_compare_right_{uid}.txt"));
-
-    let write_result = async {
-        tokio::fs::write(&left_path, left_content.as_bytes())
-            .await
-            .context("write left temp file")?;
-        tokio::fs::write(&right_path, right_content.as_bytes())
-            .await
-            .context("write right temp file")?;
-        Ok::<(), anyhow::Error>(())
-    }
-    .await;
-
-    if let Err(e) = write_result {
-        let _ = tokio::fs::remove_file(&left_path).await;
-        let _ = tokio::fs::remove_file(&right_path).await;
-        return Err(e);
-    }
-
-    let mut cmd = std::process::Command::new(&tool);
-    for arg in &extra_args {
-        cmd.arg(arg);
-    }
-    cmd.arg(&left_path).arg(&right_path);
-
-    match cmd.spawn() {
-        Ok(_) => {
-            // Background cleanup after 5 s.
-            let lp = left_path.clone();
-            let rp = right_path.clone();
-            tokio::spawn(async move {
-                tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-                let _ = tokio::fs::remove_file(&lp).await;
-                let _ = tokio::fs::remove_file(&rp).await;
-            });
-            Ok(())
-        }
-        Err(e) => {
-            let _ = tokio::fs::remove_file(&left_path).await;
-            let _ = tokio::fs::remove_file(&right_path).await;
-            Err(anyhow::anyhow!("spawn diff tool: {e}"))
-        }
-    }
+    crate::temp::launch_with_temp_files(
+        &[
+            ("cliptoo_compare_left_{}.txt", left_content.as_bytes()),
+            ("cliptoo_compare_right_{}.txt", right_content.as_bytes()),
+        ],
+        |paths| {
+            let mut cmd = std::process::Command::new(&tool);
+            for arg in &extra_args {
+                cmd.arg(arg);
+            }
+            cmd.arg(&paths[0]).arg(&paths[1]);
+            cmd.spawn()
+                .map(|_| ())
+                .map_err(|e| anyhow::anyhow!("spawn diff tool: {e}"))
+        },
+    )
+    .await
 }

@@ -17,6 +17,7 @@ pub mod maintenance;
 pub mod send_to;
 pub mod settings;
 pub mod stats;
+pub(crate) mod temp;
 pub(crate) mod time;
 pub mod transform;
 
