@@ -157,6 +157,21 @@ async fn main() -> Result<()> {
         });
     }
 
+    // Populate the clip list from history on startup. The listener no longer
+    // ingests the pre-existing clipboard at launch (it seeds the change-detection
+    // baseline instead), so that startup read no longer doubles as the initial
+    // list refresh; without this the list stays empty until the first new copy.
+    {
+        let db = db.clone();
+        let ui_weak = ui.as_weak();
+        let td = dirs.thumbnails_dir.clone();
+        let fd = dirs.favicons_dir.clone();
+        let filter = active_filter_state.lock().unwrap().clone();
+        tokio::spawn(async move {
+            helpers::refresh_clips(&db, &ui_weak, &td, &fd, "", &filter, None).await;
+        });
+    }
+
     // ── Global shortcuts ───────────────────────────────────────────────
     {
         let ui_weak = ui.as_weak();
