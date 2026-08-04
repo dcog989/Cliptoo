@@ -35,6 +35,26 @@ fn current_accent_hsv(
     }
 }
 
+/// Apply one slider move to the currently shown tuning. The moved component
+/// (`key` in {"accent_hue", "accent_saturation", "accent_value"}) is set to
+/// `value`; the other two stay locked at the values currently displayed. Hue
+/// arrives in degrees 0–360, saturation/brightness in percent. Baselining on
+/// the displayed values (not on a re-parse of the derived hex) is what keeps
+/// the untouched sliders from wobbling.
+fn retune_accent(
+    current_hue: f64,
+    current_saturation: f64,
+    current_value: f64,
+    key: &str,
+    value: f64,
+) -> (f64, f64, f64) {
+    match key {
+        "accent_hue" => (value.clamp(0.0, 360.0), current_saturation, current_value),
+        "accent_saturation" => (current_hue, value.clamp(0.0, 100.0) / 100.0, current_value),
+        _ => (current_hue, current_saturation, value.clamp(0.0, 100.0) / 100.0),
+    }
+}
+
 /// Instant-filter keyword lists, one per setting row, grouped by section.
 /// The header search box is matched against these (case-insensitive) by
 /// `apply_settings_filter`; a row shows when the query matches any keyword.
@@ -455,20 +475,26 @@ if ok:
                     }
                     "accent_hue" | "accent_saturation" | "accent_value" => {
                         if let Ok(v) = value.parse::<f64>() {
-                            // Start from the accent currently shown — a custom
-                            // hex, the OS accent while "Clear" is active, or
-                            // the persisted tuning as last resort — then apply
-                            // only the moved slider (hue in degrees 0–360,
-                            // saturation/brightness in percent). This keeps
-                            // tuning from a "Clear" start on the muted green
-                            // that is actually displayed instead of snapping
-                            // the other components to stored defaults.
-                            let (is_dark, system_accent) = crate::theme::cached_resolved_theme();
-                            let (h, sat, val) = current_accent_hsv(&s, system_accent);
-                            let (h, sat, val) = match key.as_str() {
-                                "accent_hue" => (v.clamp(0.0, 360.0), sat, val),
-                                "accent_saturation" => (h, v.clamp(0.0, 100.0) / 100.0, val),
-                                _ => (h, sat, v.clamp(0.0, 100.0) / 100.0),
+                            // Baseline from the sliders as currently shown: the
+                            // full HSV of the accent in effect (a custom hex,
+                            // the OS accent while "Clear" is active, or the
+                            // persisted tuning) was folded into them when the
+                            // window opened or "Clear" ran. Only the moved
+                            // slider changes — the others stay locked at their
+                            // displayed values. Re-deriving the baseline from
+                            // `s.accent_color` (a hex round-trip) let the
+                            // untouched sliders wobble by ±1 unit per move.
+                            let (is_dark, _) = crate::theme::cached_resolved_theme();
+                            let (h, sat, val) = if let Some(win) = sw.upgrade() {
+                                retune_accent(
+                                    win.get_s_accent_hue() as f64,
+                                    win.get_s_accent_saturation() as f64 / 100.0,
+                                    win.get_s_accent_value() as f64 / 100.0,
+                                    &key,
+                                    v,
+                                )
+                            } else {
+                                (s.accent_hue, s.accent_saturation, s.accent_value)
                             };
                             // Moving any slider defines a custom accent, so this
                             // also works from a "Clear" (OS accent) start
@@ -631,5 +657,40 @@ mod tests {
         assert!((h - eh).abs() < f64::EPSILON);
         assert!((sat - es).abs() < f64::EPSILON);
         assert!((val - ev).abs() < f64::EPSILON);
+    }
+
+    /// Moving one tuning slider leaves the other two exactly at their current
+    /// values — bit-identical, not a hex round-trip — so repeated moves never
+    /// make the untouched sliders drift.
+    #[test]
+    fn retune_accent_locks_untouched_sliders() {
+        let (h, sat, val) = retune_accent(247.0, 0.65, 0.95, "accent_value", 72.0);
+        assert_eq!(h, 247.0);
+        assert_eq!(sat, 0.65);
+        assert_eq!(val, 0.72);
+
+        let (h, sat, val) = retune_accent(247.0, 0.65, 0.95, "accent_saturation", 30.0);
+        assert_eq!(h, 247.0);
+        assert_eq!(sat, 0.30);
+        assert_eq!(val, 0.95);
+
+        let (h, sat, val) = retune_accent(247.0, 0.65, 0.95, "accent_hue", 120.0);
+        assert_eq!(h, 120.0);
+        assert_eq!(sat, 0.65);
+        assert_eq!(val, 0.95);
+    }
+
+    /// Out-of-range slider input is clamped to the slider's bounds.
+    #[test]
+    fn retune_accent_clamps_input() {
+        let (h, sat, val) = retune_accent(247.0, 0.65, 0.95, "accent_value", 500.0);
+        assert_eq!(h, 247.0);
+        assert_eq!(sat, 0.65);
+        assert_eq!(val, 1.0);
+
+        let (h, sat, val) = retune_accent(247.0, 0.65, 0.95, "accent_hue", -40.0);
+        assert_eq!(h, 0.0);
+        assert_eq!(sat, 0.65);
+        assert_eq!(val, 0.95);
     }
 }
