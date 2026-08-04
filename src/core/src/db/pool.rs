@@ -7,6 +7,13 @@ use anyhow::Result;
 use rusqlite::Connection;
 use std::path::Path;
 
+/// rusqlite's default prepared-statement cache capacity is 16. `search_clips`
+/// alone builds 50+ distinct SQL strings (4 query shapes × ~14 filter
+/// variants), plus a handful more from maintenance/export — well past the
+/// default, which would silently evict and recompile statements on the
+/// keystroke hot path instead of reusing them.
+const STATEMENT_CACHE_CAPACITY: usize = 128;
+
 pub struct DbPool {
     // Single connection guarded by a tokio mutex; sufficient for a desktop clipboard daemon.
     // tokio::sync::Mutex is Send+Sync when T: Send (rusqlite::Connection is Send but not Sync).
@@ -16,6 +23,7 @@ pub struct DbPool {
 impl DbPool {
     pub fn open(path: &Path) -> Result<Self> {
         let conn = Connection::open(path)?;
+        conn.set_prepared_statement_cache_capacity(STATEMENT_CACHE_CAPACITY);
 
         // PRAGMAs must run outside any transaction.
         conn.execute_batch(schema::PRAGMA_WAL)?;
