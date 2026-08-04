@@ -27,21 +27,27 @@ export component ClipList {
     callback request-preview(int, float, float);  // id, x, y in logical px
     callback dismiss-preview;
 
+    public function ensure-visible() {
+        let top = root.selected-index * Theme.row-height;
+        let bottom = top + Theme.row-height;
+        if (top < -list-view.viewport-y) {
+            list-view.viewport-y = -top;
+        } else if (bottom > -list-view.viewport-y + list-view.visible-height) {
+            list-view.viewport-y = -bottom + list-view.visible-height;
+        }
+    }
+
     public function nav-up() {
         if (root.clips.length > 0) {
             root.selected-index = max(0, root.selected-index - 1);
-            if (root.selected-index * Theme.row-height < -list-view.viewport-y) {
-                list-view.viewport-y = -root.selected-index * Theme.row-height;
-            }
+            root.ensure-visible();
         }
     }
 
     public function nav-down() {
         if (root.clips.length > 0) {
             root.selected-index = min(root.clips.length - 1, root.selected-index + 1);
-            if ((root.selected-index + 1) * Theme.row-height > -list-view.viewport-y + list-view.visible-height) {
-                list-view.viewport-y = -(root.selected-index + 1) * Theme.row-height + list-view.visible-height;
-            }
+            root.ensure-visible();
         }
     }
 
@@ -63,18 +69,14 @@ export component ClipList {
     public function nav-page-up() {
         if (root.clips.length > 0) {
             root.selected-index = max(0, root.selected-index - root.page-rows);
-            if (root.selected-index * Theme.row-height < -list-view.viewport-y) {
-                list-view.viewport-y = -root.selected-index * Theme.row-height;
-            }
+            root.ensure-visible();
         }
     }
 
     public function nav-page-down() {
         if (root.clips.length > 0) {
             root.selected-index = min(root.clips.length - 1, root.selected-index + root.page-rows);
-            if ((root.selected-index + 1) * Theme.row-height > -list-view.viewport-y + list-view.visible-height) {
-                list-view.viewport-y = -(root.selected-index + 1) * Theme.row-height + list-view.visible-height;
-            }
+            root.ensure-visible();
         }
     }
 
