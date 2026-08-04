@@ -1,34 +1,10 @@
-import { Theme } from "Theme.slint";
-
-export struct FilterItem {
-    key: string,
-    label: string,
-}
+import { Theme }       from "Theme.slint";
+import { ClipTypeMap } from "ClipTypes.slint";
 
 export component FilterGrid {
     in property <string> active-filter: "all";
 
     callback filter-chosen(string);
-
-    property <[FilterItem]> items: [
-        { key: "all", label: @tr("All") },
-        { key: "text", label: @tr("Text") },
-        { key: "file_image", label: @tr("Image") },
-        { key: "bookmarked", label: @tr("Bookmarked") },
-        { key: "link", label: @tr("URL") },
-        { key: "file_path", label: @tr("File path") },
-        { key: "code_snippet", label: @tr("Code") },
-        { key: "color", label: @tr("Color") },
-        { key: "folder", label: @tr("Folder") },
-        { key: "file_danger", label: @tr("Danger") },
-        { key: "file_dev", label: @tr("Dev") },
-        { key: "file_audio", label: @tr("Audio") },
-        { key: "file_video", label: @tr("Video") },
-        { key: "file_archive", label: @tr("Archive") },
-        { key: "file_document", label: @tr("Document") },
-        { key: "rtf", label: @tr("Rich Text") },
-        { key: "file", label: @tr("File") },
-    ];
 
     property <length> grid-spacing: 4px;
     property <length> grid-padding: 8px;
@@ -44,13 +20,13 @@ export component FilterGrid {
             padding: root.grid-padding;
             spacing: root.grid-spacing;
 
-            for item[idx] in root.items: Rectangle {
+            for key[idx] in ClipTypeMap.filter-keys: Rectangle {
                 row: Math.floor(idx / 5);
                 col: Math.mod(idx, 5);
                 width: root.cell-size;
                 height: root.cell-size;
                 border-radius: 5px;
-                background: root.active-filter == item.key ? Theme.accent-primary : transparent;
+                background: root.active-filter == key ? Theme.accent-primary : transparent;
 
                 animate background { duration: Theme.anim-fast; }
 
@@ -59,19 +35,19 @@ export component FilterGrid {
                     y: (root.cell-size - 24px) / 2;
                     width: 24px;
                     height: 24px;
-                    source: item.key == "all" ? @image-url("icons/check-check.svg") : item.key == "text" ? @image-url("icons/text-align-start.svg") : item.key == "file_image" ? @image-url("icons/file-image.svg") : item.key == "bookmarked" ? @image-url("icons/bookmark.svg") : item.key == "link" ? @image-url("icons/link.svg") : item.key == "file_path" ? @image-url("icons/folder-tree.svg") : item.key == "code_snippet" ? @image-url("icons/code.svg") : item.key == "color" ? @image-url("icons/palette.svg") : item.key == "folder" ? @image-url("icons/folder.svg") : item.key == "file_danger" ? @image-url("icons/triangle-alert.svg") : item.key == "file_dev" ? @image-url("icons/file-code.svg") : item.key == "file_audio" ? @image-url("icons/audio-lines.svg") : item.key == "file_video" ? @image-url("icons/film.svg") : item.key == "file_archive" ? @image-url("icons/file-archive.svg") : item.key == "file_document" ? @image-url("icons/file-text.svg") : item.key == "rtf" ? @image-url("icons/file-type.svg") : @image-url("icons/file.svg");
-                    colorize: root.active-filter == item.key ? Theme.accent-fg : Theme.fg-muted;
+                    source: ClipTypeMap.icon-for(key);
+                    colorize: root.active-filter == key ? Theme.accent-fg : Theme.fg-muted;
                     animate colorize { duration: Theme.anim-fast; }
                 }
 
                 cell-touch := TouchArea {
                     mouse-cursor: pointer;
                     Tooltip {
-                        text: @markdown("\{item.label}");
+                        text: @markdown("\{ClipTypeMap.label-for(key)}");
                     }
 
                     clicked => {
-                        root.filter-chosen(item.key);
+                        root.filter-chosen(key);
                     }
                 }
             }

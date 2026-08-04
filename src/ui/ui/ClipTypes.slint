@@ -1,0 +1,77 @@
+// ClipTypes.slint — Single source of truth for the clip-type → icon/label
+// mapping used by ClipItem (row type icon), Toolbar (filter button icon +
+// tooltip label), and FilterGrid (filter popup grid).
+//
+// Adding a new ClipType requires one icon-for branch (+ label-for where it
+// appears in a filter/tooltip). `filter-keys` lists which keys appear in the
+// filter popup, in display order.
+
+export global ClipTypeMap {
+    // Filter keys shown in the FilterGrid popup, in display order. Every key
+    // here must also have an icon-for / label-for branch.
+    in property <[string]> filter-keys: [
+        "all",
+        "text",
+        "file_image",
+        "bookmarked",
+        "link",
+        "file_path",
+        "code_snippet",
+        "color",
+        "folder",
+        "file_danger",
+        "file_dev",
+        "file_audio",
+        "file_video",
+        "file_archive",
+        "file_document",
+        "rtf",
+        "file",
+    ];
+
+    // Icon per clip-type / filter key. Covers every ClipType::as_str() value
+    // (incl. file_text, file_generic) plus the "all"/"bookmarked"/"file"
+    // filter keys. Unknown keys degrade to the generic file icon.
+    public pure function icon-for(key: string) -> image {
+        if key == "all" { return @image-url("icons/check-check.svg"); }
+        if key == "text" { return @image-url("icons/text-align-start.svg"); }
+        if key == "file_image" { return @image-url("icons/file-image.svg"); }
+        if key == "bookmarked" { return @image-url("icons/bookmark.svg"); }
+        if key == "link" { return @image-url("icons/link.svg"); }
+        if key == "file_path" { return @image-url("icons/folder-tree.svg"); }
+        if key == "code_snippet" { return @image-url("icons/code.svg"); }
+        if key == "color" { return @image-url("icons/palette.svg"); }
+        if key == "folder" { return @image-url("icons/folder.svg"); }
+        if key == "file_danger" { return @image-url("icons/triangle-alert.svg"); }
+        if key == "file_dev" { return @image-url("icons/file-code.svg"); }
+        if key == "file_audio" { return @image-url("icons/audio-lines.svg"); }
+        if key == "file_video" { return @image-url("icons/film.svg"); }
+        if key == "file_archive" { return @image-url("icons/file-archive.svg"); }
+        if key == "file_document" || key == "file_text" { return @image-url("icons/file-text.svg"); }
+        if key == "rtf" { return @image-url("icons/file-type.svg"); }
+        if key == "file" || key == "file_generic" { return @image-url("icons/file.svg"); }
+        return @image-url("icons/file.svg");
+    }
+
+    // Localized label per filter key. Unknown keys fall back to the key itself.
+    public pure function label-for(key: string) -> string {
+        if key == "all" { return @tr("All"); }
+        if key == "text" { return @tr("Text"); }
+        if key == "file_image" { return @tr("Image"); }
+        if key == "bookmarked" { return @tr("Bookmarked"); }
+        if key == "link" { return @tr("URL"); }
+        if key == "file_path" { return @tr("File path"); }
+        if key == "code_snippet" { return @tr("Code"); }
+        if key == "color" { return @tr("Color"); }
+        if key == "folder" { return @tr("Folder"); }
+        if key == "file_danger" { return @tr("Danger"); }
+        if key == "file_dev" { return @tr("Dev"); }
+        if key == "file_audio" { return @tr("Audio"); }
+        if key == "file_video" { return @tr("Video"); }
+        if key == "file_archive" { return @tr("Archive"); }
+        if key == "file_document" || key == "file_text" { return @tr("Document"); }
+        if key == "rtf" { return @tr("Rich Text"); }
+        if key == "file" || key == "file_generic" { return @tr("File"); }
+        return key;
+    }
+}

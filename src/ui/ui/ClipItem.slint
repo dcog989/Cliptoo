@@ -7,8 +7,9 @@
 // Column 2: leading-whitespace indicator + content snippet + bookmark icon
 // Column 3: multiline indicator (18×18, 4px margins = 26px column)
 
-import { Theme }    from "Theme.slint";
-import { ClipData } from "ClipData.slint";
+import { Theme }       from "Theme.slint";
+import { ClipData }    from "ClipData.slint";
+import { ClipTypeMap } from "ClipTypes.slint";
 
 export component ClipItem {
     in property <ClipData> clip-data;
@@ -93,14 +94,6 @@ export component ClipItem {
                             }
                         }
 
-                        // Type-specific SVG icons (mapped from ClipType enum as_str())
-                        if clip-data.clip-type == "folder": Image {
-                            source: @image-url("icons/folder.svg");
-                            colorize: touch.has-hover ? Theme.accent-fg : Theme.fg-muted;
-                            width: 100%;
-                            height: 100%;
-                        }
-
                         // Favicon thumbnail for link clips (replaces link icon when cached)
                         if clip-data.clip-type == "link" && clip-data.favicon-image.width != 0: Rectangle {
                             border-radius: 3px;
@@ -122,83 +115,11 @@ export component ClipItem {
                             height: 100%;
                         }
 
-                        if clip-data.clip-type == "code_snippet": Image {
-                            source: @image-url("icons/code.svg");
-                            colorize: touch.has-hover ? Theme.accent-fg : Theme.fg-muted;
-                            width: 100%;
-                            height: 100%;
-                        }
-
-                        if clip-data.clip-type == "rtf": Image {
-                            source: @image-url("icons/file-type.svg");
-                            colorize: touch.has-hover ? Theme.accent-fg : Theme.fg-muted;
-                            width: 100%;
-                            height: 100%;
-                        }
-
-                        if clip-data.clip-type == "file_audio": Image {
-                            source: @image-url("icons/audio-lines.svg");
-                            colorize: touch.has-hover ? Theme.accent-fg : Theme.fg-muted;
-                            width: 100%;
-                            height: 100%;
-                        }
-
-                        if clip-data.clip-type == "file_video": Image {
-                            source: @image-url("icons/film.svg");
-                            colorize: touch.has-hover ? Theme.accent-fg : Theme.fg-muted;
-                            width: 100%;
-                            height: 100%;
-                        }
-
-                        if clip-data.clip-type == "file_archive": Image {
-                            source: @image-url("icons/file-archive.svg");
-                            colorize: touch.has-hover ? Theme.accent-fg : Theme.fg-muted;
-                            width: 100%;
-                            height: 100%;
-                        }
-
-                        if clip-data.clip-type == "file_document" || clip-data.clip-type == "file_text": Image {
-                            source: @image-url("icons/file-text.svg");
-                            colorize: touch.has-hover ? Theme.accent-fg : Theme.fg-muted;
-                            width: 100%;
-                            height: 100%;
-                        }
-
-                        if clip-data.clip-type == "file_dev": Image {
-                            source: @image-url("icons/file-code.svg");
-                            colorize: touch.has-hover ? Theme.accent-fg : Theme.fg-muted;
-                            width: 100%;
-                            height: 100%;
-                        }
-
-                        if clip-data.clip-type == "file_danger": Image {
-                            source: @image-url("icons/triangle-alert.svg");
-                            colorize: touch.has-hover ? Theme.accent-fg : Theme.fg-muted;
-                            width: 100%;
-                            height: 100%;
-                        }
-
-                        if clip-data.clip-type == "file_generic": Image {
-                            source: @image-url("icons/file.svg");
-                            colorize: touch.has-hover ? Theme.accent-fg : Theme.fg-muted;
-                            width: 100%;
-                            height: 100%;
-                        }
-
-                        // File path: a text clip whose content is a file path.
-                        if clip-data.clip-type == "file_path": Image {
-                            source: @image-url("icons/folder-tree.svg");
-                            colorize: touch.has-hover ? Theme.accent-fg : Theme.fg-muted;
-                            width: 100%;
-                            height: 100%;
-                        }
-
-                        // Default: text icon for "text" and any unknown/future ClipType
-                        // variant whose as_str() value is not listed above. When adding
-                        // a new ClipType, add a matching branch above *and* extend the
-                        // negation below to keep unknown types visually distinct.
-                        if clip-data.clip-type == "text" || (clip-data.clip-type != "color" && clip-data.clip-type != "file_image" && clip-data.clip-type != "folder" && clip-data.clip-type != "link" && clip-data.clip-type != "file_path" && clip-data.clip-type != "code_snippet" && clip-data.clip-type != "rtf" && clip-data.clip-type != "file_audio" && clip-data.clip-type != "file_video" && clip-data.clip-type != "file_archive" && clip-data.clip-type != "file_document" && clip-data.clip-type != "file_text" && clip-data.clip-type != "file_dev" && clip-data.clip-type != "file_danger" && clip-data.clip-type != "file_generic"): Image {
-                            source: @image-url("icons/text-align-start.svg");
+                        // Type icon for every other ClipType. The icon mapping
+                        // lives in ClipTypeMap.icon-for (single source of truth);
+                        // unknown/future ClipTypes degrade to the file icon there.
+                        if clip-data.clip-type != "color" && clip-data.clip-type != "file_image" && clip-data.clip-type != "link": Image {
+                            source: ClipTypeMap.icon-for(clip-data.clip-type);
                             colorize: touch.has-hover ? Theme.accent-fg : Theme.fg-muted;
                             width: 100%;
                             height: 100%;
