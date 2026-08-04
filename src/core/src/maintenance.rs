@@ -143,37 +143,56 @@ fn clip_paths_exist(content: &str) -> bool {
 /// strikethrough. Clears the flag for paths that have come back. Returns the
 /// number of rows newly marked.
 ///
-/// The DB mutex is released between the collect step and each per-row update
-/// so that `Path::exists` syscalls do not hold the connection lock.
+/// The DB mutex is held only for the initial collect and for one final
+/// batched-transaction update — `Path::exists` syscalls in between run with
+/// no lock held. Previously every row's update acquired the lock and ran as
+/// its own autocommitted statement; for a large history that was one lock
+/// acquisition per clip instead of one for the whole pass.
 pub async fn mark_deadheads(db: &Arc<DbPool>) -> Result<u64> {
     let rows = db.with(deadhead_collect).await?;
-    let mut marked: u64 = 0;
+
+    // Filesystem checks — no DB lock held.
+    let mut gone: Vec<(i64, String)> = Vec::new();
+    let mut back: Vec<i64> = Vec::new();
     for (id, path_str) in rows {
-        let exists = clip_paths_exist(&path_str);
-        match db
-            .with(move |conn| {
-                if !exists {
-                    conn.execute("UPDATE clips SET IsDeadhead = 1 WHERE Id = ?1", params![id])?;
-                    Ok(true)
-                } else {
-                    // Path is back — clear the flag in case it was previously marked.
-                    conn.execute(
-                        "UPDATE clips SET IsDeadhead = 0 WHERE Id = ?1 AND IsDeadhead = 1",
-                        params![id],
-                    )?;
-                    Ok(false)
-                }
-            })
-            .await
-        {
-            Ok(true) => {
-                marked += 1;
-                info!("deadhead: marked clip {id} — path gone: {path_str}");
-            }
-            Ok(false) => {}
-            Err(e) => warn!("deadhead: failed to update clip {id}: {e}"),
+        if clip_paths_exist(&path_str) {
+            back.push(id);
+        } else {
+            gone.push((id, path_str));
         }
     }
+
+    if gone.is_empty() && back.is_empty() {
+        return Ok(0);
+    }
+
+    let marked = gone.len() as u64;
+    db.with(move |conn| {
+        conn.execute_batch("BEGIN;")?;
+        for (id, path_str) in &gone {
+            if let Err(e) =
+                conn.execute("UPDATE clips SET IsDeadhead = 1 WHERE Id = ?1", params![id])
+            {
+                let _ = conn.execute_batch("ROLLBACK;");
+                return Err(e.into());
+            }
+            info!("deadhead: marked clip {id} — path gone: {path_str}");
+        }
+        // Path is back — clear the flag in case it was previously marked.
+        for id in &back {
+            if let Err(e) = conn.execute(
+                "UPDATE clips SET IsDeadhead = 0 WHERE Id = ?1 AND IsDeadhead = 1",
+                params![id],
+            ) {
+                let _ = conn.execute_batch("ROLLBACK;");
+                return Err(e.into());
+            }
+        }
+        conn.execute_batch("COMMIT;")?;
+        Ok(())
+    })
+    .await?;
+
     Ok(marked)
 }
 
