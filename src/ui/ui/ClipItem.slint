@@ -282,7 +282,9 @@ export component ClipItem {
                 // Bookmark icon — printed at the right end of column 2, right after the clip text
                 if clip-data.is-bookmarked: Image {
                     source: @image-url("icons/bookmark.svg");
-                    colorize: touch.has-hover ? Theme.accent-fg : Theme.fg-muted;
+                    // Accent-colored on the row; flips to accent-fg on hover,
+                    // where the row background itself becomes the accent.
+                    colorize: touch.has-hover ? Theme.accent-fg : Theme.accent-primary;
                     x: parent.width - 18px;
                     y: (parent.height - 18px) / 2;
                     width: 18px;
