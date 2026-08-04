@@ -103,55 +103,6 @@ fn load_favicon(favicons_dir: &Path, content: &str) -> Image {
     FAVICON_LRU.with(|lru| lru.borrow_mut().get_or_load(favicons_dir, content))
 }
 
-/// Parse an FTS5 match-context string with `[HL]...[/HL]` sentinels
-/// into a sequence of `MatchSpan` structs for inline highlighting.
-///
-/// E.g. `"foo [HL]bar[/HL] baz"` →
-///   `[("foo ", false), ("bar", true), (" baz", false)]`
-fn parse_match_spans(context: &str) -> slint::ModelRc<crate::MatchSpan> {
-    use cliptoo_core::db::queries::{FTS_HL_CLOSE, FTS_HL_OPEN};
-
-    // FTS5 snippets preserve the original newlines, but the row renders on a
-    // single line. Collapse all whitespace to single spaces (matching how
-    // PreviewContent is built) so multi-line clips don't split across rows.
-    let normalized = context.split_whitespace().collect::<Vec<_>>().join(" ");
-
-    let mut spans: Vec<crate::MatchSpan> = Vec::new();
-    let mut rest = normalized.as_str();
-    while !rest.is_empty() {
-        if let Some(hl_start) = rest.find(FTS_HL_OPEN) {
-            if hl_start > 0 {
-                spans.push(crate::MatchSpan {
-                    text: rest[..hl_start].into(),
-                    is_highlight: false,
-                });
-            }
-            let after_open = &rest[hl_start + FTS_HL_OPEN.len()..];
-            if let Some(hl_end) = after_open.find(FTS_HL_CLOSE) {
-                spans.push(crate::MatchSpan {
-                    text: after_open[..hl_end].into(),
-                    is_highlight: true,
-                });
-                rest = &after_open[hl_end + FTS_HL_CLOSE.len()..];
-            } else {
-                // Unclosed [HL] — treat remainder as plain
-                spans.push(crate::MatchSpan {
-                    text: after_open.into(),
-                    is_highlight: false,
-                });
-                break;
-            }
-        } else {
-            spans.push(crate::MatchSpan {
-                text: rest.into(),
-                is_highlight: false,
-            });
-            break;
-        }
-    }
-    slint::ModelRc::from(std::rc::Rc::new(slint::VecModel::from(spans)))
-}
-
 /// Convert a DB clip to a Slint ClipData, loading the thumbnail
 /// from disk for file_image clips (via LRU cache) and the favicon for link clips.
 /// Must be called on the UI thread because `slint::Image` is not Send.
@@ -185,7 +136,7 @@ pub fn convert(db_clip: DbClipData, thumbnails_dir: &Path, favicons_dir: &Path) 
     let match_spans = if match_context_str.is_empty() {
         slint::ModelRc::default()
     } else {
-        parse_match_spans(match_context_str)
+        crate::search::parse_match_spans(match_context_str)
     };
 
     crate::ClipData {
@@ -230,51 +181,4 @@ pub fn convert_vec(
         .into_iter()
         .map(|d| convert(d, thumbnails_dir, favicons_dir))
         .collect()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use slint::Model;
-
-    fn spans_to_strings(model: &slint::ModelRc<crate::MatchSpan>) -> Vec<(String, bool)> {
-        let mut out = Vec::new();
-        for i in 0..model.row_count() {
-            let s = model.row_data(i).unwrap();
-            out.push((s.text.to_string(), s.is_highlight));
-        }
-        out
-    }
-
-    #[test]
-    fn parse_highlights_only_matches_not_ellipsis() {
-        // A multi-line clip produces a long snippet with FTS5 ellipsis markers
-        // at the elided edges. The markers must stay outside highlighted spans.
-        let snippet =
-            "…[HL]the[/HL] quick brown fox jumps\nover the lazy dog\n…[HL]These[/HL] are separate…";
-        let spans = spans_to_strings(&parse_match_spans(snippet));
-
-        for (text, is_highlight) in &spans {
-            if *is_highlight {
-                assert!(
-                    !text.contains('…'),
-                    "highlighted span contains the FTS ellipsis: {text:?}"
-                );
-            }
-        }
-        assert_eq!(spans.len(), 5, "unexpected span layout: {spans:?}");
-    }
-
-    #[test]
-    fn parse_single_line_snippet() {
-        let spans = spans_to_strings(&parse_match_spans("foo [HL]bar[/HL] baz"));
-        assert_eq!(
-            spans,
-            vec![
-                ("foo ".to_string(), false),
-                ("bar".to_string(), true),
-                (" baz".to_string(), false),
-            ]
-        );
-    }
 }
