@@ -1,5 +1,47 @@
 import { Theme } from "Theme.slint";
 
+// Label + optional tooltip + content box shared by every settings row.
+// Rows inject their control into the content box via @children. The box
+// stretches (`fill`) or hugs its content, and can drop its border (`bordered`).
+component SettingsRow {
+    in property <string> label;
+    in property <string> tooltip-text;
+    in property <bool> fill: false;
+    in property <bool> bordered: true;
+    in property <color> border-color: Theme.accent-muted;
+    in property <length> min-content-width: 0px;
+
+    height: 32px;
+
+    HorizontalLayout {
+        spacing: 12px;
+        alignment: start;
+
+        Text {
+            width: 180px;
+            text: root.label;
+            color: Theme.fg-primary;
+            font-size: Theme.font-size;
+            vertical-alignment: center;
+        }
+
+        Rectangle {
+            horizontal-stretch: root.fill ? 1 : 0;
+            min-width: root.min-content-width;
+            height: 28px;
+            border-radius: 5px;
+            border-width: root.bordered ? 1px : 0px;
+            border-color: root.border-color;
+            background: Theme.bg-input;
+            @children
+        }
+    }
+
+    if root.tooltip-text != "": Tooltip {
+        text: @markdown("\{root.tooltip-text}");
+    }
+}
+
 // Uppercase category heading that labels a group of options.
 export component SectionHeader {
     in property <string> text;
@@ -62,43 +104,24 @@ export component TextRow {
     in property <string> tooltip-text;
     callback committed(string);
 
-    height: 32px;
-    HorizontalLayout {
-        spacing: 12px;
-        Text {
-            width: 180px;
-            text: root.label;
-            color: Theme.fg-primary;
-            font-size: Theme.font-size;
-            vertical-alignment: center;
-        }
-
-        Rectangle {
-            horizontal-stretch: 1;
-            min-width: 300px;
-            height: 28px;
-            border-radius: 5px;
-            border-width: 1px;
-            border-color: Theme.accent-muted;
-            background: Theme.bg-input;
-            HorizontalLayout {
-                padding-left: 8px;
-                padding-right: 8px;
-                ti := TextInput {
-                    text <=> root.value;
-                    color: Theme.fg-primary;
-                    font-size: Theme.font-size;
-                    vertical-alignment: center;
-                    accepted => {
-                        root.committed(root.value);
-                    }
+    SettingsRow {
+        label: root.label;
+        tooltip-text: root.tooltip-text;
+        fill: true;
+        min-content-width: 300px;
+        HorizontalLayout {
+            padding-left: 8px;
+            padding-right: 8px;
+            ti := TextInput {
+                text <=> root.value;
+                color: Theme.fg-primary;
+                font-size: Theme.font-size;
+                vertical-alignment: center;
+                accepted => {
+                    root.committed(root.value);
                 }
             }
         }
-    }
-
-    if root.tooltip-text != "": Tooltip {
-        text: @markdown("\{root.tooltip-text}");
     }
 }
 
@@ -110,62 +133,43 @@ export component HotkeyRow {
     private property <bool> captured: false;
     private property <string> display-text: (ti.has-focus && !root.captured) ? "Press hotkey…" : root.value;
 
-    height: 32px;
-    HorizontalLayout {
-        spacing: 12px;
-        alignment: start;
-        Text {
-            width: 180px;
-            text: root.label;
-            color: Theme.fg-primary;
-            font-size: Theme.font-size;
-            vertical-alignment: center;
-        }
-
-        Rectangle {
-            horizontal-stretch: 1;
-            height: 28px;
-            border-radius: 5px;
-            border-width: 1px;
-            border-color: ti.has-focus ? Theme.accent-primary : Theme.accent-muted;
-            background: Theme.bg-input;
-            HorizontalLayout {
-                padding-left: 8px;
-                padding-right: 8px;
-                ti := TextInput {
-                    text <=> root.display-text;
-                    color: Theme.fg-primary;
-                    font-size: Theme.font-size;
-                    vertical-alignment: center;
-                    key-pressed(event) => {
-                        if (event.text == Key.Escape) {
-                            ti.clear-focus();
-                            accept
-                        } else {
-                            root.value = (event.modifiers.control ? "Ctrl+" : "")
-                                + (event.modifiers.alt ? "Alt+" : "")
-                                + (event.modifiers.shift ? "Shift+" : "")
-                                + (event.modifiers.meta ? "Meta+" : "")
-                                + event.text;
-                            root.captured = true;
-                            root.committed(root.value);
-                            accept
-                        }
+    SettingsRow {
+        label: root.label;
+        tooltip-text: root.tooltip-text;
+        fill: true;
+        border-color: ti.has-focus ? Theme.accent-primary : Theme.accent-muted;
+        HorizontalLayout {
+            padding-left: 8px;
+            padding-right: 8px;
+            ti := TextInput {
+                text <=> root.display-text;
+                color: Theme.fg-primary;
+                font-size: Theme.font-size;
+                vertical-alignment: center;
+                key-pressed(event) => {
+                    if (event.text == Key.Escape) {
+                        ti.clear-focus();
+                        accept
+                    } else {
+                        root.value = (event.modifiers.control ? "Ctrl+" : "")
+                            + (event.modifiers.alt ? "Alt+" : "")
+                            + (event.modifiers.shift ? "Shift+" : "")
+                            + (event.modifiers.meta ? "Meta+" : "")
+                            + event.text;
+                        root.captured = true;
+                        root.committed(root.value);
+                        accept
                     }
                 }
             }
+        }
 
-            TouchArea {
-                clicked => {
-                    root.captured = false;
-                    ti.focus();
-                }
+        TouchArea {
+            clicked => {
+                root.captured = false;
+                ti.focus();
             }
         }
-    }
-
-    if root.tooltip-text != "": Tooltip {
-        text: @markdown("\{root.tooltip-text}");
     }
 }
 
@@ -178,56 +182,36 @@ export component IntRow {
     in property <string> tooltip-text;
     callback committed(int);
 
-    height: 32px;
-    HorizontalLayout {
-        spacing: 12px;
-        alignment: start;
-        Text {
-            width: 180px;
-            text: root.label;
-            color: Theme.fg-primary;
-            font-size: Theme.font-size;
-            vertical-alignment: center;
-        }
-
-        Rectangle {
-            height: 28px;
-            border-radius: 5px;
-            border-width: 1px;
-            border-color: Theme.accent-muted;
-            background: Theme.bg-input;
-            HorizontalLayout {
-                padding-left: 4px;
-                padding-right: 4px;
-                spacing: 4px;
-                cross-axis-alignment: center;
-                StepperButton {
-                    text: "−";
-                    clicked => {
-                        root.value = Math.max(root.min-val, root.value - root.step);
-                        root.committed(root.value);
-                    }
+    SettingsRow {
+        label: root.label;
+        tooltip-text: root.tooltip-text;
+        HorizontalLayout {
+            padding-left: 4px;
+            padding-right: 4px;
+            spacing: 4px;
+            cross-axis-alignment: center;
+            StepperButton {
+                text: "−";
+                clicked => {
+                    root.value = Math.max(root.min-val, root.value - root.step);
+                    root.committed(root.value);
                 }
+            }
 
-                Text {
-                    text: "\{root.value}";
-                    color: Theme.fg-primary;
-                    font-size: Theme.font-size;
-                }
+            Text {
+                text: "\{root.value}";
+                color: Theme.fg-primary;
+                font-size: Theme.font-size;
+            }
 
-                StepperButton {
-                    text: "+";
-                    clicked => {
-                        root.value = Math.min(root.max-val, root.value + root.step);
-                        root.committed(root.value);
-                    }
+            StepperButton {
+                text: "+";
+                clicked => {
+                    root.value = Math.min(root.max-val, root.value + root.step);
+                    root.committed(root.value);
                 }
             }
         }
-    }
-
-    if root.tooltip-text != "": Tooltip {
-        text: @markdown("\{root.tooltip-text}");
     }
 }
 
@@ -240,56 +224,36 @@ export component FloatRow {
     in property <string> tooltip-text;
     callback committed(float);
 
-    height: 32px;
-    HorizontalLayout {
-        spacing: 12px;
-        alignment: start;
-        Text {
-            width: 180px;
-            text: root.label;
-            color: Theme.fg-primary;
-            font-size: Theme.font-size;
-            vertical-alignment: center;
-        }
-
-        Rectangle {
-            height: 28px;
-            border-radius: 5px;
-            border-width: 1px;
-            border-color: Theme.accent-muted;
-            background: Theme.bg-input;
-            HorizontalLayout {
-                padding-left: 4px;
-                padding-right: 4px;
-                spacing: 4px;
-                cross-axis-alignment: center;
-                StepperButton {
-                    text: "−";
-                    clicked => {
-                        root.value-hundredths = Math.max(root.min-hundredths, root.value-hundredths - root.step-hundredths);
-                        root.committed(root.value-hundredths / 100.0);
-                    }
+    SettingsRow {
+        label: root.label;
+        tooltip-text: root.tooltip-text;
+        HorizontalLayout {
+            padding-left: 4px;
+            padding-right: 4px;
+            spacing: 4px;
+            cross-axis-alignment: center;
+            StepperButton {
+                text: "−";
+                clicked => {
+                    root.value-hundredths = Math.max(root.min-hundredths, root.value-hundredths - root.step-hundredths);
+                    root.committed(root.value-hundredths / 100.0);
                 }
+            }
 
-                Text {
-                    text: "\{root.value-hundredths / 100}";
-                    color: Theme.fg-primary;
-                    font-size: Theme.font-size;
-                }
+            Text {
+                text: "\{root.value-hundredths / 100}";
+                color: Theme.fg-primary;
+                font-size: Theme.font-size;
+            }
 
-                StepperButton {
-                    text: "+";
-                    clicked => {
-                        root.value-hundredths = Math.min(root.max-hundredths, root.value-hundredths + root.step-hundredths);
-                        root.committed(root.value-hundredths / 100.0);
-                    }
+            StepperButton {
+                text: "+";
+                clicked => {
+                    root.value-hundredths = Math.min(root.max-hundredths, root.value-hundredths + root.step-hundredths);
+                    root.committed(root.value-hundredths / 100.0);
                 }
             }
         }
-    }
-
-    if root.tooltip-text != "": Tooltip {
-        text: @markdown("\{root.tooltip-text}");
     }
 }
 
@@ -310,77 +274,54 @@ export component SliderRow {
     // disables `horizontal-stretch`.)
     private property <length> track-min-width: 160px;
 
-    height: 32px;
-    HorizontalLayout {
-        spacing: 12px;
-        Text {
-            width: 180px;
-            text: root.label;
-            color: Theme.fg-primary;
-            font-size: Theme.font-size;
-            vertical-alignment: center;
-        }
+    SettingsRow {
+        label: root.label;
+        tooltip-text: root.tooltip-text;
+        fill: true;
+        HorizontalLayout {
+            cross-axis-alignment: center;
+            padding-left: 12px;
+            padding-right: 8px;
+            spacing: 8px;
+            track := Rectangle {
+                horizontal-stretch: 1;
+                min-width: root.track-min-width;
+                height: 28px;
 
-        Rectangle {
-            horizontal-stretch: 1;
-            height: 28px;
-            border-radius: 5px;
-            border-width: 1px;
-            border-color: Theme.accent-muted;
-            background: Theme.bg-input;
-            HorizontalLayout {
-                cross-axis-alignment: center;
-                padding-left: 12px;
-                padding-right: 8px;
-                spacing: 8px;
-                track := Rectangle {
-                    horizontal-stretch: 1;
-                    min-width: root.track-min-width;
-                    height: 28px;
-
+                Rectangle {
+                    height: 6px;
+                    border-radius: 3px;
+                    background: Theme.bg-track;
+                    y: (parent.height - 6px) / 2;
                     Rectangle {
-                        height: 6px;
-                        border-radius: 3px;
-                        background: Theme.bg-track;
-                        y: (parent.height - 6px) / 2;
-                        Rectangle {
-                            width: 16px;
-                            height: 16px;
-                            border-radius: 8px;
-                            background: Theme.accent-primary;
-                            y: (parent.height - 16px) / 2;
-                            x: Math.max(0px, Math.min(parent.width - 16px, (root.value - root.min-val) * 1.0 / (root.max-val - root.min-val) * parent.width));
-                        }
-                    }
-
-                    touch := TouchArea {
-                        Tooltip {
-                            text: @markdown("\{root.tooltip-text}");
-                        }
-
-                        pointer-event(e) => {
-                            if (e.kind == PointerEventKind.down || (e.kind == PointerEventKind.move && self.pressed)) {
-                                let span = root.max-val - root.min-val;
-                                let frac = touch.mouse-x / track.width;
-                                root.value = root.min-val + Math.round(Math.min(1.0, Math.max(0.0, frac)) * span);
-                                root.committed(root.value);
-                            }
-                        }
-                        mouse-cursor: pointer;
+                        width: 16px;
+                        height: 16px;
+                        border-radius: 8px;
+                        background: Theme.accent-primary;
+                        y: (parent.height - 16px) / 2;
+                        x: Math.max(0px, Math.min(parent.width - 16px, (root.value - root.min-val) * 1.0 / (root.max-val - root.min-val) * parent.width));
                     }
                 }
 
-                Text {
-                    text: "\{root.value}\{root.unit}";
-                    color: Theme.fg-primary;
-                    font-size: Theme.font-size;
+                touch := TouchArea {
+                    pointer-event(e) => {
+                        if (e.kind == PointerEventKind.down || (e.kind == PointerEventKind.move && self.pressed)) {
+                            let span = root.max-val - root.min-val;
+                            let frac = touch.mouse-x / track.width;
+                            root.value = root.min-val + Math.round(Math.min(1.0, Math.max(0.0, frac)) * span);
+                            root.committed(root.value);
+                        }
+                    }
+                    mouse-cursor: pointer;
                 }
             }
-        }
-    }
 
-    if root.tooltip-text != "": Tooltip {
-        text: @markdown("\{root.tooltip-text}");
+            Text {
+                text: "\{root.value}\{root.unit}";
+                color: Theme.fg-primary;
+                font-size: Theme.font-size;
+            }
+        }
     }
 }
 
@@ -391,59 +332,39 @@ export component DropRow {
     in property <string> tooltip-text;
     callback committed(string);
 
-    height: 32px;
-    HorizontalLayout {
-        spacing: 12px;
-        alignment: start;
-        Text {
-            width: 180px;
-            text: root.label;
-            color: Theme.fg-primary;
-            font-size: Theme.font-size;
-            vertical-alignment: center;
-        }
-
-        Rectangle {
-            height: 28px;
-            border-radius: 5px;
-            border-width: 1px;
-            border-color: Theme.accent-muted;
-            background: Theme.bg-input;
-            HorizontalLayout {
-                padding-left: 4px;
-                padding-right: 4px;
-                spacing: 4px;
-                cross-axis-alignment: center;
-                StepperButton {
-                    text: "‹";
-                    clicked => {
-                        root.index = root.index == 0 ? root.options.length - 1 : root.index - 1;
-                        root.committed(root.options[root.index]);
-                    }
+    SettingsRow {
+        label: root.label;
+        tooltip-text: root.tooltip-text;
+        HorizontalLayout {
+            padding-left: 4px;
+            padding-right: 4px;
+            spacing: 4px;
+            cross-axis-alignment: center;
+            StepperButton {
+                text: "‹";
+                clicked => {
+                    root.index = root.index == 0 ? root.options.length - 1 : root.index - 1;
+                    root.committed(root.options[root.index]);
                 }
+            }
 
-                swatch-area := Rectangle {
-                    Text {
-                        text: root.options[root.index];
-                        color: Theme.fg-primary;
-                        font-size: Theme.font-size;
-                        horizontal-alignment: center;
-                    }
+            swatch-area := Rectangle {
+                Text {
+                    text: root.options[root.index];
+                    color: Theme.fg-primary;
+                    font-size: Theme.font-size;
+                    horizontal-alignment: center;
                 }
+            }
 
-                StepperButton {
-                    text: "›";
-                    clicked => {
-                        root.index = Math.mod(root.index + 1, root.options.length);
-                        root.committed(root.options[root.index]);
-                    }
+            StepperButton {
+                text: "›";
+                clicked => {
+                    root.index = Math.mod(root.index + 1, root.options.length);
+                    root.committed(root.options[root.index]);
                 }
             }
         }
-    }
-
-    if root.tooltip-text != "": Tooltip {
-        text: @markdown("\{root.tooltip-text}");
     }
 }
 
@@ -453,54 +374,37 @@ export component ToggleRow {
     in property <string> tooltip-text;
     callback committed(bool);
 
-    height: 32px;
-    HorizontalLayout {
-        spacing: 12px;
-        alignment: start;
-        Text {
-            width: 180px;
-            text: root.label;
-            color: Theme.fg-primary;
-            font-size: Theme.font-size;
-            vertical-alignment: center;
-        }
-
-        Rectangle {
-            horizontal-stretch: 1;
-            height: 28px;
-            border-radius: 5px;
-            background: Theme.bg-input;
-            HorizontalLayout {
-                cross-axis-alignment: center;
-                padding-left: 4px;
+    SettingsRow {
+        label: root.label;
+        tooltip-text: root.tooltip-text;
+        fill: true;
+        bordered: false;
+        HorizontalLayout {
+            cross-axis-alignment: center;
+            padding-left: 4px;
+            Rectangle {
+                width: 44px;
+                height: 22px;
+                border-radius: 11px;
+                background: root.value ? Theme.accent-primary : Theme.bg-track;
+                animate background { duration: Theme.anim-fast; }
                 Rectangle {
-                    width: 44px;
-                    height: 22px;
-                    border-radius: 11px;
-                    background: root.value ? Theme.accent-primary : Theme.bg-track;
-                    animate background { duration: Theme.anim-fast; }
-                    Rectangle {
-                        width: 18px;
-                        height: 18px;
-                        border-radius: 9px;
-                        background: root.value ? Theme.accent-fg : white;
-                        x: root.value ? 24px : 2px;
-                        animate x { duration: Theme.anim-fast; }
-                    }
+                    width: 18px;
+                    height: 18px;
+                    border-radius: 9px;
+                    background: root.value ? Theme.accent-fg : white;
+                    x: root.value ? 24px : 2px;
+                    animate x { duration: Theme.anim-fast; }
+                }
 
-                    TouchArea {
-                        mouse-cursor: pointer;
-                        clicked => {
-                            root.value = !root.value;
-                            root.committed(root.value);
-                        }
+                TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => {
+                        root.value = !root.value;
+                        root.committed(root.value);
                     }
                 }
             }
         }
-    }
-
-    if root.tooltip-text != "": Tooltip {
-        text: @markdown("\{root.tooltip-text}");
     }
 }
