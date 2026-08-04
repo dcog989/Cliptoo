@@ -1,4 +1,4 @@
-use crate::db::models::ClipData;
+use crate::db::models::{ClipData, ClipType};
 use anyhow::Result;
 use rusqlite::{Connection, OptionalExtension, params};
 
@@ -35,13 +35,30 @@ impl FilterClause {
     }
 }
 
+/// ClipTypes the UI can filter by directly, mapping 1:1 to their stored
+/// `as_str()` value. Kept here so the filter strings always match
+/// `ClipType::as_str()`; the special-cased `file_document` / `file_text`
+/// (shared filter) and `file_generic` (bare "file" filter) are handled
+/// explicitly in `clip_type_filter`.
+const FILTERABLE_TYPES: &[ClipType] = &[
+    ClipType::Text,
+    ClipType::FilePath,
+    ClipType::Rtf,
+    ClipType::Link,
+    ClipType::Color,
+    ClipType::CodeSnippet,
+    ClipType::FileImage,
+    ClipType::FileVideo,
+    ClipType::FileAudio,
+    ClipType::FileArchive,
+    ClipType::FileDev,
+    ClipType::FileDanger,
+    ClipType::Folder,
+];
+
 fn clip_type_filter(filter: &str) -> FilterClause {
     match filter {
         "bookmarked" => FilterClause::NoParam("AND c.IsBookmarked = 1"),
-        "text" | "link" | "file_path" | "file_image" | "color" | "code_snippet" | "folder"
-        | "file_audio" | "file_video" | "file_archive" | "file_dev" | "file_danger" | "rtf" => {
-            FilterClause::BindFilter("AND c.ClipType = ?")
-        }
         // Document covers .docx/.pdf (file_document) and plain text files
         // (.txt/.md, file_text) — the same icon, so they share a filter.
         "file_document" => FilterClause::NoParam(
@@ -49,6 +66,9 @@ fn clip_type_filter(filter: &str) -> FilterClause {
         ),
         // A copied generic file: one that isn't any specific type.
         "file" => FilterClause::NoParam("AND c.ClipType = 'file_generic'"),
+        _ if FILTERABLE_TYPES.iter().any(|t| t.as_str() == filter) => {
+            FilterClause::BindFilter("AND c.ClipType = ?")
+        }
         _ => FilterClause::NoParam(""),
     }
 }
