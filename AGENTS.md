@@ -37,13 +37,13 @@ Hooks (lefthook): fmt + clippy on `.rs`, `slint-lsp format -i` on `.slint`; pre-
 
 - Minimal, scoped changes; incremental over rewrites. Ask before architectural changes. No destructive changes or new doc files without confirmation.
 - Never run git mutations (commit/push/reset/rebase/amend) unless explicitly asked.
-- After each change, print a one-line commit message (e.g. `fix:`) in a code block.
 - Style: explicit types + named constants (no magic numbers); `cargo fmt` defaults; self-documenting names; comments only for WHY.
 - Errors: `anyhow::Result` at boundaries, `thiserror` enums in `src/core/`, `.context(...)` across module boundaries; never suppress errors.
 - Logging: `tracing::{info,warn,error,debug}` only (never `println!`/`dbg!`); init in `core/src/logger.rs`.
 - No `unsafe` except the Qt FFI shim `src/ui/src/drag.rs` (`#![allow(unsafe_code)]`); crate roots `#![deny(unsafe_code)]`. Do not introduce `unsafe` elsewhere.
 - Decompose files over 400 lines if they mix concerns.
 - Wayland-only (no X11 fallback); hotkeys via `org.freedesktop.portal.GlobalShortcuts`.
+- On completion of an update or fix, print a concise conventional commit message in a fenced code block.
 - **NEVER** run `cargo check`/`clippy`/`fmt --check`/`cargo test`/`slint-viewer` for trivial changes (single-line edits, string/field removal, UI copy/color/structure tweaks, reordering items). Verify nothing; just make the edit and report the commit message. The lefthook pre-commit hooks (fmt + clippy on `.rs`, `slint-lsp format` on `.slint`) catch regressions on the next commit, so hand-running checks adds no value.
 - Do NOT run `cargo test` after every change. Reserve it for changes that touch tested logic (new/changed code paths or tests in `src/core`, new unit tests) or when the user asks. `cargo clippy` is the default verification for Rust changes — it type-checks and catches Slint compile errors without the test-suite overhead. Run the full `cargo test --workspace` once per task when warranted, not per edit.
 - **NEVER** run `cargo build` for any change — trivial or not — unless the user explicitly instructs it. No "fallback" builds when `slint-viewer` is missing, no self-verification builds. This rule overrides Slint rule #4 and Definition of Done.
