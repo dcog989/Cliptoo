@@ -56,9 +56,12 @@ Hooks (lefthook): fmt + clippy on `.rs`, `slint-lsp format -i` on `.slint`; pre-
 4. After editing: suggest `slint-viewer --check path/to/file.slint`; never declare UI work done without verifying it renders.
 5. 1.18 note: `Tooltip` and `SystemTrayIcon` (via `inherits SystemTrayIcon`) are available; `.docs/slint.1.17.md` changelog still relevant.
 
-## Communication
+## Communication Style
 
-- Concise, precise, no analogies or apologies; answer the question asked; don't volunteer next steps.
+- Provide concise, actionable responses.
+- Ask clarifying questions when requirements are ambiguous.
+- Flag potential risks or edge cases proactively.
+- Do not pretend to understand how the user feels.
 
 ## Definition of Done
 
