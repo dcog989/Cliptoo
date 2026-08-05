@@ -34,6 +34,7 @@ export component MainClipArea inherits Rectangle {
     in-out property <int> selected-index: 0;  // reset by Rust on search/filter change
     in-out property <string> search-text: "";
     in-out property <string> active-filter: "all";
+    property <bool> window-was-focused: false;
 
     callback search-changed(string);
     callback search-backspace();
@@ -184,6 +185,14 @@ export component MainClipArea inherits Rectangle {
                 if (!root.popup-open && !root.popup-just-closed && !focus-scope.has-focus && !toolbar.search-focused) {
                     root.blur-closed();
                 }
+                // focus-gained above only fires when the focus-scope itself
+                // holds focus; the search field keeps focus once clicked, so
+                // detect the false→true focus transition here to re-activate
+                // on Alt+Tab back.
+                if ((focus-scope.has-focus || toolbar.search-focused) && !root.window-was-focused) {
+                    root.focus-regained();
+                }
+                root.window-was-focused = focus-scope.has-focus || toolbar.search-focused;
             }
         }
 
