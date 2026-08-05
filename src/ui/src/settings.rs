@@ -633,6 +633,12 @@ fn setup_menu_open(settings_win: &crate::SettingsWindow, main_ui: &crate::AppWin
             win.set_on_database_page(false);
             win.set_settings_filter("".into());
             apply_settings_filter(&win, "");
+            // preferred-height is shrunk by the WM decorations on Wayland, so
+            // size the window explicitly to open at the computed content size.
+            win.window().set_size(slint::LogicalSize {
+                width: win.get_stored_width(),
+                height: win.get_desired_height(),
+            });
             win.show().ok();
             win.invoke_focus_search();
         }

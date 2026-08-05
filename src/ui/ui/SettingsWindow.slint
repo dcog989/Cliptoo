@@ -15,8 +15,10 @@ export component SettingsWindow inherits Window {
     // (settings_window_width/height) and restored here on open.
     in-out property <length> stored-width: 560px;
     in-out property <length> stored-height: 540px;
+    in-out property <length> settings-content-height: settings-page.content-height;
+    in-out property <length> desired-height: Math.max(root.min-height, Math.max(root.stored-height, 48px + root.settings-content-height + 20px));
     preferred-width: root.stored-width;
-    preferred-height: root.stored-height;
+    preferred-height: root.desired-height;
     min-width: 400px;
     min-height: 320px;
     background: Theme.bg-primary;

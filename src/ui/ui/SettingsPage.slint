@@ -75,7 +75,9 @@ export component SettingsPage inherits ScrollView {
 
     vertical-scrollbar-policy: ScrollBarPolicy.as-needed;
 
-    VerticalLayout {
+    out property <length> content-height: content-layout.preferred-height;
+
+    content-layout := VerticalLayout {
         padding-left: 16px;
         padding-right: 16px;
         padding-top: 8px;
