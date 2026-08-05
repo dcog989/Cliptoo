@@ -179,11 +179,13 @@ fn reapply_theme(
     main_ui: &slint::Weak<crate::AppWindow>,
     settings_win_ui: &slint::Weak<crate::SettingsWindow>,
     settings: &cliptoo_core::Settings,
+    favicons_dir: std::path::PathBuf,
 ) {
     let main_weak = main_ui.clone();
     let settings_weak = settings_win_ui.clone();
     let s_snap = settings.clone();
     tokio::spawn(async move {
+        let prev_dark = crate::theme::cached_resolved_theme().0;
         let (is_dark, system_accent) = crate::theme::resolve_theme(&s_snap).await;
         let _ = main_weak.upgrade_in_event_loop(move |ui| {
             crate::theme::fill_theme(
@@ -192,6 +194,12 @@ fn reapply_theme(
                 is_dark,
                 system_accent,
             );
+            if is_dark != prev_dark {
+                // The visible list rows cache decoded favicon images keyed by
+                // theme variant, so a light→dark (or vice-versa) switch must
+                // reload them to avoid showing an invisible icon.
+                crate::thumbnail_cache::reload_favicons(&ui, &favicons_dir);
+            }
             if let Some(win) = settings_weak.upgrade() {
                 crate::theme::fill_theme(
                     &win.global::<crate::Theme>(),
@@ -449,6 +457,7 @@ fn setup_setting_commit(
     main_ui: &crate::AppWindow,
     settings: &std::rc::Rc<std::cell::RefCell<cliptoo_core::Settings>>,
     settings_path: &std::path::Path,
+    favicons_dir: std::path::PathBuf,
     hotkey_tx: tokio::sync::watch::Sender<String>,
 ) {
     let s = settings.clone();
@@ -489,7 +498,7 @@ fn setup_setting_commit(
                 "logging_level" => s.logging_level = value.clone(),
                 "theme" => {
                     s.theme = value.clone();
-                    reapply_theme(&settings_ui, &sw, &s);
+                    reapply_theme(&settings_ui, &sw, &s, favicons_dir.clone());
                 }
                 "font_family" => {
                     s.font_family = value.clone();
@@ -504,7 +513,7 @@ fn setup_setting_commit(
                         if let Some(win) = sw.upgrade() {
                             win.set_s_accent_color(crate::theme::accent_hex_to_color(hex));
                         }
-                        reapply_theme(&settings_ui, &sw, &s);
+                        reapply_theme(&settings_ui, &sw, &s, favicons_dir.clone());
                     }
                 }
                 "accent_hue" | "accent_saturation" | "accent_value" => {
@@ -661,7 +670,14 @@ pub fn setup_settings_window(
     setup_open_log(&settings_win, &dirs.logs_dir);
     setup_settings_closing(&settings_win, ui, settings, &dirs.settings_path);
     setup_font_picker(&settings_win, ui, settings, &dirs.settings_path);
-    setup_setting_commit(&settings_win, ui, settings, &dirs.settings_path, hotkey_tx);
+    setup_setting_commit(
+        &settings_win,
+        ui,
+        settings,
+        &dirs.settings_path,
+        dirs.favicons_dir.clone(),
+        hotkey_tx,
+    );
     setup_menu_open(&settings_win, ui);
 
     settings_win

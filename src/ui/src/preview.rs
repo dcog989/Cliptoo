@@ -58,6 +58,7 @@ fn show_link_preview(ctx: &PreviewContext) {
     let c = ctx.content.to_string();
     let fd = ctx.fav_dir.to_path_buf();
     let clip_id = ctx.clip_id;
+    let dark = crate::theme::cached_resolved_theme().0;
     let w = ui.as_weak();
     if let Some(t) = crate::favicon::load_cached_page_title(&c, &fd) {
         ui.set_preview_web_title(t.into());
@@ -65,11 +66,11 @@ fn show_link_preview(ctx: &PreviewContext) {
     tokio::spawn(async move {
         let cached_title = crate::favicon::load_cached_page_title(&c, &fd);
         let (title, fav_path) = if cached_title.is_some() {
-            (None, crate::favicon::fetch_favicon(&c, &fd).await)
+            (None, crate::favicon::fetch_favicon(&c, &fd, dark).await)
         } else {
             let (t, f) = tokio::join!(
                 helpers::fetch_page_title(&c),
-                crate::favicon::fetch_favicon(&c, &fd),
+                crate::favicon::fetch_favicon(&c, &fd, dark),
             );
             if let Some(ref t) = t {
                 crate::favicon::cache_page_title(&c, t, &fd);

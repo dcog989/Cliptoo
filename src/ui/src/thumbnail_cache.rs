@@ -1,4 +1,5 @@
 use slint::Image;
+use slint::Model;
 use std::num::NonZeroUsize;
 use std::path::Path;
 
@@ -67,8 +68,9 @@ fn load_thumbnail(thumbnails_dir: &Path, content_hash: &str) -> Image {
 // ── LRU favicon cache ─────────────────────────────────────────────────────────
 
 /// Least-Recently-Used in-memory cache for decoded Slint favicon images.
-/// Keyed by domain name.  `slint::Image` is not `Send` so the cache must
-/// live on the UI thread.
+/// Keyed by domain plus the theme variant, since the light and dark icons for
+/// a domain are distinct and both may be cached side-by-side on disk.
+/// `slint::Image` is not `Send` so the cache must live on the UI thread.
 pub struct FaviconLru(LruCache<String, Image>);
 
 impl FaviconLru {
@@ -77,17 +79,27 @@ impl FaviconLru {
             Some(d) => d,
             None => return Image::default(),
         };
-        if let Some(img) = self.0.get(&domain) {
+        let dark = crate::theme::cached_resolved_theme().0;
+        let cache_key = if dark {
+            format!("{domain}:dark")
+        } else {
+            domain.clone()
+        };
+        if let Some(img) = self.0.get(&cache_key) {
             return img.clone();
         }
-        let path = favicons_dir.join(format!("{domain}.webp"));
+        let path = favicons_dir.join(crate::favicon::favicon_file_name(&domain, dark));
         let img = if path.exists() {
             Image::load_from_path(&path).unwrap_or_default()
         } else {
             Image::default()
         };
-        self.0.put(domain, img.clone());
+        self.0.put(cache_key, img.clone());
         img
+    }
+
+    pub fn clear(&mut self) {
+        self.0.clear();
     }
 }
 
@@ -101,6 +113,22 @@ impl Default for FaviconLru {
 
 fn load_favicon(favicons_dir: &Path, content: &str) -> Image {
     FAVICON_LRU.with(|lru| lru.borrow_mut().get_or_load(favicons_dir, content))
+}
+
+/// Re-load every link clip's favicon from disk under the currently active
+/// theme. Call on the UI thread after the theme changes so rows switch to
+/// the matching light/dark favicon variant in place.
+pub fn reload_favicons(ui: &crate::AppWindow, favicons_dir: &Path) {
+    FAVICON_LRU.with(|lru| lru.borrow_mut().clear());
+    let model = ui.get_clips();
+    for i in 0..model.row_count() {
+        if let Some(mut data) = model.row_data(i)
+            && data.clip_type.as_str() == "link"
+        {
+            data.favicon_image = load_favicon(favicons_dir, &data.preview_content);
+            model.set_row_data(i, data);
+        }
+    }
 }
 
 /// Convert a DB clip to a Slint ClipData, loading the thumbnail
