@@ -342,15 +342,30 @@ pub fn setup_clip_actions(
         let paste_db = db.clone();
         let paste_ui = ui.as_weak();
         let paste_sup = suppression.clone();
+        let paste_settings = settings.clone();
+        let paste_td = thumbnails_dir.clone();
+        let paste_fd = favicons_dir.clone();
         let paste_plain = settings.borrow().paste_as_plain_text;
         ui.on_item_activated(move |id: i32| {
             let db = paste_db.clone();
             let ui = paste_ui.clone();
             let sup = paste_sup.clone();
+            let settings = paste_settings.clone();
+            let td = paste_td.clone();
+            let fd = paste_fd.clone();
+            // Read on the UI thread (Rc<RefCell> is not Send); the setting is
+            // consumed as a plain bool inside the spawned task.
+            let moves_top = settings.borrow().paste_moves_clip_to_top;
             tokio::spawn(async move {
-                let _ = db
-                    .with(|conn| cliptoo_core::db::queries::record_paste(conn, id as i64))
-                    .await;
+                // Bump the clip to the top (and count the paste) only when the
+                // "paste moves clip to top" setting is enabled, then refresh so
+                // the reorder is visible in the list.
+                if moves_top {
+                    let _ = db
+                        .with(|conn| cliptoo_core::db::queries::record_paste(conn, id as i64))
+                        .await;
+                    helpers::refresh_clips(&db, &ui, &td, &fd, "", "", None).await;
+                }
                 let result = db
                     .with(|conn| {
                         cliptoo_core::db::queries::get_clip_type_and_content(conn, id as i64)

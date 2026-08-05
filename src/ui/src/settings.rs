@@ -68,6 +68,7 @@ const GENERAL_STARTUP: &str = "general start with system autostart login";
 const GENERAL_TRAY: &str = "general always close to tray background hide tray";
 const GENERAL_QUICKPASTE: &str = "general quick paste modifier right alt left alt control";
 const GENERAL_PLAINTEXT: &str = "general paste as plain text formatting strip";
+const GENERAL_PASTE_TOP: &str = "general paste moves clip to top bump reorder";
 const GENERAL_LOGLEVEL: &str = "general log level logging verbosity debug info warn error";
 const GENERAL_LOGFILE: &str = "general log file open latest log viewer";
 const APPEARANCE_THEME: &str = "appearance theme system light dark mode";
@@ -99,6 +100,7 @@ fn apply_settings_filter(win: &crate::SettingsWindow, query: &str) {
     win.set_row_tray_visible(row_matches(GENERAL_TRAY, &q));
     win.set_row_quickpaste_visible(row_matches(GENERAL_QUICKPASTE, &q));
     win.set_row_plaintext_visible(row_matches(GENERAL_PLAINTEXT, &q));
+    win.set_row_paste_top_visible(row_matches(GENERAL_PASTE_TOP, &q));
     win.set_row_loglevel_visible(row_matches(GENERAL_LOGLEVEL, &q));
     win.set_row_logfile_visible(row_matches(GENERAL_LOGFILE, &q));
     win.set_row_theme_visible(row_matches(APPEARANCE_THEME, &q));
@@ -261,6 +263,7 @@ fn init_settings_properties(
     settings_win.set_hover_delay(s.hover_preview_delay as i32);
     settings_win.set_s_image_preview_size(s.hover_image_preview_size as i32);
     settings_win.set_s_paste_as_plain_text(s.paste_as_plain_text);
+    settings_win.set_s_paste_moves_to_top(s.paste_moves_clip_to_top);
     settings_win.set_s_diff_tool_path(s.compare_tool_path.as_str().into());
     settings_win.set_s_max_clips(s.max_clips as i32);
     settings_win.set_s_max_age_days(s.max_age_days as i32);
@@ -589,6 +592,7 @@ fn setup_setting_commit(
                     }
                 }
                 "paste_as_plain_text" => s.paste_as_plain_text = value == "true",
+                "paste_moves_to_top" => s.paste_moves_clip_to_top = value == "true",
                 "compare_tool_path" => s.compare_tool_path = value.clone(),
                 "max_clips" => {
                     if let Ok(v) = value.parse::<u32>() {

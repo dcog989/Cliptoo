@@ -51,6 +51,7 @@ export component SettingsWindow inherits Window {
     in-out property <int> hover-delay:            400;
     in-out property <int> s-image-preview-size:   300;
     in-out property <bool> s-paste-as-plain-text:  false;
+    in-out property <bool> s-paste-moves-to-top:   true;
 
     // External Apps
     in-out property <string> s-diff-tool-path:       "";
@@ -72,6 +73,7 @@ export component SettingsWindow inherits Window {
     in-out property <bool> row-tray-visible: true;
     in-out property <bool> row-quickpaste-visible: true;
     in-out property <bool> row-plaintext-visible: true;
+    in-out property <bool> row-paste-top-visible: true;
     in-out property <bool> row-loglevel-visible: true;
     in-out property <bool> row-logfile-visible: true;
     // Appearance
@@ -170,6 +172,7 @@ export component SettingsWindow inherits Window {
                     hover-delay <=> root.hover-delay;
                     s-image-preview-size <=> root.s-image-preview-size;
                     s-paste-as-plain-text <=> root.s-paste-as-plain-text;
+                    s-paste-moves-to-top <=> root.s-paste-moves-to-top;
                     s-diff-tool-path <=> root.s-diff-tool-path;
 
                     row-hotkey-visible: root.row-hotkey-visible;
@@ -177,6 +180,7 @@ export component SettingsWindow inherits Window {
                     row-tray-visible: root.row-tray-visible;
                     row-quickpaste-visible: root.row-quickpaste-visible;
                     row-plaintext-visible: root.row-plaintext-visible;
+                    row-paste-top-visible: root.row-paste-top-visible;
                     row-loglevel-visible: root.row-loglevel-visible;
                     row-logfile-visible: root.row-logfile-visible;
                     row-theme-visible: root.row-theme-visible;

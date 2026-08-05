@@ -34,6 +34,7 @@ export component SettingsPage inherits ScrollView {
     in-out property <int> hover-delay:            400;
     in-out property <int> s-image-preview-size:   300;
     in-out property <bool> s-paste-as-plain-text:  false;
+    in-out property <bool> s-paste-moves-to-top:   true;
     in-out property <string> s-diff-tool-path:       "";
 
     // ── Per-row filter visibility, set by Rust from `settings-filter` ────────
@@ -43,6 +44,7 @@ export component SettingsPage inherits ScrollView {
     in property <bool> row-tray-visible: true;
     in property <bool> row-quickpaste-visible: true;
     in property <bool> row-plaintext-visible: true;
+    in property <bool> row-paste-top-visible: true;
     in property <bool> row-loglevel-visible: true;
     in property <bool> row-logfile-visible: true;
     // Appearance
@@ -137,6 +139,15 @@ export component SettingsPage inherits ScrollView {
             value <=> root.s-paste-as-plain-text;
             committed(v) => {
                 root.setting-changed("paste_as_plain_text", v ? "true" : "false");
+            }
+        }
+
+        if root.row-paste-top-visible: ToggleRow {
+            label: @tr("Paste moves clip to top");
+            tooltip-text: @tr("Move a clip to the top of the list when you paste it");
+            value <=> root.s-paste-moves-to-top;
+            committed(v) => {
+                root.setting-changed("paste_moves_to_top", v ? "true" : "false");
             }
         }
 

@@ -58,6 +58,9 @@ pub struct Settings {
     pub hover_preview_delay: u32,
     pub hover_image_preview_size: u32,
     pub paste_as_plain_text: bool,
+    // When true, pasting a clip bumps it to the top of the list.
+    #[serde(default = "default_paste_moves_clip_to_top")]
+    pub paste_moves_clip_to_top: bool,
     // Modifier key that activates the quick-paste overlay:
     // "Right Alt" | "Left Alt" | "Control".
     #[serde(default = "default_quick_paste_modifier")]
@@ -103,6 +106,7 @@ impl Default for Settings {
             hover_preview_delay: 400,
             hover_image_preview_size: 300,
             paste_as_plain_text: false,
+            paste_moves_clip_to_top: true,
             quick_paste_modifier: "Right Alt".to_string(),
             max_clips: 1000,
             max_age_days: 30,
@@ -202,6 +206,10 @@ fn default_accent_value() -> f64 {
 
 fn default_always_close_to_tray() -> bool {
     Settings::default().always_close_to_tray
+}
+
+fn default_paste_moves_clip_to_top() -> bool {
+    Settings::default().paste_moves_clip_to_top
 }
 
 fn default_quick_paste_modifier() -> String {
