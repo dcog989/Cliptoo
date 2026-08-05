@@ -119,13 +119,18 @@ fn apply_settings_filter(win: &crate::SettingsWindow, query: &str) {
 }
 
 /// Persist the settings window's current size into `Settings` so a resized
-/// window keeps its size across restarts. Called on both close paths.
+/// window keeps its size across restarts, and update the window's own
+/// `stored-width`/`stored-height` so its `preferred-*` binding reflects the
+/// resized geometry (otherwise re-showing the window snaps back to the stale
+/// preferred size). Called on both close paths.
 fn persist_window_size(
     win: &crate::SettingsWindow,
     settings: &std::rc::Rc<std::cell::RefCell<cliptoo_core::Settings>>,
     path: &std::path::Path,
 ) {
     let size = win.window().size();
+    win.set_stored_width(size.width as f32);
+    win.set_stored_height(size.height as f32);
     let mut s = settings.borrow_mut();
     s.settings_window_width = size.width as f64;
     s.settings_window_height = size.height as f64;
