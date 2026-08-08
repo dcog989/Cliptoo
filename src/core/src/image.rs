@@ -85,14 +85,12 @@ fn decode_image(data: &[u8]) -> Result<image::DynamicImage> {
 }
 
 fn resize_to(img: image::DynamicImage, max_dim: u32) -> image::DynamicImage {
-    let (w, h) = (img.width() as f64, img.height() as f64);
-    if w.max(h) <= max_dim as f64 {
+    let (w, h) = (img.width(), img.height());
+    if w.max(h) <= max_dim {
         return img;
     }
-    let scale = max_dim as f64 / w.max(h);
-    let nw = (w * scale).round().max(1.0) as u32;
-    let nh = (h * scale).round().max(1.0) as u32;
-    img.resize_exact(nw, nh, image::imageops::FilterType::Triangle)
+    // Aspect-preserving downscale that fits within max_dim × max_dim.
+    img.thumbnail(max_dim, max_dim)
 }
 
 // ── Full-resolution store (PNG, images_dir) ───────────────────────────────────

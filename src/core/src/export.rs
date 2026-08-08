@@ -123,7 +123,10 @@ pub fn import_json(conn: &Connection, data: &[u8]) -> Result<u64> {
             .context("fetch existing hashes for import")?
     };
 
-    conn.execute_batch("BEGIN;")
+    // Single transaction; an uncommitted drop rolls back automatically, so no
+    // manual ROLLBACK arms are needed on the error paths below.
+    let tx = conn
+        .unchecked_transaction()
         .context("begin import transaction")?;
 
     let mut inserted: u64 = 0;
@@ -134,7 +137,7 @@ pub fn import_json(conn: &Connection, data: &[u8]) -> Result<u64> {
             continue;
         }
 
-        if let Err(e) = conn.execute(
+        tx.execute(
             "INSERT INTO clips (
                 Content, PreviewContent, ContentHash, ClipType, SourceApp,
                 Timestamp, IsBookmarked, WasTrimmed, HasLeadingWhitespace,
@@ -155,28 +158,23 @@ pub fn import_json(conn: &Connection, data: &[u8]) -> Result<u64> {
                 row.paste_count,
                 row.tags,
             ],
-        ) {
-            let _ = conn.execute_batch("ROLLBACK;");
-            return Err(e).with_context(|| format!("insert imported clip hash={}", row.content_hash));
-        }
+        )
+        .with_context(|| format!("insert imported clip hash={}", row.content_hash))?;
 
         existing_hashes.insert(row.content_hash.clone());
         inserted += 1;
     }
 
-    if inserted > 0
-        && let Err(e) = conn.execute(
+    if inserted > 0 {
+        tx.execute(
             "UPDATE stats SET Value = CAST(CAST(Value AS INTEGER) + ?1 AS TEXT)
              WHERE Key = 'UniqueClipsEver'",
             params![inserted as i64],
         )
-    {
-        let _ = conn.execute_batch("ROLLBACK;");
-        return Err(e).context("increment UniqueClipsEver");
+        .context("increment UniqueClipsEver")?;
     }
 
-    conn.execute_batch("COMMIT;")
-        .context("commit import transaction")?;
+    tx.commit().context("commit import transaction")?;
 
     info!("import_json: {} / {} rows inserted", inserted, rows.len());
     Ok(inserted)

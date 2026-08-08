@@ -168,27 +168,19 @@ pub async fn mark_deadheads(db: &Arc<DbPool>) -> Result<u64> {
 
     let marked = gone.len() as u64;
     db.with(move |conn| {
-        conn.execute_batch("BEGIN;")?;
+        let tx = conn.unchecked_transaction()?;
         for (id, path_str) in &gone {
-            if let Err(e) =
-                conn.execute("UPDATE clips SET IsDeadhead = 1 WHERE Id = ?1", params![id])
-            {
-                let _ = conn.execute_batch("ROLLBACK;");
-                return Err(e.into());
-            }
+            tx.execute("UPDATE clips SET IsDeadhead = 1 WHERE Id = ?1", params![id])?;
             info!("deadhead: marked clip {id} — path gone: {path_str}");
         }
         // Path is back — clear the flag in case it was previously marked.
         for id in &back {
-            if let Err(e) = conn.execute(
+            tx.execute(
                 "UPDATE clips SET IsDeadhead = 0 WHERE Id = ?1 AND IsDeadhead = 1",
                 params![id],
-            ) {
-                let _ = conn.execute_batch("ROLLBACK;");
-                return Err(e.into());
-            }
+            )?;
         }
-        conn.execute_batch("COMMIT;")?;
+        tx.commit()?;
         Ok(())
     })
     .await?;

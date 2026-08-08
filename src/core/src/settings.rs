@@ -225,11 +225,7 @@ fn default_settings_window_height() -> f64 {
 }
 
 fn chrono_now_compact() -> String {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs().to_string())
-        .unwrap_or_else(|_| "0".to_string())
+    chrono::Utc::now().timestamp().to_string()
 }
 
 #[cfg(test)]
