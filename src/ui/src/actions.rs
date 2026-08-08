@@ -345,7 +345,6 @@ pub fn setup_clip_actions(
         let paste_settings = settings.clone();
         let paste_td = thumbnails_dir.clone();
         let paste_fd = favicons_dir.clone();
-        let paste_plain = settings.borrow().paste_as_plain_text;
         ui.on_item_activated(move |id: i32| {
             let db = paste_db.clone();
             let ui = paste_ui.clone();
@@ -353,9 +352,11 @@ pub fn setup_clip_actions(
             let settings = paste_settings.clone();
             let td = paste_td.clone();
             let fd = paste_fd.clone();
-            // Read on the UI thread (Rc<RefCell> is not Send); the setting is
-            // consumed as a plain bool inside the spawned task.
+            // Read on the UI thread (Rc<RefCell> is not Send); the settings are
+            // consumed as plain bools inside the spawned task. Re-read per
+            // activation so a setting change applies without a restart.
             let moves_top = settings.borrow().paste_moves_clip_to_top;
+            let paste_plain = settings.borrow().paste_as_plain_text;
             tokio::spawn(async move {
                 // Bump the clip to the top (and count the paste) only when the
                 // "paste moves clip to top" setting is enabled, then refresh so
