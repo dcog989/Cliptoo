@@ -61,20 +61,21 @@ export global ClipTypeMap {
     // Localized label per filter key. Unknown keys fall back to the key itself.
     public pure function label-for(key: string) -> string {
         if key == "all" { return @tr("All"); }
-        if key == "text" { return @tr("Text"); }
-        if key == "file_image" { return @tr("Image"); }
+        if key == "text" { return @tr("Plain Text"); }
+        if key == "file_image" { return @tr("Image File"); }
         if key == "bookmarked" { return @tr("Bookmarked"); }
         if key == "link" { return @tr("URL"); }
         if key == "file_path" { return @tr("File path"); }
         if key == "code_snippet" { return @tr("Code"); }
         if key == "color" { return @tr("Color"); }
         if key == "folder" { return @tr("Folder"); }
-        if key == "file_danger" { return @tr("Danger"); }
-        if key == "file_dev" { return @tr("Dev"); }
-        if key == "file_audio" { return @tr("Audio"); }
-        if key == "file_video" { return @tr("Video"); }
-        if key == "file_archive" { return @tr("Archive"); }
-        if key == "file_document" || key == "file_text" { return @tr("Document"); }
+        if key == "file_danger" { return @tr("Danger File"); }
+        if key == "file_dev" { return @tr("Dev File"); }
+        if key == "file_audio" { return @tr("Audio File"); }
+        if key == "file_video" { return @tr("Video File"); }
+        if key == "file_archive" { return @tr("Archive File"); }
+        if key == "file_document" { return @tr("Document File"); }
+        if key == "file_text" { return @tr("Text File"); }
         if key == "rtf" { return @tr("Rich Text"); }
         if key == "file" || key == "file_generic" { return @tr("File"); }
         return key;
