@@ -10,6 +10,8 @@ export component MenuRow {
     in property <string> sublabel: "";
     in property <bool> is-danger: false;
     in property <bool> has-arrow: false;
+    // Larger than the row text so the "›" exposed as a submenu affordance.
+    in property <length> arrow-size: Theme.font-size + 3px;
     in property <bool> is-separator: false;
     in property <length> row-height: 32px;
     callback clicked;
@@ -64,7 +66,7 @@ export component MenuRow {
             if root.has-arrow: Text {
                 text: "›";
                 color: touch.has-hover && !touch.pressed ? Theme.accent-fg : Theme.fg-muted;
-                font-size: Theme.font-size;
+                font-size: root.arrow-size;
                 vertical-alignment: center;
             }
         }

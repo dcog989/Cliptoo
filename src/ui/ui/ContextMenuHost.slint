@@ -1,10 +1,15 @@
-// ContextMenuHost.slint — Right-click context menu popup for clip list items,
-// together with all of its positioning state.
+// ContextMenuHost.slint — Right-click context menu popups for clip list items,
+// together with all of their positioning state.
 //
-// AppWindow calls `open-at` (from the ClipList right-click callback); the menu
-// emits callbacks that AppWindow bridges to Rust.
+// AppWindow calls `open-at` from the ClipList right-click callback. The main
+// popup shows the primary actions; the "Format" and "Send To" rows open
+// dedicated popups. Each submenu is its own PopupWindow so every menu is sized
+// from fully-visible content at open time (a shown popup cannot reliably
+// re-grow to fit a hidden sub-view, so they are never toggled in place).
 
 import { ContextMenu } from "ContextMenu.slint";
+import { FormatMenu }  from "FormatMenu.slint";
+import { MenuRow }     from "MenuRow.slint";
 import { Theme }       from "Theme.slint";
 
 export component ContextMenuHost {
@@ -13,8 +18,8 @@ export component ContextMenuHost {
     in property <length> window-width: 0px;
     in property <length> window-height: 0px;
 
-    // Read-only for AppWindow: reflects whether the popup is currently open.
-    out property <bool> popup-open: popup.is-open;
+    // Read-only for AppWindow: reflects whether any menu popup is open.
+    out property <bool> popup-open: main-popup.is-open || format-popup.is-open || send-popup.is-open;
 
     callback preview-requested(int, float, float);  // id, x, y in logical px
     callback edit-clip(int);
@@ -31,34 +36,44 @@ export component ContextMenuHost {
     property <int> ctx-clip-id: 0;
     property <bool> ctx-clip-is-bookmarked: false;
     property <string> ctx-clip-type: "text";
-    // Which sub-view the context menu shows ("main" | "format" | "send-to").
-    // Owned here because Slint forbids touching elements inside a PopupWindow
-    // from the enclosing component; two-way bound to ContextMenu.view below.
-    // Reset to "main" before each show() so the menu never reopens on a sub-view.
-    in-out property <string> ctx-menu-view: "main";
-    // Raw right-click position. The popup's x/y bindings clamp these against
-    // the current menu size, so the popup re-clamps reactively as the view
-    // switches to "format"/"send-to".
+    // Raw right-click position. Each popup's x/y bindings clamp these against
+    // the popup's own size.
     property <length> ctx-menu-x: 0px;
     property <length> ctx-menu-anchor-y: 0px;
 
     // Called by AppWindow from the ClipList right-click callback before the
-    // popup opens.
+    // main popup opens.
     public function open-at(id: int, x: float, y: float, bookmarked: bool, clip-type: string) {
         root.ctx-clip-id = id;
         root.ctx-clip-is-bookmarked = bookmarked;
         root.ctx-clip-type = clip-type;
-        root.ctx-menu-view = "main";
         root.ctx-menu-x = x * 1px;
         root.ctx-menu-anchor-y = y * 1px;
-        popup.show();
+        main-popup.show();
     }
 
-    popup := PopupWindow {
+    // Submenu navigation: close the current popup and open the requested one.
+    public function show-format() {
+        main-popup.close();
+        format-popup.show();
+    }
+
+    public function show-send() {
+        main-popup.close();
+        send-popup.show();
+    }
+
+    public function show-main() {
+        format-popup.close();
+        send-popup.close();
+        main-popup.show();
+    }
+
+    // ── Main actions popup ──────────────────────────────────────────────────
+    main-popup := PopupWindow {
         x: Math.min(root.ctx-menu-x, root.window-width - (ctx-menu.menu-width + 4px));
         y: Math.max(0px, Math.min(root.ctx-menu-anchor-y, root.window-height - ctx-menu.menu-height));
         // Explicit size for the Qt backend — PopupWindow won't render without it.
-        // Sized to the menu's content; grows/shrinks as the sub-view switches.
         width: ctx-menu.menu-width;
         height: ctx-menu.menu-height;
         // Solid fill so any extra space below the menu content is not transparent.
@@ -75,51 +90,114 @@ export component ContextMenuHost {
             clip-is-bookmarked: root.ctx-clip-is-bookmarked;
             clip-type: root.ctx-clip-type;
             send-to-apps: root.send-to-apps;
-            view <=> root.ctx-menu-view;
 
             preview => {
-                root.preview-requested(root.ctx-clip-id, popup.x / 1px, popup.y / 1px);
-                popup.close();
+                root.preview-requested(root.ctx-clip-id, main-popup.x / 1px, main-popup.y / 1px);
+                main-popup.close();
             }
             edit => {
                 root.edit-clip(root.ctx-clip-id);
-                popup.close();
+                main-popup.close();
             }
             paste-as(mode) => {
                 root.paste-as(root.ctx-clip-id, mode);
-                popup.close();
-            }
-            format(key) => {
-                root.transform-clip(root.ctx-clip-id, key);
-                popup.close();
+                main-popup.close();
             }
             toggle-bookmark(id, current) => {
                 root.toggle-bookmark(id, current);
-                popup.close();
+                main-popup.close();
             }
             move-to-top => {
                 root.move-to-top(root.ctx-clip-id);
-                popup.close();
+                main-popup.close();
             }
             move-to-bottom => {
                 root.move-to-bottom(root.ctx-clip-id);
-                popup.close();
+                main-popup.close();
             }
             move-up-one => {
                 root.move-up-one(root.ctx-clip-id);
-                popup.close();
+                main-popup.close();
             }
             move-down-one => {
                 root.move-down-one(root.ctx-clip-id);
-                popup.close();
+                main-popup.close();
             }
-            send-to(app-name) => {
-                root.send-to-clip(root.ctx-clip-id, app-name);
-                popup.close();
+            format-open => {
+                root.show-format();
+            }
+            send-to-open => {
+                root.show-send();
             }
             delete => {
                 root.delete-clip(root.ctx-clip-id);
-                popup.close();
+                main-popup.close();
+            }
+        }
+    }
+
+    // ── Format submenu popup ─────────────────────────────────────────────────
+    format-popup := PopupWindow {
+        x: Math.min(root.ctx-menu-x + 24px, root.window-width - (fmt-menu.menu-width + 4px));
+        y: Math.max(0px, Math.min(root.ctx-menu-anchor-y, root.window-height - fmt-menu.menu-height));
+        width: fmt-menu.menu-width;
+        height: fmt-menu.menu-height;
+        Rectangle {
+            width: 100%;
+            height: 100%;
+            background: Theme.bg-header;
+        }
+
+        fmt-menu := FormatMenu {
+            width: 100%;
+            height: 100%;
+
+            back => {
+                root.show-main();
+            }
+            format(key) => {
+                root.transform-clip(root.ctx-clip-id, key);
+                format-popup.close();
+            }
+        }
+    }
+
+    // ── Send To submenu popup ───────────────────────────────────────────────
+    send-popup := PopupWindow {
+        // Height: Back row + one row per app + a separator. Rows are 32px,
+        // separators 9px, vertical padding 4px × 2.
+        x: Math.min(root.ctx-menu-x + 24px, root.window-width - (send-menu-root.preferred-width + 4px));
+        y: Math.max(0px, Math.min(root.ctx-menu-anchor-y, root.window-height - (((1 + root.send-to-apps.length) * 32px) + 9px + 8px)));
+        width: send-menu-root.preferred-width;
+        height: ((1 + root.send-to-apps.length) * 32px) + 9px + 8px;
+        Rectangle {
+            width: 100%;
+            height: 100%;
+            background: Theme.bg-header;
+        }
+
+        send-menu-root := VerticalLayout {
+            padding: 4px;
+            spacing: 0px;
+
+            MenuRow {
+                label: @tr("Back");
+                icon: @image-url("icons/arrow-left.svg");
+                clicked => {
+                    root.show-main();
+                }
+            }
+
+            MenuRow {
+                is-separator: true;
+            }
+
+            for app-name in root.send-to-apps: MenuRow {
+                label: app-name;
+                clicked => {
+                    root.send-to-clip(root.ctx-clip-id, app-name);
+                    send-popup.close();
+                }
             }
         }
     }

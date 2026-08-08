@@ -1,30 +1,24 @@
-// ContextMenu.slint — Right-click context menu for clip list items.
-// Rendered inside a PopupWindow declared in AppWindow.
+// ContextMenu.slint — Right-click action menu for clip list items.
+// Rendered inside a PopupWindow declared in ContextMenuHost.
 //
-// Three views, toggled by `view`:
-//   "main"    — primary actions
-//   "format"  — text transformation sub-list
-//   "send-to" — Send To app sub-list
-//
-// The caller (AppWindow) is responsible for positioning and closing the popup.
+// This is the main actions view only. The "Format" and "Send To" items open
+// their own PopupWindows (FormatMenu / the host's send menu) so every menu is
+// sized from fully-visible content at open time — a shown popup cannot reliably
+// re-grow when a hidden sub-view becomes visible.
 
 import { Theme }       from "Theme.slint";
 import { ClipTypeMap } from "ClipTypes.slint";
 import { MenuRow }     from "MenuRow.slint";
 
 export component ContextMenu {
-    // Which clip this menu is acting on (set by AppWindow before show()).
+    // Which clip this menu is acting on (set by ContextMenuHost before show()).
     in property <int> clip-id;
     in property <bool> clip-is-bookmarked: false;
     in property <string> clip-type: "text";
     in property <[string]> send-to-apps: [];
 
-    // Internal view state. AppWindow resets this to "main" before each show().
-    in-out property <string> view: "main";  // "main" | "format" | "send-to"
-
     callback preview();
     callback edit();
-    callback format(string);        // transform key
     callback paste-as(string);      // "rich" | "plain"
     callback delete();
     callback toggle-bookmark(int, bool);  // id, current is-bookmarked
@@ -32,7 +26,8 @@ export component ContextMenu {
     callback move-to-bottom();
     callback move-up-one();
     callback move-down-one();
-    callback send-to(string);       // app name
+    callback format-open();         // open the Format submenu popup
+    callback send-to-open();        // open the Send To submenu popup
 
     // True when the clip type supports text transformations.
     property <bool> is-text-type: ClipTypeMap.is-text-type(root.clip-type);
@@ -41,12 +36,23 @@ export component ContextMenu {
     property <bool> is-rtf-type: root.clip-type == "rtf";
 
     // Intrinsic content size, used by ContextMenuHost to size the popup. The
-    // three view layouts are always instantiated (visibility-toggled) so they
-    // keep content-based preferred sizes; if-conditional layouts resolve to 0.
-    out property <length> menu-width:
-        Math.max(main-view.preferred-width, Math.max(format-view.preferred-width, send-view.preferred-width));
-    out property <length> menu-height:
-        root.view == "format" ? format-view.preferred-height : root.view == "send-to" ? send-view.preferred-height : main-view.preferred-height;
+    // height is computed from the fixed row/separator counts because Slint
+    // resolves the preferred size of conditional rows to 0; rows are 32px,
+    // separators 9px, vertical padding 4px × 2.
+    out property <length> menu-width: menu-root.preferred-width;
+    out property <length> menu-height: root.main-menu-height();
+
+    pure function main-menu-height() -> length {
+        // Preview, Edit, Delete, 4×Move, Bookmark = 8 rows, plus the
+        // conditional Format (text) and Paste Rich/Plain (rtf) rows.
+        // Separators: the two unconditional, plus one for the rtf block.
+        let rows = 8
+            + (root.is-text-type ? 1 : 0)
+            + (root.is-rtf-type ? 2 : 0);
+        let seps = 2
+            + (root.is-rtf-type ? 1 : 0);
+        return rows * 32px + seps * 9px + 8px;
+    }
 
     menu-root := Rectangle {
         border-radius: 8px;
@@ -59,7 +65,6 @@ export component ContextMenu {
 
         // ── Main view ─────────────────────────────────────────────────────────
         main-view := VerticalLayout {
-            visible: root.view == "main";
             alignment: start;
             padding: 4px;
             spacing: 0px;
@@ -103,7 +108,7 @@ export component ContextMenu {
                 icon: @image-url("icons/text-align-start.svg");
                 has-arrow: true;
                 clicked => {
-                    root.view = "format";
+                    root.format-open();
                 }
             }
             MenuRow {
@@ -171,166 +176,7 @@ export component ContextMenu {
                 icon: @image-url("icons/send.svg");
                 has-arrow: true;
                 clicked => {
-                    root.view = "send-to";
-                }
-            }
-        }
-
-        // ── Format sub-view ───────────────────────────────────────────────────
-        format-view := VerticalLayout {
-            visible: root.view == "format";
-            alignment: start;
-            padding: 4px;
-            spacing: 0px;
-
-            MenuRow {
-                label: @tr("Back");
-                icon: @image-url("icons/arrow-left.svg");
-                clicked => {
-                    root.view = "main";
-                }
-            }
-
-            MenuRow {
-                is-separator: true;
-            }
-
-            MenuRow {
-                label: @tr("UPPER CASE");
-                icon: @image-url("icons/case-upper.svg");
-                clicked => {
-                    root.format("upper");
-                }
-            }
-
-            MenuRow {
-                label: @tr("lower case");
-                icon: @image-url("icons/case-lower.svg");
-                clicked => {
-                    root.format("lower");
-                }
-            }
-
-            MenuRow {
-                label: @tr("Capitalize Words");
-                icon: @image-url("icons/case-sensitive.svg");
-                clicked => {
-                    root.format("capitalize");
-                }
-            }
-
-            MenuRow {
-                label: @tr("Sentence case");
-                icon: @image-url("icons/case-sensitive.svg");
-                clicked => {
-                    root.format("sentence");
-                }
-            }
-
-            MenuRow {
-                label: @tr("iNVERT cASE");
-                icon: @image-url("icons/case-sensitive.svg");
-                clicked => {
-                    root.format("invert");
-                }
-            }
-
-            MenuRow {
-                is-separator: true;
-            }
-
-            MenuRow {
-                label: @tr("kebab-case");
-                icon: @image-url("icons/text.svg");
-                clicked => {
-                    root.format("kebab");
-                }
-            }
-
-            MenuRow {
-                label: @tr("snake_case");
-                icon: @image-url("icons/text.svg");
-                clicked => {
-                    root.format("snake");
-                }
-            }
-
-            MenuRow {
-                label: @tr("camelCase");
-                icon: @image-url("icons/text.svg");
-                clicked => {
-                    root.format("camel");
-                }
-            }
-
-            MenuRow {
-                label: @tr("De-slug");
-                icon: @image-url("icons/text.svg");
-                clicked => {
-                    root.format("deslug");
-                }
-            }
-
-            MenuRow {
-                is-separator: true;
-            }
-
-            MenuRow {
-                label: @tr("Trim Whitespace");
-                icon: @image-url("icons/scissors.svg");
-                clicked => {
-                    root.format("trim");
-                }
-            }
-
-            MenuRow {
-                label: @tr("Remove Line Breaks");
-                icon: @image-url("icons/text-wrap.svg");
-                clicked => {
-                    root.format("remove_lf");
-                }
-            }
-
-            MenuRow {
-                label: @tr("Normalize LF");
-                icon: @image-url("icons/text-wrap.svg");
-                clicked => {
-                    root.format("lf1");
-                }
-            }
-
-            MenuRow {
-                label: @tr("Add Timestamp");
-                icon: @image-url("icons/clock.svg");
-                clicked => {
-                    root.format("timestamp");
-                }
-            }
-        }
-
-        // ── Send To sub-view ──────────────────────────────────────────────────
-        send-view := VerticalLayout {
-            visible: root.view == "send-to";
-            alignment: start;
-            padding: 4px;
-            spacing: 0px;
-
-            MenuRow {
-                label: @tr("Back");
-                icon: @image-url("icons/arrow-left.svg");
-                clicked => {
-                    root.view = "main";
-                }
-            }
-
-            MenuRow {
-                is-separator: true;
-            }
-
-            for app-name in root.send-to-apps: MenuRow {
-                label: app-name;
-                clicked => {
-                    root.send-to(app-name);
+                    root.send-to-open();
                 }
             }
         }

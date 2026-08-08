@@ -1,0 +1,157 @@
+// FormatMenu.slint — The "Format" submenu popup for text clips.
+// A separate PopupWindow (hosted by ContextMenuHost) so each menu is sized
+// from fully-visible content at open time, avoiding the reactive re-sizing of
+// a shown popup when its content is toggled between sub-views.
+
+import { Theme }   from "Theme.slint";
+import { MenuRow } from "MenuRow.slint";
+
+export component FormatMenu {
+    callback back();
+    callback format(string);        // transform key
+
+    // Intrinsic popup size used by ContextMenuHost. All rows are unconditional
+    // so the height is a fixed count; the width comes from the widest label.
+    out property <length> menu-width: menu-root.preferred-width;
+    out property <length> menu-height: menu-root.preferred-height;
+
+    menu-root := Rectangle {
+        border-radius: 8px;
+        background: Theme.bg-header;
+        border-width: 1px;
+        border-color: Theme.border-subtle;
+        drop-shadow-blur: 12px;
+        drop-shadow-color: Theme.shadow;
+        drop-shadow-offset-y: 4px;
+
+        VerticalLayout {
+            alignment: start;
+            padding: 4px;
+            spacing: 0px;
+
+            MenuRow {
+                label: @tr("Back");
+                icon: @image-url("icons/arrow-left.svg");
+                clicked => {
+                    root.back();
+                }
+            }
+
+            MenuRow {
+                is-separator: true;
+            }
+
+            MenuRow {
+                label: @tr("UPPER CASE");
+                icon: @image-url("icons/case-upper.svg");
+                clicked => {
+                    root.format("upper");
+                }
+            }
+
+            MenuRow {
+                label: @tr("lower case");
+                icon: @image-url("icons/case-lower.svg");
+                clicked => {
+                    root.format("lower");
+                }
+            }
+
+            MenuRow {
+                label: @tr("Capitalize Words");
+                icon: @image-url("icons/case-sensitive.svg");
+                clicked => {
+                    root.format("capitalize");
+                }
+            }
+
+            MenuRow {
+                label: @tr("Sentence case");
+                icon: @image-url("icons/case-sensitive.svg");
+                clicked => {
+                    root.format("sentence");
+                }
+            }
+
+            MenuRow {
+                label: @tr("iNVERT cASE");
+                icon: @image-url("icons/case-sensitive.svg");
+                clicked => {
+                    root.format("invert");
+                }
+            }
+
+            MenuRow {
+                is-separator: true;
+            }
+
+            MenuRow {
+                label: @tr("kebab-case");
+                icon: @image-url("icons/text.svg");
+                clicked => {
+                    root.format("kebab");
+                }
+            }
+
+            MenuRow {
+                label: @tr("snake_case");
+                icon: @image-url("icons/text.svg");
+                clicked => {
+                    root.format("snake");
+                }
+            }
+
+            MenuRow {
+                label: @tr("camelCase");
+                icon: @image-url("icons/text.svg");
+                clicked => {
+                    root.format("camel");
+                }
+            }
+
+            MenuRow {
+                label: @tr("De-slug");
+                icon: @image-url("icons/text.svg");
+                clicked => {
+                    root.format("deslug");
+                }
+            }
+
+            MenuRow {
+                is-separator: true;
+            }
+
+            MenuRow {
+                label: @tr("Trim Whitespace");
+                icon: @image-url("icons/scissors.svg");
+                clicked => {
+                    root.format("trim");
+                }
+            }
+
+            MenuRow {
+                label: @tr("Remove Line Breaks");
+                icon: @image-url("icons/text-wrap.svg");
+                clicked => {
+                    root.format("remove_lf");
+                }
+            }
+
+            MenuRow {
+                label: @tr("Normalize LF");
+                icon: @image-url("icons/text-wrap.svg");
+                clicked => {
+                    root.format("lf1");
+                }
+            }
+
+            MenuRow {
+                label: @tr("Add Timestamp");
+                icon: @image-url("icons/clock.svg");
+                clicked => {
+                    root.format("timestamp");
+                }
+            }
+        }
+    }
+}
