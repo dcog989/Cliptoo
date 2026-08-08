@@ -26,7 +26,6 @@ impl AppDirs {
 
         // Cache/transient — images, thumbnails, icons
         let cache_dir = data_home.join("Cliptoo");
-        let tmp_dir = std::env::temp_dir().join("Cliptoo");
 
         let images_dir = cache_dir.join("images");
         let thumbnails_dir = cache_dir.join("thumbnails");
@@ -38,7 +37,6 @@ impl AppDirs {
             &config_dir,
             &cache_dir,
             &logs_dir,
-            &tmp_dir,
             &images_dir,
             &thumbnails_dir,
             &favicons_dir,
