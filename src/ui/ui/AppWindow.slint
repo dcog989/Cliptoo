@@ -72,6 +72,7 @@ export component AppWindow inherits Window {
     callback move-up-one(int);                 // swap with clip above
     callback move-down-one(int);               // swap with clip below
     callback edit-clip(int);                   // open edit window for clip
+    callback paste-as(int, string);            // paste clip as "rich" | "plain" text
 
     // ── Properties set from Rust ──────────────────────────────────────────────
     // Theme tokens are set directly via ui.global::<Theme>() in Rust.
@@ -239,6 +240,9 @@ export component AppWindow inherits Window {
         }
         edit-clip(id) => {
             root.edit-clip(id);
+        }
+        paste-as(id, mode) => {
+            root.paste-as(id, mode);
         }
         transform-clip(id, key) => {
             root.transform-clip(id, key);

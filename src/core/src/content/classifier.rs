@@ -85,7 +85,12 @@ impl ContentProcessor {
 
         let size_in_bytes = content.len() as i64;
         let is_multiline = content.contains('\n');
-        let preview_content = crate::content::preview::build_preview(&content);
+        // RTF clips preview as their stripped plain text; everything else as-is.
+        let preview_content = if clip_type == ClipType::Rtf {
+            crate::content::preview::build_preview(&crate::content::strip_rtf(&content))
+        } else {
+            crate::content::preview::build_preview(&content)
+        };
         let content_hash = crate::content::hash::sha256_hex(&content);
 
         Some(ClassifiedContent {
@@ -358,12 +363,14 @@ mod tests {
     fn rtf_without_bom_is_rtf() {
         let c = ContentProcessor::process(r"{\rtf1\ansi hello}", false).unwrap();
         assert_eq!(c.clip_type, ClipType::Rtf);
+        assert_eq!(c.preview_content, "hello");
     }
 
     #[test]
     fn rtf_with_bom_is_rtf() {
         let c = ContentProcessor::process("\u{feff}{\\rtf1\\ansi hello}", false).unwrap();
         assert_eq!(c.clip_type, ClipType::Rtf);
+        assert_eq!(c.preview_content, "hello");
     }
 
     #[test]

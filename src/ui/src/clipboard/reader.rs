@@ -51,6 +51,53 @@ async fn try_text(last_hash: &mut Option<String>) -> Result<Option<ClipboardPayl
     }))
 }
 
+/// Read the raw `text/rtf` payload, if offered. Rich-text producers (e.g.
+/// LibreOffice) expose the RTF markup under this MIME type and a plain-text
+/// rendition under `text/plain`; polling `text/rtf` first is what lets the
+/// classifier record an `Rtf` clip instead of a lossy `Text` one. The payload
+/// reuses `ClipboardPayload::Text` — the classifier detects RTF from the
+/// content itself (`is_rtf`).
+async fn try_rtf(last_hash: &mut Option<String>) -> Result<Option<ClipboardPayload>> {
+    let result = tokio::task::spawn_blocking(|| {
+        get_contents(
+            ClipboardType::Regular,
+            Seat::Unspecified,
+            MimeType::Specific("text/rtf"),
+        )
+    })
+    .await
+    .map_err(|e| anyhow::anyhow!("spawn_blocking: {e}"))?;
+
+    let (mut reader, _mime) = match result {
+        Ok(r) => r,
+        Err(wl_clipboard_rs::paste::Error::NoSeats)
+        | Err(wl_clipboard_rs::paste::Error::ClipboardEmpty)
+        | Err(wl_clipboard_rs::paste::Error::NoMimeType) => return Ok(None),
+        Err(e) => return Err(e.into()),
+    };
+
+    let mut raw = String::new();
+    reader.read_to_string(&mut raw)?;
+
+    let normalized = normalize_line_endings(&raw);
+    let (hash, sup_hash) = cliptoo_core::content::hash::sha256_hex_and_prefix(&normalized);
+
+    if last_hash.as_deref() == Some(&hash) {
+        return Ok(None);
+    }
+    *last_hash = Some(hash.clone());
+
+    if normalized.trim().is_empty() {
+        return Ok(None);
+    }
+
+    Ok(Some(ClipboardPayload::Text {
+        hash,
+        content: normalized,
+        sup_hash,
+    }))
+}
+
 async fn try_file_uri_list(last_hash: &mut Option<String>) -> Result<Option<ClipboardPayload>> {
     let result = tokio::task::spawn_blocking(|| {
         get_contents(
@@ -154,6 +201,7 @@ async fn try_image(last_hash: &mut Option<String>) -> Result<Option<ClipboardPay
 
 pub(super) async fn poll_clipboard(
     last_text_hash: &mut Option<String>,
+    last_rtf_hash: &mut Option<String>,
     last_image_hash: &mut Option<String>,
     last_file_hash: &mut Option<String>,
 ) -> Result<Option<ClipboardPayload>> {
@@ -162,6 +210,12 @@ pub(super) async fn poll_clipboard(
     // first, a copied folder/file would be captured as a text clip and end
     // up as a `file_path` clip instead of its real `Folder`/`file_*` type.
     if let Some(payload) = try_file_uri_list(last_file_hash).await? {
+        return Ok(Some(payload));
+    }
+    // RTF before plain text: a rich-text producer offers both the RTF markup
+    // (text/rtf) and a plain rendition (text/plain). Reading the markup first
+    // records an `Rtf` clip; reading text/plain first would lose the markup.
+    if let Some(payload) = try_rtf(last_rtf_hash).await? {
         return Ok(Some(payload));
     }
     if let Some(payload) = try_text(last_text_hash).await? {

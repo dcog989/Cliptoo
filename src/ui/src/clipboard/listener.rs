@@ -1,6 +1,7 @@
 use anyhow::Result;
 use cliptoo_core::content::classifier::ContentProcessor;
 use cliptoo_core::db::DbPool;
+use cliptoo_core::db::models::ClipType;
 use cliptoo_core::db::queries::insert_or_bump;
 use cliptoo_core::image::HASH_FILENAME_PREFIX_LEN;
 use std::path::PathBuf;
@@ -29,6 +30,7 @@ pub async fn run_listener(
     active_filter_state: Arc<std::sync::Mutex<String>>,
 ) -> Result<()> {
     let mut last_text_hash: Option<String> = None;
+    let mut last_rtf_hash: Option<String> = None;
     let mut last_image_hash: Option<String> = None;
     let mut last_file_hash: Option<String> = None;
     let mut last_mime_types: Option<Vec<String>> = None;
@@ -52,6 +54,7 @@ pub async fn run_listener(
                 // An empty clipboard at startup seeds the baseline too.
                 baseline = false;
                 last_text_hash = None;
+                last_rtf_hash = None;
                 last_image_hash = None;
                 last_file_hash = None;
                 last_mime_types = None;
@@ -88,11 +91,19 @@ pub async fn run_listener(
             .as_deref()
             .is_some_and(|mt| mt.iter().any(|m| m == "text/uri-list"));
 
+        // A clipboard exposing text/rtf is a rich-text copy; its text/plain
+        // rendition is likewise accessory and must not become a separate Text
+        // clip (the Rtf clip already carries the plain text via its preview).
+        let has_rtf = mime_types
+            .as_deref()
+            .is_some_and(|mt| mt.iter().any(|m| m == "text/rtf"));
+
         last_mime_types = mime_types;
         last_full_read = Some(Instant::now());
 
         let result = poll_clipboard(
             &mut last_text_hash,
+            &mut last_rtf_hash,
             &mut last_image_hash,
             &mut last_file_hash,
         )
@@ -141,6 +152,14 @@ pub async fn run_listener(
                                 )
                             {
                                 debug!("clipboard: path text on a text/uri-list clipboard skipped");
+                                continue;
+                            }
+
+                            // The plain-text rendition of an RTF clipboard (read
+                            // on a stale re-read, after the Rtf clip was already
+                            // ingested via text/rtf) must not spawn a Text clip.
+                            if has_rtf && classified.clip_type != ClipType::Rtf {
+                                debug!("clipboard: plain text on a text/rtf clipboard skipped");
                                 continue;
                             }
 

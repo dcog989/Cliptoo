@@ -208,10 +208,17 @@ fn show_folder_preview(ctx: &PreviewContext) {
     ui.set_preview_file_info(info.into());
 }
 
-/// Preview for every other clip type (text, rtf, color, file_*): show text.
+/// Preview for every other clip type (text, color, file_*): show text.
 fn show_text_preview(ctx: &PreviewContext) {
     ctx.ui.set_preview_clip_type(ctx.clip_type.into());
     ctx.ui.set_preview_text(ctx.content.into());
+}
+
+/// Preview for RTF clips: show the stripped plain text, not raw markup.
+fn show_rtf_preview(ctx: &PreviewContext) {
+    ctx.ui.set_preview_clip_type(ctx.clip_type.into());
+    let stripped = cliptoo_core::content::strip_rtf(ctx.content);
+    ctx.ui.set_preview_text(stripped.into());
 }
 
 /// Uniform signature for a per-clip-type preview handler, so handlers can be
@@ -226,6 +233,7 @@ const PREVIEW_HANDLERS: &[(&str, PreviewHandler)] = &[
     ("link", show_link_preview),
     ("file_image", show_image_preview),
     ("folder", show_folder_preview),
+    ("rtf", show_rtf_preview),
 ];
 
 pub fn setup_preview(

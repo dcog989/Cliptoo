@@ -382,4 +382,33 @@ pub fn setup_clip_actions(
             });
         });
     }
+
+    // ── Paste as rich/plain (per-clip override from the context menu) ─────
+    // Only RTF clips expose this pair; the choice bypasses the global
+    // "paste as plain text" toggle for this one paste.
+    {
+        let pas_db = db.clone();
+        let pas_ui = ui.as_weak();
+        let pas_sup = suppression.clone();
+        ui.on_paste_as(move |id: i32, mode: slint::SharedString| {
+            let db = pas_db.clone();
+            let ui = pas_ui.clone();
+            let sup = pas_sup.clone();
+            let paste_plain = mode == "plain";
+            tokio::spawn(async move {
+                let result = db
+                    .with(|conn| {
+                        cliptoo_core::db::queries::get_clip_type_and_content(conn, id as i64)
+                    })
+                    .await;
+                if let Ok((content, clip_type, _hash)) = result
+                    && let Err(e) =
+                        crate::paste::paste_content(&content, &clip_type, &sup, &ui, paste_plain)
+                            .await
+                {
+                    tracing::error!("Paste-as ({paste_plain}) error: {e}");
+                }
+            });
+        });
+    }
 }

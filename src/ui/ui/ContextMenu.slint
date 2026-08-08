@@ -25,6 +25,7 @@ export component ContextMenu {
     callback preview();
     callback edit();
     callback format(string);        // transform key
+    callback paste-as(string);      // "rich" | "plain"
     callback delete();
     callback toggle-bookmark(int, bool);  // id, current is-bookmarked
     callback move-to-top();
@@ -35,6 +36,9 @@ export component ContextMenu {
 
     // True when the clip type supports text transformations.
     property <bool> is-text-type: ClipTypeMap.is-text-type(root.clip-type);
+    // True for rich-text (RTF) clips — the only type where choosing between a
+    // rich and a plain paste is meaningful.
+    property <bool> is-rtf-type: root.clip-type == "rtf";
 
     // Intrinsic content size, used by ContextMenuHost to size the popup. The
     // three view layouts are always instantiated (visibility-toggled) so they
@@ -73,6 +77,24 @@ export component ContextMenu {
                 icon: @image-url("icons/pencil.svg");
                 clicked => {
                     root.edit();
+                }
+            }
+
+            if root.is-rtf-type: MenuRow {
+                is-separator: true;
+            }
+            if root.is-rtf-type: MenuRow {
+                label: @tr("Paste as Rich Text");
+                icon: @image-url("icons/text-align-start.svg");
+                clicked => {
+                    root.paste-as("rich");
+                }
+            }
+            if root.is-rtf-type: MenuRow {
+                label: @tr("Paste as Plain Text");
+                icon: @image-url("icons/text.svg");
+                clicked => {
+                    root.paste-as("plain");
                 }
             }
 

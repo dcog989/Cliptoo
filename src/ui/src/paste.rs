@@ -52,8 +52,7 @@ pub async fn paste_content(
     let is_rtf = clip_type == "rtf";
 
     // The text/plain offer is the stripped RTF text for RTF clips, the content
-    // itself otherwise. It is also the exact payload the listener reads back, so
-    // the re-ingest suppression hash is derived from it.
+    // itself otherwise.
     let plain_text: std::borrow::Cow<str> = if is_rtf {
         std::borrow::Cow::Owned(cliptoo_core::content::strip_rtf(content))
     } else {
@@ -61,8 +60,16 @@ pub async fn paste_content(
     };
 
     let normalized = normalize_line_endings(&plain_text);
-    let sup_hash = sha256_u64(&normalized);
-    suppression.insert(sup_hash);
+
+    // The listener polls text/rtf before text/plain, so after a rich paste it
+    // re-reads the raw RTF markup, while after a plain-text paste it re-reads
+    // the stripped text. Register both hashes so either payload is recognised
+    // as our own paste and not re-ingested. (For non-RTF content the raw hash
+    // covers the single text/plain payload.)
+    suppression.insert(sha256_u64(&normalize_line_endings(content)));
+    if is_rtf {
+        suppression.insert(sha256_u64(&normalized));
+    }
 
     let data = normalized.clone();
     // `content` is a borrowed &str and cannot move into the 'static blocking
