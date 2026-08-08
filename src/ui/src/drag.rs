@@ -30,7 +30,9 @@ pub fn start_window_move(ui: &crate::AppWindow) {
 
 /// Raise and activate the window so the first click on a freshly-shown window
 /// isn't consumed just focusing it. See cliptoo_activate_window in drag_qt.cpp.
-pub fn activate_window(ui: &crate::AppWindow) {
+/// Generic over `ComponentHandle` so child windows (Settings/About/Edit) can
+/// raise themselves above the main window after Qt popups close.
+pub fn activate_window<C: slint::ComponentHandle>(ui: &C) {
     let win = slint::ComponentHandle::window(ui);
     if let Some(ptr) = win.qt_widget_ptr() {
         unsafe {

@@ -63,6 +63,9 @@ pub fn setup_about_window(ui: &crate::AppWindow, logs_dir: &std::path::Path) -> 
             }
             if let Some(win) = aw.upgrade() {
                 let _ = win.show();
+                // Qt's show() doesn't raise; after the hamburger popup closes the
+                // About window can land under the main window. Raise+activate.
+                crate::drag::activate_window(&win);
             }
         });
     }

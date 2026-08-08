@@ -650,6 +650,10 @@ fn setup_menu_open(settings_win: &crate::SettingsWindow, main_ui: &crate::AppWin
             });
             win.show().ok();
             win.invoke_focus_search();
+            // Qt's show() doesn't raise a freshly-shown window; after a popup
+            // (context/hamburger menu) closes it can restart under the main
+            // window. Raise+activate so Settings always opens on top.
+            crate::drag::activate_window(&win);
         }
     });
 }
