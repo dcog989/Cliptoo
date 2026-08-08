@@ -1,18 +1,15 @@
 use anyhow::{Context, Result};
+use ashpd::desktop::CreateSessionOptions;
+use ashpd::desktop::global_shortcuts::{BindShortcutsOptions, GlobalShortcuts, NewShortcut};
 use futures::StreamExt;
 use std::collections::HashMap;
 use std::time::Duration;
 use tokio::time::timeout;
 use tracing::info;
-use zbus::{
-    Connection, MessageStream,
-    zvariant::{OwnedObjectPath, OwnedValue, Value},
-};
+use zbus::{Connection, zvariant::Value};
 
 const PORTAL_DEST: &str = "org.freedesktop.portal.Desktop";
 const PORTAL_PATH: &str = "/org/freedesktop/portal/desktop";
-const SHORTCUT_IFACE: &str = "org.freedesktop.portal.GlobalShortcuts";
-const REQUEST_IFACE: &str = "org.freedesktop.portal.Request";
 const HOST_REGISTRY_IFACE: &str = "org.freedesktop.host.portal.Registry";
 
 /// Application id used to register with the portal. Must match the basename
@@ -22,20 +19,6 @@ const APP_ID: &str = "cliptoo";
 /// How long a hotkey value must stay unchanged before a re-registration is
 /// triggered (see `wait_for_stable_hotkey`).
 const HOTKEY_DEBOUNCE: Duration = Duration::from_millis(800);
-
-/// Replace characters that are invalid in D-Bus object path elements with `_`.
-/// Valid chars are `[A-Za-z0-9_]`.
-fn sanitize_dbus_token(s: &str) -> String {
-    s.chars()
-        .map(|c| {
-            if c.is_alphanumeric() || c == '_' {
-                c
-            } else {
-                '_'
-            }
-        })
-        .collect()
-}
 
 /// Convert a Qt-style hotkey string (as stored in settings, e.g. `Ctrl+Alt+z`)
 /// to the XDG Shortcuts spec format the portal expects (e.g. `CTRL+ALT+z`).
@@ -72,46 +55,6 @@ fn to_xdg_trigger(trigger: &str) -> String {
     }
     out.push_str(parts[parts.len() - 1]);
     out
-}
-
-/// Wait for a portal Response signal on `request_handle`, then extract
-/// `key` from the results dict as a String.  Returns `None` if the key is
-/// absent, `Err` on D-Bus / timeout / protocol error.
-async fn expect_response_value(
-    stream: &mut MessageStream,
-    request_handle: &OwnedObjectPath,
-    key: &str,
-    timeout_secs: u64,
-) -> Result<Option<String>> {
-    let deadline = timeout(Duration::from_secs(timeout_secs), async {
-        while let Some(Ok(msg)) = stream.next().await {
-            let hdr = msg.header();
-            let on_path = hdr.path().is_some_and(|p| p == request_handle.as_str());
-            let on_iface = hdr.interface().is_some_and(|i| i.as_str() == REQUEST_IFACE);
-            let is_response = hdr.member().is_some_and(|m| m.as_str() == "Response");
-            if !(on_path && on_iface && is_response) {
-                continue;
-            }
-
-            // Deserialise into owned values so we can return them.
-            let raw = msg.body();
-            let (code, results): (u32, HashMap<String, OwnedValue>) =
-                raw.deserialize().context("parse Response body")?;
-
-            if code != 0 {
-                anyhow::bail!("portal rejected request (code {code})");
-            }
-
-            return Ok(results
-                .get(key)
-                .and_then(|v| v.downcast_ref::<&str>().ok().map(|s| s.to_string())));
-        }
-        anyhow::bail!("message stream ended")
-    })
-    .await
-    .context("timeout waiting for portal response")?
-    .context("portal response error")?;
-    Ok(deadline)
 }
 
 /// One-shot, best-effort probe for the XDG Desktop Portal at startup.
@@ -273,34 +216,19 @@ where
         }
     }
 
+    let proxy = GlobalShortcuts::with_connection(conn)
+        .await
+        .context("GlobalShortcuts portal proxy")?;
+
     // ── Create session ────────────────────────────────────────────────────
-    // Start listening BEFORE calling CreateSession to avoid race.
-    let mut signal_stream = MessageStream::from(&conn);
-
-    let handle_token = format!("cliptoo_req_{}", sanitize_dbus_token(shortcut_id));
-    let mut options = HashMap::<&str, Value>::new();
-    options.insert("session_handle_token", Value::from("cliptoo_session"));
-    options.insert("handle_token", Value::from(handle_token.as_str()));
-    options.insert("desktop-file-name", Value::from("cliptoo"));
-    options.insert("application-id", Value::from("org.cliptoo.Cliptoo"));
-
-    let result = conn
-        .call_method(
-            Some(PORTAL_DEST),
-            PORTAL_PATH,
-            Some(SHORTCUT_IFACE),
-            "CreateSession",
-            &(&options),
-        )
-        .await;
-
-    let request_handle = match result {
-        Ok(msg) => {
-            let raw = msg.body();
-            raw.deserialize::<OwnedObjectPath>()
-                .context("parse CreateSession reply")?
-        }
-        Err(e) => {
+    let session = match timeout(
+        Duration::from_secs(10),
+        proxy.create_session(CreateSessionOptions::default()),
+    )
+    .await
+    {
+        Ok(Ok(s)) => s,
+        Ok(Err(e)) => {
             tracing::warn!(
                 "Global shortcuts unavailable: {e}. \
                  This requires the XDG Desktop Portal (xdg-desktop-portal) \
@@ -309,80 +237,52 @@ where
             );
             return Ok(tokio::spawn(async {}));
         }
-    };
-
-    let session_handle =
-        expect_response_value(&mut signal_stream, &request_handle, "session_handle", 10)
-            .await?
-            .context("session_handle not in Response results")?;
-
-    // ── Bind shortcuts ────────────────────────────────────────────────────
-    let mut bind_stream = MessageStream::from(&conn);
-
-    let bind_handle_token = format!("cliptoo_bind_{}", sanitize_dbus_token(shortcut_id));
-    let mut bind_options = HashMap::<String, Value>::new();
-    bind_options.insert(
-        "handle_token".into(),
-        Value::from(bind_handle_token.as_str()),
-    );
-
-    let mut shortcut_opts = HashMap::<String, Value>::new();
-    shortcut_opts.insert("description".into(), Value::from(shortcut_id));
-    shortcut_opts.insert(
-        "preferred_trigger".into(),
-        Value::from(to_xdg_trigger(trigger)),
-    );
-    let shortcut_defs = vec![(shortcut_id, shortcut_opts)];
-
-    let session_op =
-        OwnedObjectPath::try_from(session_handle.as_str()).context("invalid session handle")?;
-    let bind_result = conn
-        .call_method(
-            Some(PORTAL_DEST),
-            PORTAL_PATH,
-            Some(SHORTCUT_IFACE),
-            "BindShortcuts",
-            &(&session_op, &shortcut_defs, "", &bind_options),
-        )
-        .await;
-
-    let bind_handle = match bind_result {
-        Ok(msg) => msg
-            .body()
-            .deserialize::<OwnedObjectPath>()
-            .context("parse BindShortcuts reply")?,
-        Err(e) => {
-            tracing::warn!("BindShortcuts failed (shortcuts may not work): {e}");
+        Err(_) => {
+            tracing::warn!("timed out creating a GlobalShortcuts session");
             return Ok(tokio::spawn(async {}));
         }
     };
 
-    // Wait for the BindShortcuts response signal (log outcome, don't fail)
-    match expect_response_value(&mut bind_stream, &bind_handle, "shortcuts", 10).await {
+    // ── Bind shortcuts ────────────────────────────────────────────────────
+    let trigger = to_xdg_trigger(trigger);
+    let shortcut = NewShortcut::new(shortcut_id.to_string(), shortcut_id.to_string())
+        .preferred_trigger(Some(trigger.as_str()));
+    let bind_request = match timeout(
+        Duration::from_secs(10),
+        proxy.bind_shortcuts(&session, &[shortcut], None, BindShortcutsOptions::default()),
+    )
+    .await
+    {
+        Ok(Ok(r)) => r,
+        Ok(Err(e)) => {
+            tracing::warn!("BindShortcuts failed (shortcuts may not work): {e}");
+            return Ok(tokio::spawn(async {}));
+        }
+        Err(_) => {
+            tracing::warn!("timed out binding shortcuts");
+            return Ok(tokio::spawn(async {}));
+        }
+    };
+
+    // Log the BindShortcuts response outcome; partial success is possible so
+    // the listener is installed regardless.
+    match bind_request.response() {
         Ok(_) => info!("registered global shortcut {shortcut_id}: {trigger}"),
         Err(e) => tracing::warn!("BindShortcuts response err (shortcuts may still work): {e}"),
     }
 
     // ── Listen for Activated signals ──────────────────────────────────────
-    let mut stream = MessageStream::from(&conn);
+    let mut activated = match proxy.receive_activated().await {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::warn!("failed to subscribe to Activated signals: {e}");
+            return Ok(tokio::spawn(async {}));
+        }
+    };
 
     let handle = tokio::spawn(async move {
-        while let Some(Ok(msg)) = stream.next().await {
-            let hdr = msg.header();
-            let is_shortcut = hdr
-                .interface()
-                .is_some_and(|i| i.as_str() == SHORTCUT_IFACE);
-            let is_activated = hdr.member().is_some_and(|m| m.as_str() == "Activated");
-            if is_shortcut && is_activated {
-                let raw = msg.body();
-                let body: std::result::Result<
-                    (OwnedObjectPath, String, u64, HashMap<String, Value>),
-                    _,
-                > = raw.deserialize();
-                if let Ok((_, shortcut_id, _, _)) = body {
-                    handler(shortcut_id);
-                }
-            }
+        while let Some(activated) = activated.next().await {
+            handler(activated.shortcut_id().to_string());
         }
     });
 

@@ -16,6 +16,7 @@ lru.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 anyhow.workspace = true
+ashpd.workspace = true
 wl-clipboard-rs.workspace = true
 zbus.workspace = true
 slint.workspace = true

@@ -14,6 +14,7 @@ version = "2.9.0"
 
 [workspace.dependencies]
 anyhow = "1"
+ashpd = { version = "0.13", features = ["global_shortcuts", "tokio"] }
 cc = "1"
 chrono = "0.4"
 const-hex = "1"
