@@ -6,6 +6,8 @@ use std::path::PathBuf;
 ///   config/state  (~/.config/Cliptoo/)   — settings, DB, logs
 ///   cache/transient (~/.local/share/Cliptoo/) — images, thumbnails, icons
 pub struct AppDirs {
+    pub config_dir: PathBuf,
+    pub cache_dir: PathBuf,
     pub logs_dir: PathBuf,
     pub db_path: PathBuf,
     pub settings_path: PathBuf,
@@ -48,6 +50,8 @@ impl AppDirs {
         Ok(Self {
             db_path: config_dir.join("clips.db"),
             settings_path: config_dir.join("settings.json"),
+            config_dir,
+            cache_dir,
             logs_dir,
             images_dir,
             thumbnails_dir,

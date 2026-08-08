@@ -1,10 +1,17 @@
-// about.rs — About window: logo, tagline, and links to the repo and log folder.
-use slint::ComponentHandle;
+// about.rs — About window: logo, tagline, and info table with clickable paths.
+use slint::{ComponentHandle, SharedString};
+use std::time::Duration;
 
-pub fn setup_about_window(ui: &crate::AppWindow, logs_dir: &std::path::Path) -> crate::AboutWindow {
+pub fn setup_about_window(
+    ui: &crate::AppWindow,
+    dirs: &crate::app_dirs::AppDirs,
+) -> crate::AboutWindow {
     let about_win = crate::AboutWindow::new().expect("AboutWindow creation");
-    about_win.set_logs_folder_path(logs_dir.display().to_string().into());
     about_win.set_version(env!("CARGO_PKG_VERSION").into());
+    about_win.set_install_path(install_dir().into());
+    about_win.set_data_path(dirs.config_dir.display().to_string().into());
+    about_win.set_cache_path(dirs.cache_dir.display().to_string().into());
+    about_win.set_logs_folder_path(dirs.logs_dir.display().to_string().into());
 
     // Open the project repository in the default browser.
     {
@@ -16,18 +23,11 @@ pub fn setup_about_window(ui: &crate::AppWindow, logs_dir: &std::path::Path) -> 
         });
     }
 
-    // Open the logs folder in the default file manager.
+    // Open a path (install/data/cache/logs dir) in the default file manager.
     {
-        let logs_dir = logs_dir.to_path_buf();
-        about_win.on_open_logs_folder(move || {
-            if let Err(e) = std::process::Command::new("xdg-open")
-                .arg(&logs_dir)
-                .spawn()
-            {
-                tracing::warn!(
-                    "about: failed to launch xdg-open for {}: {e}",
-                    logs_dir.display()
-                );
+        about_win.on_open_folder(move |path: SharedString| {
+            if let Err(e) = std::process::Command::new("xdg-open").arg(path.as_str()).spawn() {
+                tracing::warn!("about: failed to launch xdg-open for {path}: {e}");
             }
         });
     }
@@ -62,13 +62,34 @@ pub fn setup_about_window(ui: &crate::AppWindow, logs_dir: &std::path::Path) -> 
                 ui.set_about_open(true);
             }
             if let Some(win) = aw.upgrade() {
+                // preferred-* alone doesn't size the window reliably on
+                // Wayland/Qt (same reason settings.rs uses set_size), so force
+                // the size measured from the content, paths included.
+                let w = win.get_content_width().max(340.0);
+                let h = win.get_content_height().max(280.0);
+                win.window()
+                    .set_size(slint::LogicalSize { width: w, height: h });
                 let _ = win.show();
                 // Qt's show() doesn't raise; after the hamburger popup closes the
-                // About window can land under the main window. Raise+activate.
-                crate::drag::activate_window(&win);
+                // About window can land under the main window. Defer the raise
+                // by one event-loop tick so the popup recedes first.
+                let aw = aw.clone();
+                slint::Timer::single_shot(Duration::ZERO, move || {
+                    if let Some(win) = aw.upgrade() {
+                        crate::drag::activate_window(&win);
+                    }
+                });
             }
         });
     }
 
     about_win
+}
+
+/// Directory containing the running executable (the "Install" path).
+fn install_dir() -> String {
+    std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(|dir| dir.display().to_string()))
+        .unwrap_or_else(|| String::from("?"))
 }

@@ -79,7 +79,7 @@ async fn main() -> Result<()> {
         system_accent,
     );
 
-    let about_win = about::setup_about_window(&ui, &dirs.logs_dir);
+    let about_win = about::setup_about_window(&ui, &dirs);
     theme::fill_theme(
         &about_win.global::<crate::Theme>(),
         &settings.borrow(),

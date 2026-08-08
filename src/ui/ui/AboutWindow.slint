@@ -1,4 +1,4 @@
-// AboutWindow.slint — About dialog: logo, title, tagline, easter egg, links.
+// AboutWindow.slint — About dialog: logo, title, tagline, easter egg, info table.
 // Shown from the hamburger menu → About.
 
 import { Theme } from "Theme.slint";
@@ -7,56 +7,103 @@ component ClickLink {
     in property <string> text;
     callback clicked;
 
-    // Link blue — readable on the dark background regardless of the user's
-    // accent color.
     private property <color> link-blue: Theme.link-fg;
 
-    min-width: 0px;
-    Rectangle {
-        width: text-el.preferred-width;
-        height: text-el.preferred-height + 3px;
+    horizontal-stretch: 0;
+
+    // Text + underline. Using a VerticalLayout root lets the Text's
+    // preferred-width drive the component's natural width directly,
+    // avoiding the self-referencing Rectangle { width: text-el.preferred-width }
+    // pattern that starves the HorizontalLayout on Qt.
+    VerticalLayout {
+        padding: 0px;
+        spacing: 0px;
 
         text-el := Text {
             text: root.text;
             color: link-blue;
             font-size: Theme.font-size;
-            horizontal-alignment: center;
+            horizontal-alignment: left;
+        }
+
+        Rectangle {
+            height: 1px;
+            width: 100%;
+            background: link-blue;
+        }
+    }
+
+    ta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+component AboutRow {
+    in property <string> label;
+    in property <string> value;
+    in property <bool> clickable: true;
+    callback value-clicked;
+
+    HorizontalLayout {
+        spacing: 32px;
+
+        Text {
+            width: 64px;
+            text: root.label;
+            color: Theme.fg-muted;
+            font-size: Theme.font-size;
+            horizontal-alignment: left;
             vertical-alignment: center;
         }
 
-        // Underline so the row reads as a link.
-        Rectangle {
-            y: parent.height - 2px;
-            height: 1px;
-            width: parent.width;
-            background: link-blue;
-        }
-
-        TouchArea {
-            mouse-cursor: pointer;
+        if root.clickable: ClickLink {
+            text: root.value;
             clicked => {
-                root.clicked();
+                root.value-clicked();
             }
+        }
+        if !root.clickable: Text {
+            height: 100%;
+            text: root.value;
+            color: Theme.fg-primary;
+            font-size: Theme.font-size;
+            horizontal-alignment: left;
+            vertical-alignment: center;
         }
     }
 }
 
 export component AboutWindow inherits Window {
     title: @tr("About Cliptoo");
-    width: 380px;
-    height: 300px;
+    // Keep the window above the main window while it's open.
+    always-on-top: true;
+    // Size the window to its content. Rust sizes explicitly with
+    // set_size(content-width, content-height) since preferred-*
+    // alone is unreliable on Wayland/Qt.
+    min-width: 400px;
     background: Theme.bg-primary;
     default-font-size: Theme.font-size;
 
-    // The user's logs directory, filled in from Rust so the footer link shows
-    // the real path.
-    in property <string> logs-folder-path: "";
-    // App version, filled in from Rust (crate version).
+    // The user's directories and version, filled in from Rust.
     in property <string> version: "";
+    in property <string> install-path: "";
+    in property <string> data-path: "";
+    in property <string> cache-path: "";
+    in property <string> logs-folder-path: "";
+
+    // Content size measured from the layout, read by Rust for set_size.
+    // content-layout.preferred-width correctly accounts for all visible
+    // AboutRow children (label + gap + value path).  32px = window-frame
+    // and font-metric breathing room.
+    in-out property <length> content-width: content-layout.preferred-width + 32px;
+    in-out property <length> content-height: content-layout.preferred-height;
 
     callback about-closing();
     callback open-repo();
-    callback open-logs-folder();
+    callback open-folder(string);
 
     forward-focus: about-focus;
     about-focus := FocusScope {
@@ -71,11 +118,12 @@ export component AboutWindow inherits Window {
         }
     }
 
-    VerticalLayout {
+    content-layout := VerticalLayout {
         padding: 24px;
-        padding-bottom: 44px;
         spacing: 8px;
-        alignment: center;
+        alignment: start;
+        // Header (logo/title/tagline) stays centred; the facts table below
+        // spans the full width so the paths hug the left edge.
         cross-axis-alignment: center;
 
         Image {
@@ -93,43 +141,83 @@ export component AboutWindow inherits Window {
         }
 
         Text {
-            text: @tr("Version {}", root.version);
-            color: Theme.fg-muted;
-            font-size: Theme.font-size - 1px;
-            horizontal-alignment: center;
-        }
-
-        Text {
-            text: @tr("The advanced clipboard manager");
+            text: "The advanced clipboard manager";
             color: Theme.fg-secondary;
             font-size: Theme.font-size;
             horizontal-alignment: center;
         }
 
         Text {
-            text: @tr("Klaatu barada nikto!");
+            text: "\"Klaatu barada nikto!\"";
             color: Theme.accent-primary;
             font-size: 18px;
             font-italic: true;
             horizontal-alignment: center;
         }
 
-        // Spacer pushes the links to the foot of the window.
-        Rectangle {
-            vertical-stretch: 1;
-        }
+        // Facts table — each AboutRow's HorizontalLayout drives the actual
+        // content width via content-layout.preferred-width, so the window
+        // naturally fits the longest value path.
+        facts-table := VerticalLayout {
+            width: 100%;
+            cross-axis-alignment: stretch;
+            spacing: 8px;
 
-        ClickLink {
-            text: "https://github.com/dcog989/Cliptoo";
-            clicked => {
-                root.open-repo();
+            AboutRow {
+                label: "Version";
+                value: root.version;
+                clickable: false;
+            }
+
+            AboutRow {
+                label: "Install";
+                value: root.install-path;
+                value-clicked => {
+                    root.open-folder(root.install-path);
+                }
+            }
+
+            AboutRow {
+                label: "Data";
+                value: root.data-path;
+                value-clicked => {
+                    root.open-folder(root.data-path);
+                }
+            }
+
+            AboutRow {
+                label: "Cache";
+                value: root.cache-path;
+                value-clicked => {
+                    root.open-folder(root.cache-path);
+                }
+            }
+
+            AboutRow {
+                label: "Logs";
+                value: root.logs-folder-path;
+                value-clicked => {
+                    root.open-folder(root.logs-folder-path);
+                }
+            }
+
+            AboutRow {
+                label: "Source";
+                value: "https://github.com/dcog989/Cliptoo";
+                value-clicked => {
+                    root.open-repo();
+                }
             }
         }
 
-        ClickLink {
-            text: root.logs-folder-path;
-            clicked => {
-                root.open-logs-folder();
+        VerticalLayout {
+            padding-top: 8px;
+
+            Text {
+                text: "Cliptoo © since 2025. MIT License.";
+                color: Theme.fg-muted;
+                font-size: Theme.font-size - 2px;
+                horizontal-alignment: center;
             }
         }
     }
