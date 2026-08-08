@@ -11,22 +11,23 @@ export global ClipTypeMap {
     // here must also have an icon-for / label-for branch.
     in property <[string]> filter-keys: [
         "all",
-        "text",
-        "file_image",
         "bookmarked",
-        "link",
-        "file_path",
+        "text",
+        "rtf",
         "code_snippet",
         "color",
+        "link",
+        "file_path",
         "folder",
+        "file_archive",
+        "file_audio",
         "file_danger",
         "file_dev",
-        "file_audio",
-        "file_video",
-        "file_archive",
         "file_document",
-        "rtf",
+        "file_image",
         "file",
+        "file_text",
+        "file_video",
     ];
 
     // Icon per clip-type / filter key. Covers every ClipType::as_str() value
@@ -77,7 +78,7 @@ export global ClipTypeMap {
         if key == "file_document" { return @tr("Document File"); }
         if key == "file_text" { return @tr("Text File"); }
         if key == "rtf" { return @tr("Rich Text"); }
-        if key == "file" || key == "file_generic" { return @tr("File"); }
+        if key == "file" || key == "file_generic" { return @tr("Other File"); }
         return key;
     }
 }
