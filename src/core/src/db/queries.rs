@@ -59,6 +59,7 @@ const FILTERABLE_TYPES: &[ClipType] = &[
     ClipType::FileArchive,
     ClipType::FileDev,
     ClipType::FileDanger,
+    ClipType::FileData,
     ClipType::Folder,
 ];
 

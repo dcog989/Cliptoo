@@ -28,6 +28,7 @@ impl FileTypeClassifier {
         match ext.as_deref() {
             Some(e) if DANGER.contains(&e) => ClipType::FileDanger,
             Some(e) if ARCHIVE.contains(&e) => ClipType::FileArchive,
+            Some(e) if DATA.contains(&e) => ClipType::FileData,
             Some(e) if AUDIO.contains(&e) => ClipType::FileAudio,
             Some(e) if DEV.contains(&e) => ClipType::FileDev,
             Some(e) if DOCUMENT.contains(&e) => ClipType::FileDocument,
@@ -44,6 +45,19 @@ const ARCHIVE: &[&str] = &[
 ];
 const AUDIO: &[&str] = &[
     "mp3", "flac", "wav", "ogg", "aac", "opus", "m4a", "wma", "aiff", "ape",
+];
+// Database, tabular, statistical, and scientific data files. JSON/YAML/TOML
+// config-style formats are deliberately excluded — they stay in DEV because
+// their overwhelmingly common use is configuration, not data.
+const DATA: &[&str] = &[
+    // Databases
+    "db", "sqlite", "sqlite3", "mdb", "accdb", "dbf", "dmp", "gpkg", "frm",
+    // Tabular / structured
+    "csv", "tsv", "parquet", "arrow", "feather", "orc", "jsonl", "ndjson", "geojson",
+    // Statistical
+    "sav", "dta", "por", "sas7bdat", "rds", "rdata",
+    // Scientific
+    "h5", "hdf5", "nc", "mat",
 ];
 // .deb and .rpm are executable package formats; removed from ARCHIVE so DANGER takes precedence.
 const DANGER: &[&str] = &[
@@ -71,14 +85,56 @@ const DEV_FILENAMES: &[&str] = &[
     "jsconfig",
 ];
 const DOCUMENT: &[&str] = &[
-    "pdf", "docx", "doc", "xlsx", "xls", "pptx", "ppt", "odt", "ods", "odp", "epub", "csv", "rtf",
+    "pdf", "docx", "doc", "xlsx", "xls", "pptx", "ppt", "odt", "ods", "odp", "epub", "rtf",
     "pages", "numbers", "key",
 ];
 
-const TEXT_FILE: &[&str] = &[
-    "txt", "md", "markdown", "log", "nfo", "rst", "org", "adoc", "tex", "csv", "tsv",
-];
+const TEXT_FILE: &[&str] = &["txt", "md", "markdown", "log", "nfo", "rst", "org", "adoc", "tex"];
 const VIDEO: &[&str] = &[
     "mp4", "mkv", "avi", "mov", "webm", "flv", "wmv", "m4v", "3gp", "ts", "vob", "ogv", "rm",
     "rmvb",
 ];
+
+#[cfg(test)]
+mod tests {
+    use super::FileTypeClassifier;
+    use crate::db::models::ClipType;
+
+    fn classify(ext: &str) -> ClipType {
+        FileTypeClassifier::classify(std::path::Path::new(ext))
+    }
+
+    #[test]
+    fn data_files_classify_as_file_data() {
+        for ext in [
+            "x.db", "x.sqlite", "x.sqlite3", "x.mdb", "x.accdb", "x.dbf", "x.dmp", "x.gpkg",
+            "x.frm", "x.csv", "x.tsv", "x.parquet", "x.arrow", "x.feather", "x.orc", "x.jsonl",
+            "x.ndjson", "x.geojson", "x.sav", "x.dta", "x.por", "x.sas7bdat", "x.rds", "x.rdata",
+            "x.h5", "x.hdf5", "x.nc", "x.mat",
+        ] {
+            assert_eq!(classify(ext), ClipType::FileData, "for {ext}");
+        }
+    }
+
+    #[test]
+    fn csv_and_tsv_no_longer_classify_as_document_or_text() {
+        assert_eq!(classify("x.csv"), ClipType::FileData);
+        assert_eq!(classify("x.tsv"), ClipType::FileData);
+    }
+
+    #[test]
+    fn config_formats_stay_dev() {
+        for ext in ["x.json", "x.yaml", "x.yml", "x.toml", "x.xml", "x.env", "x.lock"] {
+            assert_eq!(classify(ext), ClipType::FileDev, "for {ext}");
+        }
+    }
+
+    #[test]
+    fn neighbours_unchanged() {
+        assert_eq!(classify("x.txt"), ClipType::FileText);
+        assert_eq!(classify("x.pdf"), ClipType::FileDocument);
+        assert_eq!(classify("x.mp3"), ClipType::FileAudio);
+        assert_eq!(classify("x.zip"), ClipType::FileArchive);
+        assert_eq!(classify("x.xyzzy"), ClipType::FileGeneric);
+    }
+}

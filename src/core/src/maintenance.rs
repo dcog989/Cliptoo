@@ -404,7 +404,7 @@ mod tests {
         assert_eq!(
             deadhead_clip_types(),
             "'file_image', 'file_video', 'file_audio', 'file_archive', 'file_document', \
-             'file_dev', 'file_danger', 'file_text', 'file_generic', 'folder'"
+             'file_dev', 'file_danger', 'file_data', 'file_text', 'file_generic', 'folder'"
         );
     }
 }

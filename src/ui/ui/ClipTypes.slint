@@ -22,6 +22,7 @@ export global ClipTypeMap {
         "file_archive",
         "file_audio",
         "file_danger",
+        "file_data",
         "file_dev",
         "file_document",
         "file_image",
@@ -44,6 +45,7 @@ export global ClipTypeMap {
         if key == "color" { return @image-url("icons/palette.svg"); }
         if key == "folder" { return @image-url("icons/folder.svg"); }
         if key == "file_danger" { return @image-url("icons/triangle-alert.svg"); }
+        if key == "file_data" { return @image-url("icons/database.svg"); }
         if key == "file_dev" { return @image-url("icons/file-code.svg"); }
         if key == "file_audio" { return @image-url("icons/file-music.svg"); }
         if key == "file_video" { return @image-url("icons/film.svg"); }
@@ -71,6 +73,7 @@ export global ClipTypeMap {
         if key == "color" { return @tr("Color"); }
         if key == "folder" { return @tr("Folder"); }
         if key == "file_danger" { return @tr("Danger File"); }
+        if key == "file_data" { return @tr("Data File"); }
         if key == "file_dev" { return @tr("Dev File"); }
         if key == "file_audio" { return @tr("Audio File"); }
         if key == "file_video" { return @tr("Video File"); }

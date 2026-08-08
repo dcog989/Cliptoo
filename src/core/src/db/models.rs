@@ -21,6 +21,10 @@ pub enum ClipType {
     FileDocument,
     FileDev,
     FileDanger,
+    /// A database / tabular / statistical data file (`.db`, `.csv`,
+    /// `.parquet`, `.sav`, …). Distinguished from `FileText`/`FileDocument`
+    /// and from `FileDev` (config-style `json`/`yaml`/`toml` stay Dev).
+    FileData,
     FileText,
     FileGeneric,
     Folder,
@@ -28,7 +32,7 @@ pub enum ClipType {
 
 impl ClipType {
     /// All variants, in declaration order.
-    pub const ALL: [Self; 16] = [
+    pub const ALL: [Self; 17] = [
         Self::Text,
         Self::FilePath,
         Self::Rtf,
@@ -42,6 +46,7 @@ impl ClipType {
         Self::FileDocument,
         Self::FileDev,
         Self::FileDanger,
+        Self::FileData,
         Self::FileText,
         Self::FileGeneric,
         Self::Folder,
@@ -61,6 +66,7 @@ impl ClipType {
                 | Self::FileDocument
                 | Self::FileDev
                 | Self::FileDanger
+                | Self::FileData
                 | Self::FileText
                 | Self::FileGeneric
                 | Self::Folder
@@ -82,6 +88,7 @@ impl ClipType {
             Self::FileDocument => "file_document",
             Self::FileDev => "file_dev",
             Self::FileDanger => "file_danger",
+            Self::FileData => "file_data",
             Self::FileText => "file_text",
             Self::FileGeneric => "file_generic",
             Self::Folder => "folder",
@@ -102,12 +109,15 @@ impl ClipType {
             "file_document" => Self::FileDocument,
             "file_dev" => Self::FileDev,
             "file_danger" => Self::FileDanger,
+            "file_data" => Self::FileData,
             "file_text" => Self::FileText,
             "file_generic" => Self::FileGeneric,
             "folder" => Self::Folder,
-            // Removed clip types (shortcut/system/db/font files) degrade to the
-            // generic File classification so existing rows don't render as text.
-            "file_database" | "file_font" | "file_link" | "file_system" => Self::FileGeneric,
+            // Removed clip types: db rows rejoin the re-introduced data category;
+            // shortcut/system/font files degrade to the generic File
+            // classification so existing rows don't render as text.
+            "file_database" => Self::FileData,
+            "file_font" | "file_link" | "file_system" => Self::FileGeneric,
             _ => Self::Text,
         }
     }
