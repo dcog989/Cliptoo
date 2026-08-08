@@ -3,44 +3,6 @@
 
 import { Theme } from "Theme.slint";
 
-component ClickLink {
-    in property <string> text;
-    callback clicked;
-
-    private property <color> link-blue: Theme.link-fg;
-
-    horizontal-stretch: 0;
-
-    // Text + underline. Using a VerticalLayout root lets the Text's
-    // preferred-width drive the component's natural width directly,
-    // avoiding the self-referencing Rectangle { width: text-el.preferred-width }
-    // pattern that starves the HorizontalLayout on Qt.
-    VerticalLayout {
-        padding: 0px;
-        spacing: 0px;
-
-        text-el := Text {
-            text: root.text;
-            color: link-blue;
-            font-size: Theme.font-size;
-            horizontal-alignment: left;
-        }
-
-        Rectangle {
-            height: 1px;
-            width: 100%;
-            background: link-blue;
-        }
-    }
-
-    ta := TouchArea {
-        mouse-cursor: pointer;
-        clicked => {
-            root.clicked();
-        }
-    }
-}
-
 component AboutRow {
     in property <string> label;
     in property <string> value;
@@ -49,7 +11,9 @@ component AboutRow {
 
     HorizontalLayout {
         spacing: 32px;
+        alignment: start;
 
+        // Label column — fixed width, right-padded by spacing above.
         Text {
             width: 64px;
             text: root.label;
@@ -59,14 +23,31 @@ component AboutRow {
             vertical-alignment: center;
         }
 
-        if root.clickable: ClickLink {
-            text: root.value;
-            clicked => {
-                root.value-clicked();
+        if root.clickable: Rectangle {
+            vertical-stretch: 0;
+            horizontal-stretch: 0;
+
+            value-text := Text {
+                text: root.value;
+                color: Theme.link-fg;
+                font-size: Theme.font-size;
+                horizontal-alignment: left;
+            }
+
+            Rectangle {
+                y: value-text.y + value-text.height;
+                height: 1px;
+                width: value-text.width;
+                background: Theme.link-fg;
+            }
+
+            TouchArea {
+                mouse-cursor: pointer;
+                clicked => { root.value-clicked(); }
             }
         }
+
         if !root.clickable: Text {
-            height: 100%;
             text: root.value;
             color: Theme.fg-primary;
             font-size: Theme.font-size;
@@ -78,28 +59,23 @@ component AboutRow {
 
 export component AboutWindow inherits Window {
     title: @tr("About Cliptoo");
-    // Keep the window above the main window while it's open.
     always-on-top: true;
-    // Size the window to its content. Rust sizes explicitly with
-    // set_size(content-width, content-height) since preferred-*
-    // alone is unreliable on Wayland/Qt.
-    min-width: 400px;
     background: Theme.bg-primary;
     default-font-size: Theme.font-size;
 
-    // The user's directories and version, filled in from Rust.
+    preferred-width: root.content-width;
+    preferred-height: root.content-height;
+    min-width: 420px;
+    min-height: 320px;
+
     in property <string> version: "";
     in property <string> install-path: "";
     in property <string> data-path: "";
     in property <string> cache-path: "";
     in property <string> logs-folder-path: "";
 
-    // Content size measured from the layout, read by Rust for set_size.
-    // content-layout.preferred-width correctly accounts for all visible
-    // AboutRow children (label + gap + value path).  32px = window-frame
-    // and font-metric breathing room.
-    in-out property <length> content-width: content-layout.preferred-width + 32px;
-    in-out property <length> content-height: content-layout.preferred-height;
+    in-out property <length> content-width: Math.max(560px, content-layout.preferred-width + 40px);
+    in-out property <length> content-height: Math.max(360px, content-layout.preferred-height);
 
     callback about-closing();
     callback open-repo();
@@ -122,8 +98,6 @@ export component AboutWindow inherits Window {
         padding: 24px;
         spacing: 8px;
         alignment: start;
-        // Header (logo/title/tagline) stays centred; the facts table below
-        // spans the full width so the paths hug the left edge.
         cross-axis-alignment: center;
 
         Image {
@@ -155,12 +129,8 @@ export component AboutWindow inherits Window {
             horizontal-alignment: center;
         }
 
-        // Facts table — each AboutRow's HorizontalLayout drives the actual
-        // content width via content-layout.preferred-width, so the window
-        // naturally fits the longest value path.
         facts-table := VerticalLayout {
             width: 100%;
-            cross-axis-alignment: stretch;
             spacing: 8px;
 
             AboutRow {
@@ -172,41 +142,31 @@ export component AboutWindow inherits Window {
             AboutRow {
                 label: "Install";
                 value: root.install-path;
-                value-clicked => {
-                    root.open-folder(root.install-path);
-                }
+                value-clicked => { root.open-folder(root.install-path); }
             }
 
             AboutRow {
                 label: "Data";
                 value: root.data-path;
-                value-clicked => {
-                    root.open-folder(root.data-path);
-                }
+                value-clicked => { root.open-folder(root.data-path); }
             }
 
             AboutRow {
                 label: "Cache";
                 value: root.cache-path;
-                value-clicked => {
-                    root.open-folder(root.cache-path);
-                }
+                value-clicked => { root.open-folder(root.cache-path); }
             }
 
             AboutRow {
                 label: "Logs";
                 value: root.logs-folder-path;
-                value-clicked => {
-                    root.open-folder(root.logs-folder-path);
-                }
+                value-clicked => { root.open-folder(root.logs-folder-path); }
             }
 
             AboutRow {
                 label: "Source";
                 value: "https://github.com/dcog989/Cliptoo";
-                value-clicked => {
-                    root.open-repo();
-                }
+                value-clicked => { root.open-repo(); }
             }
         }
 
