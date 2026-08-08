@@ -1,70 +1,61 @@
 # Agent Directives
 
-**IMPERATIVE** — read the Slint docs bundle (see Slint rules below) before writing any Slint code; never guess syntax.
+## Verification (critical)
 
-## Project
-
-- Cliptoo: native background clipboard manager for Wayland/KDE Plasma 6. Rust + SQLite (rusqlite) + Slint (Qt backend). Handles thousands of records without blocking the UI.
-- Workspace dep versions in `Cargo.toml` — check before adding.
-- Key files: `src/core/` (cliptoo-core: parser, db, settings, logger), `src/ui/` (binary + OS integration), `src/ui/ui/*.slint` (components), `src/ui/src/main.rs` (entry), `src/ui/src/hotkeys.rs` (hotkey rationale), `.docs/HLD.md`, `.docs/PORTING.md`, `.docs/Progress.md` (read first), `.docs/ToDo.md`, `packaging/PKGBUILD`, `lefthook.yml`.
-
-## Build / Check
-
-**NEVER run `cargo build` unless the user explicitly asks.** No verification
-builds, no "fallback" builds — for any change, trivial or not. If the user
-wants a build, they will ask for it. The check commands below are run at the
-agent's discretion per the trivial-change rule. Reference:
+**NEVER run `cargo check`, `cargo clippy`, `cargo test`, `cargo build`, `cargo fmt`, or `slint-viewer` unless the user explicitly asks.** The user tests their own changes. The lefthook pre-commit hooks (fmt + clippy on `.rs`, `slint-lsp format -i` on `.slint`, pre-push `cargo test --workspace`) catch regressions. Reference only:
 
 ```sh
 cargo build --release -p cliptoo   # production build
 cargo check                        # fast type-check
-cargo test --workspace             # tests in src/core only
-cargo fmt --all -- --check         # formatting
+cargo test --workspace
+cargo fmt --all -- --check
 cargo clippy --workspace --all-targets -- -D warnings
 ```
 
-Hooks (lefthook): fmt + clippy on `.rs`, `slint-lsp format -i` on `.slint`; pre-push: `cargo test --workspace`.
+## Project
 
-## File System Access
+Cliptoo: native background clipboard manager for Wayland/KDE Plasma 6. Rust + SQLite (rusqlite) + Slint (Qt backend). Wayland-only (no X11 fallback); hotkeys via `org.freedesktop.portal.GlobalShortcuts`.
 
-- Root: `/home/bubba/Projects/Cliptoo/`
-- Allowed: all subdirectories
-- Read-Only: `.env*`, `.git/`, `~/.cargo/registry/src/` (read freely — full source, `.rs` and `.slint` alike, for checking library internals)
-- Disallowed: `.assets/`, `.docs/ToDo.md`, `.git/`, `node_modules/`, `.docs/archive/`
-- Require confirmation: dependency add/remove, changes outside `src/`, anything outside project root
+- Workspace dep versions in `Cargo.toml` — check before adding or using a crate.
+- Key files: `src/core/` (cliptoo-core: parser, db, settings, logger), `src/ui/` (binary + OS integration), `src/ui/ui/*.slint`, `src/ui/src/main.rs`, `src/ui/src/hotkeys.rs`, `.docs/HLD.md`, `.docs/PORTING.md`, `.docs/Progress.md` (read first), `.docs/ToDo.md`, `packaging/PKGBUILD`, `lefthook.yml`.
+
+## File System
+
+- Root: `/home/bubba/Projects/Cliptoo/`. All subdirs allowed.
+- Read-only: `.env*`, `.git/`, `~/.cargo/registry/src/` (read freely for library source).
+- Disallowed: `.assets/`, `.docs/ToDo.md`, `.git/`, `node_modules/`, `.docs/archive/`.
+- Confirm before: adding/removing deps, changes outside `src/`, anything outside project root.
 
 ## Rules
 
-- Minimal, scoped changes; incremental over rewrites. Ask before architectural changes. No destructive changes or new doc files without confirmation.
-- Never run git mutations (commit/push/reset/rebase/amend) unless explicitly asked.
-- Style: explicit types + named constants (no magic numbers); `cargo fmt` defaults; self-documenting names; comments only for WHY.
-- Errors: `anyhow::Result` at boundaries, `thiserror` enums in `src/core/`, `.context(...)` across module boundaries; never suppress errors.
-- Logging: `tracing::{info,warn,error,debug}` only (never `println!`/`dbg!`); init in `core/src/logger.rs`.
-- No `unsafe` except the Qt FFI shim `src/ui/src/drag.rs` (`#![allow(unsafe_code)]`); crate roots `#![deny(unsafe_code)]`. Do not introduce `unsafe` elsewhere.
-- Decompose files over 400 lines if they mix concerns.
-- Wayland-only (no X11 fallback); hotkeys via `org.freedesktop.portal.GlobalShortcuts`.
-- On completion of an update or fix, print a concise conventional commit message in a fenced code block.
-- **NEVER** run `cargo check`/`clippy`/`fmt --check`/`cargo test`/`slint-viewer` for trivial changes (single-line edits, string/field removal, UI copy/color/structure tweaks, reordering items). Verify nothing; just make the edit and report the commit message. The lefthook pre-commit hooks (fmt + clippy on `.rs`, `slint-lsp format` on `.slint`) catch regressions on the next commit, so hand-running checks adds no value.
-- Do NOT run `cargo test` after every change. Reserve it for changes that touch tested logic (new/changed code paths or tests in `src/core`, new unit tests) or when the user asks. `cargo clippy` is the default verification for Rust changes — it type-checks and catches Slint compile errors without the test-suite overhead. Run the full `cargo test --workspace` once per task when warranted, not per edit.
-- **NEVER** run `cargo build` or `slint-viewer` for any change unless the user explicitly instructs it. No "fallback" builds when `slint-viewer` is missing, no self-verification builds. This rule overrides Slint rule #4 and Definition of Done.
+- **Minimal, scoped changes.** Incremental over rewrites. Ask before architectural changes. No new doc files without confirmation.
+- **Never run git mutations** (commit/push/reset/rebase/amend) unless explicitly asked.
+- **Style:** explicit types + named constants (no magic numbers); `cargo fmt` defaults; self-documenting names; comments only for WHY.
+- **Errors:** `anyhow::Result` at boundaries, `thiserror` enums in `src/core/`, `.context(...)` across module boundaries; never suppress errors.
+- **Logging:** `tracing::{info,warn,error,debug}` only (never `println!`/`dbg!`); init in `core/src/logger.rs`.
+- **No `unsafe`** except the Qt FFI shim `src/ui/src/drag.rs` (`#![allow(unsafe_code)]`); crate roots `#![deny(unsafe_code)]`. Do not introduce `unsafe` elsewhere.
+- **Decompose** files over 400 lines if they mix concerns.
+- **Commit message:** on completion, print a concise conventional commit message in a fenced code block.
 
-## Slint rules (mandatory)
+## Rust FFI
 
-1. Read `gotchas.md` → `language-and-layout.md` → `interop.md` in `.docs/.slint-docs/slint-docs-flat/`.
-2. Look up the exact widget/element in `INDEX.md` for its properties and callbacks.
-3. Rust FFI patterns: grep `interop.md` or fetch `https://docs.slint.dev/latest/docs/slint/<path>.md`.
-4. After editing: suggest `slint-viewer --check path/to/file.slint`; never declare UI work done without verifying it renders.
-5. 1.18 note: `Tooltip` and `SystemTrayIcon` (via `inherits SystemTrayIcon`) are available; `.docs/slint.1.17.md` changelog still relevant.
+Generic over `ComponentHandle` for child windows: `activate_window<C: slint::ComponentHandle>(ui: &C)`. Soundness invariants in `src/ui/src/drag.rs`.
 
-## Communication Style
+## Slint (mandatory)
 
-- Provide concise, actionable responses.
-- Ask clarifying questions when requirements are ambiguous.
-- Flag potential risks or edge cases proactively.
-- Do not pretend to understand how the user feels.
+1. Read `.docs/.slint-docs/slint-docs-flat/gotchas.md` → `language-and-layout.md` → `interop.md` before writing Slint; never guess syntax.
+2. Look up the widget/element in `INDEX.md` for properties and callbacks.
+3. Rust FFI: grep `interop.md` or fetch `https://docs.slint.dev/latest/docs/slint/<path>.md`.
+4. Slint 1.18: `Tooltip` and `SystemTrayIcon` (via `inherits SystemTrayIcon`) are available; `.docs/slint.1.17.md` changelog still relevant.
+
+## Communication
+
+- Concise, actionable responses.
+- Ask clarifying questions when ambiguous.
+- Flag risks and edge cases proactively.
 
 ## Definition of Done
 
-- Logic fully implemented; new/modified features have tests.
-- `cargo test --workspace` and `cargo clippy --workspace --all-targets -- -D warnings` pass.
-- Docs updated if public interfaces changed; UI verified with `slint-viewer --check`.
+- Logic fully implemented; new or modified features have tests (in `src/core/`).
+- Doc comments updated if public interfaces changed.
+- Print a conventional commit message.
