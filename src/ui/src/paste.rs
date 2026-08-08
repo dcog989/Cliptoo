@@ -1,11 +1,12 @@
 use anyhow::{Context, Result};
 use cliptoo_core::content::hash::{normalize_line_endings, sha256_u64};
+use cliptoo_core::db::models::ClipType;
 use evdev::uinput::VirtualDevice;
 use evdev::{AttributeSet, EventType, InputEvent, KeyCode};
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use wl_clipboard_rs::copy::{ClipboardType, MimeType, Options, Seat, Source};
+use wl_clipboard_rs::copy::{ClipboardType, MimeSource, MimeType, Options, Seat, Source};
 
 pub struct PasteSuppressionSet {
     inner: Arc<Mutex<HashSet<u64>>>,
@@ -67,12 +68,36 @@ pub async fn paste_content(
         }
     };
 
+    // A real file/folder copy (a `text/uri-list` ingest) must be pasted as
+    // `text/uri-list`, not plain text: announcing the path as text/plain makes
+    // Dolphin offer "paste clipboard content…" instead of pasting the file.
+    // Offer text/plain alongside so targets without uri-list support still get
+    // the path as text. This overrides the "paste as plain text" preference:
+    // that toggle is about stripping rich-text (RTF) formatting, while a file
+    // clip has no formatting to strip — downgrading it to a path string would
+    // silently defeat the file copy.
+    let is_file_clip = ClipType::parse(clip_type).is_file_clip();
+
     let data = normalized.clone();
     tokio::task::spawn_blocking(move || -> Result<()> {
         let mut opts = Options::new();
         opts.clipboard(ClipboardType::Regular).seat(Seat::All);
-        opts.copy(Source::Bytes(data.into_bytes().into_boxed_slice()), mime)
-            .map_err(|e| anyhow::anyhow!("clipboard write: {e}"))
+        if is_file_clip {
+            let uri_list = build_uri_list(&data);
+            opts.copy_multi(vec![
+                MimeSource {
+                    source: Source::Bytes(uri_list.into_bytes().into_boxed_slice()),
+                    mime_type: MimeType::Specific("text/uri-list".into()),
+                },
+                MimeSource {
+                    source: Source::Bytes(data.into_bytes().into_boxed_slice()),
+                    mime_type: MimeType::Text,
+                },
+            ])
+        } else {
+            opts.copy(Source::Bytes(data.into_bytes().into_boxed_slice()), mime)
+        }
+        .map_err(|e| anyhow::anyhow!("clipboard write: {e}"))
     })
     .await
     .context("spawn clipboard write")??;
@@ -89,6 +114,19 @@ pub async fn paste_content(
     simulate_ctrl_v().context("input simulation")?;
 
     Ok(())
+}
+
+/// Build a `text/uri-list` payload from decoded newline-joined paths (the
+/// storage format of file clips). Each path becomes a percent-encoded `file://`
+/// URI on its own line; the list ends with a trailing CRLF as the freedesktop
+/// clipboard spec requires.
+fn build_uri_list(decoded_paths: &str) -> String {
+    decoded_paths
+        .lines()
+        .map(|p| format!("file://{}", cliptoo_core::content::percent_encode_path(p)))
+        .collect::<Vec<_>>()
+        .join("\r\n")
+        + "\r\n"
 }
 
 /// Injects Ctrl+V through a virtual uinput keyboard device.
