@@ -27,6 +27,7 @@ sha2.workspace = true
 const-hex.workspace = true
 regex.workspace = true
 reqwest.workspace = true
+url.workspace = true
 
 [build-dependencies]
 cc.workspace = true

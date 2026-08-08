@@ -39,30 +39,6 @@ pub fn percent_decode_path(s: &str) -> String {
     String::from_utf8(out).unwrap_or_else(|_| s.to_string())
 }
 
-/// Percent-encode a filesystem path into a `file:` URI path component.
-///
-/// Inverse of `percent_decode_path`. Keeps unreserved characters and `/`
-/// (path separators) intact and percent-encodes every other byte, so the round
-/// trip through `percent_decode_path` is lossless — spaces, colons, non-ASCII
-/// text, and literal `%` all survive.
-pub fn percent_encode_path(s: &str) -> String {
-    const HEX: &[u8; 16] = b"0123456789ABCDEF";
-    let mut out = String::with_capacity(s.len());
-    for b in s.as_bytes() {
-        match *b {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' | b'/' => {
-                out.push(*b as char);
-            }
-            _ => {
-                out.push('%');
-                out.push(HEX[(b >> 4) as usize] as char);
-                out.push(HEX[(b & 0x0F) as usize] as char);
-            }
-        }
-    }
-    out
-}
-
 /// Parse a single hex digit; `None` for anything else or end of input.
 #[inline]
 fn hex_val(b: Option<&u8>) -> Option<u8> {
@@ -97,36 +73,5 @@ mod tests {
     fn empty_and_plain_inputs_pass_through() {
         assert_eq!(percent_decode_path(""), "");
         assert_eq!(percent_decode_path("/plain/path"), "/plain/path");
-    }
-
-    #[test]
-    fn percent_encode_round_trips() {
-        use super::percent_encode_path;
-        for path in [
-            "/home/foo bar",
-            "/home/foo%20bar",
-            "/tmp/Ünïcödé/名前.txt",
-            "/tmp/file:name",
-            "/home/a/b/c.txt",
-            "relative/path",
-            "/home/dot.dot-dash_dash_tilde~",
-        ] {
-            let encoded = percent_encode_path(path);
-            assert_eq!(percent_decode_path(&encoded), path, "for {path}");
-        }
-    }
-
-    #[test]
-    fn percent_encode_keeps_unreserved_and_slashes() {
-        use super::percent_encode_path;
-        assert_eq!(percent_encode_path("/home/user/file.txt"), "/home/user/file.txt");
-        assert_eq!(
-            percent_encode_path("/home/foo bar"),
-            "/home/foo%20bar"
-        );
-        assert_eq!(
-            percent_encode_path("/tmp/名前.txt"),
-            "/tmp/%E5%90%8D%E5%89%8D.txt"
-        );
     }
 }

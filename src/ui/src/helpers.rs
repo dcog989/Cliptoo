@@ -8,11 +8,10 @@ const PAGE_TITLE_FETCH_TIMEOUT_SECS: u64 = 5;
 pub const USER_AGENT: &str = "Cliptoo/0.2";
 
 /// Extract the domain from a URL (e.g. "https://github.com/foo" -> "github.com").
+/// Returns the host component of an absolute URL; `None` when the input is not
+/// a valid absolute URL with a host (e.g. a relative or scheme-less string).
 pub fn extract_domain(url: &str) -> Option<String> {
-    let stripped = url
-        .strip_prefix("https://")
-        .or_else(|| url.strip_prefix("http://"))?;
-    Some(stripped.split('/').next()?.to_string())
+    url::Url::parse(url).ok()?.host_str().map(ToOwned::to_owned)
 }
 
 pub async fn fetch_page_title(url: &str) -> Option<String> {
@@ -64,5 +63,57 @@ pub async fn refresh_clips(
             ui.set_selected_index(0);
             crate::favicon::check_pending_favicons(&ui, &db2, &fd);
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::extract_domain;
+
+    #[test]
+    fn extracts_host_from_http_urls() {
+        assert_eq!(
+            extract_domain("https://github.com/foo").unwrap(),
+            "github.com"
+        );
+        assert_eq!(extract_domain("http://example.com").unwrap(), "example.com");
+        assert_eq!(
+            extract_domain("ftp://files.example.com/x").unwrap(),
+            "files.example.com"
+        );
+    }
+
+    #[test]
+    fn normalizes_scheme_and_host_case() {
+        assert_eq!(
+            extract_domain("HTTP://EXAMPLE.COM/path").unwrap(),
+            "example.com"
+        );
+    }
+
+    #[test]
+    fn strips_userinfo_port_and_handles_ipv6() {
+        assert_eq!(
+            extract_domain("https://user:pass@example.com").unwrap(),
+            "example.com"
+        );
+        assert_eq!(
+            extract_domain("https://example.com:8443/x").unwrap(),
+            "example.com"
+        );
+        assert_eq!(extract_domain("https://[::1]:8080/x").unwrap(), "[::1]");
+    }
+
+    #[test]
+    fn rejects_non_urls() {
+        for s in [
+            "",
+            "not a url",
+            "www.example.com",
+            "example.com",
+            "/relative/path",
+        ] {
+            assert_eq!(extract_domain(s), None, "for {s:?}");
+        }
     }
 }

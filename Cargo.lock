@@ -928,6 +928,7 @@ dependencies = [
  "tokio",
  "tracing",
  "unicode-segmentation",
+ "url",
  "wl-clipboard-rs",
  "zbus",
 ]

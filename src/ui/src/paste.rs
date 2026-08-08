@@ -111,7 +111,10 @@ pub async fn paste_content(
                 },
             ])
         } else {
-            opts.copy(Source::Bytes(data.into_bytes().into_boxed_slice()), MimeType::Text)
+            opts.copy(
+                Source::Bytes(data.into_bytes().into_boxed_slice()),
+                MimeType::Text,
+            )
         }
         .map_err(|e| anyhow::anyhow!("clipboard write: {e}"))
     })
@@ -139,7 +142,8 @@ pub async fn paste_content(
 fn build_uri_list(decoded_paths: &str) -> String {
     decoded_paths
         .lines()
-        .map(|p| format!("file://{}", cliptoo_core::content::percent_encode_path(p)))
+        .filter_map(|p| url::Url::from_file_path(std::path::Path::new(p)).ok())
+        .map(|u| u.to_string())
         .collect::<Vec<_>>()
         .join("\r\n")
         + "\r\n"
