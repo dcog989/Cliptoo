@@ -48,41 +48,36 @@ pub async fn paste_content(
     window: &slint::Weak<crate::AppWindow>,
     paste_as_plain_text: bool,
 ) -> Result<()> {
-    // When paste-as-plain-text is requested and the clip is RTF, strip RTF markup.
-    let effective_content: std::borrow::Cow<str> = if paste_as_plain_text && clip_type == "rtf" {
+    let is_file_clip = ClipType::parse(clip_type).is_file_clip();
+    let is_rtf = clip_type == "rtf";
+
+    // The text/plain offer is the stripped RTF text for RTF clips, the content
+    // itself otherwise. It is also the exact payload the listener reads back, so
+    // the re-ingest suppression hash is derived from it.
+    let plain_text: std::borrow::Cow<str> = if is_rtf {
         std::borrow::Cow::Owned(cliptoo_core::content::strip_rtf(content))
     } else {
         std::borrow::Cow::Borrowed(content)
     };
 
-    let normalized = normalize_line_endings(&effective_content);
+    let normalized = normalize_line_endings(&plain_text);
     let sup_hash = sha256_u64(&normalized);
     suppression.insert(sup_hash);
 
-    let mime = if paste_as_plain_text {
-        MimeType::Text
+    let data = normalized.clone();
+    // `content` is a borrowed &str and cannot move into the 'static blocking
+    // closure, so pre-normalize the raw RTF payload here.
+    let rich_rtf = if is_rtf && !paste_as_plain_text {
+        Some(normalize_line_endings(content))
     } else {
-        match clip_type {
-            "rtf" => MimeType::Specific("text/rtf".into()),
-            _ => MimeType::Text,
-        }
+        None
     };
 
-    // A real file/folder copy (a `text/uri-list` ingest) must be pasted as
-    // `text/uri-list`, not plain text: announcing the path as text/plain makes
-    // Dolphin offer "paste clipboard content…" instead of pasting the file.
-    // Offer text/plain alongside so targets without uri-list support still get
-    // the path as text. This overrides the "paste as plain text" preference:
-    // that toggle is about stripping rich-text (RTF) formatting, while a file
-    // clip has no formatting to strip — downgrading it to a path string would
-    // silently defeat the file copy.
-    let is_file_clip = ClipType::parse(clip_type).is_file_clip();
-
-    let data = normalized.clone();
     tokio::task::spawn_blocking(move || -> Result<()> {
         let mut opts = Options::new();
         opts.clipboard(ClipboardType::Regular).seat(Seat::All);
         if is_file_clip {
+            // File paste: uri-list plus the decoded paths as text/plain.
             let uri_list = build_uri_list(&data);
             opts.copy_multi(vec![
                 MimeSource {
@@ -94,8 +89,22 @@ pub async fn paste_content(
                     mime_type: MimeType::Text,
                 },
             ])
+        } else if let Some(raw) = rich_rtf {
+            // Rich-text paste: offer the raw RTF (formatted) plus the stripped
+            // text/plain fallback so targets without RTF support still insert
+            // the text instead of nothing.
+            opts.copy_multi(vec![
+                MimeSource {
+                    source: Source::Bytes(raw.into_bytes().into_boxed_slice()),
+                    mime_type: MimeType::Specific("text/rtf".into()),
+                },
+                MimeSource {
+                    source: Source::Bytes(data.into_bytes().into_boxed_slice()),
+                    mime_type: MimeType::Text,
+                },
+            ])
         } else {
-            opts.copy(Source::Bytes(data.into_bytes().into_boxed_slice()), mime)
+            opts.copy(Source::Bytes(data.into_bytes().into_boxed_slice()), MimeType::Text)
         }
         .map_err(|e| anyhow::anyhow!("clipboard write: {e}"))
     })
