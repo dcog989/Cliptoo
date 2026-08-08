@@ -129,6 +129,11 @@ export component AboutWindow inherits Window {
             horizontal-alignment: center;
         }
 
+        // Extra breathing room between the header and the facts table.
+        SpaceBlock := Rectangle {
+            height: 14px;
+        }
+
         facts-table := VerticalLayout {
             width: 100%;
             spacing: 8px;
@@ -171,7 +176,7 @@ export component AboutWindow inherits Window {
         }
 
         VerticalLayout {
-            padding-top: 8px;
+            padding-top: 14px;
 
             Text {
                 text: "Cliptoo © since 2025. MIT License.";

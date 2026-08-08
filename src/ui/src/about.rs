@@ -70,11 +70,11 @@ pub fn setup_about_window(
                 win.window()
                     .set_size(slint::LogicalSize { width: w, height: h });
                 let _ = win.show();
-                // Qt's show() doesn't raise; after the hamburger popup closes the
-                // About window can land under the main window. Defer the raise
-                // by one event-loop tick so the popup recedes first.
+                // Qt's show() doesn't raise; after the hamburger popup closes
+                // the About window can land under the main window.  Defer the
+                // raise so the popup has time to recede.
                 let aw = aw.clone();
-                slint::Timer::single_shot(Duration::ZERO, move || {
+                slint::Timer::single_shot(Duration::from_millis(100), move || {
                     if let Some(win) = aw.upgrade() {
                         crate::drag::activate_window(&win);
                     }
