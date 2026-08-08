@@ -12,6 +12,7 @@ rusqlite.workspace = true
 sha2.workspace = true
 chrono.workspace = true
 const-hex.workspace = true
+csscolorparser.workspace = true
 unicode-segmentation.workspace = true
 image.workspace = true
 resvg.workspace = true
