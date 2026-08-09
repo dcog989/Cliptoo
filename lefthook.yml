@@ -10,6 +10,9 @@ pre-commit:
     cargo-clippy:
       run: cargo clippy --workspace --all-targets -- -D warnings
       glob: "*.rs"
+    biome-check:
+      run: biome check {staged_files}
+      glob: "website/**/*.{html,css,js}"
 
 commit-msg:
   commands:
