@@ -1,0 +1,121 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 1280 800"
+  role="img"
+  aria-label="Cliptoo content-type filter grid"
+>
+  <title>Cliptoo filter grid</title>
+  <defs>
+    <linearGradient id="winbg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1d1d1d" />
+      <stop offset="1" stop-color="#171717" />
+    </linearGradient>
+  </defs>
+
+  <rect width="1280" height="800" fill="#121014" />
+
+  <!-- Window -->
+  <rect x="48" y="48" width="1184" height="704" rx="14" fill="url(#winbg)" stroke="#2a2a2a" stroke-width="2" />
+  <rect x="48" y="48" width="1184" height="52" rx="14" fill="#121212" />
+  <rect x="48" y="84" width="1184" height="16" fill="#121212" />
+  <circle cx="88" cy="74" r="8" fill="#e4572e" />
+  <circle cx="112" cy="74" r="8" fill="#ffc857" />
+  <circle cx="136" cy="74" r="8" fill="#1f4e9c" />
+  <text x="168" y="79" font-family="ui-monospace, monospace" font-size="14" fill="#636363">cliptoo</text>
+
+  <g font-family="ui-monospace, monospace">
+    <rect x="72" y="124" width="1136" height="74" fill="#282828" />
+    <rect x="72" y="124" width="4" height="74" fill="#4c9eff" />
+    <rect x="96" y="144" width="36" height="30" rx="6" fill="#121212" stroke="#2a2a2a" stroke-width="1.5" />
+    <text x="114" y="164" text-anchor="middle" font-size="14" fill="#4c9eff">&lt;/&gt;</text>
+    <text x="148" y="154" font-size="17" fill="#B4B4B4">cargo build --release -p cliptoo</text>
+    <text x="148" y="178" font-size="13" fill="#636363">code snippet · Thu 09:41</text>
+
+    <rect x="72" y="198" width="1136" height="74" fill="#1C1C1C" />
+    <rect x="96" y="218" width="36" height="30" rx="6" fill="#121212" stroke="#2a2a2a" stroke-width="1.5" />
+    <text x="114" y="238" text-anchor="middle" font-size="15" fill="#4c9eff">↗</text>
+    <text x="148" y="228" font-size="17" fill="#4c9eff">github.com/dcog989/Cliptoo</text>
+    <text x="148" y="252" font-size="13" fill="#636363">link · title: Cliptoo</text>
+
+    <rect x="72" y="346" width="1136" height="74" fill="#1C1C1C" />
+    <rect x="96" y="366" width="36" height="30" rx="6" fill="none" stroke="#2a2a2a" stroke-width="1.5" />
+    <rect x="102" y="372" width="24" height="18" rx="3" fill="#4c9eff" />
+    <circle cx="113" cy="378" r="3" fill="#ffc857" />
+    <text x="148" y="376" font-size="17" fill="#E4E4E4">clip_2026-08-09.png</text>
+    <text x="148" y="400" font-size="13" fill="#636363">PNG · 1.4 MB</text>
+
+    <rect x="72" y="494" width="1136" height="74" fill="#1C1C1C" />
+    <rect x="96" y="514" width="36" height="30" rx="6" fill="#121212" stroke="#2a2a2a" stroke-width="1.5" />
+    <text x="114" y="534" text-anchor="middle" font-size="14" fill="#B4B4B4">▤</text>
+    <text x="148" y="524" font-size="17" fill="#E4E4E4">/home/bubba/todo.md</text>
+    <text x="148" y="548" font-size="13" fill="#636363">text/plain · 2.1 KB</text>
+
+    <rect x="72" y="642" width="1136" height="58" fill="#1C1C1C" />
+    <rect x="96" y="656" width="36" height="30" rx="6" fill="#121212" stroke="#2a2a2a" stroke-width="1.5" />
+    <text x="114" y="676" text-anchor="middle" font-size="14" fill="#B4B4B4">♪</text>
+    <text x="148" y="666" font-size="17" fill="#B4B4B4">recording_2026-08-09.m4a</text>
+    <text x="148" y="690" font-size="13" fill="#636363">audio clip · 512 KB</text>
+  </g>
+
+  <!-- Scrim over list -->
+  <rect x="48" y="100" width="1184" height="600" fill="#000000" opacity="0.45" />
+
+  <!-- Filter popup -->
+  <rect x="984" y="496" width="220" height="168" rx="10" fill="#121212" stroke="#2a2a2a" stroke-width="2" />
+  <rect x="984" y="496" width="220" height="34" rx="10" fill="#181818" />
+  <rect x="984" y="514" width="220" height="16" fill="#181818" />
+  <text x="1002" y="518" font-family="ui-monospace, monospace" font-size="13" fill="#A1A1A1">Filter clips</text>
+  <text x="1188" y="518" text-anchor="end" font-family="ui-monospace, monospace" font-size="14" fill="#636363">×</text>
+
+  <g font-family="ui-monospace, monospace">
+    <!-- 5-col grid, 3 rows, cell 36 + 4 gap + 8 pad -->
+    <!-- active = Images (col 2, row 1) -->
+    <g>
+      <!-- row 1 -->
+      <rect x="1000" y="546" width="36" height="36" rx="5" fill="none" stroke="#2a2a2a" stroke-width="1.5" />
+      <text x="1018" y="568" text-anchor="middle" font-size="14" fill="#636363">¶</text>
+      <rect x="1040" y="546" width="36" height="36" rx="5" fill="none" stroke="#2a2a2a" stroke-width="1.5" />
+      <text x="1058" y="568" text-anchor="middle" font-size="14" fill="#636363">↗</text>
+      <rect x="1080" y="546" width="36" height="36" rx="5" fill="#1f4e9c" stroke="#4c9eff" stroke-width="1.5" />
+      <text x="1098" y="568" text-anchor="middle" font-size="14" fill="#ffffff">▣</text>
+      <rect x="1120" y="546" width="36" height="36" rx="5" fill="none" stroke="#2a2a2a" stroke-width="1.5" />
+      <circle cx="1138" cy="564" r="7" fill="#e4572e" />
+      <rect x="1160" y="546" width="36" height="36" rx="5" fill="none" stroke="#2a2a2a" stroke-width="1.5" />
+      <text x="1178" y="568" text-anchor="middle" font-size="12" fill="#636363">&lt;/&gt;</text>
+
+      <!-- row 2 -->
+      <rect x="1000" y="586" width="36" height="36" rx="5" fill="none" stroke="#2a2a2a" stroke-width="1.5" />
+      <text x="1018" y="608" text-anchor="middle" font-size="14" fill="#636363">▤</text>
+      <rect x="1040" y="586" width="36" height="36" rx="5" fill="none" stroke="#2a2a2a" stroke-width="1.5" />
+      <text x="1058" y="608" text-anchor="middle" font-size="14" fill="#636363">★</text>
+      <rect x="1080" y="586" width="36" height="36" rx="5" fill="none" stroke="#2a2a2a" stroke-width="1.5" />
+      <text x="1098" y="608" text-anchor="middle" font-size="14" fill="#636363">♪</text>
+      <rect x="1120" y="586" width="36" height="36" rx="5" fill="none" stroke="#2a2a2a" stroke-width="1.5" />
+      <text x="1138" y="608" text-anchor="middle" font-size="12" fill="#636363">▶</text>
+      <rect x="1160" y="586" width="36" height="36" rx="5" fill="none" stroke="#2a2a2a" stroke-width="1.5" />
+      <text x="1178" y="608" text-anchor="middle" font-size="12" fill="#636363">abc</text>
+
+      <!-- row 3 -->
+      <rect x="1000" y="626" width="36" height="36" rx="5" fill="none" stroke="#2a2a2a" stroke-width="1.5" />
+      <text x="1018" y="648" text-anchor="middle" font-size="14" fill="#636363">◎</text>
+      <rect x="1040" y="626" width="36" height="36" rx="5" fill="none" stroke="#2a2a2a" stroke-width="1.5" />
+      <text x="1058" y="648" text-anchor="middle" font-size="13" fill="#636363">⌘</text>
+    </g>
+  </g>
+
+  <!-- Pointer tail toward filter button in the toolbar -->
+  <polygon points="1094,648 1102,664 1110,648" fill="#121212" stroke="#2a2a2a" stroke-width="2" />
+
+  <!-- Bottom toolbar -->
+  <rect x="48" y="700" width="1184" height="52" fill="#121212" stroke="#2a2a2a" stroke-width="1.5" />
+  <g transform="translate(1114,716)" fill="none" stroke="#4c9eff" stroke-width="2.5" stroke-linecap="round">
+    <path d="M 2 0 H 30" />
+    <path d="M 6 6 H 26" />
+    <path d="M 10 12 H 22" />
+  </g>
+  <g transform="translate(1160,718)" fill="none" stroke="#B4B4B4" stroke-width="2.5" stroke-linecap="round">
+    <path d="M 2 4 H 22" />
+    <path d="M 2 10 H 22" />
+    <path d="M 2 16 H 22" />
+  </g>
+</svg>

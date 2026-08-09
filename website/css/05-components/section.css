@@ -1,0 +1,41 @@
+/* --------------------------------------------------------------------------
+   Components — shared section heading bits  [layer: components]
+   -------------------------------------------------------------------------- */
+
+@layer components {
+  .section-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    margin: 0 0 1rem;
+  }
+
+  .dot {
+    width: 14px;
+    height: 14px;
+    display: inline-block;
+    background: var(--dot-color);
+    border: 2px solid var(--ink);
+  }
+
+  .section-label .dot {
+    width: 14px;
+    height: 14px;
+    flex: none;
+  }
+
+  .section-title {
+    font-size: clamp(1.9rem, 4.5vw, 3.1rem);
+    line-height: 1.0;
+    letter-spacing: -0.015em;
+    font-weight: 800;
+    text-transform: uppercase;
+    margin: 0 0 2rem;
+    max-width: 30ch;
+  }
+}

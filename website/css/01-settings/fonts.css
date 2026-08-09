@@ -1,0 +1,8 @@
+/* --------------------------------------------------------------------------
+   Settings — font stacks (geometric sans + system monospace)
+   -------------------------------------------------------------------------- */
+
+:root {
+  --font-display: "Futura", "Century Gothic", "Avant Garde Gothic", "URW Gothic", "Verdana", sans-serif;
+  --font-mono: ui-monospace, "Cascadia Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+}

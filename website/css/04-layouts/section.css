@@ -1,0 +1,13 @@
+/* --------------------------------------------------------------------------
+   Layouts — shared section container  [layer: layouts]
+   -------------------------------------------------------------------------- */
+
+@layer layouts {
+  .carousel-section,
+  .features-section,
+  .tech-section {
+    padding: clamp(3.5rem, 7vw, 6rem) clamp(1rem, 5vw, 3.5rem);
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+}

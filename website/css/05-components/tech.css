@@ -1,0 +1,71 @@
+/* --------------------------------------------------------------------------
+   Components — tech stack  [layer: components]
+   -------------------------------------------------------------------------- */
+
+@layer components {
+  .tech-section {
+    border-top: 3px solid var(--ink);
+  }
+
+  .tech-intro {
+    max-width: 56ch;
+    color: var(--ink-soft);
+    font-size: 1.05rem;
+    margin: -1rem 0 2rem;
+  }
+
+  .tech-grid {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.85rem;
+    margin: 0;
+    padding: 0;
+  }
+
+  .tech-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.55rem 1.05rem;
+    border: 2px solid var(--ink);
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    font-weight: 700;
+  }
+
+  .tech-chip:nth-child(3n) {
+    background: var(--yellow);
+  }
+
+  .tech-chip:nth-child(3n + 1) {
+    background: var(--paper);
+  }
+
+  .tech-chip:nth-child(3n + 2) {
+    background: var(--card);
+  }
+
+  .tech-dot {
+    width: 14px;
+    height: 14px;
+    background: var(--tdot);
+    border: 2px solid var(--ink);
+    flex: none;
+  }
+
+  /* Bauhaus trio: circle, square and triangle alternate along the chips. */
+  .tech-grid li:nth-child(3n + 2) .tech-dot {
+    border-radius: 50%;
+  }
+
+  .tech-grid li:nth-child(3n) .tech-dot {
+    width: 0;
+    height: 0;
+    border: none;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-bottom: 14px solid var(--ink);
+    background: none;
+  }
+}

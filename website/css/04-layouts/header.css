@@ -1,0 +1,72 @@
+/* --------------------------------------------------------------------------
+   Layouts — site header  [layer: layouts]
+   -------------------------------------------------------------------------- */
+
+@layer layouts {
+  .site-header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem clamp(1rem, 5vw, 3.5rem);
+    background: var(--paper);
+    border-bottom: 3px solid var(--ink);
+  }
+
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.7rem;
+    text-decoration: none;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+
+  .brand-name {
+    font-size: 1.2rem;
+  }
+
+  .brand-mark {
+    width: 32px;
+    height: 32px;
+  }
+
+  .site-nav {
+    display: flex;
+    align-items: center;
+    gap: clamp(0.75rem, 2vw, 1.75rem);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .site-nav a {
+    text-decoration: none;
+    padding: 0.3rem 0;
+    color: var(--ink);
+  }
+
+  .site-nav a:hover,
+  .site-nav a:focus-visible {
+    color: var(--red);
+  }
+
+  .site-nav .nav-cta {
+    border: 2px solid var(--ink);
+    padding: 0.45rem 0.9rem;
+    background: var(--yellow);
+    color: var(--ink);
+  }
+
+  .site-nav .nav-cta:hover,
+  .site-nav .nav-cta:focus-visible {
+    background: var(--ink);
+    color: var(--paper);
+  }
+}

@@ -1,0 +1,60 @@
+/* --------------------------------------------------------------------------
+   Utilities — dark mode (unlayered so it overrides tokens + components)
+   -------------------------------------------------------------------------- */
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+
+    --ink: #ece5d9;
+    --ink-soft: #a9a298;
+    --paper: #15130f;
+    --paper-deep: #1c1914;
+    --card: #221e17;
+
+    --red: #e4572e;
+    --yellow: #f2bd1f;
+    --blue: #6b96d6;
+    --green: #2f9e63;
+  }
+
+  /* Ink-filled surfaces stay dark once --ink inverts; fix text on them. */
+  .site-footer {
+    background: #050504;
+    color: #f2ece0;
+  }
+
+  .site-footer .brand-name {
+    color: #f2ece0;
+  }
+
+  .cta-card {
+    color: #f2ece0;
+  }
+
+  .section-label-light,
+  .btn-ghost-light {
+    color: #f2ece0;
+    border-color: #f2ece0;
+  }
+
+  /* Yellow/red buttons keep dark text instead of inverted ink. */
+  .nav-cta,
+  .carousel-btn,
+  .tech-chip:nth-child(3n) {
+    color: #141311;
+  }
+
+  .nav-cta:hover,
+  .carousel-btn:hover {
+    color: #f2ece0;
+  }
+
+  .btn-primary .btn-dot {
+    border-color: #0a0a0a;
+  }
+
+  .feature-num {
+    border-color: #0a0a0a;
+  }
+}

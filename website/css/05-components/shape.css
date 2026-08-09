@@ -1,0 +1,20 @@
+/* --------------------------------------------------------------------------
+   Components — Bauhaus shapes (shared primitives)  [layer: components]
+   -------------------------------------------------------------------------- */
+
+@layer components {
+  .shape {
+    position: absolute;
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  .shape-ring {
+    width: 58px;
+    height: 58px;
+    border: 6px solid var(--red);
+    border-radius: 50%;
+    right: -16px;
+    bottom: -16px;
+  }
+}

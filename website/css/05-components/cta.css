@@ -1,0 +1,88 @@
+/* --------------------------------------------------------------------------
+   Components — download CTA  [layer: components]
+   -------------------------------------------------------------------------- */
+
+@layer components {
+  .cta-section {
+    padding: clamp(1rem, 2vw, 2rem) clamp(1rem, 5vw, 3.5rem) clamp(4rem, 8vw, 7rem);
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .cta-card {
+    position: relative;
+    overflow: hidden;
+    padding: clamp(3rem, 6vw, 5rem) clamp(1.5rem, 6vw, 5rem);
+    background: var(--red);
+    color: var(--paper);
+    border: 3px solid var(--ink);
+  }
+
+  .section-label-light {
+    color: var(--paper);
+  }
+
+  .cta-title {
+    font-size: clamp(1.9rem, 4vw, 3rem);
+    line-height: 1.0;
+    letter-spacing: -0.015em;
+    font-weight: 800;
+    text-transform: uppercase;
+    margin: 0 0 1rem;
+    max-width: 30ch;
+  }
+
+  .cta-sub {
+    max-width: 52ch;
+    font-size: 1.1rem;
+    color: rgba(242, 238, 226, 0.88);
+    margin: 0 0 2rem;
+  }
+
+  .cta-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.25rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .cta-note {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: rgba(242, 238, 226, 0.72);
+    margin: 0;
+  }
+
+  .cta-note a {
+    color: var(--yellow);
+    font-weight: 700;
+  }
+
+  /* Bauhaus primaries on the red field. */
+  .shape-cta {
+    right: 24px;
+    top: 24px;
+    width: 56px;
+    height: 56px;
+    background: var(--blue);
+    border: 3px solid var(--ink);
+  }
+
+  .shape-cta-ring {
+    left: -26px;
+    bottom: -34px;
+    width: 110px;
+    height: 110px;
+    border: 10px solid var(--yellow);
+  }
+
+  .cta-tri {
+    width: 0;
+    height: 0;
+    border-left: 42px solid transparent;
+    border-right: 42px solid transparent;
+    border-bottom: 64px solid var(--paper);
+    right: 40%;
+    bottom: -26px;
+  }
+}

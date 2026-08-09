@@ -1,0 +1,135 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 1280 800"
+  role="img"
+  aria-label="Cliptoo settings window: themes, accent color and typography"
+>
+  <title>Cliptoo settings window</title>
+  <defs>
+    <linearGradient id="winbg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1d1d1d" />
+      <stop offset="1" stop-color="#171717" />
+    </linearGradient>
+    <clipPath id="syscard">
+      <rect x="700" y="200" width="160" height="110" rx="8" />
+    </clipPath>
+  </defs>
+
+  <rect width="1280" height="800" fill="#121014" />
+
+  <!-- Window -->
+  <rect x="48" y="48" width="1184" height="704" rx="14" fill="url(#winbg)" stroke="#2a2a2a" stroke-width="2" />
+  <rect x="48" y="48" width="1184" height="52" rx="14" fill="#121212" />
+  <rect x="48" y="84" width="1184" height="16" fill="#121212" />
+  <circle cx="88" cy="74" r="8" fill="#e4572e" />
+  <circle cx="112" cy="74" r="8" fill="#ffc857" />
+  <circle cx="136" cy="74" r="8" fill="#1f4e9c" />
+  <text x="168" y="79" font-family="ui-monospace, monospace" font-size="14" fill="#636363">cliptoo</text>
+  <text x="1208" y="79" text-anchor="end" font-family="ui-monospace, monospace" font-size="14" fill="#636363">settings</text>
+
+  <!-- Sidebar nav -->
+  <g font-family="ui-monospace, monospace">
+    <rect x="72" y="108" width="224" height="544" fill="#121212" stroke="#2a2a2a" stroke-width="1.5" />
+    <rect x="72" y="108" width="224" height="44" fill="none" />
+    <text x="92" y="136" font-size="13" fill="#A1A1A1">General</text>
+    <rect x="72" y="152" width="224" height="44" fill="none" />
+    <text x="92" y="180" font-size="13" fill="#A1A1A1">Shortcuts</text>
+    <rect x="72" y="196" width="224" height="44" fill="#282828" />
+    <rect x="72" y="196" width="4" height="44" fill="#4c9eff" />
+    <text x="92" y="224" font-size="13" font-weight="700" fill="#E4E4E4">Appearance</text>
+    <rect x="72" y="240" width="224" height="44" fill="none" />
+    <text x="92" y="268" font-size="13" fill="#A1A1A1">Retention</text>
+    <rect x="72" y="284" width="224" height="44" fill="none" />
+    <text x="92" y="312" font-size="13" fill="#A1A1A1">Data</text>
+    <rect x="72" y="328" width="224" height="44" fill="none" />
+    <text x="92" y="356" font-size="13" fill="#A1A1A1">About</text>
+    <text x="92" y="392" font-size="11" fill="#4a4a4a">cliptoo 2.10.0 · MIT</text>
+  </g>
+
+  <!-- Content -->
+  <text x="348" y="152" font-family="ui-sans-serif, system-ui, sans-serif" font-size="26" font-weight="700" fill="#F2F2F2">Appearance</text>
+  <text x="348" y="176" font-family="ui-monospace, monospace" font-size="12" fill="#636363">theme, accent color and typography</text>
+
+  <g font-family="ui-monospace, monospace">
+    <!-- Theme cards -->
+    <rect x="348" y="200" width="160" height="110" rx="8" fill="#f7f4ee" stroke="#2a2a2a" stroke-width="1.5" />
+    <rect x="360" y="212" width="136" height="22" fill="#efeae1" stroke="#16130f" stroke-width="1.5" />
+    <rect x="366" y="246" width="110" height="6" fill="#16130f" opacity="0.55" />
+    <rect x="366" y="258" width="86" height="6" fill="#16130f" opacity="0.4" />
+    <text x="428" y="292" text-anchor="middle" font-size="13" font-weight="700" fill="#16130f">Light</text>
+    <rect x="476" y="210" width="10" height="10" fill="#2f9e63" />
+
+    <rect x="524" y="200" width="160" height="110" rx="8" fill="#181818" stroke="#4c9eff" stroke-width="2.5" />
+    <rect x="536" y="212" width="136" height="22" fill="#121212" stroke="#2a2a2a" stroke-width="1.5" />
+    <rect x="542" y="246" width="110" height="6" fill="#B4B4B4" opacity="0.7" />
+    <rect x="542" y="258" width="86" height="6" fill="#B4B4B4" opacity="0.45" />
+    <text x="604" y="292" text-anchor="middle" font-size="13" font-weight="700" fill="#F2F2F2">Dark</text>
+    <circle cx="668" cy="210" r="7" fill="#1f4e9c" stroke="#0a0a0a" stroke-width="1.5" />
+    <text x="668" y="214" text-anchor="middle" font-size="9" fill="#f7f4ee">✓</text>
+
+    <g clip-path="url(#syscard)">
+      <rect x="700" y="200" width="80" height="110" fill="#f7f4ee" />
+      <rect x="700" y="200" width="160" height="110" fill="none" stroke="#2a2a2a" stroke-width="1.5" />
+      <rect x="780" y="200" width="80" height="110" fill="#181818" />
+      <rect x="700" y="200" width="80" height="24" fill="#efeae1" />
+      <rect x="780" y="200" width="80" height="24" fill="#121212" />
+    </g>
+    <rect x="700" y="200" width="160" height="110" rx="8" fill="none" stroke="#2a2a2a" stroke-width="1.5" />
+    <rect x="779" y="200" width="2" height="110" fill="#0d0d0d" />
+    <text x="780" y="292" text-anchor="middle" font-size="13" font-weight="700" fill="#B4B4B4">System</text>
+
+    <!-- Accent color -->
+    <text x="348" y="372" font-size="12" fill="#A1A1A1">ACCENT COLOR</text>
+    <circle cx="366" cy="398" r="12" fill="#e4572e" stroke="#0d0d0d" stroke-width="2" />
+    <circle cx="414" cy="398" r="12" fill="#f28c28" stroke="#0d0d0d" stroke-width="2" />
+    <circle cx="462" cy="398" r="12" fill="#ffc857" stroke="#0d0d0d" stroke-width="2" />
+    <circle cx="510" cy="398" r="12" fill="#2f9e63" stroke="#0d0d0d" stroke-width="2" />
+    <circle cx="558" cy="398" r="14" fill="none" stroke="#4c9eff" stroke-width="3" />
+    <circle cx="558" cy="398" r="10" fill="#4c9eff" stroke="#0d0d0d" stroke-width="2" />
+    <circle cx="606" cy="398" r="12" fill="#c53863" stroke="#0d0d0d" stroke-width="2" />
+    <circle cx="654" cy="398" r="12" fill="#7c5a73" stroke="#0d0d0d" stroke-width="2" />
+    <text x="700" y="402" font-size="12" fill="#4c9eff">#4C9EFF</text>
+    <text x="790" y="402" font-size="11" fill="#636363">oklch(0.62 0.22 260)</text>
+
+    <!-- Font size -->
+    <text x="348" y="456" font-size="12" fill="#A1A1A1">FONT SIZE</text>
+    <rect x="500" y="450" width="244" height="8" rx="4" fill="#2a2a2a" />
+    <circle cx="560" cy="454" r="9" fill="#4c9eff" stroke="#0d0d0d" stroke-width="2" />
+    <text x="764" y="458" font-size="12" fill="#B4B4B4">13 px</text>
+
+    <!-- Row padding -->
+    <text x="348" y="512" font-size="12" fill="#A1A1A1">ROW PADDING</text>
+    <g font-size="11">
+      <rect x="500" y="500" width="82" height="26" rx="6" fill="none" stroke="#2a2a2a" stroke-width="1.5" />
+      <text x="541" y="517" text-anchor="middle" fill="#636363">Compact</text>
+      <rect x="582" y="500" width="82" height="26" rx="6" fill="#282828" stroke="#4c9eff" stroke-width="1.5" />
+      <text x="623" y="517" text-anchor="middle" fill="#F2F2F2">Standard</text>
+      <rect x="664" y="500" width="82" height="26" rx="6" fill="none" stroke="#2a2a2a" stroke-width="1.5" />
+      <text x="705" y="517" text-anchor="middle" fill="#636363">Luxury</text>
+    </g>
+
+    <!-- Hover delay -->
+    <text x="348" y="568" font-size="12" fill="#A1A1A1">PREVIEW HOVER DELAY</text>
+    <rect x="560" y="562" width="244" height="8" rx="4" fill="#2a2a2a" />
+    <circle cx="620" cy="566" r="9" fill="#4c9eff" stroke="#0d0d0d" stroke-width="2" />
+    <text x="824" y="570" font-size="12" fill="#B4B4B4">400 ms</text>
+
+    <!-- Toggles -->
+    <g font-size="13">
+      <text x="348" y="632" fill="#A1A1A1">System tray icon</text>
+      <rect x="600" y="624" width="44" height="20" rx="10" fill="#1f4e9c" stroke="#0d0d0d" stroke-width="1.5" />
+      <circle cx="634" cy="634" r="7" fill="#f7f4ee" />
+      <text x="348" y="676" fill="#A1A1A1">Start on login</text>
+      <rect x="600" y="668" width="44" height="20" rx="10" fill="#1f4e9c" stroke="#0d0d0d" stroke-width="1.5" />
+      <circle cx="634" cy="678" r="7" fill="#f7f4ee" />
+    </g>
+  </g>
+
+  <!-- Bottom toolbar -->
+  <rect x="48" y="700" width="1184" height="52" fill="#121212" stroke="#2a2a2a" stroke-width="1.5" />
+  <text x="92" y="731" font-family="ui-monospace, monospace" font-size="13" fill="#636363">All settings stored in SQLite</text>
+  <rect x="996" y="712" width="128" height="28" rx="6" fill="#1f4e9c" stroke="#0d0d0d" stroke-width="1.5" />
+  <text x="1060" y="731" text-anchor="middle" font-family="ui-monospace, monospace" font-size="13" font-weight="700" fill="#f2ede3">Save</text>
+  <rect x="1132" y="712" width="96" height="28" rx="6" fill="none" stroke="#2a2a2a" stroke-width="1.5" />
+  <text x="1180" y="731" text-anchor="middle" font-family="ui-monospace, monospace" font-size="13" fill="#A1A1A1">Cancel</text>
+</svg>

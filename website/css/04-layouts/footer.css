@@ -1,0 +1,95 @@
+/* --------------------------------------------------------------------------
+   Layouts — site footer  [layer: layouts]
+   -------------------------------------------------------------------------- */
+
+@layer layouts {
+  .site-footer {
+    border-top: 3px solid var(--ink);
+    background: var(--ink);
+    color: var(--paper);
+    padding: 3rem clamp(1rem, 5vw, 3.5rem) 2rem;
+  }
+
+  .footer-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.25rem;
+    margin-bottom: 2.25rem;
+  }
+
+  .site-footer .brand-name {
+    color: var(--paper);
+  }
+
+  .footer-tagline {
+    margin: 0;
+    color: rgba(242, 238, 226, 0.72);
+    font-size: 0.95rem;
+  }
+
+  .footer-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.75rem;
+    margin-bottom: 2.5rem;
+  }
+
+  .footer-links a {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--yellow);
+    text-decoration: none;
+    border-bottom: 2px solid transparent;
+  }
+
+  .footer-links a:hover {
+    color: var(--paper);
+    border-bottom-color: var(--red);
+  }
+
+  .footer-bottom {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 1.5rem;
+    border-top: 1px solid rgba(242, 238, 226, 0.25);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: rgba(242, 238, 226, 0.55);
+  }
+
+  .footer-signature {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .footer-signature .shape-prim {
+    width: 12px;
+    height: 12px;
+    display: inline-block;
+  }
+
+  .footer-signature .shape-c {
+    border-radius: 50%;
+    width: 14px;
+    height: 14px;
+  }
+
+  .footer-signature .shape-t {
+    width: 0;
+    height: 0;
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+    border-bottom: 12px solid var(--blue);
+  }
+}

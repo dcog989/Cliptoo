@@ -1,0 +1,60 @@
+/* --------------------------------------------------------------------------
+   Components — mock window chrome (hero + carousel screenshots)
+   [layer: components]
+   -------------------------------------------------------------------------- */
+
+@layer components {
+  .window {
+    margin: 0;
+    border: 3px solid var(--ink);
+    background: var(--card);
+  }
+
+  .window-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.65rem 1rem;
+    border-bottom: 3px solid var(--ink);
+    background: var(--paper-deep);
+  }
+
+  .window-dot {
+    width: 14px;
+    height: 14px;
+    border: 2px solid var(--ink);
+  }
+
+  .window-dot-close {
+    background: var(--red);
+  }
+
+  .window-dot-minimize {
+    background: var(--yellow);
+  }
+
+  .window-dot-maximize {
+    background: var(--blue);
+  }
+
+  .window-title {
+    margin-left: 0.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+
+  .window img {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  .window-bar-inline {
+    border-bottom: 3px solid var(--ink);
+    background: var(--paper-deep);
+  }
+}

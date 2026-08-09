@@ -1,0 +1,22 @@
+/* --------------------------------------------------------------------------
+   Reset — strip default element styling  [layer: reset]
+   -------------------------------------------------------------------------- */
+
+@layer reset {
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+  }
+
+  img {
+    display: block;
+    max-width: 100%;
+  }
+
+  a {
+    color: inherit;
+  }
+}

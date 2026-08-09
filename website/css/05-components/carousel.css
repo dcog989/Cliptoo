@@ -1,0 +1,103 @@
+/* --------------------------------------------------------------------------
+   Components — carousel  [layer: components]
+   -------------------------------------------------------------------------- */
+
+@layer components {
+  .carousel-section {
+    border-top: 3px solid var(--ink);
+  }
+
+  .carousel {
+    position: relative;
+  }
+
+  .carousel-track {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .carousel-track::-webkit-scrollbar {
+    display: none;
+  }
+
+  .carousel-slide {
+    flex: 0 0 100%;
+    scroll-snap-align: start;
+    margin: 0;
+    border: 3px solid var(--ink);
+    background: var(--card);
+  }
+
+  .carousel-slide img {
+    width: 100%;
+    height: auto;
+  }
+
+  .carousel-slide figcaption {
+    padding: 1rem 1.25rem;
+    font-size: 1rem;
+    color: var(--ink-soft);
+    border-top: 3px solid var(--ink);
+    background: var(--paper);
+  }
+
+  .carousel-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 52px;
+    height: 52px;
+    border: 3px solid var(--ink);
+    background: var(--yellow);
+    color: var(--ink);
+    font-size: 1.3rem;
+    font-family: var(--font-mono);
+    font-weight: 700;
+    cursor: pointer;
+    z-index: 5;
+    transition:
+      background-color 120ms ease,
+      color 120ms ease;
+  }
+
+  .carousel-btn:hover {
+    background: var(--ink);
+    color: var(--paper);
+  }
+
+  .carousel-prev {
+    left: -6px;
+  }
+
+  .carousel-next {
+    right: -6px;
+  }
+
+  .carousel-dots {
+    display: flex;
+    justify-content: center;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+  }
+
+  .carousel-dots button {
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    border: 2px solid var(--ink);
+    background: var(--paper);
+    cursor: pointer;
+    transition: background-color 120ms ease;
+  }
+
+  .carousel-dots button:hover {
+    background: var(--yellow);
+  }
+
+  .carousel-dots button[aria-selected="true"] {
+    background: var(--red);
+  }
+}

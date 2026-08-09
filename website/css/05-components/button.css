@@ -1,0 +1,64 @@
+/* --------------------------------------------------------------------------
+   Components — buttons  [layer: components]
+   -------------------------------------------------------------------------- */
+
+@layer components {
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.9rem 1.6rem;
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 0.95rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    text-decoration: none;
+    border: 3px solid var(--ink);
+    background: transparent;
+    color: var(--ink);
+    cursor: pointer;
+    transition:
+      background-color 120ms ease,
+      color 120ms ease,
+      border-color 120ms ease;
+  }
+
+  .btn-primary {
+    background: var(--red);
+    color: var(--paper);
+  }
+
+  .btn-primary:hover {
+    background: var(--ink);
+    color: var(--paper);
+  }
+
+  .btn-primary .btn-dot {
+    width: 12px;
+    height: 12px;
+    background: var(--blue);
+    border: 2px solid var(--ink);
+  }
+
+  .btn-ghost {
+    background: var(--paper);
+    color: var(--ink);
+  }
+
+  .btn-ghost:hover {
+    background: var(--yellow);
+    color: var(--ink);
+  }
+
+  .btn-ghost-light {
+    color: var(--paper);
+    border-color: var(--paper);
+    background: transparent;
+  }
+
+  .btn-ghost-light:hover {
+    background: var(--paper);
+    color: var(--ink);
+  }
+}

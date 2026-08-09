@@ -1,0 +1,112 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 1280 800"
+  role="img"
+  aria-label="Cliptoo main window: searchable clip history"
+>
+  <title>Cliptoo main window</title>
+  <defs>
+    <linearGradient id="winbg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1d1d1d" />
+      <stop offset="1" stop-color="#171717" />
+    </linearGradient>
+    <linearGradient id="thumb" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4c9eff" />
+      <stop offset="1" stop-color="#1f4e9c" />
+    </linearGradient>
+  </defs>
+
+  <rect width="1280" height="800" fill="#121014" />
+
+  <!-- Window -->
+  <rect x="48" y="48" width="1184" height="704" rx="14" fill="url(#winbg)" stroke="#2a2a2a" stroke-width="2" />
+  <rect x="48" y="48" width="1184" height="52" rx="14" fill="#121212" />
+  <rect x="48" y="84" width="1184" height="16" fill="#121212" />
+  <circle cx="88" cy="74" r="8" fill="#e4572e" />
+  <circle cx="112" cy="74" r="8" fill="#ffc857" />
+  <circle cx="136" cy="74" r="8" fill="#1f4e9c" />
+  <text x="168" y="79" font-family="ui-monospace, monospace" font-size="14" fill="#636363">cliptoo</text>
+  <text x="1208" y="79" text-anchor="end" font-family="ui-monospace, monospace" font-size="13" fill="#636363">★ 4 bookmarks</text>
+
+  <g font-family="ui-monospace, monospace">
+    <!-- Row icon helper: 36x30 box, glyph centered -->
+    <!-- Row 1: selected code clip -->
+    <rect x="72" y="124" width="1136" height="74" fill="#282828" />
+    <rect x="72" y="124" width="4" height="74" fill="#4c9eff" />
+    <rect x="96" y="144" width="36" height="30" rx="6" fill="#121212" stroke="#2a2a2a" stroke-width="1.5" />
+    <text x="114" y="164" text-anchor="middle" font-size="14" fill="#4c9eff">&lt;/&gt;</text>
+    <text x="148" y="154" font-size="17" fill="#B4B4B4">cargo build --release -p </text>
+    <text x="470" y="154" font-size="17" font-weight="700" fill="#4c9eff">cliptoo</text>
+    <text x="148" y="178" font-size="13" fill="#636363">code snippet · Thu 09:41</text>
+    <text x="1156" y="156" text-anchor="end" font-size="15" fill="#ffc857">★</text>
+
+    <!-- Row 2: link -->
+    <rect x="72" y="198" width="1136" height="74" fill="#1C1C1C" />
+    <rect x="96" y="218" width="36" height="30" rx="6" fill="#121212" stroke="#2a2a2a" stroke-width="1.5" />
+    <text x="114" y="238" text-anchor="middle" font-size="15" fill="#4c9eff">↗</text>
+    <text x="148" y="228" font-size="17" fill="#4c9eff">github.com/dcog989/Cliptoo</text>
+    <text x="148" y="252" font-size="13" fill="#636363">link · title: Cliptoo — native clipboard manager</text>
+
+    <!-- Row 3: color swatch -->
+    <rect x="96" y="296" width="36" height="30" rx="6" fill="#121212" stroke="#2a2a2a" stroke-width="1.5" />
+    <rect x="102" y="302" width="24" height="18" rx="4" fill="#4c9eff" stroke="#2a2a2a" stroke-width="1" />
+    <text x="148" y="308" font-size="17" font-weight="700" fill="#E4E4E4">#4C9EFF</text>
+    <text x="256" y="308" font-size="17" fill="#B4B4B4">· accent blue</text>
+    <text x="148" y="332" font-size="13" fill="#636363">oklch(0.62 0.22 260)</text>
+
+    <!-- Row 4: image -->
+    <rect x="72" y="346" width="1136" height="74" fill="#1C1C1C" />
+    <rect x="96" y="366" width="36" height="30" rx="6" fill="none" stroke="#2a2a2a" stroke-width="1.5" />
+    <rect x="102" y="372" width="24" height="18" rx="3" fill="url(#thumb)" />
+    <circle cx="113" cy="378" r="3" fill="#ffc857" />
+    <text x="148" y="376" font-size="17" fill="#E4E4E4">clip_2026-08-09.png</text>
+    <text x="148" y="400" font-size="13" fill="#636363">PNG · 1.4 MB · 1280 × 800</text>
+    <text x="1156" y="378" text-anchor="end" font-size="13" fill="#636363">hover to peek</text>
+
+    <!-- Row 5: plain text -->
+    <rect x="96" y="440" width="36" height="30" rx="6" fill="#121212" stroke="#2a2a2a" stroke-width="1.5" />
+    <text x="114" y="460" text-anchor="middle" font-size="14" fill="#B4B4B4">¶</text>
+    <text x="148" y="450" font-size="17" fill="#B4B4B4">KDE Plasma 6 on Wayland — every copy lands here.</text>
+    <text x="148" y="474" font-size="13" fill="#636363">plain text · 2m ago</text>
+
+    <!-- Row 6: file URI -->
+    <rect x="72" y="494" width="1136" height="74" fill="#1C1C1C" />
+    <rect x="96" y="514" width="36" height="30" rx="6" fill="#121212" stroke="#2a2a2a" stroke-width="1.5" />
+    <text x="114" y="534" text-anchor="middle" font-size="14" fill="#B4B4B4">▤</text>
+    <text x="148" y="524" font-size="17" fill="#E4E4E4">/home/bubba/todo.md</text>
+    <text x="148" y="548" font-size="13" fill="#636363">text/plain · 2.1 KB · linked file</text>
+
+    <!-- Row 7: deadhead -->
+    <rect x="96" y="568" width="36" height="30" rx="6" fill="#121212" stroke="#2a2a2a" stroke-width="1.5" />
+    <text x="114" y="588" text-anchor="middle" font-size="14" fill="#f39c12">✕</text>
+    <text x="148" y="578" font-size="17" fill="#636363">~/Downloads/uninstall.sh</text>
+    <rect x="148" y="586" width="98" height="18" rx="9" fill="#3a2a16" />
+    <text x="160" y="599" font-size="11" fill="#f39c12">deadhead</text>
+
+    <!-- Row 8: audio -->
+    <rect x="72" y="642" width="1136" height="58" fill="#1C1C1C" />
+    <rect x="96" y="656" width="36" height="30" rx="6" fill="#121212" stroke="#2a2a2a" stroke-width="1.5" />
+    <text x="114" y="676" text-anchor="middle" font-size="14" fill="#B4B4B4">♪</text>
+    <text x="148" y="666" font-size="17" fill="#B4B4B4">recording_2026-08-09.m4a</text>
+    <text x="148" y="690" font-size="13" fill="#636363">audio clip · 512 KB</text>
+  </g>
+
+  <!-- Bottom toolbar: search + filter + hamburger -->
+  <rect x="48" y="700" width="1184" height="52" fill="#121212" stroke="#2a2a2a" stroke-width="1.5" />
+  <rect x="72" y="712" width="320" height="28" rx="14" fill="#242424" stroke="#2a2a2a" stroke-width="1.5" />
+  <text x="96" y="731" font-family="ui-monospace, monospace" font-size="14" fill="#4c9eff">/</text>
+  <text x="112" y="731" font-family="ui-monospace, monospace" font-size="14" fill="#A1A1A1">Search clip history…</text>
+  <text x="376" y="731" font-family="ui-monospace, monospace" font-size="12" fill="#636363">Ctrl+K</text>
+  <text x="520" y="731" font-family="ui-monospace, monospace" font-size="13" fill="#636363">12,404 clips</text>
+
+  <g transform="translate(1114,716)" fill="none" stroke="#4c9eff" stroke-width="2.5" stroke-linecap="round">
+    <path d="M 2 0 H 30" />
+    <path d="M 6 6 H 26" />
+    <path d="M 10 12 H 22" />
+  </g>
+  <g transform="translate(1160,718)" fill="none" stroke="#B4B4B4" stroke-width="2.5" stroke-linecap="round">
+    <path d="M 2 4 H 22" />
+    <path d="M 2 10 H 22" />
+    <path d="M 2 16 H 22" />
+  </g>
+</svg>

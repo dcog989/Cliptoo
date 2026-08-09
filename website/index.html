@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Cliptoo — A native clipboard manager for Wayland</title>
+    <meta
+      name="description"
+      content="Cliptoo is a native background clipboard manager for Wayland and KDE Plasma 6. Rust + Slint + SQLite. Instant full-text search over thousands of clips, with images, links, colors and code."
+    >
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTI4MCIgaGVpZ2h0PSIxMjgwIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiBhcmlhLWxhYmVsbGVkYnk9InRpdGxlIGRlc2MiIHJvbGU9ImltZyI+DQogIDx0aXRsZSBpZD0idGl0bGUiPkNsaXB0b28gTG9nbzwvdGl0bGU+DQogIDxkZXNjIGlkPSJkZXNjIj5VRk8gbG9nbyBmb3IgQ2xpcHRvbyBDbGlwYm9hcmQgTWFuYWdlci48L2Rlc2M+DQogIDxyZWN0IHg9IjAiIHk9IjAiIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiBmaWxsPSJub25lIiByeD0iNSIgcnk9IjUiLz4NCiAgPGcgc3Ryb2tlLXdpZHRoPSI4IiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGZpbGw9Im5vbmUiPg0KICAgIDxnIHN0cm9rZT0iIzAwNmFmZiI+DQogICAgICA8cGF0aCBkPSJNIDMzLjEyNSAyNS43NjkgQSAxNi44NzUgMjAuNzY5IDAgMCAxIDY2Ljg3NSAyNS43NjkiIC8+DQogICAgICA8ZWxsaXBzZSBjeD0iNTAiIGN5PSIzOS42MTUiIHJ4PSI0NSIgcnk9IjExLjA3NjgiLz4NCiAgICA8L2c+DQogICAgPHBhdGggZD0iTSAzOSA2MCBMIDI4IDk1IEwgNzMgOTUgTCA2MSA2MCIgc3Ryb2tlPSIjZmY5NTAwIiAvPg0KICA8L2c+DQo8L3N2Zz4=">
+    <style>@layer reset, base, layouts, components, utilities;</style>
+    <link rel="stylesheet" href="css/01-settings/custom-properties.css">
+    <link rel="stylesheet" href="css/01-settings/fonts.css">
+    <link rel="stylesheet" href="css/02-reset/reset.css">
+    <link rel="stylesheet" href="css/03-base/elements.css">
+    <link rel="stylesheet" href="css/03-base/typography.css">
+    <link rel="stylesheet" href="css/04-layouts/section.css">
+    <link rel="stylesheet" href="css/04-layouts/header.css">
+    <link rel="stylesheet" href="css/04-layouts/footer.css">
+    <link rel="stylesheet" href="css/05-components/window.css">
+    <link rel="stylesheet" href="css/05-components/shape.css">
+    <link rel="stylesheet" href="css/05-components/button.css">
+    <link rel="stylesheet" href="css/05-components/section.css">
+    <link rel="stylesheet" href="css/05-components/hero.css">
+    <link rel="stylesheet" href="css/05-components/carousel.css">
+    <link rel="stylesheet" href="css/05-components/features.css">
+    <link rel="stylesheet" href="css/05-components/tech.css">
+    <link rel="stylesheet" href="css/05-components/cta.css">
+    <link rel="stylesheet" href="css/06-utilities/responsive.css">
+    <link rel="stylesheet" href="css/06-utilities/theme.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="site-header">
+      <a class="brand" href="#top" aria-label="Cliptoo home">
+        <img src="assets/logo.svg" width="28" height="28" alt="" class="brand-mark">
+        <span class="brand-name">Cliptoo</span>
+      </a>
+      <nav class="site-nav" aria-label="Primary">
+        <a href="#screenshots">Screenshots</a>
+        <a href="#features">Features</a>
+        <a href="#tech">Tech</a>
+        <a href="#download" class="nav-cta">Download</a>
+      </nav>
+    </header>
+
+    <main id="main">
+      <!-- Hero -->
+      <section class="hero" id="top">
+        <div class="hero-text">
+          <p class="eyebrow"><span class="dot" style="--dot-color: var(--red)"></span>Wayland · KDE Plasma 6 · Rust</p>
+          <h1 class="hero-title">Everything you copy.<br><span class="title-accent">Instantly searchable</span></h1>
+          <p class="hero-sub">
+            A native background clipboard manager. Cliptoo watches the clipboard and builds a searchable library of
+            text, links, images, colors and code — no Electron, no browser engine, no cloud.
+          </p>
+          <div class="hero-actions">
+            <a
+              class="btn btn-primary"
+              href="https://github.com/dcog989/Cliptoo/releases"
+              target="_blank"
+              rel="noopener"
+            >
+              <span class="btn-dot"></span>Download for free
+            </a>
+            <a class="btn btn-ghost" href="https://github.com/dcog989/Cliptoo" target="_blank" rel="noopener">
+              View on GitHub
+            </a>
+          </div>
+          <dl class="hero-stats">
+            <div class="stat">
+              <dt class="stat-num">Instant</dt>
+              <dd>rooted search</dd>
+            </div>
+            <div class="stat">
+              <dt class="stat-num">Native</dt>
+              <dd>no Electron</dd>
+            </div>
+            <div class="stat">
+              <dt class="stat-num">Private</dt>
+              <dd>stays on disk</dd>
+            </div>
+          </dl>
+        </div>
+
+        <div class="hero-visual">
+          <div class="poster">
+            <div class="shape shape-square" aria-hidden="true"></div>
+            <div class="shape shape-circle" aria-hidden="true"></div>
+            <div class="shape shape-ring" aria-hidden="true"></div>
+            <div class="shape shape-tri" aria-hidden="true"></div>
+            <figure class="window">
+              <div class="window-bar">
+                <span class="window-dot window-dot-close"></span>
+                <span class="window-dot window-dot-minimize"></span>
+                <span class="window-dot window-dot-maximize"></span>
+                <span class="window-title">cliptoo — clip history</span>
+              </div>
+              <img
+                src="assets/screenshot-main.svg"
+                alt="Cliptoo main window: search bar, clip history list with code, link, color, image and file rows, bottom toolbar"
+                width="1280"
+                height="800"
+                fetchpriority="high"
+              >
+            </figure>
+          </div>
+        </div>
+      </section>
+
+      <!-- Carousel -->
+      <section class="carousel-section" id="screenshots" aria-labelledby="screenshots-title">
+        <p class="section-label"><span class="dot" style="--dot-color: var(--yellow)"></span>In action</p>
+        <h2 class="section-title" id="screenshots-title">See it, don't take our word</h2>
+        <section class="carousel" aria-roledescription="carousel" aria-label="Cliptoo screenshots" data-carousel>
+          <div class="carousel-track" data-carousel-track>
+            <figure class="carousel-slide" data-carousel-slide aria-roledescription="slide" aria-label="1 of 4">
+              <div class="window-bar window-bar-inline">
+                <span class="window-dot window-dot-close"></span>
+                <span class="window-dot window-dot-minimize"></span>
+                <span class="window-dot window-dot-maximize"></span>
+                <span class="window-title">Main window — searchable history</span>
+              </div>
+              <img
+                src="assets/screenshot-main.svg"
+                width="1280"
+                height="800"
+                alt="Main window with search bar and a clip history list"
+              >
+              <figcaption>Every copy lands here. Search across thousands of clips in real time, with match highlighting.</figcaption>
+            </figure>
+
+            <figure class="carousel-slide" data-carousel-slide aria-roledescription="slide" aria-label="2 of 4">
+              <div class="window-bar window-bar-inline">
+                <span class="window-dot window-dot-close"></span>
+                <span class="window-dot window-dot-minimize"></span>
+                <span class="window-dot window-dot-maximize"></span>
+                <span class="window-title">Content-aware filters</span>
+              </div>
+              <img
+                src="assets/screenshot-filters.svg"
+                width="1280"
+                height="800"
+                alt="Filter grid popup showing clip content types"
+              >
+              <figcaption>Slice the list by content type — links, images, colors, code — in one click.</figcaption>
+            </figure>
+
+            <figure class="carousel-slide" data-carousel-slide aria-roledescription="slide" aria-label="3 of 4">
+              <div class="window-bar window-bar-inline">
+                <span class="window-dot window-dot-close"></span>
+                <span class="window-dot window-dot-minimize"></span>
+                <span class="window-dot window-dot-maximize"></span>
+                <span class="window-title">Hover previews</span>
+              </div>
+              <img
+                src="assets/screenshot-preview.svg"
+                width="1280"
+                height="800"
+                alt="Image hover preview tooltip and link metadata tooltip"
+              >
+              <figcaption>Preview images and peek at link titles right on the row — no click needed.</figcaption>
+            </figure>
+
+            <figure class="carousel-slide" data-carousel-slide aria-roledescription="slide" aria-label="4 of 4">
+              <div class="window-bar window-bar-inline">
+                <span class="window-dot window-dot-close"></span>
+                <span class="window-dot window-dot-minimize"></span>
+                <span class="window-dot window-dot-maximize"></span>
+                <span class="window-title">Settings — theme &amp; accent</span>
+              </div>
+              <img
+                src="assets/screenshot-settings.svg"
+                width="1280"
+                height="800"
+                alt="Settings window with theme cards, accent color picker and sliders"
+              >
+              <figcaption>Light, Dark or System themes with an OKLCH-uniform accent color to match your desktop.</figcaption>
+            </figure>
+          </div>
+
+          <button class="carousel-btn carousel-prev" data-carousel-prev aria-label="Previous screenshot" type="button">
+            ←
+          </button>
+          <button class="carousel-btn carousel-next" data-carousel-next aria-label="Next screenshot" type="button">
+            →
+          </button>
+          <div class="carousel-dots" data-carousel-dots role="tablist" aria-label="Choose screenshot"></div>
+        </section>
+      </section>
+
+      <!-- Features -->
+      <section class="features-section" id="features" aria-labelledby="features-title">
+        <p class="section-label"><span class="dot" style="--dot-color: var(--blue)"></span>What's inside</p>
+        <h2 class="section-title" id="features-title">Thoughtfully crafted</h2>
+        <ul class="feature-grid">
+          <li class="feature-card">
+            <span class="feature-num" style="--card-color: var(--el-01)">01</span>
+            <h3>Instant search</h3>
+            <p>FTS5 full-text search over thousands of clips, real-time and match-highlighted as you type.</p>
+          </li>
+          <li class="feature-card">
+            <span class="feature-num" style="--card-color: var(--el-02)">02</span>
+            <h3>Captures everything</h3>
+            <p>Text, links, images, file URIs, color swatches and code snippets — all auto-classified on entry.</p>
+          </li>
+          <li class="feature-card">
+            <span class="feature-num" style="--card-color: var(--el-03); --feature-num-color: #16130f">03</span>
+            <h3>Content-aware filters</h3>
+            <p>Flatten the list to just links, images, colors or bookmarks from the one-click type grid.</p>
+          </li>
+          <li class="feature-card">
+            <span class="feature-num" style="--card-color: var(--el-04)">04</span>
+            <h3>Quick paste overlay</h3>
+            <p>Hit a number to paste the highlighted clip straight into any app via the quick-paste slots.</p>
+          </li>
+          <li class="feature-card">
+            <span class="feature-num" style="--card-color: var(--el-05)">05</span>
+            <h3>Global hotkeys</h3>
+            <p>System-wide shortcuts through the XDG Desktop Portal GlobalShortcuts — no X11 fallback needed.</p>
+          </li>
+          <li class="feature-card">
+            <span class="feature-num" style="--card-color: var(--el-06); --feature-num-color: #f7f4ee">06</span>
+            <h3>Bookmarks</h3>
+            <p>Pin clips so auto-cleanup never touches them; keep a permanent library of what matters.</p>
+          </li>
+          <li class="feature-card">
+            <span class="feature-num" style="--card-color: var(--el-07)">07</span>
+            <h3>Image previews</h3>
+            <p>Hover thumbnails for PNG, JPEG, WebP, AVIF, JXL and SVG — rendered natively, offline.</p>
+          </li>
+          <li class="feature-card">
+            <span class="feature-num" style="--card-color: var(--el-08); --feature-num-color: #16130f">08</span>
+            <h3>Color science</h3>
+            <p><code>#hex</code>, <code>rgb()</code>, <code>hsl()</code> and <code>oklch()</code> swatches, converted with the real OKLCH→sRGB spec.</p>
+          </li>
+          <li class="feature-card">
+            <span class="feature-num" style="--card-color: var(--el-09); --feature-num-color: #f7f4ee">09</span>
+            <h3>Code highlighting</h3>
+            <p>A syntax-highlighted view for code snippets and file clips, powered by syntect.</p>
+          </li>
+          <li class="feature-card">
+            <span class="feature-num" style="--card-color: var(--el-10); --feature-num-color: #16130f">10</span>
+            <h3>URL metadata</h3>
+            <p>Page titles and favicons fetched in the background for every link you copy.</p>
+          </li>
+          <li class="feature-card">
+            <span class="feature-num" style="--card-color: var(--el-11); --feature-num-color: #16130f">11</span>
+            <h3>Text transforms</h3>
+            <p><code>upper</code>, <code>lower</code>, <code>camel</code>, <code>kebab</code>, strip whitespace and more, right from the menu.</p>
+          </li>
+          <li class="feature-card">
+            <span class="feature-num" style="--card-color: var(--el-12)">12</span>
+            <h3>Smart maintenance</h3>
+            <p>Auto-cleanup by age or count, deadhead stale file clips, and portable JSON export/import.</p>
+          </li>
+        </ul>
+      </section>
+
+      <!-- Tech stack -->
+      <section class="tech-section" id="tech" aria-labelledby="tech-title">
+        <p class="section-label"><span class="dot" style="--dot-color: var(--purple)"></span>Under the hood</p>
+        <h2 class="section-title" id="tech-title">Built with serious tools</h2>
+        <p class="tech-intro">
+          A native Wayland-first app: Rust on top of Slint with the Qt 6 backend, SQLite for storage and full-text
+          search, and the XDG Desktop Portal for global hotkeys.
+        </p>
+        <ul class="tech-grid">
+          <li class="tech-chip"><span class="tech-dot" style="--tdot: var(--el-01)"></span>Rust</li>
+          <li class="tech-chip"><span class="tech-dot" style="--tdot: var(--el-02)"></span>Slint 1.17</li>
+          <li class="tech-chip"><span class="tech-dot" style="--tdot: var(--el-03)"></span>Qt 6 backend</li>
+          <li class="tech-chip"><span class="tech-dot" style="--tdot: var(--el-04)"></span>Wayland</li>
+          <li class="tech-chip"><span class="tech-dot" style="--tdot: var(--el-05)"></span>wlr-data-control</li>
+          <li class="tech-chip"><span class="tech-dot" style="--tdot: var(--el-06)"></span>KDE Plasma 6</li>
+          <li class="tech-chip"><span class="tech-dot" style="--tdot: var(--el-07)"></span>SQLite</li>
+          <li class="tech-chip"><span class="tech-dot" style="--tdot: var(--el-08)"></span>FTS5</li>
+          <li class="tech-chip"><span class="tech-dot" style="--tdot: var(--el-09)"></span>rusqlite</li>
+          <li class="tech-chip"><span class="tech-dot" style="--tdot: var(--el-10)"></span>Tokio</li>
+          <li class="tech-chip"><span class="tech-dot" style="--tdot: var(--el-11)"></span>zbus</li>
+          <li class="tech-chip"><span class="tech-dot" style="--tdot: var(--el-12)"></span>StatusNotifierItem</li>
+          <li class="tech-chip"><span class="tech-dot" style="--tdot: var(--el-01)"></span>enigo</li>
+          <li class="tech-chip"><span class="tech-dot" style="--tdot: var(--el-02)"></span>syntect</li>
+          <li class="tech-chip"><span class="tech-dot" style="--tdot: var(--el-03)"></span>resvg</li>
+          <li class="tech-chip"><span class="tech-dot" style="--tdot: var(--el-04)"></span>jxl-oxide</li>
+          <li class="tech-chip"><span class="tech-dot" style="--tdot: var(--el-05)"></span>reqwest · rustls</li>
+          <li class="tech-chip"><span class="tech-dot" style="--tdot: var(--el-06)"></span>XDG Desktop Portal</li>
+          <li class="tech-chip"><span class="tech-dot" style="--tdot: var(--el-07)"></span>OKLCH color science</li>
+        </ul>
+      </section>
+
+      <!-- Download -->
+      <section class="cta-section" id="download" aria-labelledby="download-title">
+        <div class="cta-card">
+          <div class="shape shape-cta" aria-hidden="true"></div>
+          <div class="shape shape-ring shape-cta-ring" aria-hidden="true"></div>
+          <div class="shape cta-tri" aria-hidden="true"></div>
+          <p class="section-label section-label-light">
+            <span class="dot" style="--dot-color: var(--red)"></span>Get started
+          </p>
+          <h2 class="cta-title" id="download-title">Download Cliptoo for free</h2>
+          <p class="cta-sub">
+            Open source under the MIT license. Grab the latest release for your platform from GitHub, or build it from
+            source.
+          </p>
+          <div class="cta-actions">
+            <a
+              class="btn btn-primary"
+              href="https://github.com/dcog989/Cliptoo/releases"
+              target="_blank"
+              rel="noopener"
+            >
+              <span class="btn-dot"></span>Download
+            </a>
+            <a
+              class="btn btn-ghost btn-ghost-light"
+              href="https://github.com/dcog989/Cliptoo"
+              target="_blank"
+              rel="noopener"
+            >
+              View on GitHub
+            </a>
+          </div>
+          <p class="cta-note">
+            Linux / Wayland users: install from the included
+            <a href="https://github.com/dcog989/Cliptoo/blob/main/packaging/PKGBUILD" target="_blank" rel="noopener">
+              PKGBUILD
+            </a>
+            , or see the
+            <a href="https://github.com/dcog989/Cliptoo#readme" target="_blank" rel="noopener">README</a>
+            for other install methods.
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="footer-top">
+        <a class="brand" href="#top" aria-label="Cliptoo home">
+          <img src="assets/logo.svg" width="24" height="24" alt="" class="brand-mark">
+          <span class="brand-name">Cliptoo</span>
+        </a>
+        <p class="footer-tagline">A native clipboard manager for Wayland and KDE Plasma 6. Built with Rust + Slint + SQLite.</p>
+      </div>
+      <nav class="footer-links" aria-label="Footer">
+        <a href="https://github.com/dcog989/Cliptoo" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://github.com/dcog989/Cliptoo/issues" target="_blank" rel="noopener">Issues</a>
+        <a href="https://github.com/dcog989/Cliptoo/releases" target="_blank" rel="noopener">Releases</a>
+        <a href="https://github.com/dcog989/Cliptoo/blob/main/LICENSE" target="_blank" rel="noopener">License</a>
+      </nav>
+      <div class="footer-bottom">
+        <span>© 2026 Cliptoo. MIT License.</span>
+        <span class="footer-signature">
+          <span class="shape-prim" style="background: var(--red)"></span>
+          <span class="shape-prim shape-c" style="background: var(--yellow)"></span>
+          <span class="shape-prim shape-t"></span>
+          square · circle · triangle
+        </span>
+      </div>
+    </footer>
+
+    <script src="script.js" defer></script>
+  </body>
+</html>

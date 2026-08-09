@@ -1,0 +1,13 @@
+/* --------------------------------------------------------------------------
+   Base — default typography  [layer: base]
+   -------------------------------------------------------------------------- */
+
+@layer base {
+  body {
+    font-family: var(--font-display);
+    font-size: 17px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+}
