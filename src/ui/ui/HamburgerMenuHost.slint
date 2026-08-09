@@ -10,6 +10,7 @@ export component HamburgerMenuHost {
     in property <length> window-height: 0px;
     in property <length> toolbar-height: Theme.toolbar-height;
     in property <length> menu-gap: 6px;
+    in property <length> right-margin: 6px;
 
     // Transient guard: AppWindow sets this around close() so the focus-poll /
     // focus-lost chains don't close-to-tray while the popup is closing.
@@ -29,7 +30,7 @@ export component HamburgerMenuHost {
     // Content-driven but explicit width/height — the Qt backend won't render a
     // PopupWindow without explicit sizes.
     popup := PopupWindow {
-        x: root.window-width - (self.width + 10px);
+        x: root.window-width - self.width - root.right-margin;
         // Bottom edge just above the hamburger button: the toolbar is
         // toolbar-height tall and the button sits 8px below its top.
         y: root.window-height - root.toolbar-height + 8px - hamburger.menu-height - root.menu-gap;
