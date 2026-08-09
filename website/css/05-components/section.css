@@ -31,7 +31,7 @@
 
   .section-title {
     font-size: clamp(1.9rem, 4.5vw, 3.1rem);
-    line-height: 1.0;
+    line-height: 1;
     letter-spacing: -0.015em;
     font-weight: 800;
     text-transform: uppercase;

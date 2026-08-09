@@ -64,10 +64,18 @@
   <!-- Link metadata tooltip -->
   <rect x="688" y="120" width="420" height="94" rx="10" fill="#171717" stroke="#2a2a2a" stroke-width="2" />
   <rect x="706" y="138" width="40" height="40" rx="6" fill="#121212" stroke="#2a2a2a" stroke-width="1.5" />
-  <text x="726" y="164" text-anchor="middle" font-family="ui-monospace, monospace" font-size="16" fill="#1f4e9c">▤</text>
-  <text x="760" y="152" font-family="ui-monospace, monospace" font-size="15" font-weight="700" fill="#E4E4E4">Cliptoo</text>
-  <text x="760" y="170" font-family="ui-monospace, monospace" font-size="12" fill="#4c9eff">github.com/dcog989/Cliptoo</text>
-  <text x="760" y="187" font-family="ui-monospace, monospace" font-size="11" fill="#636363">page title + favicon fetched in background</text>
+  <text x="726" y="164" text-anchor="middle" font-family="ui-monospace, monospace" font-size="16" fill="#1f4e9c">
+    ▤
+  </text>
+  <text x="760" y="152" font-family="ui-monospace, monospace" font-size="15" font-weight="700" fill="#E4E4E4">
+    Cliptoo
+  </text>
+  <text x="760" y="170" font-family="ui-monospace, monospace" font-size="12" fill="#4c9eff">
+    github.com/dcog989/Cliptoo
+  </text>
+  <text x="760" y="187" font-family="ui-monospace, monospace" font-size="11" fill="#636363">
+    page title + favicon fetched in background
+  </text>
 
   <!-- Image hover preview tooltip -->
   <rect x="762" y="196" width="480" height="300" rx="10" fill="#171717" stroke="#2a2a2a" stroke-width="2" />
@@ -85,7 +93,9 @@
     <rect x="1118" y="412" width="26" height="10" rx="2" fill="#ffc857" />
   </g>
 
-  <text x="790" y="446" font-family="ui-monospace, monospace" font-size="12" fill="#636363">PNG · 1.4 MB · 1280 × 800</text>
+  <text x="790" y="446" font-family="ui-monospace, monospace" font-size="12" fill="#636363">
+    PNG · 1.4 MB · 1280 × 800
+  </text>
   <g transform="translate(1150,438)" fill="none" stroke="#A1A1A1" stroke-width="2" stroke-linecap="round">
     <rect x="0" y="0" width="66" height="18" rx="9" fill="none" stroke="#A1A1A1" />
     <path d="M 6 9 H 60" />

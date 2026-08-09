@@ -45,7 +45,9 @@
   .title-accent {
     display: inline;
     background: var(--yellow);
-    box-shadow: 0.14em 0 0 var(--yellow), -0.14em 0 0 var(--yellow);
+    box-shadow:
+      0.14em 0 0 var(--yellow),
+      -0.14em 0 0 var(--yellow);
     padding: 0 0.14em;
     box-decoration-break: clone;
     -webkit-box-decoration-break: clone;

@@ -26,7 +26,9 @@
   <circle cx="112" cy="74" r="8" fill="#ffc857" />
   <circle cx="136" cy="74" r="8" fill="#1f4e9c" />
   <text x="168" y="79" font-family="ui-monospace, monospace" font-size="14" fill="#636363">cliptoo</text>
-  <text x="1208" y="79" text-anchor="end" font-family="ui-monospace, monospace" font-size="13" fill="#636363">★ 4 bookmarks</text>
+  <text x="1208" y="79" text-anchor="end" font-family="ui-monospace, monospace" font-size="13" fill="#636363">
+    ★ 4 bookmarks
+  </text>
 
   <g font-family="ui-monospace, monospace">
     <!-- Row icon helper: 36x30 box, glyph centered -->
@@ -35,7 +37,7 @@
     <rect x="72" y="124" width="4" height="74" fill="#4c9eff" />
     <rect x="96" y="144" width="36" height="30" rx="6" fill="#121212" stroke="#2a2a2a" stroke-width="1.5" />
     <text x="114" y="164" text-anchor="middle" font-size="14" fill="#4c9eff">&lt;/&gt;</text>
-    <text x="148" y="154" font-size="17" fill="#B4B4B4">cargo build --release -p </text>
+    <text x="148" y="154" font-size="17" fill="#B4B4B4">cargo build --release -p</text>
     <text x="470" y="154" font-size="17" font-weight="700" fill="#4c9eff">cliptoo</text>
     <text x="148" y="178" font-size="13" fill="#636363">code snippet · Thu 09:41</text>
     <text x="1156" y="156" text-anchor="end" font-size="15" fill="#ffc857">★</text>

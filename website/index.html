@@ -8,8 +8,14 @@
       name="description"
       content="Cliptoo is a native background clipboard manager for Wayland and KDE Plasma 6. Rust + Slint + SQLite. Instant full-text search over thousands of clips, with images, links, colors and code."
     >
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTI4MCIgaGVpZ2h0PSIxMjgwIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiBhcmlhLWxhYmVsbGVkYnk9InRpdGxlIGRlc2MiIHJvbGU9ImltZyI+DQogIDx0aXRsZSBpZD0idGl0bGUiPkNsaXB0b28gTG9nbzwvdGl0bGU+DQogIDxkZXNjIGlkPSJkZXNjIj5VRk8gbG9nbyBmb3IgQ2xpcHRvbyBDbGlwYm9hcmQgTWFuYWdlci48L2Rlc2M+DQogIDxyZWN0IHg9IjAiIHk9IjAiIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiBmaWxsPSJub25lIiByeD0iNSIgcnk9IjUiLz4NCiAgPGcgc3Ryb2tlLXdpZHRoPSI4IiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGZpbGw9Im5vbmUiPg0KICAgIDxnIHN0cm9rZT0iIzAwNmFmZiI+DQogICAgICA8cGF0aCBkPSJNIDMzLjEyNSAyNS43NjkgQSAxNi44NzUgMjAuNzY5IDAgMCAxIDY2Ljg3NSAyNS43NjkiIC8+DQogICAgICA8ZWxsaXBzZSBjeD0iNTAiIGN5PSIzOS42MTUiIHJ4PSI0NSIgcnk9IjExLjA3NjgiLz4NCiAgICA8L2c+DQogICAgPHBhdGggZD0iTSAzOSA2MCBMIDI4IDk1IEwgNzMgOTUgTCA2MSA2MCIgc3Ryb2tlPSIjZmY5NTAwIiAvPg0KICA8L2c+DQo8L3N2Zz4=">
-    <style>@layer reset, base, layouts, components, utilities;</style>
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTI4MCIgaGVpZ2h0PSIxMjgwIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiBhcmlhLWxhYmVsbGVkYnk9InRpdGxlIGRlc2MiIHJvbGU9ImltZyI+DQogIDx0aXRsZSBpZD0idGl0bGUiPkNsaXB0b28gTG9nbzwvdGl0bGU+DQogIDxkZXNjIGlkPSJkZXNjIj5VRk8gbG9nbyBmb3IgQ2xpcHRvbyBDbGlwYm9hcmQgTWFuYWdlci48L2Rlc2M+DQogIDxyZWN0IHg9IjAiIHk9IjAiIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiBmaWxsPSJub25lIiByeD0iNSIgcnk9IjUiLz4NCiAgPGcgc3Ryb2tlLXdpZHRoPSI4IiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGZpbGw9Im5vbmUiPg0KICAgIDxnIHN0cm9rZT0iIzAwNmFmZiI+DQogICAgICA8cGF0aCBkPSJNIDMzLjEyNSAyNS43NjkgQSAxNi44NzUgMjAuNzY5IDAgMCAxIDY2Ljg3NSAyNS43NjkiIC8+DQogICAgICA8ZWxsaXBzZSBjeD0iNTAiIGN5PSIzOS42MTUiIHJ4PSI0NSIgcnk9IjExLjA3NjgiLz4NCiAgICA8L2c+DQogICAgPHBhdGggZD0iTSAzOSA2MCBMIDI4IDk1IEwgNzMgOTUgTCA2MSA2MCIgc3Ryb2tlPSIjZmY5NTAwIiAvPg0KICA8L2c+DQo8L3N2Zz4="
+    >
+    <style>
+    @layer reset, base, layouts, components, utilities;
+    </style>
     <link rel="stylesheet" href="css/01-settings/custom-properties.css">
     <link rel="stylesheet" href="css/01-settings/fonts.css">
     <link rel="stylesheet" href="css/02-reset/reset.css">
@@ -100,7 +106,7 @@
               </div>
               <img
                 src="assets/screenshot-main.svg"
-                alt="Cliptoo main window: search bar, clip history list with code, link, color, image and file rows, bottom toolbar"
+                alt="Cliptoo main window: search bar, clip history list with code, link, color and file rows, bottom toolbar"
                 width="1280"
                 height="800"
                 fetchpriority="high"
@@ -129,7 +135,9 @@
                 height="800"
                 alt="Main window with search bar and a clip history list"
               >
-              <figcaption>Every copy lands here. Search across thousands of clips in real time, with match highlighting.</figcaption>
+              <figcaption>
+                Every copy lands here. Search across thousands of clips in real time, with match highlighting.
+              </figcaption>
             </figure>
 
             <figure class="carousel-slide" data-carousel-slide aria-roledescription="slide" aria-label="2 of 4">
@@ -159,7 +167,7 @@
                 src="assets/screenshot-preview.svg"
                 width="1280"
                 height="800"
-                alt="Image hover preview tooltip and link metadata tooltip"
+                alt="Hover preview tooltip and link metadata tooltip"
               >
               <figcaption>Preview images and peek at link titles right on the row — no click needed.</figcaption>
             </figure>
@@ -177,7 +185,9 @@
                 height="800"
                 alt="Settings window with theme cards, accent color picker and sliders"
               >
-              <figcaption>Light, Dark or System themes with an OKLCH-uniform accent color to match your desktop.</figcaption>
+              <figcaption>
+                Light, Dark or System themes with an OKLCH-uniform accent color to match your desktop.
+              </figcaption>
             </figure>
           </div>
 
@@ -234,7 +244,10 @@
           <li class="feature-card">
             <span class="feature-num" style="--card-color: var(--el-08); --feature-num-color: #16130f">08</span>
             <h3>Color science</h3>
-            <p><code>#hex</code>, <code>rgb()</code>, <code>hsl()</code> and <code>oklch()</code> swatches, converted with the real OKLCH→sRGB spec.</p>
+            <p>
+              <code>#hex</code>, <code>rgb()</code>, <code>hsl()</code> and <code>oklch()</code> swatches, converted
+              with the real OKLCH→sRGB spec.
+            </p>
           </li>
           <li class="feature-card">
             <span class="feature-num" style="--card-color: var(--el-09); --feature-num-color: #f7f4ee">09</span>
@@ -249,7 +262,10 @@
           <li class="feature-card">
             <span class="feature-num" style="--card-color: var(--el-11); --feature-num-color: #16130f">11</span>
             <h3>Text transforms</h3>
-            <p><code>upper</code>, <code>lower</code>, <code>camel</code>, <code>kebab</code>, strip whitespace and more, right from the menu.</p>
+            <p>
+              <code>upper</code>, <code>lower</code>, <code>camel</code>, <code>kebab</code>, strip whitespace and more,
+              right from the menu.
+            </p>
           </li>
           <li class="feature-card">
             <span class="feature-num" style="--card-color: var(--el-12)">12</span>
@@ -341,7 +357,9 @@
           <img src="assets/logo.svg" width="24" height="24" alt="" class="brand-mark">
           <span class="brand-name">Cliptoo</span>
         </a>
-        <p class="footer-tagline">A native clipboard manager for Wayland and KDE Plasma 6. Built with Rust + Slint + SQLite.</p>
+        <p class="footer-tagline">
+          A native clipboard manager for Wayland and KDE Plasma 6. Built with Rust + Slint + SQLite.
+        </p>
       </div>
       <nav class="footer-links" aria-label="Footer">
         <a href="https://github.com/dcog989/Cliptoo" target="_blank" rel="noopener">GitHub</a>

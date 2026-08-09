@@ -25,7 +25,9 @@
   <circle cx="112" cy="74" r="8" fill="#ffc857" />
   <circle cx="136" cy="74" r="8" fill="#1f4e9c" />
   <text x="168" y="79" font-family="ui-monospace, monospace" font-size="14" fill="#636363">cliptoo</text>
-  <text x="1208" y="79" text-anchor="end" font-family="ui-monospace, monospace" font-size="14" fill="#636363">settings</text>
+  <text x="1208" y="79" text-anchor="end" font-family="ui-monospace, monospace" font-size="14" fill="#636363">
+    settings
+  </text>
 
   <!-- Sidebar nav -->
   <g font-family="ui-monospace, monospace">
@@ -47,8 +49,19 @@
   </g>
 
   <!-- Content -->
-  <text x="348" y="152" font-family="ui-sans-serif, system-ui, sans-serif" font-size="26" font-weight="700" fill="#F2F2F2">Appearance</text>
-  <text x="348" y="176" font-family="ui-monospace, monospace" font-size="12" fill="#636363">theme, accent color and typography</text>
+  <text
+    x="348"
+    y="152"
+    font-family="ui-sans-serif, system-ui, sans-serif"
+    font-size="26"
+    font-weight="700"
+    fill="#F2F2F2"
+  >
+    Appearance
+  </text>
+  <text x="348" y="176" font-family="ui-monospace, monospace" font-size="12" fill="#636363">
+    theme, accent color and typography
+  </text>
 
   <g font-family="ui-monospace, monospace">
     <!-- Theme cards -->
@@ -127,9 +140,23 @@
 
   <!-- Bottom toolbar -->
   <rect x="48" y="700" width="1184" height="52" fill="#121212" stroke="#2a2a2a" stroke-width="1.5" />
-  <text x="92" y="731" font-family="ui-monospace, monospace" font-size="13" fill="#636363">All settings stored in SQLite</text>
+  <text x="92" y="731" font-family="ui-monospace, monospace" font-size="13" fill="#636363">
+    All settings stored in SQLite
+  </text>
   <rect x="996" y="712" width="128" height="28" rx="6" fill="#1f4e9c" stroke="#0d0d0d" stroke-width="1.5" />
-  <text x="1060" y="731" text-anchor="middle" font-family="ui-monospace, monospace" font-size="13" font-weight="700" fill="#f2ede3">Save</text>
+  <text
+    x="1060"
+    y="731"
+    text-anchor="middle"
+    font-family="ui-monospace, monospace"
+    font-size="13"
+    font-weight="700"
+    fill="#f2ede3"
+  >
+    Save
+  </text>
   <rect x="1132" y="712" width="96" height="28" rx="6" fill="none" stroke="#2a2a2a" stroke-width="1.5" />
-  <text x="1180" y="731" text-anchor="middle" font-family="ui-monospace, monospace" font-size="13" fill="#A1A1A1">Cancel</text>
+  <text x="1180" y="731" text-anchor="middle" font-family="ui-monospace, monospace" font-size="13" fill="#A1A1A1">
+    Cancel
+  </text>
 </svg>
