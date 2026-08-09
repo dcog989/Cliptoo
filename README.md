@@ -118,6 +118,12 @@ cargo clean && rm -rf target/       # clean build artifacts
 
 ```sh
 cd /home/bubba/Projects/Cliptoo
+make install            # builds + installs binary and desktop file (sudo prompts)
+```
+
+Manually:
+
+```sh
 cargo build --release -p cliptoo
 sudo install -Dm755 target/release/cliptoo /usr/local/bin/cliptoo
 sudo install -Dm644 packaging/cliptoo.desktop /usr/share/applications/cliptoo.desktop
