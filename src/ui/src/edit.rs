@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -5,6 +6,22 @@ use anyhow::Context;
 use slint::ComponentHandle;
 
 use crate::helpers;
+
+/// Persist the editor window's current size to settings. Called on every close
+/// path — WM close, Cancel, and Save — because save/cancel hide the window
+/// without firing `close_requested`, which would otherwise drop any resize
+/// made while the editor was open.
+fn save_editor_size(
+    win: &crate::EditWindow,
+    settings: &std::cell::RefCell<cliptoo_core::Settings>,
+    settings_path: &Path,
+) {
+    let size = win.window().size();
+    let mut s = settings.borrow_mut();
+    s.editor_window_width = size.width as f64;
+    s.editor_window_height = size.height as f64;
+    let _ = s.save(settings_path);
+}
 
 pub fn setup_edit_window(
     ui: &crate::AppWindow,
@@ -30,11 +47,7 @@ pub fn setup_edit_window(
                     win.set_confirm_cancel(true);
                     return slint::CloseRequestResponse::KeepWindowShown;
                 }
-                let size = win.window().size();
-                let mut s = s.borrow_mut();
-                s.editor_window_width = size.width as f64;
-                s.editor_window_height = size.height as f64;
-                let _ = s.save(&p);
+                save_editor_size(&win, &s, &p);
             }
             if let Some(ui) = main_ui.upgrade() {
                 ui.set_edit_open(false);
@@ -56,9 +69,12 @@ pub fn setup_edit_window(
     // callback fires the user has confirmed.
     {
         let ew = edit_win.as_weak();
+        let s = settings.clone();
+        let p = dirs.settings_path.clone();
         let main_ui = main_ui.clone();
         edit_win.on_cancel_clicked(move || {
             if let Some(win) = ew.upgrade() {
+                save_editor_size(&win, &s, &p);
                 let _ = win.hide();
             }
             if let Some(ui) = main_ui.upgrade() {
@@ -77,9 +93,17 @@ pub fn setup_edit_window(
         let edit_td = dirs.thumbnails_dir.clone();
         let edit_fd = dirs.favicons_dir.clone();
         let edit_main_ui = main_ui.clone();
+        let edit_settings = settings.clone();
+        let edit_settings_path = dirs.settings_path.clone();
         let tag_prefix = tag_prefix.to_string();
         edit_win.on_save_clicked(
             move |id: i32, content: slint::SharedString, tags: slint::SharedString| {
+                // Persist the editor size on this close path too: the hide()
+                // below never fires close_requested, so a save would otherwise
+                // drop any resize made while the editor was open.
+                if let Some(win) = ew.upgrade() {
+                    save_editor_size(&win, &edit_settings, &edit_settings_path);
+                }
                 let db = edit_db.clone();
                 let win = ew.clone();
                 let ui = edit_ui.clone();
