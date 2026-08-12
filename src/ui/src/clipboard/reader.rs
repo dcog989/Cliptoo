@@ -15,9 +15,16 @@ const IMAGE_MIME_TYPES: &[&str] = &[
     "image/gif",
 ];
 
-async fn try_text(last_hash: &mut Option<String>) -> Result<Option<ClipboardPayload>> {
-    let result = tokio::task::spawn_blocking(|| {
-        get_contents(ClipboardType::Regular, Seat::Unspecified, MimeType::Text)
+/// Read a text-family payload (`text/plain` or `text/rtf`) and return a
+/// [`ClipboardPayload::Text`] when the content is new and non-empty. Shared by
+/// the plain-text and RTF probes; the classifier detects RTF from the content
+/// itself (`is_rtf`).
+async fn try_text_payload(
+    mime: MimeType<'static>,
+    last_hash: &mut Option<String>,
+) -> Result<Option<ClipboardPayload>> {
+    let result = tokio::task::spawn_blocking(move || {
+        get_contents(ClipboardType::Regular, Seat::Unspecified, mime)
     })
     .await
     .map_err(|e| anyhow::anyhow!("spawn_blocking: {e}"))?;
@@ -52,6 +59,10 @@ async fn try_text(last_hash: &mut Option<String>) -> Result<Option<ClipboardPayl
     }))
 }
 
+async fn try_text(last_hash: &mut Option<String>) -> Result<Option<ClipboardPayload>> {
+    try_text_payload(MimeType::Text, last_hash).await
+}
+
 /// Read the raw `text/rtf` payload, if offered. Rich-text producers (e.g.
 /// LibreOffice) expose the RTF markup under this MIME type and a plain-text
 /// rendition under `text/plain`; polling `text/rtf` first is what lets the
@@ -59,44 +70,7 @@ async fn try_text(last_hash: &mut Option<String>) -> Result<Option<ClipboardPayl
 /// reuses `ClipboardPayload::Text` — the classifier detects RTF from the
 /// content itself (`is_rtf`).
 async fn try_rtf(last_hash: &mut Option<String>) -> Result<Option<ClipboardPayload>> {
-    let result = tokio::task::spawn_blocking(|| {
-        get_contents(
-            ClipboardType::Regular,
-            Seat::Unspecified,
-            MimeType::Specific("text/rtf"),
-        )
-    })
-    .await
-    .map_err(|e| anyhow::anyhow!("spawn_blocking: {e}"))?;
-
-    let (mut reader, _mime) = match result {
-        Ok(r) => r,
-        Err(wl_clipboard_rs::paste::Error::NoSeats)
-        | Err(wl_clipboard_rs::paste::Error::ClipboardEmpty)
-        | Err(wl_clipboard_rs::paste::Error::NoMimeType) => return Ok(None),
-        Err(e) => return Err(e.into()),
-    };
-
-    let mut raw = String::new();
-    reader.read_to_string(&mut raw)?;
-
-    let normalized = normalize_line_endings(&raw);
-    let (hash, sup_hash) = cliptoo_core::content::hash::sha256_hex_and_prefix(&normalized);
-
-    if last_hash.as_deref() == Some(&hash) {
-        return Ok(None);
-    }
-    *last_hash = Some(hash.clone());
-
-    if normalized.trim().is_empty() {
-        return Ok(None);
-    }
-
-    Ok(Some(ClipboardPayload::Text {
-        hash,
-        content: normalized,
-        sup_hash,
-    }))
+    try_text_payload(MimeType::Specific("text/rtf"), last_hash).await
 }
 
 async fn try_file_uri_list(last_hash: &mut Option<String>) -> Result<Option<ClipboardPayload>> {
