@@ -38,11 +38,18 @@ const EPOCH_TS_SUFFIX_WIDTH: usize = 15;
 /// equal (equal timestamps would make a swap a no-op).
 static LAST_TS_MICROS: Mutex<u64> = Mutex::new(0);
 
+/// Canonical serialised form of `clips.Timestamp`: UTC, microsecond precision.
+/// Both `next_timestamp` (writes) and import normalisation
+/// (`export::normalize_timestamp`) must render this exact shape, because the
+/// ordering, reorder and retention queries compare `Timestamp` strings
+/// lexicographically.
+pub(crate) const TIMESTAMP_FORMAT: &str = "%Y-%m-%d %H:%M:%S%.6f";
+
 /// Current UTC time as `YYYY-MM-DD HH:MM:SS.ffffff`, strictly increasing
 /// across calls. Each call reserves a microsecond slot greater than every
 /// previously reserved one, so two writes in the same microsecond still sort
 /// in write order.
-fn next_timestamp() -> String {
+pub(crate) fn next_timestamp() -> String {
     let now = Utc::now().timestamp_micros() as u64;
     let micros = {
         let mut last = LAST_TS_MICROS
@@ -56,7 +63,7 @@ fn next_timestamp() -> String {
         ((micros % 1_000_000) as u32) * 1_000,
     )
     .expect("reserved timestamp fits in UTC range");
-    dt.format("%Y-%m-%d %H:%M:%S%.6f").to_string()
+    dt.format(TIMESTAMP_FORMAT).to_string()
 }
 
 /// Default row limit for `search_clips` — bounds the list view.

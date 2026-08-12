@@ -13,9 +13,12 @@
 //! inserts.
 
 use anyhow::{Context, Result};
+use chrono::{DateTime, NaiveDateTime, Utc};
 use rusqlite::{Connection, params};
 use serde::{Deserialize, Serialize};
-use tracing::info;
+use tracing::{info, warn};
+
+use crate::db::queries::{EPOCH_TS_PREFIX, TIMESTAMP_FORMAT, next_timestamp};
 
 // ── Shared row type ───────────────────────────────────────────────────────────
 
@@ -106,6 +109,47 @@ pub fn export_bookmarked_json(conn: &Connection) -> Result<Vec<u8>> {
     Ok(json)
 }
 
+/// Normalise an imported clip `Timestamp` to the canonical app format — UTC,
+/// space-separated `YYYY-MM-DD HH:MM:SS[.ffffff]`. The ordering, reorder and
+/// retention queries compare `Timestamp` strings lexicographically and assume
+/// that single shape, so a foreign value (an ISO-8601 `T` separator, or a
+/// timezone offset) would otherwise sort out of band and evade the age-based
+/// retention sweep.
+///
+/// Values already in the app's own shape are kept byte-for-byte so an
+/// export/import round-trip preserves ordering and pin state exactly — this
+/// includes the bottom-pin sentinel, whose 15-digit fraction chrono cannot
+/// parse. Foreign values are converted to UTC; unparseable values return
+/// `None` and the caller falls back to the current time.
+fn normalize_timestamp(s: &str) -> Option<String> {
+    // App-written canonical shapes (space-separated; `%.f` accepts both
+    // integer and fractional seconds): keep verbatim.
+    if NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S%.f").is_ok() {
+        return Some(s.to_string());
+    }
+    // Bottom-pin sentinel: `1970-01-01 00:00:00.{padded Id}`.
+    if let Some(rest) = s.strip_prefix(EPOCH_TS_PREFIX)
+        && let Some(digits) = rest.strip_prefix('.')
+        && !digits.is_empty()
+        && digits.bytes().all(|b| b.is_ascii_digit())
+    {
+        return Some(s.to_string());
+    }
+
+    // Foreign formats: RFC3339 / ISO-8601 with a timezone offset, or a `T`-
+    // separated naive value; both denote UTC instants. Convert to UTC.
+    if let Ok(dt) = DateTime::parse_from_rfc3339(s) {
+        return Some(dt.with_timezone(&Utc).format(TIMESTAMP_FORMAT).to_string());
+    }
+    if let Ok(dt) = DateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S%.f%z") {
+        return Some(dt.with_timezone(&Utc).format(TIMESTAMP_FORMAT).to_string());
+    }
+    if let Ok(ndt) = NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S%.f") {
+        return Some(ndt.format(TIMESTAMP_FORMAT).to_string());
+    }
+    None
+}
+
 /// Import clips from a JSON byte slice.  Existing rows (by ContentHash) are
 /// skipped.  Returns the number of rows actually inserted.
 ///
@@ -137,6 +181,20 @@ pub fn import_json(conn: &Connection, data: &[u8]) -> Result<u64> {
             continue;
         }
 
+        // Normalise the imported timestamp to the canonical shape before
+        // storing (see `normalize_timestamp`); unparseable values fall back
+        // to the current time rather than failing the whole import.
+        let timestamp = match normalize_timestamp(&row.timestamp) {
+            Some(ts) => ts,
+            None => {
+                warn!(
+                    "import: unparseable timestamp {:?} for clip hash {:?}; using current time",
+                    row.timestamp, row.content_hash
+                );
+                next_timestamp()
+            }
+        };
+
         tx.execute(
             "INSERT INTO clips (
                 Content, PreviewContent, ContentHash, ClipType, SourceApp,
@@ -149,7 +207,7 @@ pub fn import_json(conn: &Connection, data: &[u8]) -> Result<u64> {
                 row.content_hash,
                 row.clip_type,
                 row.source_app,
-                row.timestamp,
+                timestamp,
                 row.is_bookmarked as i32,
                 row.was_trimmed as i32,
                 row.has_leading_whitespace as i32,
@@ -257,5 +315,60 @@ mod tests {
         assert_eq!(back.len(), 2);
         assert_eq!(back[0].content, "hello world");
         assert_eq!(back[1].content, "foo\nbar");
+    }
+
+    #[test]
+    fn normalizes_foreign_timestamps_to_canonical_utc() {
+        assert_eq!(
+            normalize_timestamp("2024-01-01T00:00:00").unwrap(),
+            "2024-01-01 00:00:00.000000"
+        );
+        assert_eq!(
+            normalize_timestamp("2024-01-01T12:34:56.789012").unwrap(),
+            "2024-01-01 12:34:56.789012"
+        );
+        assert_eq!(
+            normalize_timestamp("2024-01-01T00:00:00Z").unwrap(),
+            "2024-01-01 00:00:00.000000"
+        );
+        // Timezone offsets are shifted to UTC.
+        assert_eq!(
+            normalize_timestamp("2024-01-01T02:00:00+02:00").unwrap(),
+            "2024-01-01 00:00:00.000000"
+        );
+        assert_eq!(
+            normalize_timestamp("2024-01-01 00:00:00+02:00").unwrap(),
+            "2023-12-31 22:00:00.000000"
+        );
+    }
+
+    #[test]
+    fn keeps_canonical_and_bottom_pin_timestamps_verbatim() {
+        // App-written shapes round-trip byte-for-byte.
+        assert_eq!(
+            normalize_timestamp("2024-01-01 00:00:00").unwrap(),
+            "2024-01-01 00:00:00"
+        );
+        assert_eq!(
+            normalize_timestamp("2024-01-01 00:00:00.123456").unwrap(),
+            "2024-01-01 00:00:00.123456"
+        );
+        // Bottom-pin sentinel: 15-digit fraction is not a parseable chrono
+        // value, but must survive a round-trip unchanged.
+        assert_eq!(
+            normalize_timestamp("1970-01-01 00:00:00.000000000000015").unwrap(),
+            "1970-01-01 00:00:00.000000000000015"
+        );
+        assert_eq!(
+            normalize_timestamp("1970-01-01 00:00:00").unwrap(),
+            "1970-01-01 00:00:00"
+        );
+    }
+
+    #[test]
+    fn rejects_unparseable_timestamps() {
+        assert_eq!(normalize_timestamp(""), None);
+        assert_eq!(normalize_timestamp("not a timestamp"), None);
+        assert_eq!(normalize_timestamp("2024-13-45 99:00:00"), None);
     }
 }

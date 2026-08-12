@@ -140,3 +140,103 @@ async fn export_import_roundtrip() {
     let _ = std::fs::remove_file(&dir);
     let _ = std::fs::remove_file(dir.with_extension("2"));
 }
+
+fn clean_up(dir: &std::path::Path) {
+    let _ = std::fs::remove_file(dir);
+    let _ = std::fs::remove_file(dir.with_extension("wal"));
+    let _ = std::fs::remove_file(dir.with_extension("shm"));
+}
+
+/// Imported clips with foreign (ISO-8601 `T`-separated) timestamps must be
+/// normalised to the canonical space-separated UTC form. The ordering and
+/// retention queries compare `Timestamp` strings lexicographically against
+/// space-separated cutoffs, so an ISO `T` (0x54 > 0x20) would sort after the
+/// cutoff on the same date and evade the age-based retention sweep.
+#[tokio::test]
+async fn import_normalizes_foreign_timestamps_to_canonical_form() {
+    let dir = std::env::temp_dir().join(format!("cliptoo_impts_{}", std::process::id()));
+    clean_up(&dir);
+    let db = Arc::new(DbPool::open(&dir).unwrap());
+
+    let json = r#"[
+        {"id": 1, "content": "ancient clip", "preview_content": "ancient clip",
+         "content_hash": "hash_ancient", "clip_type": "text", "source_app": null,
+         "timestamp": "2020-01-01T00:00:00", "is_bookmarked": false,
+         "was_trimmed": false, "has_leading_whitespace": false,
+         "is_multiline": false, "size_in_bytes": 12, "paste_count": 0, "tags": null}
+    ]"#;
+    let inserted = db
+        .with(|conn| cliptoo_core::export::import_json(conn, json.as_bytes()))
+        .await
+        .unwrap();
+    assert_eq!(inserted, 1);
+
+    let ts: String = db
+        .with(|conn| {
+            let t = conn.query_row("SELECT Timestamp FROM clips WHERE Id = 1", [], |row| {
+                row.get(0)
+            })?;
+            Ok(t)
+        })
+        .await
+        .unwrap();
+    assert_eq!(
+        ts, "2020-01-01 00:00:00.000000",
+        "foreign timestamp must be normalised to canonical UTC form"
+    );
+
+    // End to end: the canonical value is a real, old time, so age-based
+    // retention sweeps it.
+    let cfg = cliptoo_core::maintenance::RetentionConfig {
+        max_clips: 0,
+        max_age_days: 30,
+    };
+    let deleted = db
+        .with(|conn| cliptoo_core::maintenance::retention(conn, &cfg))
+        .await
+        .unwrap();
+    assert_eq!(
+        deleted, 1,
+        "ancient imported clip is swept by age retention"
+    );
+
+    clean_up(&dir);
+}
+
+/// An unparseable imported timestamp falls back to the current time, so the
+/// row still imports while keeping the canonical shape (garbage in the
+/// `Timestamp` column would poison ordering and retention comparisons).
+#[tokio::test]
+async fn import_falls_back_to_current_time_for_unparseable_timestamps() {
+    let dir = std::env::temp_dir().join(format!("cliptoo_imptsbad_{}", std::process::id()));
+    clean_up(&dir);
+    let db = Arc::new(DbPool::open(&dir).unwrap());
+
+    let json = r#"[
+        {"id": 1, "content": "weird clip", "preview_content": "weird clip",
+         "content_hash": "hash_weird", "clip_type": "text", "source_app": null,
+         "timestamp": "yesterday-ish", "is_bookmarked": false,
+         "was_trimmed": false, "has_leading_whitespace": false,
+         "is_multiline": false, "size_in_bytes": 10, "paste_count": 0, "tags": null}
+    ]"#;
+    let inserted = db
+        .with(|conn| cliptoo_core::export::import_json(conn, json.as_bytes()))
+        .await
+        .unwrap();
+    assert_eq!(inserted, 1);
+
+    let ts: String = db
+        .with(|conn| {
+            let t = conn.query_row("SELECT Timestamp FROM clips WHERE Id = 1", [], |row| {
+                row.get(0)
+            })?;
+            Ok(t)
+        })
+        .await
+        .unwrap();
+    // Canonical µs shape: `YYYY-MM-DD HH:MM:SS.ffffff` (26 chars, space at 10).
+    assert_eq!(ts.len(), 26, "canonical timestamp, got {ts:?}");
+    assert_eq!(ts.as_bytes()[10], b' ', "space separator, got {ts:?}");
+
+    clean_up(&dir);
+}
