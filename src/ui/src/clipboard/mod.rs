@@ -21,7 +21,7 @@ pub fn spawn_listener(
     images_dir: PathBuf,
     suppression: Arc<PasteSuppressionSet>,
     blacklist_state: Arc<std::sync::Mutex<Vec<String>>>,
-    preview_max_dim: u32,
+    preview_max_dim: Arc<std::sync::atomic::AtomicU32>,
     active_filter_state: Arc<std::sync::Mutex<String>>,
 ) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {

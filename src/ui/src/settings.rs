@@ -661,6 +661,7 @@ fn setup_setting_commit(
     hotkey_tx: tokio::sync::watch::Sender<String>,
     retention_tx: tokio::sync::watch::Sender<cliptoo_core::maintenance::RetentionConfig>,
     blacklist_state: std::sync::Arc<std::sync::Mutex<Vec<String>>>,
+    image_preview_size: std::sync::Arc<std::sync::atomic::AtomicU32>,
     fillers: crate::theme::ThemeFillers,
 ) {
     let s = settings.clone();
@@ -668,6 +669,7 @@ fn setup_setting_commit(
     let settings_ui = main_ui.as_weak();
     let sw = settings_win.as_weak();
     let fillers = fillers.clone();
+    let image_preview_size = image_preview_size.clone();
     settings_win.on_setting_changed(
         move |key: slint::SharedString, value: slint::SharedString| {
             let key = key.to_string();
@@ -805,6 +807,9 @@ fn setup_setting_commit(
                 "hover_image_preview_size" => {
                     if let Ok(v) = value.parse::<u32>() {
                         s.hover_image_preview_size = v;
+                        // The clipboard listener reads this shared value per
+                        // thumbnail generation, so the change applies live.
+                        image_preview_size.store(v, std::sync::atomic::Ordering::Relaxed);
                     }
                 }
                 "paste_as_plain_text" => s.paste_as_plain_text = value == "true",
@@ -894,6 +899,7 @@ fn setup_menu_open(settings_win: &crate::SettingsWindow, main_ui: &crate::AppWin
     });
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn setup_settings_window(
     ui: &crate::AppWindow,
     settings: &std::rc::Rc<std::cell::RefCell<cliptoo_core::Settings>>,
@@ -901,6 +907,7 @@ pub fn setup_settings_window(
     hotkey_tx: tokio::sync::watch::Sender<String>,
     retention_tx: tokio::sync::watch::Sender<cliptoo_core::maintenance::RetentionConfig>,
     blacklist_state: std::sync::Arc<std::sync::Mutex<Vec<String>>>,
+    image_preview_size: std::sync::Arc<std::sync::atomic::AtomicU32>,
     theme_fillers: crate::theme::ThemeFillers,
 ) -> crate::SettingsWindow {
     let settings_win = crate::SettingsWindow::new().expect("SettingsWindow creation");
@@ -928,6 +935,7 @@ pub fn setup_settings_window(
         hotkey_tx,
         retention_tx,
         blacklist_state,
+        image_preview_size,
         theme_fillers,
     );
     setup_menu_open(&settings_win, ui);

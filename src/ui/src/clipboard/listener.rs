@@ -39,7 +39,7 @@ pub async fn run_listener(
     images_dir: PathBuf,
     suppression: Arc<PasteSuppressionSet>,
     blacklist_state: Arc<std::sync::Mutex<Vec<String>>>,
-    preview_max_dim: u32,
+    preview_max_dim: Arc<std::sync::atomic::AtomicU32>,
     active_filter_state: Arc<std::sync::Mutex<String>>,
 ) -> Result<()> {
     let mut last_text_hash: Option<String> = None;
@@ -340,6 +340,7 @@ pub async fn run_listener(
                                 let ui2 = ui.clone();
                                 let td2 = thumbnails_dir.clone();
                                 let fd2 = favicons_dir.clone();
+                                let max_dim = preview_max_dim.clone();
                                 std::mem::drop(tokio::spawn(async move {
                                     let store = tokio::task::spawn_blocking(move || {
                                         if let Err(e) =
@@ -347,7 +348,7 @@ pub async fn run_listener(
                                                 &td,
                                                 &hash_c,
                                                 &path,
-                                                preview_max_dim,
+                                                max_dim.load(std::sync::atomic::Ordering::Relaxed),
                                             )
                                         {
                                             tracing::error!("store_both_thumbnails_for_file: {e}");
@@ -409,6 +410,7 @@ pub async fn run_listener(
                         let td2 = thumbnails_dir.clone();
                         let fd2 = favicons_dir.clone();
                         let filter2 = active_filter_state.lock().unwrap().clone();
+                        let max_dim = preview_max_dim.clone();
                         // The full-res PNG is what the row's Content references,
                         // so it must exist on disk before the row is recorded; a
                         // write that fails (corrupt/undecodable input, disk full)
@@ -427,7 +429,7 @@ pub async fn run_listener(
                                     &thumbnails,
                                     &store_hash,
                                     &data,
-                                    preview_max_dim,
+                                    max_dim.load(std::sync::atomic::Ordering::Relaxed),
                                 ) {
                                     tracing::warn!("store_both_thumbnails: {e}");
                                 }

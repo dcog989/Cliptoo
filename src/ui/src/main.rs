@@ -82,6 +82,13 @@ async fn main() -> Result<()> {
         settings.borrow().blacklisted_apps.clone(),
     ));
 
+    // Shared hover-image-preview size: the settings UI updates it on change;
+    // the clipboard listener reads it per thumbnail generation, so the setting
+    // applies to newly ingested images without a restart.
+    let image_preview_size = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(
+        settings.borrow().hover_image_preview_size,
+    ));
+
     window::setup_drag(&ui);
     window::setup_resize(&ui);
     window::setup_close_handlers(&ui, &settings, &dirs);
@@ -99,6 +106,7 @@ async fn main() -> Result<()> {
         hotkey_tx,
         retention_tx,
         blacklist_state.clone(),
+        image_preview_size.clone(),
         theme_fillers.clone(),
     );
     // Slint globals are per-window-instance: the settings window has its own
@@ -173,7 +181,7 @@ async fn main() -> Result<()> {
         dirs.images_dir.clone(),
         suppression.clone(),
         blacklist_state.clone(),
-        settings.borrow().hover_image_preview_size,
+        image_preview_size.clone(),
         active_filter_state.clone(),
     );
 
