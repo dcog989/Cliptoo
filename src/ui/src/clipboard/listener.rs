@@ -396,81 +396,79 @@ pub async fn run_listener(
                         let preview = format!("clipboard-image-{}.png", &hash[..12]);
                         let size = data.len() as i64;
 
-                        // A failed insert (e.g. disk full) must not kill the
-                        // listener loop; log and keep polling instead of
-                        // propagating out of run_listener.
-                        let inserted = match insert_clip_with_stat(
-                            &db,
-                            &content_str,
-                            &preview,
-                            &hash,
-                            "file_image",
-                            source_app.as_deref(),
-                            false,
-                            false,
-                            false,
-                            size,
-                            false,
-                        )
-                        .await
-                        {
-                            Ok(inserted) => inserted,
-                            Err(e) => {
-                                tracing::error!("image clip insert failed: {e}");
-                                continue;
+                        let images = images_dir.clone();
+                        let thumbnails = thumbnails_dir.clone();
+                        let db2 = db.clone();
+                        let ui2 = ui.clone();
+                        let td2 = thumbnails_dir.clone();
+                        let fd2 = favicons_dir.clone();
+                        let filter2 = active_filter_state.lock().unwrap().clone();
+                        // The full-res PNG is what the row's Content references,
+                        // so it must exist on disk before the row is recorded; a
+                        // write that fails (corrupt/undecodable input, disk full)
+                        // would otherwise leave an orphan clip pointing at
+                        // nothing. Decode + writes are also slow for large
+                        // images, so the whole store-then-insert runs off the
+                        // poll loop to keep detecting new copies.
+                        std::mem::drop(tokio::spawn(async move {
+                            let store_hash = hash.clone();
+                            let store = tokio::task::spawn_blocking(move || -> Result<()> {
+                                cliptoo_core::image::store_image(&images, &store_hash, &data)?;
+                                // Thumbnail failure is non-fatal: the row still
+                                // references a real PNG, and thumbnails are
+                                // regenerated on demand (preview.rs).
+                                if let Err(e) = cliptoo_core::image::store_both_thumbnails(
+                                    &thumbnails,
+                                    &store_hash,
+                                    &data,
+                                    preview_max_dim,
+                                ) {
+                                    tracing::warn!("store_both_thumbnails: {e}");
+                                }
+                                Ok(())
+                            });
+                            let stored_ok = match store.await {
+                                Ok(Ok(())) => true,
+                                Ok(Err(e)) => {
+                                    tracing::error!("image store failed; clip not recorded: {e}");
+                                    false
+                                }
+                                Err(e) => {
+                                    tracing::error!("image store task panicked: {e}");
+                                    false
+                                }
+                            };
+                            if !stored_ok {
+                                return;
                             }
-                        };
-
-                        if inserted {
-                            let hash_prefix = hash[..12].to_string();
-                            let images = images_dir.clone();
-                            let thumbnails = thumbnails_dir.clone();
-                            let db2 = db.clone();
-                            let ui2 = ui.clone();
-                            let td2 = thumbnails_dir.clone();
-                            let fd2 = favicons_dir.clone();
-                            let filter2 = active_filter_state.lock().unwrap().clone();
-                            // Decode + disk writes are blocking and slow for
-                            // large images; hand the store-and-refresh off to a
-                            // task so the poll loop keeps detecting new copies.
-                            // The inline refresh is skipped so the list isn't
-                            // rebuilt with an empty (and then cached-empty)
-                            // thumbnail before the files land; the task refreshes
-                            // once the PNG and thumbnails exist on disk.
-                            std::mem::drop(tokio::spawn(async move {
-                                let store = tokio::task::spawn_blocking(move || {
-                                    if let Err(e) =
-                                        cliptoo_core::image::store_image(&images, &hash, &data)
-                                    {
-                                        tracing::error!("store_image: {e}");
-                                    }
-                                    if let Err(e) = cliptoo_core::image::store_both_thumbnails(
-                                        &thumbnails,
-                                        &hash,
-                                        &data,
-                                        preview_max_dim,
-                                    ) {
-                                        tracing::error!("store_both_thumbnails: {e}");
-                                    }
-                                });
-                                let _ = store.await;
-                                refresh_clips(&db2, &ui2, &td2, &fd2, "", &filter2, None).await;
-                            }));
-                            info!("new image clip: {} ({} bytes)", hash_prefix, size);
-                        } else {
-                            info!("existing image clip updated: {}", &hash[..12]);
-                            let filter = active_filter_state.lock().unwrap().clone();
-                            refresh_clips(
-                                &db,
-                                &ui,
-                                &thumbnails_dir,
-                                &favicons_dir,
-                                "",
-                                &filter,
-                                None,
+                            let inserted = match insert_clip_with_stat(
+                                &db2,
+                                &content_str,
+                                &preview,
+                                &hash,
+                                "file_image",
+                                source_app.as_deref(),
+                                false,
+                                false,
+                                false,
+                                size,
+                                false,
                             )
-                            .await;
-                        }
+                            .await
+                            {
+                                Ok(inserted) => inserted,
+                                Err(e) => {
+                                    tracing::error!("image clip insert failed: {e}");
+                                    return;
+                                }
+                            };
+                            if inserted {
+                                info!("new image clip: {} ({} bytes)", &hash[..12], size);
+                            } else {
+                                info!("existing image clip updated: {}", &hash[..12]);
+                            }
+                            refresh_clips(&db2, &ui2, &td2, &fd2, "", &filter2, None).await;
+                        }));
                     }
                 }
             }
