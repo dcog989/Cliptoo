@@ -224,23 +224,37 @@ fn deadhead_delete(conn: &Connection, id: i64) -> Result<()> {
 /// Delete DB records for file-path clips whose path no longer exists on disk.
 /// Returns the number of rows deleted.
 ///
-/// NOTE: This sync variant is kept for direct / test use. In the scheduled
-/// maintenance path `run_scheduled` calls the async split version instead so
-/// that `Path::exists` syscalls do not hold the DB mutex.
-pub fn deadhead(conn: &Connection) -> Result<u64> {
-    let rows = deadhead_collect(conn)?;
-    let mut deleted: u64 = 0;
+/// The DB mutex is held only for the initial collect and for one final
+/// batched-transaction delete — the `Path::exists` syscalls in between run
+/// with no lock held, so a large file history does not stall the clipboard
+/// listener or search while the manual "Deadhead" action runs.
+pub async fn delete_deadheads(db: &Arc<DbPool>) -> Result<u64> {
+    let rows = db.with(deadhead_collect).await?;
+
+    // Filesystem checks — no DB lock held.
+    let mut gone: Vec<(i64, String)> = Vec::new();
     for (id, path_str) in rows {
         if !clip_paths_exist(&path_str) {
-            match deadhead_delete(conn, id) {
-                Ok(_) => {
-                    deleted += 1;
-                    info!("deadhead: removed clip {id} — path gone: {path_str}");
-                }
-                Err(e) => warn!("deadhead: failed to delete clip {id}: {e}"),
-            }
+            gone.push((id, path_str));
         }
     }
+
+    if gone.is_empty() {
+        return Ok(0);
+    }
+
+    let deleted = gone.len() as u64;
+    db.with(move |conn| {
+        let tx = conn.unchecked_transaction()?;
+        for (id, path_str) in &gone {
+            deadhead_delete(&tx, *id)?;
+            info!("deadhead: removed clip {id} — path gone: {path_str}");
+        }
+        tx.commit()?;
+        Ok(())
+    })
+    .await?;
+
     Ok(deleted)
 }
 

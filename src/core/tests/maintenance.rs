@@ -209,6 +209,49 @@ async fn retention_spares_legacy_plain_epoch_bottom_pins() {
     clean_up(&dir);
 }
 
+/// The async delete path checks file existence outside the DB lock and removes
+/// only clips whose paths are genuinely gone — a live file clip must survive.
+#[tokio::test]
+async fn delete_deadheads_removes_only_missing_paths() {
+    let dir = std::env::temp_dir().join(format!("cliptoo_deldead_{}", std::process::id()));
+    clean_up(&dir);
+    let db = Arc::new(DbPool::open(&dir).unwrap());
+
+    // A real file clip — must survive.
+    let file_dir =
+        std::env::temp_dir().join(format!("cliptoo_deldead_file_{}", std::process::id()));
+    std::fs::create_dir_all(&file_dir).unwrap();
+    let live = file_dir.join("live.txt");
+    std::fs::write(&live, b"x").unwrap();
+    common::insert_clip(&db, live.to_str().unwrap(), "dead_live", "file_generic").await;
+
+    // A clip whose path no longer exists — must be removed.
+    let gone = file_dir.join("gone.txt");
+    common::insert_clip(&db, gone.to_str().unwrap(), "dead_gone", "file_generic").await;
+
+    let deleted = cliptoo_core::maintenance::delete_deadheads(&db)
+        .await
+        .unwrap();
+    assert_eq!(deleted, 1);
+
+    let ids: Vec<i64> = db
+        .with(|conn| {
+            let mut stmt = conn.prepare_cached("SELECT Id FROM clips ORDER BY Id")?;
+            let rows = stmt.query_map([], |row| row.get::<_, i64>(0))?;
+            let mut v = Vec::new();
+            for r in rows {
+                v.push(r?);
+            }
+            Ok(v)
+        })
+        .await
+        .unwrap();
+    assert_eq!(ids.len(), 1, "only the missing-path clip is removed");
+
+    clean_up(&dir);
+    let _ = std::fs::remove_dir_all(&file_dir);
+}
+
 /// `prune_cache` must survive a DB row whose ContentHash is not valid UTF-8 on
 /// the 16-byte boundary (corrupt/legacy data written before import validation
 /// existed). The prefix derivation is a byte slice, so without an

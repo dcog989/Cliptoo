@@ -137,7 +137,7 @@ pub fn setup_manual_maintenance(
                         Ok(None)
                     }
                     "deadhead" => {
-                        let n = db.with(cliptoo_core::maintenance::deadhead).await?;
+                        let n = cliptoo_core::maintenance::delete_deadheads(&db).await?;
                         Ok(Some(if n == 0 {
                             "No dead file clips found".to_string()
                         } else {
