@@ -210,6 +210,11 @@ pub async fn check_portal_presence() {
 /// Register a single global shortcut via the XDG Desktop Portal and
 /// dispatch activations to `handler`.
 ///
+/// `description` is the user-readable label the portal backend shows for the
+/// shortcut (e.g. in KDE's "Configure Shortcuts" dialog); `shortcut_id` is
+/// the machine-readable identifier used in `Activated` signals and to look
+/// up the action in KGlobalAccel.
+///
 /// # Platform note — Wayland only
 ///
 /// On Wayland, the portal's `org.freedesktop.portal.GlobalShortcuts`
@@ -242,6 +247,7 @@ pub async fn check_portal_presence() {
 /// is often not yet running when an autostart app launches at login.
 pub async fn register_shortcuts_and_listen<F>(
     shortcut_id: &str,
+    description: &str,
     trigger: &str,
     mut handler: F,
 ) -> Result<Option<tokio::task::JoinHandle<()>>>
@@ -311,7 +317,7 @@ where
 
     // ── Bind shortcuts ────────────────────────────────────────────────────
     let trigger = to_xdg_trigger(trigger);
-    let shortcut = NewShortcut::new(shortcut_id.to_string(), shortcut_id.to_string())
+    let shortcut = NewShortcut::new(shortcut_id.to_string(), description.to_string())
         .preferred_trigger(Some(trigger.as_str()));
     let bind_request = match timeout(
         Duration::from_secs(10),
@@ -403,6 +409,9 @@ pub async fn run_hotkey_loop(
     mut hotkey_rx: tokio::sync::watch::Receiver<String>,
 ) {
     const TOGGLE_ID: &str = "toggle-cliptoo";
+    // User-visible label for the shortcut shown by the portal backend (e.g.
+    // KDE's "Configure Shortcuts" dialog).
+    const TOGGLE_DESCRIPTION: &str = "Toggle the Cliptoo window";
 
     loop {
         let main_hotkey = hotkey_rx.borrow().clone();
@@ -420,35 +429,41 @@ pub async fn run_hotkey_loop(
             }
         };
 
-        let shutdown =
-            match register_shortcuts_and_listen(TOGGLE_ID, main_hotkey.as_str(), handler).await {
-                Ok(Some(mut handle)) => {
-                    // A live listener is installed. Re-register when the user
-                    // finishes editing the hotkey (debounced) or the listener
-                    // ends on its own (portal restarted / bus dropped).
-                    if wait_for_stable_hotkey(&mut hotkey_rx, &mut handle).await {
-                        true
-                    } else {
-                        // Drop the old listener, clear the stale KGlobalAccel
-                        // keys so the portal treats the shortcut as new (and
-                        // applies the new preferred_trigger), then loop to
-                        // re-register.
-                        handle.abort();
-                        clear_kglobalaccel_bindings(TOGGLE_ID).await;
-                        false
-                    }
+        let shutdown = match register_shortcuts_and_listen(
+            TOGGLE_ID,
+            TOGGLE_DESCRIPTION,
+            main_hotkey.as_str(),
+            handler,
+        )
+        .await
+        {
+            Ok(Some(mut handle)) => {
+                // A live listener is installed. Re-register when the user
+                // finishes editing the hotkey (debounced) or the listener
+                // ends on its own (portal restarted / bus dropped).
+                if wait_for_stable_hotkey(&mut hotkey_rx, &mut handle).await {
+                    true
+                } else {
+                    // Drop the old listener, clear the stale KGlobalAccel
+                    // keys so the portal treats the shortcut as new (and
+                    // applies the new preferred_trigger), then loop to
+                    // re-register.
+                    handle.abort();
+                    clear_kglobalaccel_bindings(TOGGLE_ID).await;
+                    false
                 }
-                Ok(None) => {
-                    // Registration failed (portal absent or hung): retry in the
-                    // background rather than blocking on the hotkey channel, and
-                    // re-register sooner if the user edits the hotkey meanwhile.
-                    wait_for_retry(&mut hotkey_rx, REGISTRATION_RETRY_DELAY).await
-                }
-                Err(e) => {
-                    tracing::warn!("Global shortcuts unavailable: {e}");
-                    wait_for_retry(&mut hotkey_rx, REGISTRATION_RETRY_DELAY).await
-                }
-            };
+            }
+            Ok(None) => {
+                // Registration failed (portal absent or hung): retry in the
+                // background rather than blocking on the hotkey channel, and
+                // re-register sooner if the user edits the hotkey meanwhile.
+                wait_for_retry(&mut hotkey_rx, REGISTRATION_RETRY_DELAY).await
+            }
+            Err(e) => {
+                tracing::warn!("Global shortcuts unavailable: {e}");
+                wait_for_retry(&mut hotkey_rx, REGISTRATION_RETRY_DELAY).await
+            }
+        };
 
         if shutdown {
             break;
