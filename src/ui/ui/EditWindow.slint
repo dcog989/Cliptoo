@@ -32,9 +32,34 @@ export component EditWindow inherits Window {
     callback cancel-clicked;
     callback toggle-mode;
 
-    VerticalLayout {
-        padding: 16px;
-        spacing: 10px;
+    // ESC and the Cancel button share the two-step discard guard: the first
+    // press/click arms "Discard?" when there are unsaved edits, the second
+    // actually cancels.
+    public function request-cancel() {
+        if (root.dirty && !root.confirm-cancel) {
+            root.confirm-cancel = true;
+        } else {
+            root.cancel-clicked();
+        }
+    }
+
+    // Keyboard focus scope: ESC closes through the same guard as Cancel. The
+    // whole content lives inside so a focused TextInput's rejected keys bubble
+    // up to it, mirroring the About/Settings windows.
+    forward-focus: editor-focus;
+    editor-focus := FocusScope {
+        key-pressed(event) => {
+            if (event.text == Key.Escape) {
+                root.request-cancel();
+                accept
+            } else {
+                reject
+            }
+        }
+
+        VerticalLayout {
+            padding: 16px;
+            spacing: 10px;
 
         // Metadata bar + toggle button
         HorizontalLayout {
@@ -190,11 +215,7 @@ export component EditWindow inherits Window {
 
                 TouchArea {
                     clicked => {
-                        if (root.dirty && !root.confirm-cancel) {
-                            root.confirm-cancel = true;
-                        } else {
-                            root.cancel-clicked();
-                        }
+                        root.request-cancel();
                     }
                     mouse-cursor: pointer;
                 }
@@ -224,6 +245,7 @@ export component EditWindow inherits Window {
                     mouse-cursor: pointer;
                 }
             }
+        }
         }
     }
 }
