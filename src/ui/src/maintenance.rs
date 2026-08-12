@@ -145,7 +145,7 @@ pub fn setup_manual_maintenance(
                         }))
                     }
                     "reclassify" => {
-                        let n = db.with(cliptoo_core::maintenance::reclassify_all).await?;
+                        let n = cliptoo_core::maintenance::reclassify_all(&db).await?;
                         Ok(Some(if n == 0 {
                             "No clips reclassified".to_string()
                         } else {

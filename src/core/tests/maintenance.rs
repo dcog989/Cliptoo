@@ -7,7 +7,7 @@ use std::sync::Arc;
 #[tokio::test]
 async fn reclassify_only_updates_rows_whose_classification_changed() {
     let dir = std::env::temp_dir().join(format!("cliptoo_reclassify_{}", std::process::id()));
-    let db = DbPool::open(&dir).unwrap();
+    let db = Arc::new(DbPool::open(&dir).unwrap());
 
     // URL stored with the wrong type — ContentProcessor classifies it as "link".
     common::insert_clip(&db, "https://example.com", "urlhash", "text").await;
@@ -18,11 +18,11 @@ async fn reclassify_only_updates_rows_whose_classification_changed() {
     // trimmed content, so reclassify must leave it alone — type is unchanged.
     common::insert_clip(&db, "  indented line  ", "indenthash", "text").await;
 
-    let first = db.with(maintenance::reclassify_all).await.unwrap();
+    let first = maintenance::reclassify_all(&db).await.unwrap();
     assert_eq!(first, 1, "only the misclassified URL should be updated");
 
     // A second pass must not touch anything: nothing changed.
-    let second = db.with(maintenance::reclassify_all).await.unwrap();
+    let second = maintenance::reclassify_all(&db).await.unwrap();
     assert_eq!(second, 0, "no rows change on a second pass");
 
     let types: Vec<String> = db
