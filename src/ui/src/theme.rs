@@ -445,6 +445,58 @@ pub async fn apply_theme(ui: &crate::AppWindow, settings: &Settings) -> Resolved
     (is_dark, system_accent)
 }
 
+/// A Theme re-fill closure registered for a window that holds its own `Theme`
+/// global. `reapply_theme`/`setup_clear_accent` invoke these on the UI thread
+/// so a live theme/accent change reaches every such window — not just the main
+/// and settings windows. Slint globals are per-window-instance, and
+/// `global::<T>()` is an inherent method on each generated component (not a
+/// trait method), so each window type gets its own registrar below.
+type ThemeFillFn = dyn Fn(&Settings, bool, Option<(u8, u8, u8)>) + Send;
+
+pub type ThemeFillers = std::sync::Arc<std::sync::Mutex<Vec<Box<ThemeFillFn>>>>;
+
+/// New, empty theme-filler registry. Windows register themselves after their
+/// own `Theme` global is first filled; a theme change then re-fills them.
+pub fn new_theme_fillers() -> ThemeFillers {
+    std::sync::Arc::new(std::sync::Mutex::new(Vec::new()))
+}
+
+/// Re-fill the `Theme` global of every registered window. Must run on the UI
+/// thread: the registrars upgrade weak window handles.
+pub fn apply_theme_fillers(
+    fillers: &ThemeFillers,
+    settings: &Settings,
+    is_dark: bool,
+    system_accent: Option<(u8, u8, u8)>,
+) {
+    for fill in fillers
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .iter()
+    {
+        fill(settings, is_dark, system_accent);
+    }
+}
+
+macro_rules! register_theme_filler {
+    ($name:ident, $ty:ty) => {
+        pub fn $name(fillers: &ThemeFillers, window: &slint::Weak<$ty>) {
+            let window = window.clone();
+            fillers
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner())
+                .push(Box::new(move |s, is_dark, accent| {
+                    if let Some(win) = window.upgrade() {
+                        fill_theme(&win.global::<crate::Theme>(), s, is_dark, accent);
+                    }
+                }));
+        }
+    };
+}
+
+register_theme_filler!(register_about_theme_filler, crate::AboutWindow);
+register_theme_filler!(register_tray_theme_filler, crate::CliptooTray);
+
 #[cfg(test)]
 mod tests {
     use super::{contrast_ratio, contrast_safe_accent, relative_luminance, select_accent_fg};

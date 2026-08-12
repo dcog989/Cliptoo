@@ -88,6 +88,10 @@ async fn main() -> Result<()> {
     window::setup_close_to_tray(&ui);
     window::setup_focus_regained(&ui);
 
+    // Windows other than the main/settings ones (tray, About) hold their own
+    // `Theme` global; register them here so a live theme/accent change reaches
+    // them too (see theme::ThemeFillers).
+    let theme_fillers = theme::new_theme_fillers();
     let settings_win = settings::setup_settings_window(
         &ui,
         &settings,
@@ -95,6 +99,7 @@ async fn main() -> Result<()> {
         hotkey_tx,
         retention_tx,
         blacklist_state.clone(),
+        theme_fillers.clone(),
     );
     // Slint globals are per-window-instance: the settings window has its own
     // `Theme` global that must be filled separately from the main window's.
@@ -112,6 +117,7 @@ async fn main() -> Result<()> {
         is_dark,
         system_accent,
     );
+    theme::register_about_theme_filler(&theme_fillers, &about_win.as_weak());
 
     stats_ui::setup_stats(&settings_win, &db, &dirs.db_path);
 
@@ -205,6 +211,7 @@ async fn main() -> Result<()> {
                 is_dark,
                 system_accent,
             );
+            theme::register_tray_theme_filler(&theme_fillers, &tray.as_weak());
 
             {
                 let win = ui.as_weak();

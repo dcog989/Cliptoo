@@ -303,6 +303,7 @@ fn reapply_theme(
     settings_win_ui: &slint::Weak<crate::SettingsWindow>,
     settings: &cliptoo_core::Settings,
     favicons_dir: std::path::PathBuf,
+    fillers: crate::theme::ThemeFillers,
 ) {
     let main_weak = main_ui.clone();
     let settings_weak = settings_win_ui.clone();
@@ -331,6 +332,9 @@ fn reapply_theme(
                     system_accent,
                 );
             }
+            // The tray and About window hold their own `Theme` globals; they
+            // register here and are re-filled with the same resolved values.
+            crate::theme::apply_theme_fillers(&fillers, &s_snap, is_dark, system_accent);
         });
     });
 }
@@ -435,6 +439,7 @@ fn setup_clear_accent(
     main_ui: &crate::AppWindow,
     settings: &std::rc::Rc<std::cell::RefCell<cliptoo_core::Settings>>,
     settings_path: &std::path::Path,
+    fillers: crate::theme::ThemeFillers,
 ) {
     let sw = settings_win.as_weak();
     let settings_ui = main_ui.as_weak();
@@ -452,6 +457,7 @@ fn setup_clear_accent(
         let sw = sw.clone();
         let settings_ui = settings_ui.clone();
         let p = p.clone();
+        let fillers = fillers.clone();
         tokio::spawn(async move {
             // Resolve first so the shared cache holds the freshly detected
             // OS accent; the settings swatch reads that cache. Without this,
@@ -482,6 +488,8 @@ fn setup_clear_accent(
                     is_dark,
                     system_accent,
                 );
+                // Re-fill the tray and About window globals too.
+                crate::theme::apply_theme_fillers(&fillers, &s_settings, is_dark, system_accent);
                 win.set_s_accent_color(swatch);
                 if let Some((h, sat, val)) = os_hsv {
                     win.set_s_accent_hue(h.round() as i32);
@@ -587,11 +595,13 @@ fn setup_setting_commit(
     hotkey_tx: tokio::sync::watch::Sender<String>,
     retention_tx: tokio::sync::watch::Sender<cliptoo_core::maintenance::RetentionConfig>,
     blacklist_state: std::sync::Arc<std::sync::Mutex<Vec<String>>>,
+    fillers: crate::theme::ThemeFillers,
 ) {
     let s = settings.clone();
     let p = settings_path.to_path_buf();
     let settings_ui = main_ui.as_weak();
     let sw = settings_win.as_weak();
+    let fillers = fillers.clone();
     settings_win.on_setting_changed(
         move |key: slint::SharedString, value: slint::SharedString| {
             let key = key.to_string();
@@ -634,7 +644,7 @@ fn setup_setting_commit(
                 }
                 "theme" => {
                     s.theme = value.clone();
-                    reapply_theme(&settings_ui, &sw, &s, favicons_dir.clone());
+                    reapply_theme(&settings_ui, &sw, &s, favicons_dir.clone(), fillers.clone());
                 }
                 "font_family" => {
                     s.font_family = value.clone();
@@ -825,6 +835,7 @@ pub fn setup_settings_window(
     hotkey_tx: tokio::sync::watch::Sender<String>,
     retention_tx: tokio::sync::watch::Sender<cliptoo_core::maintenance::RetentionConfig>,
     blacklist_state: std::sync::Arc<std::sync::Mutex<Vec<String>>>,
+    theme_fillers: crate::theme::ThemeFillers,
 ) -> crate::SettingsWindow {
     let settings_win = crate::SettingsWindow::new().expect("SettingsWindow creation");
 
@@ -832,7 +843,13 @@ pub fn setup_settings_window(
     init_settings_properties(&settings_win, settings);
     setup_maintenance_forwarding(&settings_win, ui);
     setup_settings_filter(&settings_win);
-    setup_clear_accent(&settings_win, ui, settings, &dirs.settings_path);
+    setup_clear_accent(
+        &settings_win,
+        ui,
+        settings,
+        &dirs.settings_path,
+        theme_fillers.clone(),
+    );
     setup_open_log(&settings_win, &dirs.logs_dir);
     setup_settings_closing(&settings_win, ui, settings, &dirs.settings_path);
     setup_font_picker(&settings_win, ui, settings, &dirs.settings_path);
@@ -845,6 +862,7 @@ pub fn setup_settings_window(
         hotkey_tx,
         retention_tx,
         blacklist_state,
+        theme_fillers,
     );
     setup_menu_open(&settings_win, ui);
 
