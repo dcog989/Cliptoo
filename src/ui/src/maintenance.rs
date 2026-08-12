@@ -136,6 +136,14 @@ pub fn setup_manual_maintenance(
                     }
                     "clear-caches" => {
                         cliptoo_core::maintenance::prune_cache(&db, &td, &fd).await?;
+                        // Evict the in-memory image LRUs on the UI thread so the
+                        // refresh below re-reads from disk instead of serving
+                        // images whose files were just pruned, and so the decoded
+                        // pixels they hold are actually freed. Queued before the
+                        // refresh's own event-loop closure, so the clear runs first.
+                        let _ = ui.upgrade_in_event_loop(|_| {
+                            crate::thumbnail_cache::clear_caches();
+                        });
                         Ok(None)
                     }
                     "deadhead" => {

@@ -44,6 +44,10 @@ impl ThumbnailLru {
         self.0.put(key.to_string(), img.clone());
         img
     }
+
+    pub fn clear(&mut self) {
+        self.0.clear();
+    }
 }
 
 impl Default for ThumbnailLru {
@@ -196,6 +200,17 @@ thread_local! {
         std::cell::RefCell::new(ThumbnailLru::default());
     pub static FAVICON_LRU: std::cell::RefCell<FaviconLru> =
         std::cell::RefCell::new(FaviconLru::default());
+}
+
+/// Evict every thumbnail and favicon image from the in-memory LRUs.
+///
+/// Must be called on the UI thread: the caches are thread-local and hold
+/// non-Send `slint::Image` values. Used after cache pruning so the decoded
+/// pixels are actually freed and the next list refresh re-reads from disk
+/// instead of re-serving images whose files were just removed.
+pub fn clear_caches() {
+    THUMB_LRU.with(|lru| lru.borrow_mut().clear());
+    FAVICON_LRU.with(|lru| lru.borrow_mut().clear());
 }
 
 /// Convert a Vec of DB clips to Slint ClipData, using the thread-local
