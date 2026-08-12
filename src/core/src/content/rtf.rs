@@ -243,8 +243,9 @@ mod tests {
 
     #[test]
     fn unicode_escape_terminated_by_control_word_keeps_it() {
-        // The `\b` must not be eaten as the `\u` fallback text.
-        assert_eq!(strip_rtf(r"{\rtf1 a\u233?\b b}"), "aé b");
+        // The `\b` must not be eaten as the `\u` fallback text, and the literal
+        // space before it must survive (the space after `\b` is its delimiter).
+        assert_eq!(strip_rtf(r"{\rtf1 a\u233? \b b}"), "aé b");
     }
 
     #[test]
