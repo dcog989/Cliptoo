@@ -15,6 +15,9 @@ export global Theme {
     // Foreground (black/white) that stays readable when placed on an
     // `accent-primary` background; derived from accent luminance.
     in property <color> accent-fg:         #ffffff;
+    // Foreground drawn on hovered rows, whose background is the exact
+    // (unadjusted) accent; chosen for contrast against that accent.
+    in property <color> row-hover-fg:      #ffffff;
 
     in property <color> bg-primary:        #181818;
     in property <color> bg-header:         #121212;
