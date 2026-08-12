@@ -265,7 +265,6 @@ pub fn fill_theme(
     let (raw_r, raw_g, raw_b) = accent_rgb;
     let raw_accent = Color::from_rgb_u8(raw_r, raw_g, raw_b);
     let raw_is_dark = select_accent_fg(relative_luminance(raw_r, raw_g, raw_b));
-    t.set_accent_is_dark(accent_is_dark);
     // Content sitting on an accent background flips to this for contrast.
     t.set_accent_fg(if accent_is_dark {
         Color::from_rgb_u8(0xFF, 0xFF, 0xFF)
