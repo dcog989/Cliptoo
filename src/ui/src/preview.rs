@@ -16,6 +16,11 @@ const POPUP_OFFSET_X: f32 = 20.0;
 /// Maximum bytes read from a copied file for its text preview, so a huge file
 /// (e.g. a multi-GB log) is never slurped into memory just to render a tooltip.
 const FILE_TEXT_PREVIEW_MAX_BYTES: usize = 64 * 1024;
+/// Glyph repeated to separate a text file's path line from its contents in the
+/// preview popup.
+const FILE_PREVIEW_SEPARATOR_GLYPH: &str = "─";
+/// Length (in glyphs) of the path/contents divider line.
+const FILE_PREVIEW_SEPARATOR_LEN: usize = 40;
 
 /// Everything a preview handler needs, bundled so the per-type handlers can
 /// share one uniform `fn(&PreviewContext)` signature and be dispatched from a
@@ -308,7 +313,10 @@ fn show_text_file_preview(ctx: &PreviewContext) {
         let Ok(Ok((contents, truncated))) = read else {
             return;
         };
-        let mut preview = format!("{path_line}\n{}\n{contents}", "─".repeat(40));
+        let mut preview = format!(
+            "{path_line}\n{}\n{contents}",
+            FILE_PREVIEW_SEPARATOR_GLYPH.repeat(FILE_PREVIEW_SEPARATOR_LEN)
+        );
         if truncated {
             preview.push_str("\n… (preview truncated)");
         }
