@@ -1,13 +1,15 @@
 // Theme.slint — Global design token definitions.
-// All color and typography values are set from Rust at startup
-// via OKLCH → sRGB conversion using user accent_hue + accent_chroma_level.
+// Color and typography tokens are populated from Rust at startup by
+// `theme::fill_theme`. The accent is the user's `accent_color` hex (or the
+// detected OS accent when cleared); its muted sibling is derived in OKLCH.
 // Components reference Theme.* rather than hardcoding values.
 
 export global Theme {
-    // ── Colors (populated by Rust via OKLCH calculation) ──────────────────────
-    // Accent palette derived from settings.accent_hue and .accent_chroma_level.
-    // Default fallbacks used only until Rust applies the real values.
-    in property <color> accent-primary:    #7A7A7A;
+    // ── Colors (populated by Rust in theme::fill_theme) ─────────────────────
+    // Accent palette derived from settings.accent_color (or the OS accent),
+    // with the muted shade derived in OKLCH. Defaults are fallbacks used only
+    // until Rust applies the real values.
+    in property <color> accent-primary:    #7C6EE6;
     in property <color> accent-muted:      #5A5A5A;
     in property <bool> accent-is-dark:    true;
     // Foreground (black/white) that stays readable when placed on an
@@ -30,7 +32,7 @@ export global Theme {
     in property <color> fg-warning:        #F39C12;
     in property <color> fg-bookmarked:     #E5B567;
 
-    in property <color> border-subtle:     #2A2A2A;
+    in property <color> border-subtle:     #444444;
     in property <color> shadow:            #00000030;
 
     // ── Status & control colors (static, not accent-derived) ───────────────
