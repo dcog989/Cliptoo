@@ -6,6 +6,8 @@
 //! not understand them: Android/Java `0xAARRGGBB` integers and `cmyk()`.
 
 /// Parsed color result with all representations.
+/// `hex` is `#RRGGBB` for fully-opaque colors and `#RRGGBBAA` otherwise, so
+/// transparency is never silently dropped from the canonical representation.
 #[derive(Debug, Clone)]
 pub struct ParsedColor {
     pub r: u8,
@@ -13,6 +15,15 @@ pub struct ParsedColor {
     pub b: u8,
     pub a: u8,
     pub hex: String,
+}
+
+/// `#RRGGBB`, or `#RRGGBBAA` when the alpha channel is not fully opaque.
+fn rgba_hex(r: u8, g: u8, b: u8, a: u8) -> String {
+    if a == 255 {
+        format!("#{r:02X}{g:02X}{b:02X}")
+    } else {
+        format!("#{r:02X}{g:02X}{b:02X}{a:02X}")
+    }
 }
 
 /// Android/Java `0xAARRGGBB` integer literal → parsed color (ARGB byte order).
@@ -30,7 +41,7 @@ fn parse_argb_0x(s: &str) -> Option<ParsedColor> {
         g,
         b,
         a,
-        hex: format!("#{r:02X}{g:02X}{b:02X}"),
+        hex: rgba_hex(r, g, b, a),
     })
 }
 
@@ -68,7 +79,7 @@ fn parse_cmyk(s: &str) -> Option<ParsedColor> {
         g,
         b,
         a: 255,
-        hex: format!("#{r:02X}{g:02X}{b:02X}"),
+        hex: rgba_hex(r, g, b, 255),
     })
 }
 
@@ -84,7 +95,7 @@ fn to_parsed(c: csscolorparser::Color) -> ParsedColor {
         g,
         b,
         a,
-        hex: format!("#{r:02X}{g:02X}{b:02X}"),
+        hex: rgba_hex(r, g, b, a),
     }
 }
 
@@ -122,6 +133,32 @@ impl ColorParser {
 #[cfg(test)]
 mod tests {
     use super::ColorParser;
+
+    #[test]
+    fn hex_preserves_alpha() {
+        // Opaque colors keep the compact 6-digit form.
+        assert_eq!(ColorParser::try_parse("#ff0000").unwrap().hex, "#FF0000");
+        assert_eq!(ColorParser::try_parse("red").unwrap().hex, "#FF0000");
+        // Transparent colors include the alpha octet.
+        assert_eq!(
+            ColorParser::try_parse("#ff00007f").unwrap().hex,
+            "#FF00007F"
+        );
+        assert_eq!(
+            ColorParser::try_parse("rgba(0, 128, 255, 0.5)")
+                .unwrap()
+                .hex,
+            "#0080FF80"
+        );
+        assert_eq!(
+            ColorParser::try_parse("0x7F80FF00").unwrap().hex,
+            "#80FF007F"
+        );
+        assert_eq!(
+            ColorParser::try_parse("transparent").unwrap().hex,
+            "#00000000"
+        );
+    }
 
     #[test]
     fn hwb_parses_commas_and_whitespace() {
