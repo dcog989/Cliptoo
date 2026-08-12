@@ -541,7 +541,23 @@ fn setup_settings_closing(
     });
 }
 
+/// Show a toast on the settings window (its bottom overlay). Severity is one
+/// of "info" | "warn" | "error".
+fn show_settings_toast(win: &crate::SettingsWindow, message: &str, severity: &str) {
+    win.set_toast_visible(false);
+    win.set_toast_message(message.into());
+    win.set_toast_severity(severity.into());
+    win.set_toast_visible(true);
+}
+
 /// Font picker — native KDE font dialog via Qt (PyQt6).
+///
+/// The dialog runs in a child `python3` process; the blocking `.output()` call
+/// runs on a background thread so the app stays responsive while the dialog is
+/// open. `slint::spawn_local` polls the continuation on the UI thread, which
+/// is what lets it capture the non-Send `Rc<RefCell<Settings>>`. A missing or
+/// failing python3/PyQt6 is logged and surfaced via the settings toast instead
+/// of silently doing nothing; cancelling the dialog is not an error.
 fn setup_font_picker(
     settings_win: &crate::SettingsWindow,
     main_ui: &crate::AppWindow,
@@ -560,26 +576,76 @@ font, ok = QFontDialog.getFont()
 if ok:
     print(font.family())
 "#;
-        let Ok(output) = std::process::Command::new("python3")
-            .arg("-c")
-            .arg(script)
-            .output()
-        else {
-            return;
-        };
-        let family = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        if family.is_empty() {
-            return;
+        let sw = sw.clone();
+        let settings_ui = settings_ui.clone();
+        let s = s.clone();
+        let p = p.clone();
+        // The callback fires from the event loop, so spawning can only fail
+        // if it is shutting down; ignore the JoinHandle (dropping it does not
+        // cancel the future) but surface the rare spawn error.
+        if let Err(e) = slint::spawn_local(async move {
+            let result = tokio::task::spawn_blocking(move || {
+                std::process::Command::new("python3")
+                    .arg("-c")
+                    .arg(script)
+                    .output()
+            })
+            .await;
+
+            // A successful run prints the family on stdout; anything else
+            // (missing python3/PyQt6, a non-zero exit, a cancelled dialog)
+            // yields "". The failure cases are distinguished from a plain
+            // cancel so they can be surfaced.
+            let (family, error): (String, Option<String>) = match result {
+                Ok(Ok(output)) if output.status.success() => (
+                    String::from_utf8_lossy(&output.stdout).trim().to_string(),
+                    None,
+                ),
+                Ok(Ok(output)) => (
+                    String::new(),
+                    Some(format!(
+                        "python3 exited {}: {}",
+                        output.status,
+                        String::from_utf8_lossy(&output.stderr).trim()
+                    )),
+                ),
+                Ok(Err(e)) => (String::new(), Some(format!("failed to run python3: {e}"))),
+                Err(e) => (
+                    String::new(),
+                    Some(format!("font picker task panicked: {e}")),
+                ),
+            };
+            if let Some(err) = error.as_ref() {
+                tracing::warn!("font-picker: {err}");
+            }
+
+            if family.is_empty() {
+                if error.is_some()
+                    && let Some(win) = sw.upgrade()
+                {
+                    show_settings_toast(
+                        &win,
+                        "Font picker failed (python3 + PyQt6 required)",
+                        "error",
+                    );
+                }
+                return;
+            }
+
+            {
+                let mut settings = s.borrow_mut();
+                settings.font_family.clone_from(&family);
+                let _ = settings.save(&p);
+            }
+            apply_theme_to_windows(&settings_ui, &sw, |t| {
+                t.set_font_family(family.as_str().into());
+            });
+            if let Some(win) = sw.upgrade() {
+                win.set_s_font_family(family.as_str().into());
+            }
+        }) {
+            tracing::warn!("font-picker: failed to schedule on the event loop: {e}");
         }
-        let mut s = s.borrow_mut();
-        s.font_family.clone_from(&family);
-        if let Some(win) = sw.upgrade() {
-            win.set_s_font_family(family.as_str().into());
-        }
-        apply_theme_to_windows(&settings_ui, &sw, |t| {
-            t.set_font_family(family.as_str().into());
-        });
-        let _ = s.save(&p);
     });
 }
 
