@@ -194,26 +194,36 @@ pub async fn mark_deadheads(db: &Arc<DbPool>) -> Result<u64> {
         return Ok(0);
     }
 
-    let marked = gone.len() as u64;
-    db.with(move |conn| {
-        let tx = conn.unchecked_transaction()?;
-        for (id, path_str) in &gone {
-            tx.execute("UPDATE clips SET IsDeadhead = 1 WHERE Id = ?1", params![id])?;
-            info!("deadhead: marked clip {id} — path gone: {path_str}");
-        }
-        // Path is back — clear the flag in case it was previously marked.
-        for id in &back {
-            tx.execute(
-                "UPDATE clips SET IsDeadhead = 0 WHERE Id = ?1 AND IsDeadhead = 1",
-                params![id],
-            )?;
-        }
-        tx.commit()?;
-        Ok(())
-    })
-    .await?;
+    let newly_marked = db
+        .with(move |conn| {
+            let tx = conn.unchecked_transaction()?;
+            let mut newly_marked: u64 = 0;
+            for (id, path_str) in &gone {
+                // `AND IsDeadhead = 0` so rows flagged in a previous pass are
+                // not counted (or logged) again — the return value is the
+                // number of rows newly marked.
+                let n = tx.execute(
+                    "UPDATE clips SET IsDeadhead = 1 WHERE Id = ?1 AND IsDeadhead = 0",
+                    params![id],
+                )?;
+                if n > 0 {
+                    newly_marked += 1;
+                    info!("deadhead: marked clip {id} — path gone: {path_str}");
+                }
+            }
+            // Path is back — clear the flag in case it was previously marked.
+            for id in &back {
+                tx.execute(
+                    "UPDATE clips SET IsDeadhead = 0 WHERE Id = ?1 AND IsDeadhead = 1",
+                    params![id],
+                )?;
+            }
+            tx.commit()?;
+            Ok(newly_marked)
+        })
+        .await?;
 
-    Ok(marked)
+    Ok(newly_marked)
 }
 
 /// Delete a single clip by id. Used by the async deadhead driver.

@@ -359,6 +359,29 @@ async fn reclassify_keeps_specific_type_for_missing_file_clips() {
     clean_up(&dir);
 }
 
+/// `mark_deadheads` returns the number of rows *newly* marked — a clip already
+/// flagged in a previous pass must not be counted again.
+#[tokio::test]
+async fn mark_deadheads_counts_only_newly_marked_rows() {
+    let dir = std::env::temp_dir().join(format!("cliptoo_markdead_{}", std::process::id()));
+    clean_up(&dir);
+    let db = Arc::new(DbPool::open(&dir).unwrap());
+
+    // Two file clips whose paths do not exist on disk.
+    let gone_a = std::env::temp_dir().join(format!("cliptoo_markdead_a_{}", std::process::id()));
+    let gone_b = std::env::temp_dir().join(format!("cliptoo_markdead_b_{}", std::process::id()));
+    common::insert_clip(&db, gone_a.to_str().unwrap(), "markdead_1", "file_generic").await;
+    common::insert_clip(&db, gone_b.to_str().unwrap(), "markdead_2", "file_generic").await;
+
+    let first = maintenance::mark_deadheads(&db).await.unwrap();
+    assert_eq!(first, 2);
+
+    let second = maintenance::mark_deadheads(&db).await.unwrap();
+    assert_eq!(second, 0, "already-marked rows are not counted again");
+
+    clean_up(&dir);
+}
+
 /// `prune_cache` must survive a DB row whose ContentHash is not valid UTF-8 on
 /// the 16-byte boundary (corrupt/legacy data written before import validation
 /// existed). The prefix derivation is a byte slice, so without an
