@@ -199,6 +199,10 @@ fn persist_window_size(
 /// characters (a letter pressed with a modifier arrives as U+0001..U+001A)
 /// are mapped to letters, and the final key token is uppercased so the
 /// assigned key always displays uppercase (e.g. `Ctrl+Alt+q` → `Ctrl+Alt+Q`).
+///
+/// A trailing `+` is the plus key itself (`Ctrl++` = Ctrl + the plus key)
+/// when a `+` precedes it; a lone trailing `+` is a dangling separator from
+/// capturing a modifier without a key and is dropped.
 fn clean_hotkey_text(raw: &str) -> String {
     let cleaned: String = raw
         .chars()
@@ -211,9 +215,21 @@ fn clean_hotkey_text(raw: &str) -> String {
             }
         })
         .collect();
-    match cleaned.rsplit_once('+') {
-        Some((mods, key)) if !key.is_empty() => format!("{mods}+{}", key.to_uppercase()),
-        _ => cleaned.to_uppercase(),
+    match cleaned.strip_suffix('+') {
+        // `before` ends with `+`, so the string was `<mods>+` + the `+` key.
+        Some(before) if before.ends_with('+') => {
+            let mut out = before.trim_end_matches('+').to_string();
+            out.push_str("++");
+            out
+        }
+        // A lone `+` is the bare plus key itself.
+        Some("") => cleaned.to_uppercase(),
+        // The trailing `+` was a separator with no key after it.
+        Some(_) => cleaned.trim_end_matches('+').to_uppercase(),
+        None => match cleaned.rsplit_once('+') {
+            Some((mods, key)) if !key.is_empty() => format!("{mods}+{}", key.to_uppercase()),
+            _ => cleaned.to_uppercase(),
+        },
     }
 }
 
@@ -535,7 +551,10 @@ fn setup_setting_commit(
 
             match key.as_str() {
                 "hotkey" => {
-                    let cleaned = clean_hotkey_text(value.trim_end_matches('+'));
+                    // No trim: clean_hotkey_text keeps a trailing `+` as the
+                    // plus key (Ctrl++ = Ctrl + the plus key) and drops a
+                    // dangling separator itself.
+                    let cleaned = clean_hotkey_text(&value);
                     s.hotkey = cleaned.clone();
                     if let Some(win) = sw.upgrade() {
                         win.set_s_hotkey(cleaned.into());

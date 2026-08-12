@@ -20,6 +20,49 @@ const APP_ID: &str = "cliptoo";
 /// triggered (see `wait_for_stable_hotkey`).
 const HOTKEY_DEBOUNCE: Duration = Duration::from_millis(800);
 
+/// Map a key token captured from the settings UI to the XKB keysym name the
+/// portal backend (`xdg-desktop-portal-kde`'s `XdgShortcut::parse`) matches
+/// via `xkb_keysym_from_name`. Letters, digits and named keys (F5, Return, …)
+/// round-trip unchanged, but ASCII punctuation the UI reports literally (`+`,
+/// `-`, `=`, …) is not a valid keysym name and must be translated (`plus`,
+/// `minus`, `equal`, …) — otherwise the key fails to parse and the shortcut
+/// is registered with nothing bound.
+fn to_xdg_key(key: &str) -> &str {
+    match key {
+        "+" => "plus",
+        "-" => "minus",
+        "=" => "equal",
+        "/" => "slash",
+        "*" => "asterisk",
+        "," => "comma",
+        "." => "period",
+        ";" => "semicolon",
+        ":" => "colon",
+        "'" => "apostrophe",
+        "\"" => "quotedbl",
+        "`" => "grave",
+        "~" => "asciitilde",
+        "!" => "exclam",
+        "@" => "at",
+        "#" => "numbersign",
+        "$" => "dollar",
+        "%" => "percent",
+        "^" => "asciicircum",
+        "&" => "ampersand",
+        "(" => "parenleft",
+        ")" => "parenright",
+        "_" => "underscore",
+        "{" => "braceleft",
+        "}" => "braceright",
+        "[" => "bracketleft",
+        "]" => "bracketright",
+        "|" => "bar",
+        "\\" => "backslash",
+        " " => "space",
+        _ => key,
+    }
+}
+
 /// Convert a Qt-style hotkey string (as stored in settings, e.g. `Ctrl+Alt+z`)
 /// to the XDG Shortcuts spec format the portal expects (e.g. `CTRL+ALT+z`).
 ///
@@ -28,16 +71,26 @@ const HOTKEY_DEBOUNCE: Duration = Duration::from_millis(800);
 /// so a mixed-case trigger like `Ctrl+Alt+z` fails to parse and the shortcut is
 /// registered with no key bound. Normalise the modifier tokens here instead of
 /// changing what the user types in the settings UI.
+///
+/// A `+` key collides with the `+` separator (`Ctrl++` = Ctrl + the plus key),
+/// and the backend rejects a literal `++` ("empty modifier"). The key token is
+/// therefore split off from the right and translated to its keysym name, so a
+/// `Ctrl++` hotkey becomes `CTRL+plus`.
 fn to_xdg_trigger(trigger: &str) -> String {
-    let parts: Vec<&str> = trigger.split('+').collect();
+    // A trailing `+` is the plus key itself, not a separator.
+    let (mods_str, key) = match trigger.strip_suffix('+') {
+        Some(before) => (before, "+"),
+        None => match trigger.rsplit_once('+') {
+            Some((m, k)) => (m, k),
+            // A single token is the bare key (e.g. `F5`) — nothing to
+            // normalise beyond the keysym-name mapping.
+            None => return to_xdg_key(trigger).to_string(),
+        },
+    };
 
-    // A single token is the bare key (e.g. `F5`) — nothing to normalise.
-    if parts.len() == 1 {
-        return trigger.to_string();
-    }
-
-    let mods = parts[..parts.len() - 1]
-        .iter()
+    let mods = mods_str
+        .split('+')
+        .filter(|m| !m.is_empty())
         .map(|m| match m.to_ascii_uppercase().as_str() {
             "CTRL" | "CONTROL" => "CTRL".to_string(),
             "SHIFT" => "SHIFT".to_string(),
@@ -53,7 +106,7 @@ fn to_xdg_trigger(trigger: &str) -> String {
     if !out.is_empty() {
         out.push('+');
     }
-    out.push_str(parts[parts.len() - 1]);
+    out.push_str(to_xdg_key(key));
     out
 }
 
