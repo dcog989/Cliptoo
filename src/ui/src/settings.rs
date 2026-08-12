@@ -982,4 +982,47 @@ mod tests {
             vec!["org.kde.dolphin".to_string(), "kwrite".to_string()]
         );
     }
+
+    #[test]
+    fn clean_hotkey_text_uppercases_single_key() {
+        assert_eq!(clean_hotkey_text("Ctrl+Alt+q"), "Ctrl+Alt+Q");
+        assert_eq!(clean_hotkey_text("a"), "A");
+        assert_eq!(clean_hotkey_text("F5"), "F5");
+    }
+
+    #[test]
+    fn clean_hotkey_text_keeps_plus_key() {
+        assert_eq!(clean_hotkey_text("Ctrl++"), "Ctrl++");
+        assert_eq!(clean_hotkey_text("+"), "+");
+    }
+
+    #[test]
+    fn clean_hotkey_text_drops_dangling_separator() {
+        assert_eq!(clean_hotkey_text("Ctrl+"), "CTRL");
+    }
+
+    #[test]
+    fn clean_hotkey_text_decodes_slint_special_keys() {
+        assert_eq!(clean_hotkey_text("Ctrl+\u{0008}"), "Ctrl+Backspace");
+        assert_eq!(clean_hotkey_text("Ctrl+\u{0009}"), "Ctrl+Tab");
+        assert_eq!(clean_hotkey_text("\u{F708}"), "F5");
+        assert_eq!(clean_hotkey_text("Ctrl+\u{F70f}"), "Ctrl+F12");
+        assert_eq!(clean_hotkey_text("Ctrl+\u{F72c}"), "Ctrl+PageUp");
+        assert_eq!(clean_hotkey_text("Ctrl+\u{0020}"), "Ctrl+Space");
+    }
+
+    #[test]
+    fn decode_slint_key_maps_f_keys_and_pass_through() {
+        assert_eq!(decode_slint_key('\u{f704}'), Some("F1".to_string()));
+        assert_eq!(decode_slint_key('\u{f71b}'), Some("F24".to_string()));
+        assert_eq!(decode_slint_key('a'), None);
+        assert_eq!(decode_slint_key('\u{0008}'), Some("Backspace".to_string()));
+    }
+
+    #[test]
+    fn display_key_uppercases_only_single_chars() {
+        assert_eq!(display_key("q"), "Q");
+        assert_eq!(display_key("F5"), "F5");
+        assert_eq!(display_key("PageUp"), "PageUp");
+    }
 }

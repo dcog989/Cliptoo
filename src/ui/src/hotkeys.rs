@@ -539,3 +539,71 @@ async fn wait_for_retry(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn to_xdg_trigger_normalises_modifiers() {
+        assert_eq!(to_xdg_trigger("Ctrl+Alt+z"), "CTRL+ALT+z");
+        assert_eq!(to_xdg_trigger("Control+Super+p"), "CTRL+LOGO+p");
+        assert_eq!(to_xdg_trigger("Shift+Win+F5"), "SHIFT+LOGO+F5");
+    }
+
+    #[test]
+    fn to_xdg_trigger_leaves_bare_keys_alone() {
+        assert_eq!(to_xdg_trigger("F5"), "F5");
+        assert_eq!(to_xdg_trigger("a"), "a");
+    }
+
+    #[test]
+    fn to_xdg_trigger_translates_punctuation_keys() {
+        assert_eq!(to_xdg_trigger("Ctrl++"), "CTRL+plus");
+        assert_eq!(to_xdg_trigger("+"), "plus");
+        assert_eq!(to_xdg_trigger("Ctrl+-"), "CTRL+minus");
+        assert_eq!(to_xdg_trigger("Ctrl+="), "CTRL+equal");
+        assert_eq!(to_xdg_trigger("Ctrl+."), "CTRL+period");
+    }
+
+    #[test]
+    fn to_xdg_trigger_maps_named_keys_to_keysyms() {
+        assert_eq!(to_xdg_trigger("Ctrl+Backspace"), "CTRL+BackSpace");
+        assert_eq!(to_xdg_trigger("Ctrl+PageUp"), "CTRL+Prior");
+        assert_eq!(to_xdg_trigger("Ctrl+UpArrow"), "CTRL+Up");
+        assert_eq!(to_xdg_trigger("Ctrl+ScrollLock"), "CTRL+Scroll_Lock");
+        assert_eq!(to_xdg_trigger("Ctrl+F12"), "CTRL+F12");
+    }
+
+    #[tokio::test]
+    async fn wait_for_retry_returns_after_delay() {
+        let (_tx, mut rx) = tokio::sync::watch::channel(String::from("Ctrl+Alt+Q"));
+        // No hotkey change: the retry interval elapses and we re-register.
+        assert!(!wait_for_retry(&mut rx, Duration::from_millis(10)).await);
+    }
+
+    #[tokio::test]
+    async fn wait_for_retry_stops_on_shutdown() {
+        let (tx, mut rx) = tokio::sync::watch::channel(String::from("Ctrl+Alt+Q"));
+        drop(tx);
+        assert!(wait_for_retry(&mut rx, Duration::from_secs(60)).await);
+    }
+
+    #[tokio::test]
+    async fn wait_for_stable_hotkey_re_registers_when_listener_ends() {
+        let (_tx, mut rx) = tokio::sync::watch::channel(String::from("Ctrl+Alt+Q"));
+        let mut listener = tokio::spawn(async {});
+        // The registration task ended (portal restart / bus drop): re-register.
+        assert!(!wait_for_stable_hotkey(&mut rx, &mut listener).await);
+    }
+
+    #[tokio::test]
+    async fn wait_for_stable_hotkey_stops_on_shutdown() {
+        let (tx, mut rx) = tokio::sync::watch::channel(String::from("Ctrl+Alt+Q"));
+        drop(tx);
+        let mut listener = tokio::spawn(async {
+            tokio::time::sleep(Duration::from_secs(60)).await;
+        });
+        assert!(wait_for_stable_hotkey(&mut rx, &mut listener).await);
+    }
+}
