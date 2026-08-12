@@ -366,8 +366,11 @@ async fn insert_clip_with_stat(
     is_file_uri: bool,
 ) -> Result<bool> {
     db.with(|conn| {
+        // Single transaction so a crash between the insert and the lifetime
+        // stat bump cannot desync "UniqueClipsEver" from the stored rows.
+        let tx = conn.unchecked_transaction()?;
         let inserted = insert_or_bump(
-            conn,
+            &tx,
             content,
             preview_content,
             content_hash,
@@ -380,8 +383,9 @@ async fn insert_clip_with_stat(
             is_file_uri,
         )?;
         if inserted {
-            cliptoo_core::stats::increment_stat(conn, "UniqueClipsEver")?;
+            cliptoo_core::stats::increment_stat(&tx, cliptoo_core::stats::KEY_UNIQUE_CLIPS_EVER)?;
         }
+        tx.commit()?;
         Ok(inserted)
     })
     .await

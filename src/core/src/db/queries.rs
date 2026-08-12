@@ -462,11 +462,16 @@ pub fn count_clips(conn: &Connection) -> Result<i64> {
 /// Also bumps the global paste counter. Use instead of calling `bump_to_top`
 /// separately.
 pub fn record_paste(conn: &Connection, id: i64) -> Result<()> {
-    conn.execute(
+    // Single transaction: a crash between the clip's PasteCount bump and the
+    // global counter would otherwise desync the two stats.
+    let tx = conn.unchecked_transaction()?;
+    tx.execute(
         "UPDATE clips SET Timestamp = ?1, PasteCount = PasteCount + 1 WHERE Id = ?2",
         params![next_timestamp(), id],
     )?;
-    crate::stats::increment_stat(conn, crate::stats::KEY_PASTE_COUNT)
+    crate::stats::increment_stat(&tx, crate::stats::KEY_PASTE_COUNT)?;
+    tx.commit()?;
+    Ok(())
 }
 
 pub fn bump_to_bottom(conn: &Connection, id: i64) -> Result<()> {
