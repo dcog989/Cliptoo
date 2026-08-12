@@ -15,6 +15,7 @@ use crate::content::classifier::ContentProcessor;
 use crate::content::hash::normalize_line_endings;
 use crate::db::DbPool;
 use crate::db::models::ClipType;
+use crate::db::queries::EPOCH_TS_PREFIX;
 use crate::stats;
 use crate::time::utc_now_iso;
 
@@ -53,17 +54,32 @@ pub async fn run_scheduled(
     Ok(())
 }
 
-/// Delete non-bookmarked clips that exceed `max_clips` (oldest first) or are
-/// older than `max_age_days`. Returns the total number of rows deleted.
+/// SQL predicate matching clips pinned to the bottom via `bump_to_bottom`.
+/// Their `Timestamp` is the epoch sentinel, which is not a real time and would
+/// otherwise always sort older than any retention cutoff. Retention must treat
+/// a manual "move to bottom" like a bookmark — a deliberate keep signal — and
+/// never sweep these clips.
+fn bottom_pinned_predicate() -> String {
+    format!("Timestamp LIKE '{}%'", EPOCH_TS_PREFIX)
+}
+
+/// Delete clips that exceed `max_clips` (oldest first) or are older than
+/// `max_age_days`. Bookmarks and bottom-pinned clips (`bump_to_bottom`) are
+/// exempt — both are deliberate keep signals. Returns the total rows deleted.
 pub fn retention(conn: &Connection, cfg: &RetentionConfig) -> Result<u64> {
     let mut deleted: u64 = 0;
+    let pinned = bottom_pinned_predicate();
 
-    // Age-based: delete clips older than max_age_days, non-bookmarked only.
+    // Age-based: delete clips older than max_age_days, non-bookmarked and not
+    // bottom-pinned.
     if cfg.max_age_days > 0 {
         let n = conn.execute(
-            "DELETE FROM clips
-             WHERE IsBookmarked = 0
-               AND Timestamp < datetime('now', ?1)",
+            &format!(
+                "DELETE FROM clips
+                 WHERE IsBookmarked = 0
+                   AND NOT ({pinned})
+                   AND Timestamp < datetime('now', ?1)"
+            ),
             params![format!("-{} days", cfg.max_age_days)],
         )? as u64;
         deleted += n;
@@ -76,16 +92,21 @@ pub fn retention(conn: &Connection, cfg: &RetentionConfig) -> Result<u64> {
     }
 
     // Count-based: keep only the most recent max_clips non-bookmarked clips.
+    // Bottom-pinned clips are exempt here too — they sort last, so they would
+    // otherwise always be the first cut once the count cap is reached.
     if cfg.max_clips > 0 {
         let n = conn.execute(
-            "DELETE FROM clips
-              WHERE IsBookmarked = 0
-                AND Id NOT IN (
-                    SELECT Id FROM clips
-                    WHERE IsBookmarked = 0
-                    ORDER BY Timestamp DESC
-                    LIMIT ?1
-                )",
+            &format!(
+                "DELETE FROM clips
+                  WHERE IsBookmarked = 0
+                    AND NOT ({pinned})
+                    AND Id NOT IN (
+                        SELECT Id FROM clips
+                        WHERE IsBookmarked = 0
+                        ORDER BY Timestamp DESC
+                        LIMIT ?1
+                    )"
+            ),
             params![cfg.max_clips],
         )? as u64;
         deleted += n;

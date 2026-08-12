@@ -19,7 +19,13 @@ pub const FTS_HL_CLOSE: &str = "[/HL]";
 /// before every real timestamp. The clip's `Id` is appended as a zero-padded
 /// suffix so bottom-pinned clips stay distinct (and therefore reorderable)
 /// instead of all sharing one identical timestamp.
-const EPOCH_TS_PREFIX: &str = "1970-01-01 00:00:00";
+///
+/// A pinned clip's `Timestamp` is a sentinel, not a real time, so any age or
+/// count retention cutoff would otherwise treat it as ancient and sweep it.
+/// Scheduled retention therefore exempts these clips (see
+/// `maintenance::bottom_pinned_predicate`), treating a manual "move to bottom"
+/// like a bookmark — a deliberate keep signal.
+pub(crate) const EPOCH_TS_PREFIX: &str = "1970-01-01 00:00:00";
 /// Zero-padded width of the `Id` suffix appended to `EPOCH_TS_PREFIX`.
 /// Fixed width keeps the padded values sortable numerically.
 const EPOCH_TS_SUFFIX_WIDTH: usize = 15;
