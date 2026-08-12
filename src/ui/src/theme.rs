@@ -337,17 +337,19 @@ type ResolvedTheme = (bool, Option<(u8, u8, u8)>);
 static RESOLVED_THEME: Mutex<Option<ResolvedTheme>> = Mutex::new(None);
 
 fn cache_resolved_theme(is_dark: bool, system_accent: Option<(u8, u8, u8)>) {
-    if let Ok(mut cached) = RESOLVED_THEME.lock() {
-        *cached = Some((is_dark, system_accent));
-    }
+    // A poisoned lock still holds a valid value; recover it so a panic while
+    // holding the guard never drops the freshly resolved theme.
+    let mut cached = RESOLVED_THEME
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    *cached = Some((is_dark, system_accent));
 }
 
 /// The last resolved theme context, or `(dark, no accent)` if never resolved.
 pub fn cached_resolved_theme() -> ResolvedTheme {
     RESOLVED_THEME
         .lock()
-        .ok()
-        .and_then(|guard| *guard)
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
         .unwrap_or((true, None))
 }
 
