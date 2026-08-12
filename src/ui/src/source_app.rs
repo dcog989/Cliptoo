@@ -69,24 +69,26 @@ async fn try_kwin_active_window() -> Option<String> {
         return None;
     }
 
-    let loaded: i32 = match conn
-        .call_method(
+    let loaded: i32 = match tokio::time::timeout(
+        SCRIPT_TIMEOUT,
+        conn.call_method(
             Some(KW_SCRIPTING_SERVICE),
             KW_SCRIPTING_PATH,
             Some(KW_SCRIPTING_IFACE),
             "loadScript",
             &(script_path.to_string_lossy().as_ref(), script_name.as_str()),
-        )
-        .await
+        ),
+    )
+    .await
     {
-        Ok(msg) => match msg.body().deserialize() {
+        Ok(Ok(msg)) => match msg.body().deserialize() {
             Ok(id) => id,
             Err(_) => {
                 let _ = std::fs::remove_file(&script_path);
                 return None;
             }
         },
-        Err(_) => {
+        Ok(Err(_)) | Err(_) => {
             let _ = std::fs::remove_file(&script_path);
             return None;
         }
@@ -101,36 +103,43 @@ async fn try_kwin_active_window() -> Option<String> {
 
     // `run` has a delayed reply that fires once the script has executed, so
     // awaiting it guarantees the callback was already issued by the time we
-    // read the stream below.
-    let _ = conn
-        .call_method(
+    // read the stream below. A hung KWin must not stall the listener, so every
+    // scripting call is bounded by the same timeout as the stream read.
+    let _ = tokio::time::timeout(
+        SCRIPT_TIMEOUT,
+        conn.call_method(
             Some(KW_SCRIPTING_SERVICE),
             script_obj,
             Some(KW_SCRIPT_IFACE),
             "run",
             &(),
-        )
-        .await;
+        ),
+    )
+    .await;
 
     // Stop and unload whether or not we got a usable answer.
-    let _ = conn
-        .call_method(
+    let _ = tokio::time::timeout(
+        SCRIPT_TIMEOUT,
+        conn.call_method(
             Some(KW_SCRIPTING_SERVICE),
             script_obj,
             Some(KW_SCRIPT_IFACE),
             "stop",
             &(),
-        )
-        .await;
-    let _ = conn
-        .call_method(
+        ),
+    )
+    .await;
+    let _ = tokio::time::timeout(
+        SCRIPT_TIMEOUT,
+        conn.call_method(
             Some(KW_SCRIPTING_SERVICE),
             KW_SCRIPTING_PATH,
             Some(KW_SCRIPTING_IFACE),
             "unloadScript",
             &(script_name.as_str(),),
-        )
-        .await;
+        ),
+    )
+    .await;
     let _ = std::fs::remove_file(&script_path);
 
     let msg = match tokio::time::timeout(SCRIPT_TIMEOUT, stream.next()).await {
