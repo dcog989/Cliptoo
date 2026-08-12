@@ -2,6 +2,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use cliptoo_core::db::queries::SEARCH_RESULT_LIMIT;
+use slint::Model;
 
 const PAGE_TITLE_FETCH_TIMEOUT_SECS: u64 = 5;
 
@@ -57,10 +58,25 @@ pub async fn refresh_clips(
         let td = td.to_path_buf();
         let fd = fd.to_path_buf();
         let _ = ui.upgrade_in_event_loop(move |ui| {
+            // Capture the currently selected clip so a background refresh
+            // (e.g. a new clipboard ingest) doesn't yank the user's selection
+            // and scroll position. If the clip is still in the new model it
+            // stays selected; otherwise the selection falls back to the top.
+            let prev_selected = {
+                let idx = ui.get_selected_index();
+                if idx >= 0 {
+                    ui.get_clips().row_data(idx as usize).map(|d| d.id)
+                } else {
+                    None
+                }
+            };
             let slint_clips = crate::thumbnail_cache::convert_vec(clips, &td, &fd);
             let model = std::rc::Rc::new(slint::VecModel::<crate::ClipData>::from(slint_clips));
-            ui.set_clips(model.into());
-            ui.set_selected_index(0);
+            ui.set_clips(model.clone().into());
+            let new_idx = prev_selected.and_then(|id| {
+                (0..model.row_count()).find(|&i| model.row_data(i).is_some_and(|d| d.id == id))
+            });
+            ui.set_selected_index(new_idx.map(|i| i as i32).unwrap_or(0));
             crate::favicon::check_pending_favicons(&ui, &db2, &fd);
         });
     }
