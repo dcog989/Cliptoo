@@ -222,7 +222,12 @@ async fn main() -> Result<()> {
                 });
             }
 
-            tray.on_quit_app(move || std::process::exit(0));
+            // Quit via the event loop so `main` returns cleanly: the log
+            // guard is flushed on drop and the "Cliptoo exiting" line is
+            // emitted, instead of a hard exit that skips teardown.
+            tray.on_quit_app(move || {
+                let _ = slint::quit_event_loop();
+            });
 
             let _ = tray.show();
             _tray = Some(tray);
