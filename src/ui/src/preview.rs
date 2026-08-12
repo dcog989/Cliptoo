@@ -1,10 +1,11 @@
 use std::io::Read;
 use std::path::Path;
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
 
 use slint::{ComponentHandle, Model};
 
-use cliptoo_core::image::{HASH_FILENAME_PREFIX_LEN, PREVIEW_FALLBACK_DIM};
+use cliptoo_core::image::HASH_FILENAME_PREFIX_LEN;
 
 use crate::helpers;
 
@@ -27,6 +28,10 @@ struct PreviewContext<'a> {
     clip_id: i32,
     fav_dir: &'a Path,
     td: &'a Path,
+    /// Max pixel dimension for an image preview generated on demand (the
+    /// `hover_image_preview_size` setting), so on-demand generation matches
+    /// the size used when the clip was ingested.
+    preview_max_dim: u32,
 }
 
 /// Position the preview popup next to the pointer, clamped inside the window.
@@ -128,13 +133,14 @@ fn show_image_preview(ctx: &PreviewContext) {
         let file_path = content.to_string();
         let td2 = td.to_path_buf();
         let hash2 = content_hash.to_string();
+        let max_dim = ctx.preview_max_dim;
         let w = ui.as_weak();
         tokio::spawn(async move {
             let _ = cliptoo_core::image::store_both_thumbnails_for_file(
                 &td2,
                 &hash2,
                 Path::new(&file_path),
-                PREVIEW_FALLBACK_DIM,
+                max_dim,
             );
             let p = td2.join(format!(
                 "{}_preview.webp",
@@ -325,16 +331,19 @@ pub fn setup_preview(
     ui: &crate::AppWindow,
     db: &Arc<cliptoo_core::db::DbPool>,
     dirs: &crate::app_dirs::AppDirs,
+    preview_size: Arc<std::sync::atomic::AtomicU32>,
 ) {
     let preview_db = db.clone();
     let preview_ui = ui.as_weak();
     let preview_fd = dirs.favicons_dir.clone();
     let preview_td = dirs.thumbnails_dir.clone();
+    let preview_max_dim = preview_size.clone();
     ui.on_request_preview(move |id: i32, x: f32, y: f32| {
         let db = preview_db.clone();
         let ui = preview_ui.clone();
         let fav_dir = preview_fd.clone();
         let td = preview_td.clone();
+        let max_dim = preview_max_dim.clone();
         tokio::spawn(async move {
             let result = db
                 .with(|conn| cliptoo_core::db::queries::get_clip_type_and_content(conn, id as i64))
@@ -350,6 +359,7 @@ pub fn setup_preview(
                         clip_id: id,
                         fav_dir: &fav_dir,
                         td: &td,
+                        preview_max_dim: max_dim.load(Ordering::Relaxed),
                     };
                     let handler = PREVIEW_HANDLERS
                         .iter()

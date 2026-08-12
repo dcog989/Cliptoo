@@ -140,7 +140,7 @@ async fn main() -> Result<()> {
 
     search::setup_filter(&ui, &db, &dirs, &active_filter_state);
 
-    preview::setup_preview(&ui, &db, &dirs);
+    preview::setup_preview(&ui, &db, &dirs, image_preview_size.clone());
     preview::setup_dismiss_preview(&ui);
 
     let edit_win = edit::setup_edit_window(&ui, &settings, &dirs, &db, &tag_prefix);
