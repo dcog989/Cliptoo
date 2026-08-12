@@ -157,6 +157,14 @@ export component HotkeyRow {
                     if (event.text == Key.Escape) {
                         ti.clear-focus();
                         accept
+                    } else if (event.text >= "\u{0010}" && event.text <= "\u{0018}") {
+                        // A bare modifier key. Slint encodes Shift/Control/
+                        // Alt/Meta/CapsLock as U+0010..U+0018 (see Slint's
+                        // key_codes table); committing here would capture a
+                        // modifier with no key (and `clean_hotkey_text`'s
+                        // control-char mapping would turn it into a phantom
+                        // letter). Wait for the actual key instead.
+                        reject
                     } else {
                         root.value = (event.modifiers.control ? "Ctrl+" : "")
                             + (event.modifiers.alt ? "Alt+" : "")
