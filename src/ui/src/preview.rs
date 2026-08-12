@@ -1,7 +1,7 @@
 use std::io::Read;
 use std::path::Path;
 use std::sync::Arc;
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use slint::{ComponentHandle, Model};
 
@@ -32,6 +32,13 @@ struct PreviewContext<'a> {
     /// `hover_image_preview_size` setting), so on-demand generation matches
     /// the size used when the clip was ingested.
     preview_max_dim: u32,
+    /// Generation of the request that built this context, plus the shared
+    /// counter. Bumped on every request; async completions (title/favicon,
+    /// thumbnail generation, file reads) apply their result only while the
+    /// counter still equals `request_generation`, so a slow result for a previously
+    /// hovered clip can never overwrite a newer preview.
+    request_generation: u64,
+    generation: &'a Arc<AtomicU64>,
 }
 
 /// Position the preview popup next to the pointer, clamped inside the window.
@@ -72,6 +79,8 @@ fn show_link_preview(ctx: &PreviewContext) {
     if let Some(t) = crate::favicon::load_cached_page_title(&c, &fd) {
         ui.set_preview_web_title(t.into());
     }
+    let generation = ctx.request_generation;
+    let generation_cell = ctx.generation.clone();
     tokio::spawn(async move {
         let cached_title = crate::favicon::load_cached_page_title(&c, &fd);
         let (title, fav_path) = if cached_title.is_some() {
@@ -87,6 +96,10 @@ fn show_link_preview(ctx: &PreviewContext) {
             (t, f)
         };
         let _ = w.upgrade_in_event_loop(move |ui| {
+            // Ignore the result if a newer request has taken over the popup.
+            if generation_cell.load(Ordering::Relaxed) != generation {
+                return;
+            }
             if let Some(t) = title.or(cached_title) {
                 ui.set_preview_web_title(t.into());
             }
@@ -134,6 +147,8 @@ fn show_image_preview(ctx: &PreviewContext) {
         let td2 = td.to_path_buf();
         let hash2 = content_hash.to_string();
         let max_dim = ctx.preview_max_dim;
+        let generation = ctx.request_generation;
+        let generation_cell = ctx.generation.clone();
         let w = ui.as_weak();
         tokio::spawn(async move {
             let _ = cliptoo_core::image::store_both_thumbnails_for_file(
@@ -148,6 +163,10 @@ fn show_image_preview(ctx: &PreviewContext) {
             ));
             if p.exists() {
                 let _ = w.upgrade_in_event_loop(move |ui| {
+                    // A newer request has taken over the popup; leave it alone.
+                    if generation_cell.load(Ordering::Relaxed) != generation {
+                        return;
+                    }
                     let img = slint::Image::load_from_path(&p).unwrap_or_default();
                     ui.set_preview_image(img);
                 });
@@ -158,6 +177,9 @@ fn show_image_preview(ctx: &PreviewContext) {
                 ));
                 if svg_p.exists() {
                     let _ = w.upgrade_in_event_loop(move |ui| {
+                        if generation_cell.load(Ordering::Relaxed) != generation {
+                            return;
+                        }
                         let img = slint::Image::load_from_path(&svg_p).unwrap_or_default();
                         ui.set_preview_image(img);
                     });
@@ -178,12 +200,18 @@ fn show_folder_preview(ctx: &PreviewContext) {
     ctx.ui.set_preview_text(ctx.content.into());
     let path = ctx.content.to_string();
     let ui_fin = ctx.ui.as_weak();
+    let generation = ctx.request_generation;
+    let generation_cell = ctx.generation.clone();
     tokio::spawn(async move {
         let info = tokio::task::spawn_blocking(move || scan_folder_info(&path)).await;
         let Ok(info) = info else {
             return;
         };
         let _ = ui_fin.upgrade_in_event_loop(move |ui| {
+            // Ignore the result if a newer request has taken over the popup.
+            if generation_cell.load(Ordering::Relaxed) != generation {
+                return;
+            }
             ui.set_preview_file_info(info.into());
         });
     });
@@ -273,6 +301,8 @@ fn show_text_file_preview(ctx: &PreviewContext) {
     ctx.ui.set_preview_text(path_line.clone().into());
 
     let ui_fin = ctx.ui.as_weak();
+    let generation = ctx.request_generation;
+    let generation_cell = ctx.generation.clone();
     tokio::spawn(async move {
         let read = tokio::task::spawn_blocking(move || read_text_file_preview(&file_path)).await;
         let Ok(Ok((contents, truncated))) = read else {
@@ -283,6 +313,10 @@ fn show_text_file_preview(ctx: &PreviewContext) {
             preview.push_str("\n… (preview truncated)");
         }
         let _ = ui_fin.upgrade_in_event_loop(move |ui| {
+            // Ignore the result if a newer request has taken over the popup.
+            if generation_cell.load(Ordering::Relaxed) != generation {
+                return;
+            }
             ui.set_preview_text(preview.into());
         });
     });
@@ -338,18 +372,28 @@ pub fn setup_preview(
     let preview_fd = dirs.favicons_dir.clone();
     let preview_td = dirs.thumbnails_dir.clone();
     let preview_max_dim = preview_size.clone();
+    // Bumped on every preview request; async completions use it to detect and
+    // discard results for a clip the user has already moved on from.
+    let request_generation = Arc::new(AtomicU64::new(0));
     ui.on_request_preview(move |id: i32, x: f32, y: f32| {
+        // Invalidate any still-running work from an earlier request.
+        let generation = request_generation.fetch_add(1, Ordering::Relaxed) + 1;
         let db = preview_db.clone();
         let ui = preview_ui.clone();
         let fav_dir = preview_fd.clone();
         let td = preview_td.clone();
         let max_dim = preview_max_dim.clone();
+        let generation_cell = request_generation.clone();
         tokio::spawn(async move {
             let result = db
                 .with(|conn| cliptoo_core::db::queries::get_clip_type_and_content(conn, id as i64))
                 .await;
             if let Ok((content, clip_type, content_hash)) = result {
                 let _ = ui.upgrade_in_event_loop(move |ui| {
+                    // A newer request already took over the popup; drop this one.
+                    if generation_cell.load(Ordering::Relaxed) != generation {
+                        return;
+                    }
                     position_popup(&ui, &clip_type, x, y);
                     let ctx = PreviewContext {
                         ui: &ui,
@@ -360,6 +404,8 @@ pub fn setup_preview(
                         fav_dir: &fav_dir,
                         td: &td,
                         preview_max_dim: max_dim.load(Ordering::Relaxed),
+                        request_generation: generation,
+                        generation: &generation_cell,
                     };
                     let handler = PREVIEW_HANDLERS
                         .iter()
