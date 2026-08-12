@@ -8,7 +8,7 @@ component SettingsRow {
     in property <string> tooltip-text;
     in property <bool> fill: false;
     in property <bool> bordered: true;
-    in property <color> border-color: Theme.accent-muted;
+    in property <color> border-color: Theme.border-accent;
     in property <length> min-content-width: 0px;
 
     height: 32px;
@@ -144,7 +144,7 @@ export component HotkeyRow {
         label: root.label;
         tooltip-text: root.tooltip-text;
         fill: false;
-        border-color: ti.has-focus ? Theme.accent-primary : Theme.accent-muted;
+        border-color: ti.has-focus ? Theme.accent-primary : Theme.border-accent;
         HorizontalLayout {
             padding-left: 8px;
             padding-right: 8px;

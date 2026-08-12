@@ -140,9 +140,9 @@ pub(crate) fn default_accent_color() -> Color {
     Color::from_rgb_u8(r, g, b)
 }
 
-/// Derive a lighter/dimmer sibling of the base accent at OKLCH lightness `l`,
-/// scaling the base color's own chroma by `chroma_scale` — a picked Neon stays
-/// vibrant, a picked Muted stays restrained.
+/// Derive an accent-tinted color at a fixed OKLCH lightness `l`, scaling the
+/// base accent's chroma by `chroma_scale`. Used for the subtle accent border,
+/// so a picked Neon stays vibrant and a picked Muted stays restrained.
 fn accent_sibling(hue: f64, base_chroma: f64, l: f64, chroma_scale: f64) -> Color {
     let [r, g, b] = oklch_to_srgb_bytes(l, base_chroma * chroma_scale, hue);
     Color::from_rgb_u8(r, g, b)
@@ -235,7 +235,7 @@ pub fn fill_theme(
     is_dark: bool,
     system_accent: Option<(u8, u8, u8)>,
 ) {
-    let muted_l = if is_dark { 0.54 } else { 0.40 };
+    let border_accent_l = if is_dark { 0.54 } else { 0.40 };
 
     // Surface the accent is applied on; the accent must keep a minimum
     // contrast against it in both theme modes.
@@ -280,7 +280,7 @@ pub fn fill_theme(
         Color::from_rgb_u8(0x00, 0x00, 0x00)
     });
     t.set_accent_primary(accent);
-    t.set_accent_muted(accent_sibling(accent_h, accent_c, muted_l, 0.40));
+    t.set_border_accent(accent_sibling(accent_h, accent_c, border_accent_l, 0.40));
 
     if is_dark {
         t.set_bg_primary(Color::from_rgb_u8(bg_primary.0, bg_primary.1, bg_primary.2));
