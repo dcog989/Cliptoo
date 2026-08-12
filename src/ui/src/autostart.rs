@@ -1,16 +1,36 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use std::path::PathBuf;
 
 const AUTOSTART_DIR: &str = "autostart";
 const DESKTOP_FILE: &str = "cliptoo.desktop";
 
-fn autostart_path() -> PathBuf {
-    let config_home = dirs::config_dir().unwrap_or_else(|| PathBuf::from("~/.config"));
-    config_home.join(AUTOSTART_DIR).join(DESKTOP_FILE)
+fn autostart_path() -> Result<PathBuf> {
+    let config_home = dirs::config_dir().context("no XDG config directory — is HOME set?")?;
+    Ok(config_home.join(AUTOSTART_DIR).join(DESKTOP_FILE))
+}
+
+/// Quote `value` for a desktop-entry `Exec` value: enclosed in double quotes
+/// with `"`, `` ` ``, `$` and `\` escaped by a backslash, per the freedesktop
+/// Desktop Entry specification. Without this, an executable path containing
+/// spaces (or those characters) would be misparsed by the session autostart.
+fn exec_quote(value: &str) -> String {
+    let mut out = String::with_capacity(value.len() + 2);
+    out.push('"');
+    for c in value.chars() {
+        match c {
+            '"' | '`' | '$' | '\\' => {
+                out.push('\\');
+                out.push(c);
+            }
+            _ => out.push(c),
+        }
+    }
+    out.push('"');
+    out
 }
 
 pub fn ensure_autostart() -> Result<()> {
-    let path = autostart_path();
+    let path = autostart_path()?;
     let exe = std::env::current_exe()?;
 
     let content = format!(
@@ -25,7 +45,7 @@ pub fn ensure_autostart() -> Result<()> {
          StartupNotify=false\n\
          NoDisplay=true\n\
          X-KDE-StartupNotify=false\n",
-        exe.display()
+        exec_quote(&exe.to_string_lossy())
     );
 
     if let Some(parent) = path.parent() {
@@ -37,7 +57,7 @@ pub fn ensure_autostart() -> Result<()> {
 }
 
 pub fn remove_autostart() -> Result<()> {
-    let path = autostart_path();
+    let path = autostart_path()?;
     if path.exists() {
         std::fs::remove_file(&path)?;
     }

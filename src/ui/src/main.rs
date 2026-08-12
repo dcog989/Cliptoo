@@ -41,10 +41,15 @@ async fn main() -> Result<()> {
 
     info!("Cliptoo starting");
 
-    if settings.start_with_system
-        && let Err(e) = autostart::ensure_autostart()
-    {
-        tracing::warn!("autostart: failed to create desktop file: {e}");
+    if settings.start_with_system {
+        if let Err(e) = autostart::ensure_autostart() {
+            tracing::warn!("autostart: failed to create desktop file: {e}");
+        }
+    } else if let Err(e) = autostart::remove_autostart() {
+        // Reconcile a stale autostart file (e.g. one left behind after the
+        // setting was turned off elsewhere) so Cliptoo doesn't start on the
+        // next login against the user's preference.
+        tracing::warn!("autostart: failed to remove stale desktop file: {e}");
     }
 
     let db = Arc::new(cliptoo_core::db::DbPool::open(&dirs.db_path)?);
