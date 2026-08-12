@@ -6,6 +6,7 @@
 
 import { Theme } from "Theme.slint";
 import { ScrollView } from "std-widgets.slint";
+import { ToastNotification } from "ToastNotification.slint";
 
 export component EditWindow inherits Window {
     title: @tr("Edit Clip");
@@ -27,6 +28,12 @@ export component EditWindow inherits Window {
     // Armed by the first Cancel/close while `dirty`; while set, the Cancel
     // button reads "Discard?" and the next click actually closes.
     in-out property <bool> confirm-cancel: false;
+
+    // Error feedback for a failed save; driven from Rust so the window stays
+    // open with an explanatory message instead of closing silently.
+    in-out property <bool> toast-visible: false;
+    in-out property <string> toast-message: "";
+    in-out property <string> toast-severity: "info";
 
     callback save-clicked(int, string, string);   // id, content, tags
     callback cancel-clicked;
@@ -246,6 +253,20 @@ export component EditWindow inherits Window {
                     }
                 }
             }
+        }
+    }
+
+    // Error toast for a failed save; floats above the action buttons so it is
+    // visible while the window stays open.
+    ToastNotification {
+        width: Math.min(320px, root.width - 40px);
+        x: (root.width - self.width) / 2;
+        y: root.height - 70px - self.height;
+        message: root.toast-message;
+        severity: root.toast-severity;
+        active <=> root.toast-visible;
+        dismissed => {
+            root.toast-visible = false;
         }
     }
 }

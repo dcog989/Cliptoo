@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use anyhow::Context;
 use slint::ComponentHandle;
 
 use crate::helpers;
@@ -90,65 +91,76 @@ pub fn setup_edit_window(
                 let (query, filter) = helpers::current_view_state(&ui);
                 let pfx = tag_prefix.clone();
                 tokio::spawn(async move {
-                    // A text-document clip stores its file path in `Content`;
-                    // saving means writing the edited text back to that file.
-                    let (stored_content, clip_type) = db
-                        .with(|conn| {
-                            cliptoo_core::db::queries::get_clip_type_and_content(conn, id as i64)
+                    // Save the edited content. Any failure aborts the save and
+                    // keeps the editor open with an error toast — a silent
+                    // close would convince the user their edits persisted.
+                    let result: anyhow::Result<()> = async {
+                        // A text-document clip stores its file path in `Content`;
+                        // saving means writing the edited text back to that file.
+                        let (stored_content, clip_type) = db
+                            .with(|conn| {
+                                cliptoo_core::db::queries::get_clip_type_and_content(
+                                    conn, id as i64,
+                                )
+                            })
+                            .await
+                            .map(|(c, t, _)| (c, t))
+                            .context("loading clip")?;
+                        if clip_type == "file_text" {
+                            let write_path = stored_content.clone();
+                            let write_content = content.clone();
+                            let wrote = tokio::task::spawn_blocking(move || {
+                                write_text_file(&write_path, &write_content)
+                            })
+                            .await
+                            .context("file-write task panicked")?;
+                            wrote.context("writing edited file")?;
+                        } else {
+                            let normalized =
+                                cliptoo_core::content::normalize_line_endings(&content);
+                            let classified = cliptoo_core::content::ContentProcessor::process(
+                                &normalized,
+                                false,
+                            )
+                            .context("content is empty")?;
+                            db.with(|conn| {
+                                cliptoo_core::db::queries::update_clip_content(
+                                    conn,
+                                    id as i64,
+                                    &classified.content,
+                                    &classified.preview_content,
+                                    &classified.content_hash,
+                                    classified.clip_type.as_str(),
+                                    classified.was_trimmed,
+                                    classified.has_leading_whitespace,
+                                    classified.is_multiline,
+                                    classified.size_in_bytes,
+                                )
+                            })
+                            .await
+                            .context("saving clip content")?;
+                        }
+                        db.with(|conn| {
+                            cliptoo_core::db::queries::update_tags(conn, id as i64, &tags)
                         })
                         .await
-                        .map(|(c, t, _)| (c, t))
-                        .unwrap_or_default();
-                    if clip_type == "file_text" {
-                        let write_path = stored_content.clone();
-                        let write_content = content.clone();
-                        let wrote = tokio::task::spawn_blocking(move || {
-                            write_text_file(&write_path, &write_content)
-                        })
-                        .await;
-                        match wrote {
-                            Ok(Ok(())) => {}
-                            Ok(Err(e)) => {
-                                tracing::error!(
-                                    "edit: failed to write edited file {stored_content:?}: {e}"
-                                );
-                            }
-                            Err(e) => {
-                                tracing::error!(
-                                    "edit: file write task for {stored_content:?} panicked: {e}"
-                                );
-                            }
-                        }
-                    } else {
-                        let normalized = cliptoo_core::content::normalize_line_endings(&content);
-                        if let Some(classified) =
-                            cliptoo_core::content::ContentProcessor::process(&normalized, false)
-                            && let Err(e) = db
-                                .with(|conn| {
-                                    cliptoo_core::db::queries::update_clip_content(
-                                        conn,
-                                        id as i64,
-                                        &classified.content,
-                                        &classified.preview_content,
-                                        &classified.content_hash,
-                                        classified.clip_type.as_str(),
-                                        classified.was_trimmed,
-                                        classified.has_leading_whitespace,
-                                        classified.is_multiline,
-                                        classified.size_in_bytes,
-                                    )
-                                })
-                                .await
-                        {
-                            tracing::error!("edit: failed to update clip {id} content: {e:#}");
-                        }
+                        .context("saving tags")?;
+                        Ok(())
                     }
-                    if let Err(e) = db
-                        .with(|conn| cliptoo_core::db::queries::update_tags(conn, id as i64, &tags))
-                        .await
-                    {
-                        tracing::error!("edit: failed to update clip {id} tags: {e:#}");
+                    .await;
+
+                    if let Err(e) = result {
+                        tracing::error!("edit: failed to save clip {id}: {e:#}");
+                        // Keep the window open so nothing is silently lost; the
+                        // user can fix the problem and retry, or cancel.
+                        let _ = win.upgrade_in_event_loop(move |win| {
+                            win.set_toast_message(format!("Save failed: {e:#}").into());
+                            win.set_toast_severity("error".into());
+                            win.set_toast_visible(true);
+                        });
+                        return;
                     }
+
                     helpers::refresh_clips(&db, &ui, &td, &fd, &query, &filter, Some(&pfx)).await;
                     let _ = win.upgrade_in_event_loop(move |win| {
                         let _ = win.hide();
