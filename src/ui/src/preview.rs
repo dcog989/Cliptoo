@@ -228,10 +228,23 @@ fn scan_folder_info(path: &str) -> String {
     format!("{count} {item_label} · {size_str} · {date_str}")
 }
 
-/// Preview for every other clip type (text, color, file_*): show text.
+/// Preview for every other clip type (text, file_*): show text.
 fn show_text_preview(ctx: &PreviewContext) {
     ctx.ui.set_preview_clip_type(ctx.clip_type.into());
     ctx.ui.set_preview_text(ctx.content.into());
+}
+
+/// Preview for a color clip: the parsed colour as a full-size swatch plus the
+/// colour string. The swatch background comes from the clip content instead of
+/// the placeholder grey the popup defaults to. Falls back to transparent on a
+/// parse failure, mirroring the list-row swatch in thumbnail_cache::convert.
+fn show_color_preview(ctx: &PreviewContext) {
+    ctx.ui.set_preview_clip_type("color".into());
+    ctx.ui.set_preview_text(ctx.content.into());
+    let color = cliptoo_core::color::ColorParser::try_parse(ctx.content)
+        .map(|c| slint::Color::from_argb_u8(c.a, c.r, c.g, c.b))
+        .unwrap_or(slint::Color::from_argb_u8(0, 0, 0, 0));
+    ctx.ui.set_preview_color(color);
 }
 
 /// Preview for RTF clips: show the stripped plain text, not raw markup.
@@ -300,6 +313,7 @@ type PreviewHandler = fn(&PreviewContext<'_>);
 /// stays unchanged.
 const PREVIEW_HANDLERS: &[(&str, PreviewHandler)] = &[
     ("code_snippet", show_code_preview),
+    ("color", show_color_preview),
     ("link", show_link_preview),
     ("file_image", show_image_preview),
     ("file_text", show_text_file_preview),
