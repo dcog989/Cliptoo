@@ -6,6 +6,10 @@
 //! serde.  This is the only export/import format; XML and CSV were removed
 //! because they added maintenance burden with no consumer demand.
 //!
+//! Every `clips` column except `Id` is preserved on a round-trip: `Id` is
+//! exported for reference but the import inserts fresh AUTOINCREMENT ids, so
+//! ids are not preserved across a restore.
+//!
 //! ## Import
 //!
 //! Import is **additive**: rows with a `ContentHash` already in the DB are
@@ -41,6 +45,20 @@ pub struct ExportRow {
     pub size_in_bytes: i64,
     pub paste_count: i64,
     pub tags: Option<String>,
+    // Fidelity flags. `IsFileUri` is not re-derivable from content: reclassify
+    // uses it to keep copied-file clips (file_* / folder) from being read as
+    // path-looking text and downgraded to file_path, so dropping it on import
+    // silently corrupted re-imported file clips on the next reclassify pass.
+    // `IsDeadhead` is only a UI presentation flag, but preserving it keeps an
+    // export/import round-trip lossless.
+    //
+    // `#[serde(default)]` (false) lets export files written before these flags
+    // existed still load — such rows were stored without the flags, so false is
+    // their historical value.
+    #[serde(default)]
+    pub is_file_uri: bool,
+    #[serde(default)]
+    pub is_deadhead: bool,
 }
 
 // ── DB read helper ────────────────────────────────────────────────────────────
@@ -51,7 +69,8 @@ fn fetch_rows(conn: &Connection, where_clause: &str) -> Result<Vec<ExportRow>> {
     let mut stmt = conn.prepare_cached(&format!(
         "SELECT Id, Content, PreviewContent, ContentHash, ClipType,
                 SourceApp, Timestamp, IsBookmarked, WasTrimmed,
-                HasLeadingWhitespace, IsMultiline, SizeInBytes, PasteCount, Tags
+                HasLeadingWhitespace, IsMultiline, SizeInBytes, PasteCount, Tags,
+                IsFileUri, IsDeadhead
          FROM clips
          {where_clause}
          ORDER BY Timestamp DESC"
@@ -74,6 +93,8 @@ fn fetch_rows(conn: &Connection, where_clause: &str) -> Result<Vec<ExportRow>> {
                 size_in_bytes: row.get(11)?,
                 paste_count: row.get(12)?,
                 tags: row.get(13)?,
+                is_file_uri: row.get::<_, i32>(14)? != 0,
+                is_deadhead: row.get::<_, i32>(15)? != 0,
             })
         })?
         .collect::<std::result::Result<Vec<_>, _>>()
@@ -232,8 +253,8 @@ pub fn import_json(conn: &Connection, data: &[u8]) -> Result<u64> {
             "INSERT INTO clips (
                 Content, PreviewContent, ContentHash, ClipType, SourceApp,
                 Timestamp, IsBookmarked, WasTrimmed, HasLeadingWhitespace,
-                IsMultiline, SizeInBytes, PasteCount, Tags
-             ) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13)",
+                IsMultiline, SizeInBytes, PasteCount, Tags, IsFileUri, IsDeadhead
+             ) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15)",
             params![
                 row.content,
                 row.preview_content,
@@ -248,6 +269,8 @@ pub fn import_json(conn: &Connection, data: &[u8]) -> Result<u64> {
                 row.size_in_bytes,
                 row.paste_count,
                 row.tags,
+                row.is_file_uri as i32,
+                row.is_deadhead as i32,
             ],
         )
         .with_context(|| format!("insert imported clip hash={}", row.content_hash))?;
@@ -337,6 +360,8 @@ mod tests {
             size_in_bytes: content.len() as i64,
             paste_count: 0,
             tags: None,
+            is_file_uri: false,
+            is_deadhead: false,
         }
     }
 
@@ -348,6 +373,47 @@ mod tests {
         assert_eq!(back.len(), 2);
         assert_eq!(back[0].content, "hello world");
         assert_eq!(back[1].content, "foo\nbar");
+    }
+
+    /// Export files written before the fidelity flags (`is_file_uri`,
+    /// `is_deadhead`) existed must still load — both default to false, which is
+    /// how those rows were stored back then.
+    #[test]
+    fn legacy_exports_without_fidelity_flags_still_load() {
+        let json = r#"{
+            "id": 1,
+            "content": "legacy clip",
+            "preview_content": "legacy clip",
+            "content_hash": "hash0001",
+            "clip_type": "text",
+            "source_app": null,
+            "timestamp": "2024-01-01T00:00:00",
+            "is_bookmarked": false,
+            "was_trimmed": false,
+            "has_leading_whitespace": false,
+            "is_multiline": false,
+            "size_in_bytes": 11,
+            "paste_count": 0,
+            "tags": null
+        }"#;
+        let row: ExportRow = serde_json::from_str(json).unwrap();
+        assert!(!row.is_file_uri);
+        assert!(!row.is_deadhead);
+    }
+
+    /// A file clip exported with `is_file_uri` / `is_deadhead` set round-trips
+    /// both flags, so a re-imported clip survives reclassify without being
+    /// downgraded to file_path.
+    #[test]
+    fn fidelity_flags_round_trip() {
+        let mut row = make_row(1, "/tmp/some-archive.zip");
+        row.clip_type = "file_archive".to_string();
+        row.is_file_uri = true;
+        row.is_deadhead = true;
+        let json = serde_json::to_vec_pretty(&row).unwrap();
+        let back: ExportRow = serde_json::from_slice(&json).unwrap();
+        assert!(back.is_file_uri);
+        assert!(back.is_deadhead);
     }
 
     #[test]

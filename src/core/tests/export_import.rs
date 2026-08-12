@@ -1,5 +1,6 @@
 mod common;
 
+use cliptoo_core::content::classifier::ContentProcessor;
 use cliptoo_core::db::DbPool;
 use std::sync::Arc;
 
@@ -302,4 +303,79 @@ async fn import_skips_rows_with_invalid_content_hash() {
     );
 
     clean_up(&dir);
+}
+
+/// A copied-file clip (IsFileUri=1) must keep that flag through an
+/// export/import round-trip. reclassify re-runs the classifier with the stored
+/// IsFileUri flag, so without it the clip would be read as path-looking text
+/// and silently downgraded from a file_* type to file_path.
+#[tokio::test]
+async fn import_preserves_is_file_uri_across_reclassify() {
+    let dir = std::env::temp_dir().join(format!("cliptoo_isuri_{}", std::process::id()));
+    clean_up(&dir);
+    let db1 = Arc::new(DbPool::open(&dir).unwrap());
+
+    // A copied file: Content is a real path, IsFileUri=1, ClipType taken from
+    // the classifier so reclassify agrees with the stored type. The payload
+    // lives in its own directory — `dir` is a SQLite file, not a folder.
+    let file_dir = std::env::temp_dir().join(format!("cliptoo_isuri_file_{}", std::process::id()));
+    std::fs::create_dir_all(&file_dir).unwrap();
+    let file_path = file_dir.join("payload.txt");
+    std::fs::write(&file_path, b"x").unwrap();
+    let path_str = file_path.to_str().unwrap().to_string();
+
+    let c = ContentProcessor::process(&path_str, true).unwrap();
+    db1.with(|conn| {
+        cliptoo_core::db::queries::insert_or_bump(
+            conn,
+            &path_str,
+            &c.preview_content,
+            &c.content_hash,
+            c.clip_type.as_str(),
+            None,
+            c.was_trimmed,
+            c.has_leading_whitespace,
+            c.is_multiline,
+            c.size_in_bytes,
+            true, // is_file_uri — copied as a file
+        )
+    })
+    .await
+    .unwrap();
+    let stored_type = c.clip_type.as_str().to_string();
+
+    let out = dir.with_extension("json");
+    cliptoo_core::export::export_to_file(&db1, &out)
+        .await
+        .unwrap();
+
+    let db2 = Arc::new(DbPool::open(&dir.with_extension("2")).unwrap());
+    let inserted = cliptoo_core::export::import_from_file(&db2, &out)
+        .await
+        .unwrap();
+    assert_eq!(inserted, 1);
+
+    let n = cliptoo_core::maintenance::reclassify_all(&db2)
+        .await
+        .unwrap();
+    assert_eq!(n, 0, "file clip must not be reclassified after import");
+
+    let (clip_type, is_file_uri): (String, i32) = db2
+        .with(|conn| {
+            let t = conn.query_row(
+                "SELECT ClipType, IsFileUri FROM clips WHERE Id = 1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )?;
+            Ok(t)
+        })
+        .await
+        .unwrap();
+    assert_eq!(clip_type, stored_type);
+    assert_eq!(is_file_uri, 1);
+
+    clean_up(&dir);
+    clean_up(&dir.with_extension("2"));
+    let _ = std::fs::remove_file(&out);
+    let _ = std::fs::remove_dir_all(&file_dir);
 }
