@@ -154,12 +154,15 @@ const M_SRGB_TO_XYZ: [[f64; 3]; 3] = [
     [0.019_330_818_715_6, 0.119_194_779_794_6, 0.950_532_152_249_7],
 ];
 
-/// M2_INV — XYZ → LMS (inverse of M2, from OKLab spec).
+/// M2_INV — XYZ → LMS (inverse of M2, from the OKLab spec).
+/// These are the CSS Color 4 / Björn Ottosson constants; they are the exact
+/// inverse of `M2` (older third-party copies of "OKLab matrices" carry a
+/// corrupted XYZ → LMS matrix that is NOT `M2⁻¹`).
 #[rustfmt::skip]
 const M2_INV: [[f64; 3]; 3] = [
-    [ 0.818_933_501_615_9,  0.328_845_301_486_4, -0.148_537_138_960_8],
-    [-0.032_592_039_985_3,  0.936_932_803_485_9,  0.031_152_878_378_8],
-    [ 0.048_177_199_566_3,  0.174_288_981_061_0,  0.692_397_143_327_5],
+    [ 0.819_022_443_216_431_9,  0.361_906_256_052_122_5, -0.128_873_782_616_164],
+    [ 0.032_983_667_198_027_1,  0.929_286_846_896_554_6,  0.036_144_668_169_998_4],
+    [ 0.048_177_199_566_046_3,  0.264_239_524_944_227_6,  0.633_547_825_813_693_7],
 ];
 
 /// M1_INV — LMS' → OKLab (inverse of M1, from OKLab spec).
@@ -187,4 +190,56 @@ pub fn srgb_bytes_to_oklch(r: u8, g: u8, b: u8) -> (f64, f64, f64) {
         h += 360.0;
     }
     (l, c, h)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{oklch_to_srgb_bytes, srgb_bytes_to_oklch};
+
+    const L_TOL: f64 = 0.002;
+    const C_TOL: f64 = 0.002;
+    const H_TOL: f64 = 0.3;
+
+    #[test]
+    fn known_reference_values_match_css_color_4() {
+        // Pure red → OKLCH reference from the CSS Color 4 spec.
+        let (l, c, h) = srgb_bytes_to_oklch(255, 0, 0);
+        assert!((l - 0.628).abs() < L_TOL, "red L={l}");
+        assert!((c - 0.258).abs() < C_TOL, "red C={c}");
+        assert!((h - 29.2).abs() < H_TOL, "red H={h}");
+        // Pure green.
+        let (l, c, h) = srgb_bytes_to_oklch(0, 255, 0);
+        assert!((l - 0.866).abs() < L_TOL, "green L={l}");
+        assert!((c - 0.295).abs() < C_TOL, "green C={c}");
+        assert!((h - 142.5).abs() < H_TOL, "green H={h}");
+        // Pure blue.
+        let (l, c, h) = srgb_bytes_to_oklch(0, 0, 255);
+        assert!((l - 0.452).abs() < L_TOL, "blue L={l}");
+        assert!((c - 0.313).abs() < C_TOL, "blue C={c}");
+        assert!((h - 264.1).abs() < H_TOL, "blue H={h}");
+        // White / black stay neutral.
+        let (l, c, _h) = srgb_bytes_to_oklch(255, 255, 255);
+        assert!((l - 1.0).abs() < L_TOL && c < C_TOL, "white L={l} C={c}");
+        let (l, c, _h) = srgb_bytes_to_oklch(0, 0, 0);
+        assert!(l < L_TOL && c < C_TOL, "black L={l} C={c}");
+    }
+
+    #[test]
+    fn round_trip_stays_near_identity() {
+        // Gamut-boundary colors lose a few bytes to the binary-search clip, so
+        // allow a small delta; the point is to catch a broken matrix, which
+        // produces errors of ~10+ bytes for mid tones.
+        for r in (0..=255).step_by(16) {
+            for g in (0..=255).step_by(16) {
+                for b in (0..=255).step_by(16) {
+                    let (l, c, h) = srgb_bytes_to_oklch(r, g, b);
+                    let rt = oklch_to_srgb_bytes(l, c, h);
+                    assert!(
+                        rt[0].abs_diff(r) <= 4 && rt[1].abs_diff(g) <= 4 && rt[2].abs_diff(b) <= 4,
+                        "round trip drifted for rgb({r},{g},{b}) -> {rt:?}"
+                    );
+                }
+            }
+        }
+    }
 }
