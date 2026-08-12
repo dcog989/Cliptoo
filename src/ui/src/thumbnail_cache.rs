@@ -12,12 +12,11 @@ use lru::LruCache;
 
 // ── LRU thumbnail cache ───────────────────────────────────────────────────────
 
-/// Default in-memory thumbnail cache limit: 32 MiB worth of decoded pixels.
-/// Each list-cell WebP is typically ~2–4 KiB on disk; once decoded into RGBA
-/// the Slint Image carries the pixel buffer internally.  The budget here is
-/// expressed as the number of cached entries (not pixel bytes) since Slint
-/// does not expose the buffer size.  At ~50 KB average per thumbnail image
-/// 512 entries ≈ 25 MB.
+/// Default in-memory thumbnail cache limit: 512 entries.  Each list-cell WebP
+/// is typically ~2–4 KiB on disk; once decoded into RGBA the Slint Image
+/// carries the pixel buffer internally, so 512 entries ≈ 25–32 MB of decoded
+/// pixels.  The budget is expressed as an entry count because Slint does not
+/// expose the buffer size.
 const LRU_CAPACITY: usize = 512;
 
 /// Least-Recently-Used in-memory cache for decoded Slint thumbnail images.
