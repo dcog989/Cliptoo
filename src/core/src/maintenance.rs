@@ -397,28 +397,11 @@ pub async fn prune_cache(
     Ok(pruned)
 }
 
-/// Delete non-bookmarked clips whose `SizeInBytes` exceeds `threshold_bytes`.
-/// Returns the number of rows deleted.
-pub fn prune_oversized(conn: &Connection, threshold_bytes: i64) -> Result<u64> {
-    let n = conn.execute(
-        "DELETE FROM clips WHERE IsBookmarked = 0 AND SizeInBytes > ?1",
-        params![threshold_bytes],
-    )? as u64;
-    if n > 0 {
-        info!("prune_oversized: removed {n} clips exceeding {threshold_bytes} bytes");
-    }
-    Ok(n)
-}
-
-/// Delete all non-bookmarked clips (and optionally bookmarked ones too).
-/// Returns the number of rows deleted.
-pub fn clear_history(conn: &Connection, include_bookmarked: bool) -> Result<u64> {
-    let n = if include_bookmarked {
-        conn.execute("DELETE FROM clips", [])? as u64
-    } else {
-        conn.execute("DELETE FROM clips WHERE IsBookmarked = 0", [])? as u64
-    };
-    info!("clear_history: removed {n} clips (include_bookmarked={include_bookmarked})");
+/// Delete all non-bookmarked clips. Bookmarked clips are deliberate keep
+/// signals, so they always survive a history clear. Returns rows deleted.
+pub fn clear_history(conn: &Connection) -> Result<u64> {
+    let n = conn.execute("DELETE FROM clips WHERE IsBookmarked = 0", [])? as u64;
+    info!("clear_history: removed {n} clips");
     Ok(n)
 }
 

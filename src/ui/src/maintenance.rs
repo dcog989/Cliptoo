@@ -131,17 +131,7 @@ pub fn setup_manual_maintenance(
             let result: anyhow::Result<Option<String>> = async {
                 match key.as_str() {
                     "clear-history" => {
-                        db.with(|conn| {
-                            cliptoo_core::maintenance::clear_history(conn, false).map(|_| ())
-                        })
-                        .await?;
-                        Ok(None)
-                    }
-                    "clear-history-all" => {
-                        db.with(|conn| {
-                            cliptoo_core::maintenance::clear_history(conn, true).map(|_| ())
-                        })
-                        .await?;
+                        db.with(cliptoo_core::maintenance::clear_history).await?;
                         Ok(None)
                     }
                     "clear-caches" => {
@@ -163,13 +153,6 @@ pub fn setup_manual_maintenance(
                         } else {
                             format!("Reclassified {n} clips")
                         }))
-                    }
-                    "prune-oversized" => {
-                        db.with(|conn| {
-                            cliptoo_core::maintenance::prune_oversized(conn, 1_048_576).map(|_| ())
-                        })
-                        .await?;
-                        Ok(None)
                     }
                     "export" => match pick_path(true).await? {
                         Some(path) => {
@@ -211,9 +194,7 @@ pub fn setup_manual_maintenance(
                 Ok(None) if !cancelled => {
                     let msg = match key.as_str() {
                         "clear-history" => "History cleared",
-                        "clear-history-all" => "Full history cleared",
                         "clear-caches" => "Caches pruned",
-                        "prune-oversized" => "Oversized clips removed",
                         _ => "",
                     };
                     if !msg.is_empty() {
@@ -234,8 +215,7 @@ pub fn setup_manual_maintenance(
                 }
 
                 match key.as_str() {
-                    "clear-history" | "clear-history-all" | "deadhead" | "prune-oversized"
-                    | "reclassify" => {
+                    "clear-history" | "deadhead" | "reclassify" => {
                         let _ = cliptoo_core::maintenance::run_scheduled(
                             &db,
                             cliptoo_core::maintenance::RetentionConfig {

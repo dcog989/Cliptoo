@@ -64,7 +64,7 @@ export component AppWindow inherits Window {
     callback send-to-clip(int, string);         // id, app_path (or name)
     callback compare-set-left(int);             // remember id as compare-left
     callback compare-right(int);               // diff compare-left vs id
-    callback maintenance-action(string);        // "clear-history" | "clear-caches" | "deadhead" | "reclassify" | "prune-oversized"
+    callback maintenance-action(string);        // "clear-history" | "clear-caches" | "deadhead" | "reclassify"
     callback delete-clip(int);                 // delete clip by id
     callback toggle-bookmark(int, bool);        // id, current is-bookmarked (Slint passes current state; Rust flips it)
     callback move-to-top(int);                 // bump clip timestamp to top
