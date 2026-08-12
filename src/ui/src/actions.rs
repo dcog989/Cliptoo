@@ -15,6 +15,13 @@ pub fn setup_clip_actions(
     tag_prefix: &str,
 ) {
     let tag_prefix = tag_prefix.to_string();
+
+    // Shared compare state: the context menu's "Set as left" writes here and
+    // "Compare" consumes it. Declared at the top so the delete handler can
+    // also clear it when the selected left clip is deleted.
+    let compare_left_id: std::rc::Rc<std::cell::Cell<Option<i64>>> =
+        std::rc::Rc::new(std::cell::Cell::new(None));
+
     // ── Context menu: send-to app names ─────────────────────────────────
     {
         let names: Vec<slint::SharedString> = settings
@@ -37,7 +44,13 @@ pub fn setup_clip_actions(
         let del_td = thumbnails_dir.clone();
         let del_fd = favicons_dir.clone();
         let del_pfx = tag_prefix.clone();
+        let del_cmp = compare_left_id.clone();
         ui.on_delete_clip(move |id: i32| {
+            // A deleted clip can no longer be the compare-left; drop a stale
+            // reference so a later compare doesn't target a missing row.
+            if del_cmp.get() == Some(id as i64) {
+                del_cmp.set(None);
+            }
             let db = del_db.clone();
             let ui = del_ui.clone();
             let td = del_td.clone();
@@ -282,10 +295,6 @@ pub fn setup_clip_actions(
         });
     }
 
-    // ── Compare clips ────────────────────────────────────────────────────
-    let compare_left_id: std::rc::Rc<std::cell::Cell<Option<i64>>> =
-        std::rc::Rc::new(std::cell::Cell::new(None));
-
     // ── Transform clip ───────────────────────────────────────────────────
     {
         let transform_db = db.clone();
@@ -360,6 +369,11 @@ pub fn setup_clip_actions(
                     return;
                 }
             };
+            // Consume the selection so the id cannot linger as a stale target
+            // for later compares; "Set as left" must be chosen again for a
+            // fresh pair.
+            cl.set(None);
+            tracing::debug!("Compare: left {left_id} vs right {id}");
             let right_id = id as i64;
             let db = cmp_db.clone();
             let tool_path = cmp_settings.borrow().compare_tool_path.clone();
