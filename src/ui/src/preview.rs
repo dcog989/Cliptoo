@@ -164,52 +164,68 @@ fn show_image_preview(ctx: &PreviewContext) {
 }
 
 /// Preview for a folder clip: the path plus an entry count, total size and the
-/// latest file modification date.
+/// latest file modification date. The directory scan runs on a blocking thread
+/// so a large folder (or slow network mount) can't stall the UI thread; the
+/// path line is shown first so the popup is immediately non-empty.
 fn show_folder_preview(ctx: &PreviewContext) {
-    let ui = ctx.ui;
-    let content = ctx.content;
-    let path = Path::new(content);
-    let info = if path.is_dir() {
-        let mut count = 0u64;
-        let mut total_size = 0u64;
-        let mut latest_mtime = 0i64;
-        if let Ok(entries) = std::fs::read_dir(path) {
-            for entry in entries.flatten() {
-                count += 1;
-                if let Ok(meta) = entry.metadata() {
-                    total_size += meta.len();
-                    if let Ok(mtime) = meta.modified()
-                        && let Ok(dur) = mtime.duration_since(std::time::UNIX_EPOCH)
-                    {
-                        latest_mtime = latest_mtime.max(dur.as_secs() as i64);
-                    }
+    ctx.ui.set_preview_clip_type("folder".into());
+    ctx.ui.set_preview_text(ctx.content.into());
+    let path = ctx.content.to_string();
+    let ui_fin = ctx.ui.as_weak();
+    tokio::spawn(async move {
+        let info = tokio::task::spawn_blocking(move || scan_folder_info(&path)).await;
+        let Ok(info) = info else {
+            return;
+        };
+        let _ = ui_fin.upgrade_in_event_loop(move |ui| {
+            ui.set_preview_file_info(info.into());
+        });
+    });
+}
+
+/// Scan a directory for an entry count, total size and the latest file
+/// modification date. Separated so the blocking work can be unit-tested
+/// without the window/tokio plumbing. Returns an empty string when `path`
+/// is not a directory.
+fn scan_folder_info(path: &str) -> String {
+    let path = Path::new(path);
+    if !path.is_dir() {
+        return String::new();
+    }
+    let mut count = 0u64;
+    let mut total_size = 0u64;
+    let mut latest_mtime = 0i64;
+    if let Ok(entries) = std::fs::read_dir(path) {
+        for entry in entries.flatten() {
+            count += 1;
+            if let Ok(meta) = entry.metadata() {
+                total_size += meta.len();
+                if let Ok(mtime) = meta.modified()
+                    && let Ok(dur) = mtime.duration_since(std::time::UNIX_EPOCH)
+                {
+                    latest_mtime = latest_mtime.max(dur.as_secs() as i64);
                 }
             }
         }
-        let size_str = if total_size < 1024 {
-            format!("{total_size} B")
-        } else if total_size < 1024 * 1024 {
-            format!("{:.1} KB", total_size as f64 / 1024.0)
-        } else if total_size < 1024 * 1024 * 1024 {
-            format!("{:.1} MB", total_size as f64 / (1024.0 * 1024.0))
-        } else {
-            format!("{:.2} GB", total_size as f64 / (1024.0 * 1024.0 * 1024.0))
-        };
-        let item_label = if count == 1 { "item" } else { "items" };
-        let date_str = if latest_mtime > 0 {
-            chrono::DateTime::from_timestamp(latest_mtime, 0)
-                .map(|dt| dt.format("%Y-%m-%d %H:%M").to_string())
-                .unwrap_or_default()
-        } else {
-            String::new()
-        };
-        format!("{count} {item_label} · {size_str} · {date_str}")
+    }
+    let size_str = if total_size < 1024 {
+        format!("{total_size} B")
+    } else if total_size < 1024 * 1024 {
+        format!("{:.1} KB", total_size as f64 / 1024.0)
+    } else if total_size < 1024 * 1024 * 1024 {
+        format!("{:.1} MB", total_size as f64 / (1024.0 * 1024.0))
+    } else {
+        format!("{:.2} GB", total_size as f64 / (1024.0 * 1024.0 * 1024.0))
+    };
+    let item_label = if count == 1 { "item" } else { "items" };
+    let date_str = if latest_mtime > 0 {
+        chrono::DateTime::from_timestamp(latest_mtime, 0)
+            .map(|dt| dt.format("%Y-%m-%d %H:%M").to_string())
+            .unwrap_or_default()
     } else {
         String::new()
     };
-    ui.set_preview_clip_type("folder".into());
-    ui.set_preview_text(content.into());
-    ui.set_preview_file_info(info.into());
+    format!("{count} {item_label} · {size_str} · {date_str}")
 }
 
 /// Preview for every other clip type (text, color, file_*): show text.
@@ -344,8 +360,12 @@ pub fn setup_dismiss_preview(ui: &crate::AppWindow) {
 
 #[cfg(test)]
 mod tests {
-    use super::{FILE_TEXT_PREVIEW_MAX_BYTES, read_text_file_preview};
+    use super::{FILE_TEXT_PREVIEW_MAX_BYTES, read_text_file_preview, scan_folder_info};
     use std::io::Write;
+
+    fn temp_dir(label: &str) -> std::path::PathBuf {
+        std::env::temp_dir().join(format!("cliptoo_preview_{}_{}", std::process::id(), label))
+    }
 
     fn temp_file(name: &str, bytes: &[u8]) -> std::path::PathBuf {
         let dir =
@@ -387,5 +407,40 @@ mod tests {
     #[test]
     fn missing_file_errors() {
         assert!(read_text_file_preview("/definitely/not/a/file.txt").is_err());
+    }
+
+    #[test]
+    fn folder_info_counts_entries() {
+        let dir = temp_dir("folder_counts");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("a.txt"), b"hello").unwrap();
+        std::fs::write(dir.join("b.txt"), b"world").unwrap();
+        let info = scan_folder_info(dir.to_str().unwrap());
+        assert!(info.starts_with("2 items · 10 B"), "got: {info:?}");
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn folder_info_single_entry_is_singular() {
+        let dir = temp_dir("folder_single");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("a.txt"), b"x").unwrap();
+        let info = scan_folder_info(dir.to_str().unwrap());
+        assert!(info.starts_with("1 item · 1 B"), "got: {info:?}");
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn folder_info_empty_dir() {
+        let dir = temp_dir("folder_empty");
+        std::fs::create_dir_all(&dir).unwrap();
+        let info = scan_folder_info(dir.to_str().unwrap());
+        assert!(info.starts_with("0 items · 0 B"), "got: {info:?}");
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn folder_info_non_dir_is_empty() {
+        assert_eq!(scan_folder_info("/definitely/not/a/dir"), "");
     }
 }
