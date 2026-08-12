@@ -1,5 +1,6 @@
 mod common;
 
+use cliptoo_core::content::classifier::ContentProcessor;
 use cliptoo_core::db::DbPool;
 use cliptoo_core::maintenance;
 use std::sync::Arc;
@@ -303,6 +304,59 @@ async fn scheduler_applies_updated_retention_config() {
     clean_up(&dir);
     let _ = std::fs::remove_dir_all(&thumbs);
     let _ = std::fs::remove_dir_all(&favs);
+}
+
+/// A stored file clip whose path no longer exists keeps its specific type: the
+/// classifier recomputes it as `file_generic` because it can only see current
+/// disk state, but the type reflects what was copied — deadhead already flags
+/// the missing path, so reclassify must not degrade it.
+#[tokio::test]
+async fn reclassify_keeps_specific_type_for_missing_file_clips() {
+    let dir = std::env::temp_dir().join(format!("cliptoo_reclassify_gone_{}", std::process::id()));
+    clean_up(&dir);
+    let db = Arc::new(DbPool::open(&dir).unwrap());
+
+    // A copied-file clip (IsFileUri=1) stored as file_archive; the file is gone.
+    let missing = std::env::temp_dir().join(format!(
+        "cliptoo_reclassify_gone_file_{}",
+        std::process::id()
+    ));
+    let missing_str = missing.to_str().unwrap().to_string();
+    let c = ContentProcessor::process(&missing_str, true).unwrap();
+    db.with(|conn| {
+        cliptoo_core::db::queries::insert_or_bump(
+            conn,
+            &missing_str,
+            &c.preview_content,
+            "gonehash",
+            "file_archive",
+            None,
+            c.was_trimmed,
+            c.has_leading_whitespace,
+            c.is_multiline,
+            c.size_in_bytes,
+            true,
+        )
+    })
+    .await
+    .unwrap();
+
+    let n = maintenance::reclassify_all(&db).await.unwrap();
+    assert_eq!(n, 0, "missing-path file clip keeps its stored type");
+
+    let clip_type: String = db
+        .with(|conn| {
+            let t: String =
+                conn.query_row("SELECT ClipType FROM clips WHERE Id = 1", [], |row| {
+                    row.get(0)
+                })?;
+            Ok(t)
+        })
+        .await
+        .unwrap();
+    assert_eq!(clip_type, "file_archive");
+
+    clean_up(&dir);
 }
 
 /// `prune_cache` must survive a DB row whose ContentHash is not valid UTF-8 on

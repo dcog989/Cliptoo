@@ -20,7 +20,7 @@ pub fn spawn_listener(
     favicons_dir: PathBuf,
     images_dir: PathBuf,
     suppression: Arc<PasteSuppressionSet>,
-    blacklisted_apps: Vec<String>,
+    blacklist_state: Arc<std::sync::Mutex<Vec<String>>>,
     preview_max_dim: u32,
     active_filter_state: Arc<std::sync::Mutex<String>>,
 ) -> tokio::task::JoinHandle<()> {
@@ -32,7 +32,7 @@ pub fn spawn_listener(
             favicons_dir,
             images_dir,
             suppression,
-            blacklisted_apps,
+            blacklist_state,
             preview_max_dim,
             active_filter_state,
         )

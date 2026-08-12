@@ -448,7 +448,10 @@ fn reclassify_collect(conn: &Connection) -> Result<Vec<(i64, String, String, boo
 /// A row is only rewritten when the recomputed `ClipType` differs from the
 /// stored one — a genuinely misclassified clip. Correctly classified rows
 /// (including freshly copied ones) are left untouched, so reclassify never
-/// reports clips that are already right.
+/// reports clips that are already right. The one exception: a stored file clip
+/// whose path is now missing recomputes as `file_generic` (the classifier sees
+/// only current disk state) and is deliberately left with its specific type —
+/// deadhead maintenance already flags the missing path.
 ///
 /// `WasTrimmed` / `HasLeadingWhitespace` are preserved: the stored `Content`
 /// is the trimmed payload, so those insert-time facts cannot be re-derived
@@ -473,12 +476,21 @@ pub async fn reclassify_all(db: &Arc<DbPool>) -> Result<u64> {
         }
         let normalised = normalize_line_endings(&raw);
         if let Some(c) = ContentProcessor::process(&normalised, is_copied_file) {
-            if c.clip_type.as_str() == cur_clip_type {
+            let new_type = c.clip_type.as_str();
+            if new_type == cur_clip_type {
+                continue;
+            }
+            // A stored file clip whose path is now missing reclassifies to
+            // `file_generic` (the classifier can only see current disk state).
+            // The specific type reflects what was copied, not what still exists
+            // — deadhead maintenance already flags the missing path — so don't
+            // degrade it.
+            if ClipType::parse(&cur_clip_type).is_file_clip() && new_type == "file_generic" {
                 continue;
             }
             updates.push((
                 id,
-                c.clip_type.as_str().to_string(),
+                new_type.to_string(),
                 c.preview_content,
                 c.size_in_bytes,
                 c.is_multiline as i64,

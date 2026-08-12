@@ -17,6 +17,19 @@ use super::is_blacklisted;
 use super::reader::poll_clipboard;
 use crate::helpers::refresh_clips;
 
+/// Read the current blacklist from shared state and test `source_app` against
+/// it. The settings UI swaps the list on change, so edits take effect on the
+/// next clipboard event without a restart.
+fn is_blacklisted_live(
+    state: &Arc<std::sync::Mutex<Vec<String>>>,
+    source_app: Option<&str>,
+) -> bool {
+    let blacklist = state
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    is_blacklisted(source_app, &blacklist)
+}
+
 #[allow(clippy::too_many_arguments)]
 pub async fn run_listener(
     db: Arc<DbPool>,
@@ -25,7 +38,7 @@ pub async fn run_listener(
     favicons_dir: PathBuf,
     images_dir: PathBuf,
     suppression: Arc<PasteSuppressionSet>,
-    blacklisted_apps: Vec<String>,
+    blacklist_state: Arc<std::sync::Mutex<Vec<String>>>,
     preview_max_dim: u32,
     active_filter_state: Arc<std::sync::Mutex<String>>,
 ) -> Result<()> {
@@ -165,7 +178,7 @@ pub async fn run_listener(
 
                             let source_app = crate::source_app::detect_source_app().await;
 
-                            if is_blacklisted(source_app.as_deref(), &blacklisted_apps) {
+                            if is_blacklisted_live(&blacklist_state, source_app.as_deref()) {
                                 debug!("blacklisted app {source_app:?} — skipping text clip");
                                 continue;
                             }
@@ -212,7 +225,7 @@ pub async fn run_listener(
                     ClipboardPayload::FileUri { content, .. } => {
                         let source_app = crate::source_app::detect_source_app().await;
 
-                        if is_blacklisted(source_app.as_deref(), &blacklisted_apps) {
+                        if is_blacklisted_live(&blacklist_state, source_app.as_deref()) {
                             debug!("blacklisted app {source_app:?} — skipping file-uri clip");
                             continue;
                         }
@@ -287,7 +300,7 @@ pub async fn run_listener(
                     ClipboardPayload::Image { hash, data, .. } => {
                         let source_app = crate::source_app::detect_source_app().await;
 
-                        if is_blacklisted(source_app.as_deref(), &blacklisted_apps) {
+                        if is_blacklisted_live(&blacklist_state, source_app.as_deref()) {
                             debug!("blacklisted app {source_app:?} — skipping image clip");
                             continue;
                         }

@@ -503,8 +503,23 @@ msgstr "Command used to compare two text clips"
 
 #: src/ui/ui/SettingsWindow.slint:444
 msgctxt "SettingsWindow"
-msgid "Send To apps and Blacklist are managed via JSON settings file."
-msgstr "Send To apps and Blacklist are managed via JSON settings file."
+msgid "Send To apps"
+msgstr "Send To apps"
+
+#: src/ui/ui/SettingsWindow.slint:445
+msgctxt "SettingsWindow"
+msgid "Comma-separated list of apps that can open a clip. 'Name: command'"
+msgstr "Comma-separated list of apps that can open a clip. 'Name: command'"
+
+#: src/ui/ui/SettingsWindow.slint:456
+msgctxt "SettingsWindow"
+msgid "Blacklist apps"
+msgstr "Blacklist apps"
+
+#: src/ui/ui/SettingsWindow.slint:457
+msgctxt "SettingsWindow"
+msgid "Comma-separated list of apps excluded from clipboard capture"
+msgstr "Comma-separated list of apps excluded from clipboard capture"
 
 #: src/ui/ui/SettingsWindow.slint:455
 msgctxt "SettingsWindow"

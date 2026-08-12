@@ -71,14 +71,26 @@ async fn main() -> Result<()> {
             max_age_days: settings.borrow().max_age_days,
         });
 
+    // Shared blacklist state: the settings UI replaces it on change; the
+    // clipboard listener reads it on every poll, so edits apply live.
+    let blacklist_state = std::sync::Arc::new(std::sync::Mutex::new(
+        settings.borrow().blacklisted_apps.clone(),
+    ));
+
     window::setup_drag(&ui);
     window::setup_resize(&ui);
     window::setup_close_handlers(&ui, &settings, &dirs);
     window::setup_close_to_tray(&ui);
     window::setup_focus_regained(&ui);
 
-    let settings_win =
-        settings::setup_settings_window(&ui, &settings, &dirs, hotkey_tx, retention_tx);
+    let settings_win = settings::setup_settings_window(
+        &ui,
+        &settings,
+        &dirs,
+        hotkey_tx,
+        retention_tx,
+        blacklist_state.clone(),
+    );
     // Slint globals are per-window-instance: the settings window has its own
     // `Theme` global that must be filled separately from the main window's.
     theme::fill_theme(
@@ -141,7 +153,7 @@ async fn main() -> Result<()> {
         dirs.favicons_dir.clone(),
         dirs.images_dir.clone(),
         suppression.clone(),
-        settings.borrow().blacklisted_apps.clone(),
+        blacklist_state.clone(),
         settings.borrow().hover_image_preview_size,
         active_filter_state.clone(),
     );

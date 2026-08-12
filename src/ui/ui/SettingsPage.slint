@@ -36,6 +36,8 @@ export component SettingsPage inherits ScrollView {
     in-out property <bool> s-paste-as-plain-text:  false;
     in-out property <bool> s-paste-moves-to-top:   true;
     in-out property <string> s-diff-tool-path:       "";
+    in-out property <string> s-send-to-apps:         "";
+    in-out property <string> s-blacklist-apps:       "";
 
     // ── Per-row filter visibility, set by Rust from `settings-filter` ────────
     // General
@@ -61,7 +63,8 @@ export component SettingsPage inherits ScrollView {
     in property <bool> row-image-preview-size-visible: true;
     // External Apps
     in property <bool> row-diff-tool-visible: true;
-    in property <bool> row-external-note-visible: true;
+    in property <bool> row-sendto-visible: true;
+    in property <bool> row-blacklist-visible: true;
 
     callback setting-changed(string, string);
     callback clear-accent-color();
@@ -384,7 +387,7 @@ export component SettingsPage inherits ScrollView {
         }
 
         // ── External Apps ────────────────────────────────────────────────
-        if (root.row-diff-tool-visible || root.row-external-note-visible): SectionHeader {
+        if (root.row-diff-tool-visible || root.row-sendto-visible || root.row-blacklist-visible): SectionHeader {
             text: @tr("External Apps");
         }
 
@@ -397,11 +400,22 @@ export component SettingsPage inherits ScrollView {
             }
         }
 
-        if root.row-external-note-visible: Text {
-            text: @tr("Send To apps and Blacklist are managed via JSON settings file.");
-            color: Theme.fg-muted;
-            font-size: Theme.font-size;
-            wrap: word-wrap;
+        if root.row-sendto-visible: TextRow {
+            label: @tr("Send To apps");
+            tooltip-text: @tr("Comma-separated list of apps that can open a clip. 'Name: command'");
+            value <=> root.s-send-to-apps;
+            committed(v) => {
+                root.setting-changed("send_to_apps", v);
+            }
+        }
+
+        if root.row-blacklist-visible: TextRow {
+            label: @tr("Blacklist apps");
+            tooltip-text: @tr("Comma-separated list of apps excluded from clipboard capture");
+            value <=> root.s-blacklist-apps;
+            committed(v) => {
+                root.setting-changed("blacklisted_apps", v);
+            }
         }
     }
 }

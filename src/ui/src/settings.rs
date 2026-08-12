@@ -7,6 +7,62 @@ fn idx_of(needle: &str, haystack: &[&str]) -> i32 {
         .unwrap_or(0) as i32
 }
 
+/// Derive a display name from a bare path (the file name without extension),
+/// falling back to the whole path when there is no stem.
+fn derive_app_name(path: &str) -> String {
+    std::path::Path::new(path)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .filter(|s| !s.is_empty())
+        .unwrap_or(path)
+        .to_string()
+}
+
+/// Parse a comma-separated list of `Name: path` entries into `SendToApp`
+/// structs. A bare path (no colon) derives its name from the file name.
+fn parse_send_to_apps(raw: &str) -> Vec<cliptoo_core::SendToApp> {
+    raw.split(',')
+        .map(|entry| entry.trim())
+        .filter(|entry| !entry.is_empty())
+        .map(|entry| match entry.split_once(':') {
+            Some((name, path)) => {
+                let name = name.trim();
+                let path = path.trim();
+                cliptoo_core::SendToApp {
+                    name: if name.is_empty() {
+                        derive_app_name(path)
+                    } else {
+                        name.to_string()
+                    },
+                    path: path.to_string(),
+                }
+            }
+            None => cliptoo_core::SendToApp {
+                name: derive_app_name(entry),
+                path: entry.to_string(),
+            },
+        })
+        .collect()
+}
+
+/// Render `SendToApp`s back into the comma-separated `Name: path` form the
+/// settings text field shows.
+fn format_send_to_apps(apps: &[cliptoo_core::SendToApp]) -> String {
+    apps.iter()
+        .map(|a| format!("{}: {}", a.name, a.path))
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+/// Parse a comma-separated list of app identifiers.
+fn parse_blacklist(raw: &str) -> Vec<String> {
+    raw.split(',')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(ToOwned::to_owned)
+        .collect()
+}
+
 /// Derive the custom accent hex from the three tuning sliders: HSV hue in
 /// degrees (0–360) plus saturation and brightness (both 0.0–1.0).
 fn accent_hex(hue: f64, saturation: f64, value: f64) -> String {
@@ -83,7 +139,8 @@ const APPEARANCE_PADDING: &str = "appearance row padding compact standard luxury
 const APPEARANCE_HOVER_DELAY: &str = "appearance preview hover delay tooltip milliseconds";
 const APPEARANCE_IMAGE_PREVIEW_SIZE: &str = "appearance image preview size thumbnail pixels";
 const EXTERNAL_DIFF_TOOL: &str = "external apps diff tool path compare";
-const EXTERNAL_NOTE: &str = "external apps send to blacklist json settings file";
+const EXTERNAL_SENDTO: &str = "external apps send to apps list";
+const EXTERNAL_BLACKLIST: &str = "external apps blacklist apps exclude ignore";
 
 /// `true` when `query` (already lowercased and trimmed) matches `keywords`.
 fn row_matches(keywords: &str, query: &str) -> bool {
@@ -115,7 +172,8 @@ fn apply_settings_filter(win: &crate::SettingsWindow, query: &str) {
     win.set_row_hover_delay_visible(row_matches(APPEARANCE_HOVER_DELAY, &q));
     win.set_row_image_preview_size_visible(row_matches(APPEARANCE_IMAGE_PREVIEW_SIZE, &q));
     win.set_row_diff_tool_visible(row_matches(EXTERNAL_DIFF_TOOL, &q));
-    win.set_row_external_note_visible(row_matches(EXTERNAL_NOTE, &q));
+    win.set_row_sendto_visible(row_matches(EXTERNAL_SENDTO, &q));
+    win.set_row_blacklist_visible(row_matches(EXTERNAL_BLACKLIST, &q));
 }
 
 /// Persist the settings window's current size into `Settings` so a resized
@@ -278,6 +336,8 @@ fn init_settings_properties(
     settings_win.set_s_paste_as_plain_text(s.paste_as_plain_text);
     settings_win.set_s_paste_moves_to_top(s.paste_moves_clip_to_top);
     settings_win.set_s_diff_tool_path(s.compare_tool_path.as_str().into());
+    settings_win.set_s_send_to_apps(format_send_to_apps(&s.send_to_apps).into());
+    settings_win.set_s_blacklist_apps(s.blacklisted_apps.join(", ").into());
     settings_win.set_s_max_clips(s.max_clips as i32);
     settings_win.set_s_max_age_days(s.max_age_days as i32);
 }
@@ -452,6 +512,7 @@ if ok:
 
 /// Handle setting changes: persist each key/value into `Settings` and re-apply
 /// live effects (theme, fonts, hotkeys).
+#[allow(clippy::too_many_arguments)]
 fn setup_setting_commit(
     settings_win: &crate::SettingsWindow,
     main_ui: &crate::AppWindow,
@@ -460,6 +521,7 @@ fn setup_setting_commit(
     favicons_dir: std::path::PathBuf,
     hotkey_tx: tokio::sync::watch::Sender<String>,
     retention_tx: tokio::sync::watch::Sender<cliptoo_core::maintenance::RetentionConfig>,
+    blacklist_state: std::sync::Arc<std::sync::Mutex<Vec<String>>>,
 ) {
     let s = settings.clone();
     let p = settings_path.to_path_buf();
@@ -614,6 +676,31 @@ fn setup_setting_commit(
                 "paste_as_plain_text" => s.paste_as_plain_text = value == "true",
                 "paste_moves_to_top" => s.paste_moves_clip_to_top = value == "true",
                 "compare_tool_path" => s.compare_tool_path = value.clone(),
+                "send_to_apps" => {
+                    s.send_to_apps = parse_send_to_apps(&value);
+                    // Rebuild the context-menu Send To list so the change
+                    // applies without a restart.
+                    if let Some(ui) = settings_ui.upgrade() {
+                        let names: Vec<slint::SharedString> = s
+                            .send_to_apps
+                            .iter()
+                            .map(|a| slint::SharedString::from(a.name.as_str()))
+                            .collect();
+                        ui.set_ctx_send_to_apps(
+                            std::rc::Rc::new(slint::VecModel::from(names)).into(),
+                        );
+                    }
+                }
+                "blacklisted_apps" => {
+                    s.blacklisted_apps = parse_blacklist(&value);
+                    // The clipboard listener reads the blacklist from this
+                    // shared state on every poll, so the change applies
+                    // without a restart.
+                    *blacklist_state
+                        .lock()
+                        .unwrap_or_else(|poisoned| poisoned.into_inner()) =
+                        s.blacklisted_apps.clone();
+                }
                 "max_clips" => {
                     if let Ok(v) = value.parse::<u32>() {
                         s.max_clips = v;
@@ -679,6 +766,7 @@ pub fn setup_settings_window(
     dirs: &crate::app_dirs::AppDirs,
     hotkey_tx: tokio::sync::watch::Sender<String>,
     retention_tx: tokio::sync::watch::Sender<cliptoo_core::maintenance::RetentionConfig>,
+    blacklist_state: std::sync::Arc<std::sync::Mutex<Vec<String>>>,
 ) -> crate::SettingsWindow {
     let settings_win = crate::SettingsWindow::new().expect("SettingsWindow creation");
 
@@ -698,6 +786,7 @@ pub fn setup_settings_window(
         dirs.favicons_dir.clone(),
         hotkey_tx,
         retention_tx,
+        blacklist_state,
     );
     setup_menu_open(&settings_win, ui);
 
@@ -789,5 +878,40 @@ mod tests {
         assert_eq!(h, 0.0);
         assert_eq!(sat, 0.65);
         assert_eq!(val, 0.95);
+    }
+
+    #[test]
+    fn parse_send_to_apps_handles_name_path_and_bare_paths() {
+        let apps = parse_send_to_apps("code: /usr/bin/code, gedit");
+        assert_eq!(apps.len(), 2);
+        assert_eq!(apps[0].name, "code");
+        assert_eq!(apps[0].path, "/usr/bin/code");
+        assert_eq!(apps[1].name, "gedit");
+        assert_eq!(apps[1].path, "gedit");
+
+        // Empty entries and whitespace are dropped; a missing name is derived
+        // from the path's file stem.
+        let apps = parse_send_to_apps("  ,, /opt/tools/meld, : /usr/bin/kompare ,");
+        assert_eq!(apps.len(), 2);
+        assert_eq!(apps[0].name, "meld");
+        assert_eq!(apps[1].name, "kompare");
+        assert_eq!(apps[1].path, "/usr/bin/kompare");
+    }
+
+    #[test]
+    fn send_to_apps_round_trip_format_and_parse() {
+        let apps = parse_send_to_apps("code: /usr/bin/code, gedit");
+        let formatted = format_send_to_apps(&apps);
+        assert_eq!(formatted, "code: /usr/bin/code, gedit: gedit");
+        assert_eq!(parse_send_to_apps(&formatted).len(), 2);
+    }
+
+    #[test]
+    fn parse_blacklist_trims_and_drops_empty() {
+        assert_eq!(parse_blacklist(""), Vec::<String>::new());
+        assert_eq!(
+            parse_blacklist("  ,, org.kde.dolphin ,, kwrite "),
+            vec!["org.kde.dolphin".to_string(), "kwrite".to_string()]
+        );
     }
 }

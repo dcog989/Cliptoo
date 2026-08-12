@@ -57,6 +57,8 @@ export component SettingsWindow inherits Window {
 
     // External Apps
     in-out property <string> s-diff-tool-path:       "";
+    in-out property <string> s-send-to-apps:         "";
+    in-out property <string> s-blacklist-apps:       "";
 
     // Data
     in-out property <int> s-max-clips:            10000;
@@ -92,7 +94,8 @@ export component SettingsWindow inherits Window {
     in-out property <bool> row-image-preview-size-visible: true;
     // External Apps
     in-out property <bool> row-diff-tool-visible: true;
-    in-out property <bool> row-external-note-visible: true;
+    in-out property <bool> row-sendto-visible: true;
+    in-out property <bool> row-blacklist-visible: true;
 
     callback settings-closing();
     callback setting-changed(string, string);
@@ -176,6 +179,8 @@ export component SettingsWindow inherits Window {
                     s-paste-as-plain-text <=> root.s-paste-as-plain-text;
                     s-paste-moves-to-top <=> root.s-paste-moves-to-top;
                     s-diff-tool-path <=> root.s-diff-tool-path;
+                    s-send-to-apps <=> root.s-send-to-apps;
+                    s-blacklist-apps <=> root.s-blacklist-apps;
 
                     row-hotkey-visible: root.row-hotkey-visible;
                     row-startup-visible: root.row-startup-visible;
@@ -197,7 +202,8 @@ export component SettingsWindow inherits Window {
                     row-hover-delay-visible: root.row-hover-delay-visible;
                     row-image-preview-size-visible: root.row-image-preview-size-visible;
                     row-diff-tool-visible: root.row-diff-tool-visible;
-                    row-external-note-visible: root.row-external-note-visible;
+                    row-sendto-visible: root.row-sendto-visible;
+                    row-blacklist-visible: root.row-blacklist-visible;
 
                     setting-changed(k, v) => {
                         root.setting-changed(k, v);
