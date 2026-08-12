@@ -1,6 +1,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
+use uuid::Uuid;
 
 const SETTINGS_VERSION: u32 = 1;
 
@@ -134,7 +135,8 @@ impl Settings {
     }
 
     /// Load settings from the given path, falling back to defaults on error.
-    /// Corrupted files are renamed to a timestamped .bak before returning defaults.
+    /// Corrupted files are renamed to a uniquely-named .bak before returning
+    /// defaults, and the defaults are persisted in the file's place.
     pub fn load(path: &Path) -> Self {
         if !path.exists() {
             let defaults = Self::default();
@@ -161,16 +163,22 @@ impl Settings {
         match serde_json::from_str::<Self>(&raw) {
             Ok(s) => s,
             Err(e) => {
-                // Rename corrupt file to .json.bak.{timestamp}
+                // Rename the corrupt file to a uniquely-named backup. A UUID
+                // suffix (not a timestamp) guarantees two corruptions in the
+                // same second can never silently overwrite an earlier backup.
                 tracing::warn!("settings: parse error in {:?}: {e}; renaming to .bak", path);
                 let bak_name = format!(
                     "{}.bak.{}",
                     path.file_name().unwrap_or_default().to_string_lossy(),
-                    chrono_now_compact()
+                    Uuid::new_v4()
                 );
                 let bak = path.with_file_name(bak_name);
                 let _ = std::fs::rename(path, &bak);
-                Self::default()
+                // Persist defaults in the file's place so a crash now still
+                // leaves a valid settings file instead of none.
+                let defaults = Self::default();
+                let _ = defaults.save(path);
+                defaults
             }
         }
     }
@@ -224,10 +232,6 @@ fn default_settings_window_height() -> f64 {
     Settings::default().settings_window_height
 }
 
-fn chrono_now_compact() -> String {
-    chrono::Utc::now().timestamp().to_string()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -245,5 +249,34 @@ mod tests {
         assert!((s.accent_hue - 247.0).abs() < f64::EPSILON);
         assert!((s.accent_saturation - 0.65).abs() < f64::EPSILON);
         assert!((s.accent_value - 0.95).abs() < f64::EPSILON);
+    }
+
+    /// A corrupt settings file is moved to a `.bak.*` backup (uniquely named,
+    /// so a second corruption in the same second never overwrites it) and
+    /// defaults are persisted in its place.
+    #[test]
+    fn corrupt_settings_are_backed_up_and_defaults_persisted() {
+        let dir =
+            std::env::temp_dir().join(format!("cliptoo_settings_corrupt_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("cliptoo.json");
+        std::fs::write(&path, "{ not valid json ").unwrap();
+
+        let s = Settings::load(&path);
+        assert_eq!(s.hotkey, "Ctrl+Alt+Q");
+
+        // The corrupt file was moved aside, and defaults written back.
+        let backups: Vec<String> = std::fs::read_dir(&dir)
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .map(|e| e.file_name().to_string_lossy().to_string())
+            .filter(|n| n.starts_with("cliptoo.json.bak."))
+            .collect();
+        assert_eq!(backups.len(), 1);
+
+        let persisted = Settings::load(&path);
+        assert_eq!(persisted.hotkey, "Ctrl+Alt+Q");
+
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
