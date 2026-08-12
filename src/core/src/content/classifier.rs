@@ -151,10 +151,11 @@ impl ContentProcessor {
     /// Returns `Some((clip_type, decoded_paths))` on a match, where
     /// `decoded_paths` is the percent-decoded, `file://`-stripped content —
     /// ready to store as `Content`. A single existing path gets its precise
-    /// type (`Folder` or a `file_*`); a multi-path payload (a multi-selection
-    /// copy) is `Folder` only when every path is an existing directory,
-    /// otherwise `FileGeneric`. Multi-path payloads need no existence check:
-    /// paths that are already gone become deadheads via maintenance.
+    /// type (`Folder` or a `file_*`); a single path-like path that no longer
+    /// exists falls back to `FileGeneric`. A multi-path payload (a
+    /// multi-selection copy) is `Folder` only when every path is an existing
+    /// directory, otherwise `FileGeneric`. Missing paths need no existence
+    /// check: they become deadheads via maintenance.
     fn classify_path(s: &str) -> Option<(ClipType, String)> {
         use std::path::Path;
         if !Self::looks_like_path(s) {
@@ -181,7 +182,13 @@ impl ContentProcessor {
                 let ft = crate::content::filetype::FileTypeClassifier::classify(path);
                 return Some((ft, decoded[0].clone()));
             }
-            return None;
+            // Path-like but present on disk neither as a file nor a directory
+            // (deleted between the copy and the poll, or on a stale re-read).
+            // Keep it a file clip so deadhead maintenance can track it, and so
+            // reclassify does not downgrade a temporarily-gone path to text —
+            // mirrors the multi-selection branch, which also keeps missing
+            // paths as FileGeneric.
+            return Some((ClipType::FileGeneric, decoded[0].clone()));
         }
 
         // Multi-selection copy. Reject when a line isn't path-like at all (a
@@ -324,6 +331,18 @@ mod tests {
         let c = ContentProcessor::process(&content, true).unwrap();
         assert_eq!(c.clip_type, ClipType::FileGeneric);
         std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn single_missing_path_stays_file_clip() {
+        // A single copied path whose file has vanished since the copy must
+        // stay a file clip (FileGeneric) so deadhead maintenance can track it,
+        // matching the multi-selection branch instead of degrading to text.
+        let dir = temp_dir("missing_single");
+        let gone = dir.join("gone.png");
+        let c = ContentProcessor::process(gone.to_str().unwrap(), true).unwrap();
+        assert_eq!(c.clip_type, ClipType::FileGeneric);
+        assert!(!c.is_multiline);
     }
 
     #[test]
