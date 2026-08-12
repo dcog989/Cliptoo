@@ -23,12 +23,7 @@ fn discover_tool(explicit_path: &str) -> Result<(PathBuf, Vec<String>)> {
         bail!("compare_tool_path '{}' is not a file", explicit_path);
     }
 
-    let extra_dirs: &[&str] = &[
-        "/usr/bin",
-        "/usr/local/bin",
-        "/var/lib/flatpak/exports/bin",
-        "/run/host/usr/bin",
-    ];
+    let extra_dirs: &[&str] = &["/usr/bin", "/usr/local/bin", "/run/host/usr/bin"];
 
     for (name, extra_args) in TOOL_CANDIDATES {
         // Check PATH first.
