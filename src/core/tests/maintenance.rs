@@ -61,6 +61,42 @@ async fn reclassify_only_updates_rows_whose_classification_changed() {
     let _ = std::fs::remove_file(dir.with_extension("shm"));
 }
 
+/// Image clips store an internal path under `images_dir` as their Content
+/// (the listener's image branch), which the classifier would misread as a
+/// plain text path and reclassify to `file_path`. reclassify must leave
+/// `file_image` rows untouched — their type is not re-derivable.
+#[tokio::test]
+async fn reclassify_leaves_image_clips_untouched() {
+    let dir = std::env::temp_dir().join(format!("cliptoo_reclassify_img_{}", std::process::id()));
+    clean_up(&dir);
+    let db = Arc::new(DbPool::open(&dir).unwrap());
+
+    common::insert_clip(
+        &db,
+        "/home/user/.local/share/Cliptoo/images/abcdef1234567890.png",
+        "imghash",
+        "file_image",
+    )
+    .await;
+
+    let n = maintenance::reclassify_all(&db).await.unwrap();
+    assert_eq!(n, 0, "file_image clips are never reclassified");
+
+    let clip_type: String = db
+        .with(|conn| {
+            let t: String =
+                conn.query_row("SELECT ClipType FROM clips WHERE Id = 1", [], |row| {
+                    row.get(0)
+                })?;
+            Ok(t)
+        })
+        .await
+        .unwrap();
+    assert_eq!(clip_type, "file_image");
+
+    clean_up(&dir);
+}
+
 fn clean_up(dir: &std::path::Path) {
     let _ = std::fs::remove_file(dir);
     let _ = std::fs::remove_file(dir.with_extension("wal"));

@@ -415,8 +415,16 @@ fn reclassify_collect(conn: &Connection) -> Result<Vec<(i64, String, String, boo
     // IsFileUri tells the classifier whether the clip was a copied file/folder,
     // so path-looking *text* clips reclassify to FilePath while copied files
     // keep their Folder/file_* classification.
+    //
+    // `file_image` clips are excluded: their Content is an internal path under
+    // `images_dir` (see the listener's image branch), not a user-copied payload.
+    // Re-running the classifier on it would misread the path as plain text and
+    // reclassify the row from `file_image` to `file_path`, breaking the image
+    // preview/thumbnail handlers. Nothing in Content identifies an image clip,
+    // so the type is not re-derivable — leave the stored one alone.
     let mut stmt = conn.prepare_cached(
-        "SELECT Id, Content, ClipType, IsFileUri FROM clips WHERE Content IS NOT NULL",
+        "SELECT Id, Content, ClipType, IsFileUri FROM clips
+         WHERE Content IS NOT NULL AND ClipType != 'file_image'",
     )?;
     let mut out = Vec::new();
     for r in stmt.query_map([], |row| {
