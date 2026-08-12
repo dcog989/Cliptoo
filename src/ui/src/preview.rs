@@ -1,3 +1,4 @@
+use std::io::Read;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -11,6 +12,9 @@ const CODE_PREVIEW_WIDTH: f32 = 560.0;
 const DEFAULT_PREVIEW_WIDTH: f32 = 400.0;
 const POPUP_MARGIN: f32 = 8.0;
 const POPUP_OFFSET_X: f32 = 20.0;
+/// Maximum bytes read from a copied file for its text preview, so a huge file
+/// (e.g. a multi-GB log) is never slurped into memory just to render a tooltip.
+const FILE_TEXT_PREVIEW_MAX_BYTES: usize = 64 * 1024;
 
 /// Everything a preview handler needs, bundled so the per-type handlers can
 /// share one uniform `fn(&PreviewContext)` signature and be dispatched from a
@@ -221,6 +225,56 @@ fn show_rtf_preview(ctx: &PreviewContext) {
     ctx.ui.set_preview_text(stripped.into());
 }
 
+/// Preview for a copied text document (`.txt`, `.md`, `.log`, …): read the
+/// file's contents and preview them instead of just the path. Reading happens
+/// on a blocking thread; large files are bounded and binary files fall back to
+/// showing the path alone (same as a generic file clip).
+fn show_text_file_preview(ctx: &PreviewContext) {
+    // The path line is shown first so the popup is non-empty and the clip stays
+    // identifiable even when the contents are truncated or unreadable.
+    let path_line = ctx.content.to_string();
+    let file_path = ctx.content.to_string();
+    ctx.ui.set_preview_clip_type("file_text".into());
+    ctx.ui.set_preview_text(path_line.clone().into());
+
+    let ui_fin = ctx.ui.as_weak();
+    tokio::spawn(async move {
+        let read = tokio::task::spawn_blocking(move || read_text_file_preview(&file_path)).await;
+        let Ok(Ok((contents, truncated))) = read else {
+            return;
+        };
+        let mut preview = format!("{path_line}\n{}\n{contents}", "─".repeat(40));
+        if truncated {
+            preview.push_str("\n… (preview truncated)");
+        }
+        let _ = ui_fin.upgrade_in_event_loop(move |ui| {
+            ui.set_preview_text(preview.into());
+        });
+    });
+}
+
+/// Read up to `FILE_TEXT_PREVIEW_MAX_BYTES` bytes from a text file. Returns the
+/// decoded contents and whether it was truncated. Errors (missing path, no
+/// permission, or binary content) signal the caller to keep the path-only view.
+fn read_text_file_preview(path: &str) -> std::io::Result<(String, bool)> {
+    let mut file = std::fs::File::open(path)?;
+    let mut buf = Vec::with_capacity(FILE_TEXT_PREVIEW_MAX_BYTES);
+    file.by_ref()
+        .take(FILE_TEXT_PREVIEW_MAX_BYTES as u64 + 1)
+        .read_to_end(&mut buf)?;
+    let truncated = buf.len() > FILE_TEXT_PREVIEW_MAX_BYTES;
+    buf.truncate(FILE_TEXT_PREVIEW_MAX_BYTES);
+    // A NUL byte in the first chunk means this is almost certainly a binary
+    // file, despite the text extension — don't render its bytes as text.
+    if buf.contains(&0) {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "binary content",
+        ));
+    }
+    Ok((String::from_utf8_lossy(&buf).into_owned(), truncated))
+}
+
 /// Uniform signature for a per-clip-type preview handler, so handlers can be
 /// dispatched from a table keyed by clip type.
 type PreviewHandler = fn(&PreviewContext<'_>);
@@ -232,6 +286,7 @@ const PREVIEW_HANDLERS: &[(&str, PreviewHandler)] = &[
     ("code_snippet", show_code_preview),
     ("link", show_link_preview),
     ("file_image", show_image_preview),
+    ("file_text", show_text_file_preview),
     ("folder", show_folder_preview),
     ("rtf", show_rtf_preview),
 ];
@@ -285,4 +340,52 @@ pub fn setup_dismiss_preview(ui: &crate::AppWindow) {
             ui.set_preview_visible(false);
         }
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{FILE_TEXT_PREVIEW_MAX_BYTES, read_text_file_preview};
+    use std::io::Write;
+
+    fn temp_file(name: &str, bytes: &[u8]) -> std::path::PathBuf {
+        let dir =
+            std::env::temp_dir().join(format!("cliptoo_preview_{}_{}", std::process::id(), name));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("sample.txt");
+        {
+            let mut f = std::fs::File::create(&path).unwrap();
+            f.write_all(bytes).unwrap();
+        }
+        path
+    }
+
+    #[test]
+    fn reads_text_file_contents() {
+        let path = temp_file("text", b"hello world\nsecond line\n");
+        let (contents, truncated) = read_text_file_preview(path.to_str().unwrap()).unwrap();
+        assert!(!truncated);
+        assert_eq!(contents, "hello world\nsecond line\n");
+        std::fs::remove_dir_all(path.parent().unwrap()).unwrap();
+    }
+
+    #[test]
+    fn rejects_binary_content() {
+        let path = temp_file("bin", b"PK\x03\x04\x00\x00stuff");
+        assert!(read_text_file_preview(path.to_str().unwrap()).is_err());
+        std::fs::remove_dir_all(path.parent().unwrap()).unwrap();
+    }
+
+    #[test]
+    fn truncates_large_files_and_marks_it() {
+        let path = temp_file("large", &vec![b'x'; FILE_TEXT_PREVIEW_MAX_BYTES + 100]);
+        let (contents, truncated) = read_text_file_preview(path.to_str().unwrap()).unwrap();
+        assert!(truncated);
+        assert_eq!(contents.len(), FILE_TEXT_PREVIEW_MAX_BYTES);
+        std::fs::remove_dir_all(path.parent().unwrap()).unwrap();
+    }
+
+    #[test]
+    fn missing_file_errors() {
+        assert!(read_text_file_preview("/definitely/not/a/file.txt").is_err());
+    }
 }
