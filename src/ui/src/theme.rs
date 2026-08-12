@@ -143,11 +143,11 @@ pub fn fill_theme(
     is_dark: bool,
     system_accent: Option<(u8, u8, u8)>,
 ) {
-    let (secondary_l, muted_l) = if is_dark { (0.58, 0.54) } else { (0.44, 0.40) };
+    let muted_l = if is_dark { 0.54 } else { 0.40 };
 
     // Base accent: the system accent in "System" theme mode, otherwise the
-    // user-picked color. Secondary/muted shades are derived from whichever was
-    // used, keeping hue and relative chroma consistent.
+    // user-picked color. The muted shade is derived from whichever was used,
+    // keeping hue and relative chroma consistent.
     let (accent, hue, base_chroma) = if let Some((sr, sg, sb)) = system_accent {
         tracing::debug!("detected system accent: #{sr:02X}{sg:02X}{sb:02X}");
         let (_, sys_c, sys_h) = srgb_bytes_to_oklch(sr, sg, sb);
@@ -170,7 +170,6 @@ pub fn fill_theme(
         Color::from_rgb_u8(0x00, 0x00, 0x00)
     });
     t.set_accent_primary(accent);
-    t.set_accent_secondary(accent_sibling(hue, base_chroma, secondary_l, 0.75));
     t.set_accent_muted(accent_sibling(hue, base_chroma, muted_l, 0.40));
 
     if is_dark {
