@@ -55,8 +55,7 @@ const DATA: &[&str] = &[
     // Tabular / structured
     "csv", "tsv", "parquet", "arrow", "feather", "orc", "jsonl", "ndjson", "geojson",
     // Statistical
-    "sav", "dta", "por", "sas7bdat", "rds", "rdata",
-    // Scientific
+    "sav", "dta", "por", "sas7bdat", "rds", "rdata", // Scientific
     "h5", "hdf5", "nc", "mat",
 ];
 // .deb and .rpm are executable package formats; removed from ARCHIVE so DANGER takes precedence.
@@ -89,7 +88,9 @@ const DOCUMENT: &[&str] = &[
     "pages", "numbers", "key",
 ];
 
-const TEXT_FILE: &[&str] = &["txt", "md", "markdown", "log", "nfo", "rst", "org", "adoc", "tex"];
+const TEXT_FILE: &[&str] = &[
+    "txt", "md", "markdown", "log", "nfo", "rst", "org", "adoc", "tex",
+];
 const VIDEO: &[&str] = &[
     "mp4", "mkv", "avi", "mov", "webm", "flv", "wmv", "m4v", "3gp", "ts", "vob", "ogv", "rm",
     "rmvb",
@@ -107,10 +108,34 @@ mod tests {
     #[test]
     fn data_files_classify_as_file_data() {
         for ext in [
-            "x.db", "x.sqlite", "x.sqlite3", "x.mdb", "x.accdb", "x.dbf", "x.dmp", "x.gpkg",
-            "x.frm", "x.csv", "x.tsv", "x.parquet", "x.arrow", "x.feather", "x.orc", "x.jsonl",
-            "x.ndjson", "x.geojson", "x.sav", "x.dta", "x.por", "x.sas7bdat", "x.rds", "x.rdata",
-            "x.h5", "x.hdf5", "x.nc", "x.mat",
+            "x.db",
+            "x.sqlite",
+            "x.sqlite3",
+            "x.mdb",
+            "x.accdb",
+            "x.dbf",
+            "x.dmp",
+            "x.gpkg",
+            "x.frm",
+            "x.csv",
+            "x.tsv",
+            "x.parquet",
+            "x.arrow",
+            "x.feather",
+            "x.orc",
+            "x.jsonl",
+            "x.ndjson",
+            "x.geojson",
+            "x.sav",
+            "x.dta",
+            "x.por",
+            "x.sas7bdat",
+            "x.rds",
+            "x.rdata",
+            "x.h5",
+            "x.hdf5",
+            "x.nc",
+            "x.mat",
         ] {
             assert_eq!(classify(ext), ClipType::FileData, "for {ext}");
         }
@@ -124,7 +149,9 @@ mod tests {
 
     #[test]
     fn config_formats_stay_dev() {
-        for ext in ["x.json", "x.yaml", "x.yml", "x.toml", "x.xml", "x.env", "x.lock"] {
+        for ext in [
+            "x.json", "x.yaml", "x.yml", "x.toml", "x.xml", "x.env", "x.lock",
+        ] {
             assert_eq!(classify(ext), ClipType::FileDev, "for {ext}");
         }
     }

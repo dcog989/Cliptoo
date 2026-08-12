@@ -26,7 +26,10 @@ pub fn setup_about_window(
     // Open a path (install/data/cache/logs dir) in the default file manager.
     {
         about_win.on_open_folder(move |path: SharedString| {
-            if let Err(e) = std::process::Command::new("xdg-open").arg(path.as_str()).spawn() {
+            if let Err(e) = std::process::Command::new("xdg-open")
+                .arg(path.as_str())
+                .spawn()
+            {
                 tracing::warn!("about: failed to launch xdg-open for {path}: {e}");
             }
         });
@@ -67,8 +70,10 @@ pub fn setup_about_window(
                 // the size measured from the content, paths included.
                 let w = win.get_content_width().max(340.0);
                 let h = win.get_content_height().max(280.0);
-                win.window()
-                    .set_size(slint::LogicalSize { width: w, height: h });
+                win.window().set_size(slint::LogicalSize {
+                    width: w,
+                    height: h,
+                });
                 let _ = win.show();
                 // Qt's show() doesn't raise; after the hamburger popup closes
                 // the About window can land under the main window.  Defer the
