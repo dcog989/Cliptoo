@@ -1,10 +1,23 @@
 use slint::ComponentHandle;
 
+/// Index of `needle` in `haystack` (case-insensitive), for combo boxes whose
+/// persisted value came from the same option list. Falls back to index 0 when
+/// `needle` is not in the list (a hand-edit or a value removed between
+/// versions) but logs a warning so the mismatch is visible instead of silently
+/// showing the first option.
 fn idx_of(needle: &str, haystack: &[&str]) -> i32 {
-    haystack
+    match haystack
         .iter()
         .position(|&s| s.eq_ignore_ascii_case(needle))
-        .unwrap_or(0) as i32
+    {
+        Some(i) => i as i32,
+        None => {
+            tracing::warn!(
+                "settings: '{needle}' is not one of the valid values ({haystack:?}); using the default"
+            );
+            0
+        }
+    }
 }
 
 /// Derive a display name from a bare path (the file name without extension),
@@ -1106,5 +1119,22 @@ mod tests {
         assert_eq!(display_key("q"), "Q");
         assert_eq!(display_key("F5"), "F5");
         assert_eq!(display_key("PageUp"), "PageUp");
+    }
+
+    #[test]
+    fn idx_of_matches_case_insensitively() {
+        let options = ["Right Alt", "Left Alt", "Control"];
+        assert_eq!(idx_of("Left Alt", &options), 1);
+        assert_eq!(idx_of("left alt", &options), 1);
+        assert_eq!(idx_of("CONTROL", &options), 2);
+    }
+
+    #[test]
+    fn idx_of_falls_back_to_default_for_unknown_value() {
+        assert_eq!(
+            idx_of("Super Key", &["Right Alt", "Left Alt", "Control"]),
+            0
+        );
+        assert_eq!(idx_of("", &["Debug", "Info", "Warn", "Error"]), 0);
     }
 }
