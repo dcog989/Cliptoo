@@ -59,10 +59,19 @@ fn parse_send_to_apps(raw: &str) -> Vec<cliptoo_core::SendToApp> {
 }
 
 /// Render `SendToApp`s back into the comma-separated `Name: path` form the
-/// settings text field shows.
+/// settings text field shows. An entry whose name was derived from its path
+/// (a bare path like `gedit` parses to name == path) stays bare so a
+/// format+parse round-trip preserves the user's original form instead of
+/// rewriting `gedit` into `gedit: gedit`.
 fn format_send_to_apps(apps: &[cliptoo_core::SendToApp]) -> String {
     apps.iter()
-        .map(|a| format!("{}: {}", a.name, a.path))
+        .map(|a| {
+            if a.name == a.path {
+                a.path.clone()
+            } else {
+                format!("{}: {}", a.name, a.path)
+            }
+        })
         .collect::<Vec<_>>()
         .join(", ")
 }
@@ -1065,8 +1074,20 @@ mod tests {
     fn send_to_apps_round_trip_format_and_parse() {
         let apps = parse_send_to_apps("code: /usr/bin/code, gedit");
         let formatted = format_send_to_apps(&apps);
-        assert_eq!(formatted, "code: /usr/bin/code, gedit: gedit");
-        assert_eq!(parse_send_to_apps(&formatted).len(), 2);
+        // A bare path stays bare (name == path); a named entry keeps its name.
+        assert_eq!(formatted, "code: /usr/bin/code, gedit");
+        let round = parse_send_to_apps(&formatted);
+        assert_eq!(round.len(), 2);
+        assert_eq!(round[1].name, "gedit");
+        assert_eq!(round[1].path, "gedit");
+    }
+
+    #[test]
+    fn send_to_apps_keeps_name_for_directory_paths() {
+        // A path with a directory derives its name from the stem, so it is
+        // rendered back with the explicit `name: path` form.
+        let apps = parse_send_to_apps("/opt/tools/meld");
+        assert_eq!(format_send_to_apps(&apps), "meld: /opt/tools/meld");
     }
 
     #[test]
