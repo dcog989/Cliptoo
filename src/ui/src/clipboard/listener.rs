@@ -322,36 +322,64 @@ pub async fn run_listener(
                             }
                         };
 
+                        let filter = active_filter_state.lock().unwrap().clone();
                         if inserted {
                             let clip_type = c.clip_type.as_str();
-                            let thumb_handle = if clip_type == "file_image" {
+                            info!("new file-uri clip: {} — {clip_type}", &c.content_hash[..12]);
+                            if clip_type == "file_image" {
+                                // Decode + thumbnail writes are blocking and slow
+                                // for large image files; hand the store-and-refresh
+                                // off to a task so the poll loop keeps detecting
+                                // new copies. The inline refresh is skipped so the
+                                // list isn't rebuilt with an empty (and then
+                                // cached-empty) thumbnail before the files land.
                                 let path = std::path::Path::new(&c.content).to_owned();
                                 let hash_c = c.content_hash.clone();
                                 let td = thumbnails_dir.clone();
-                                Some(tokio::task::spawn_blocking(move || {
-                                    if let Err(e) =
-                                        cliptoo_core::image::store_both_thumbnails_for_file(
-                                            &td,
-                                            &hash_c,
-                                            &path,
-                                            preview_max_dim,
-                                        )
-                                    {
-                                        tracing::error!("store_both_thumbnails_for_file: {e}");
-                                    }
-                                }))
+                                let db2 = db.clone();
+                                let ui2 = ui.clone();
+                                let td2 = thumbnails_dir.clone();
+                                let fd2 = favicons_dir.clone();
+                                std::mem::drop(tokio::spawn(async move {
+                                    let store = tokio::task::spawn_blocking(move || {
+                                        if let Err(e) =
+                                            cliptoo_core::image::store_both_thumbnails_for_file(
+                                                &td,
+                                                &hash_c,
+                                                &path,
+                                                preview_max_dim,
+                                            )
+                                        {
+                                            tracing::error!("store_both_thumbnails_for_file: {e}");
+                                        }
+                                    });
+                                    let _ = store.await;
+                                    refresh_clips(&db2, &ui2, &td2, &fd2, "", &filter, None).await;
+                                }));
                             } else {
-                                None
-                            };
-
-                            info!("new file-uri clip: {} — {clip_type}", &c.content_hash[..12]);
-                            if let Some(h) = thumb_handle {
-                                let _ = h.await;
+                                refresh_clips(
+                                    &db,
+                                    &ui,
+                                    &thumbnails_dir,
+                                    &favicons_dir,
+                                    "",
+                                    &filter,
+                                    None,
+                                )
+                                .await;
                             }
-                        }
-                        let filter = active_filter_state.lock().unwrap().clone();
-                        refresh_clips(&db, &ui, &thumbnails_dir, &favicons_dir, "", &filter, None)
+                        } else {
+                            refresh_clips(
+                                &db,
+                                &ui,
+                                &thumbnails_dir,
+                                &favicons_dir,
+                                "",
+                                &filter,
+                                None,
+                            )
                             .await;
+                        }
                     }
                     ClipboardPayload::Image { hash, data, .. } => {
                         let source_app = crate::source_app::detect_source_app().await;
@@ -397,34 +425,52 @@ pub async fn run_listener(
                             let hash_prefix = hash[..12].to_string();
                             let images = images_dir.clone();
                             let thumbnails = thumbnails_dir.clone();
-                            // Decode + disk writes are blocking; run on the
-                            // blocking pool. A corrupt/undecodable image must
-                            // not kill the listener loop either — same error
-                            // containment as the file-uri thumbnail path.
-                            let _ = tokio::task::spawn_blocking(move || {
-                                if let Err(e) =
-                                    cliptoo_core::image::store_image(&images, &hash, &data)
-                                {
-                                    tracing::error!("store_image: {e}");
-                                }
-                                if let Err(e) = cliptoo_core::image::store_both_thumbnails(
-                                    &thumbnails,
-                                    &hash,
-                                    &data,
-                                    preview_max_dim,
-                                ) {
-                                    tracing::error!("store_both_thumbnails: {e}");
-                                }
-                            })
-                            .await;
+                            let db2 = db.clone();
+                            let ui2 = ui.clone();
+                            let td2 = thumbnails_dir.clone();
+                            let fd2 = favicons_dir.clone();
+                            let filter2 = active_filter_state.lock().unwrap().clone();
+                            // Decode + disk writes are blocking and slow for
+                            // large images; hand the store-and-refresh off to a
+                            // task so the poll loop keeps detecting new copies.
+                            // The inline refresh is skipped so the list isn't
+                            // rebuilt with an empty (and then cached-empty)
+                            // thumbnail before the files land; the task refreshes
+                            // once the PNG and thumbnails exist on disk.
+                            std::mem::drop(tokio::spawn(async move {
+                                let store = tokio::task::spawn_blocking(move || {
+                                    if let Err(e) =
+                                        cliptoo_core::image::store_image(&images, &hash, &data)
+                                    {
+                                        tracing::error!("store_image: {e}");
+                                    }
+                                    if let Err(e) = cliptoo_core::image::store_both_thumbnails(
+                                        &thumbnails,
+                                        &hash,
+                                        &data,
+                                        preview_max_dim,
+                                    ) {
+                                        tracing::error!("store_both_thumbnails: {e}");
+                                    }
+                                });
+                                let _ = store.await;
+                                refresh_clips(&db2, &ui2, &td2, &fd2, "", &filter2, None).await;
+                            }));
                             info!("new image clip: {} ({} bytes)", hash_prefix, size);
                         } else {
                             info!("existing image clip updated: {}", &hash[..12]);
-                        }
-
-                        let filter = active_filter_state.lock().unwrap().clone();
-                        refresh_clips(&db, &ui, &thumbnails_dir, &favicons_dir, "", &filter, None)
+                            let filter = active_filter_state.lock().unwrap().clone();
+                            refresh_clips(
+                                &db,
+                                &ui,
+                                &thumbnails_dir,
+                                &favicons_dir,
+                                "",
+                                &filter,
+                                None,
+                            )
                             .await;
+                        }
                     }
                 }
             }
