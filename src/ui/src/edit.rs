@@ -139,6 +139,19 @@ pub fn setup_edit_window(
                             .await
                             .context("file-write task panicked")?;
                             wrote.context("writing edited file")?;
+                            // Refresh the file-derived metadata so the stored
+                            // row reflects the rewritten file's size and shape;
+                            // Content/PreviewContent stay the path.
+                            db.with(|conn| {
+                                cliptoo_core::db::queries::update_clip_metadata(
+                                    conn,
+                                    id as i64,
+                                    content.len() as i64,
+                                    content.contains('\n'),
+                                )
+                            })
+                            .await
+                            .context("saving clip metadata")?;
                         } else {
                             let normalized =
                                 cliptoo_core::content::normalize_line_endings(&content);

@@ -444,6 +444,23 @@ pub fn update_clip_content(
     Ok(())
 }
 
+/// Refresh a clip's file-derived size and multiline flags without touching
+/// Content/PreviewContent. Used after editing a `file_text` clip so the stored
+/// row reflects the rewritten file rather than its ingest-time (path-derived)
+/// values.
+pub fn update_clip_metadata(
+    conn: &Connection,
+    id: i64,
+    size_in_bytes: i64,
+    is_multiline: bool,
+) -> Result<()> {
+    conn.execute(
+        "UPDATE clips SET SizeInBytes = ?1, IsMultiline = ?2 WHERE Id = ?3",
+        params![size_in_bytes, is_multiline as i32, id],
+    )?;
+    Ok(())
+}
+
 pub fn bump_to_top(conn: &Connection, id: i64) -> Result<()> {
     conn.execute(
         "UPDATE clips SET Timestamp = ?1 WHERE Id = ?2",
