@@ -41,7 +41,7 @@ pub fn percent_decode_path(s: &str) -> String {
 
 /// Parse a single hex digit; `None` for anything else or end of input.
 #[inline]
-fn hex_val(b: Option<&u8>) -> Option<u8> {
+pub(crate) fn hex_val(b: Option<&u8>) -> Option<u8> {
     b.and_then(|x| match *x {
         b'0'..=b'9' => Some(*x - b'0'),
         b'a'..=b'f' => Some(*x - b'a' + 10),
