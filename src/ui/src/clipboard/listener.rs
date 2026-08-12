@@ -300,7 +300,10 @@ pub async fn run_listener(
                         let preview = format!("clipboard-image-{}.png", &hash[..12]);
                         let size = data.len() as i64;
 
-                        let inserted = insert_clip_with_stat(
+                        // A failed insert (e.g. disk full) must not kill the
+                        // listener loop; log and keep polling instead of
+                        // propagating out of run_listener.
+                        let inserted = match insert_clip_with_stat(
                             &db,
                             &content_str,
                             &preview,
@@ -313,17 +316,40 @@ pub async fn run_listener(
                             size,
                             false,
                         )
-                        .await?;
+                        .await
+                        {
+                            Ok(inserted) => inserted,
+                            Err(e) => {
+                                tracing::error!("image clip insert failed: {e}");
+                                continue;
+                            }
+                        };
 
                         if inserted {
-                            cliptoo_core::image::store_image(&images_dir, &hash, &data)?;
-                            cliptoo_core::image::store_both_thumbnails(
-                                &thumbnails_dir,
-                                &hash,
-                                &data,
-                                preview_max_dim,
-                            )?;
-                            info!("new image clip: {} ({} bytes)", &hash[..12], size);
+                            let hash_prefix = hash[..12].to_string();
+                            let images = images_dir.clone();
+                            let thumbnails = thumbnails_dir.clone();
+                            // Decode + disk writes are blocking; run on the
+                            // blocking pool. A corrupt/undecodable image must
+                            // not kill the listener loop either — same error
+                            // containment as the file-uri thumbnail path.
+                            let _ = tokio::task::spawn_blocking(move || {
+                                if let Err(e) =
+                                    cliptoo_core::image::store_image(&images, &hash, &data)
+                                {
+                                    tracing::error!("store_image: {e}");
+                                }
+                                if let Err(e) = cliptoo_core::image::store_both_thumbnails(
+                                    &thumbnails,
+                                    &hash,
+                                    &data,
+                                    preview_max_dim,
+                                ) {
+                                    tracing::error!("store_both_thumbnails: {e}");
+                                }
+                            })
+                            .await;
+                            info!("new image clip: {} ({} bytes)", hash_prefix, size);
                         } else {
                             info!("existing image clip updated: {}", &hash[..12]);
                         }
