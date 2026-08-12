@@ -252,6 +252,59 @@ async fn delete_deadheads_removes_only_missing_paths() {
     let _ = std::fs::remove_dir_all(&file_dir);
 }
 
+/// The scheduled task must read fresh retention parameters from the watch
+/// channel on each pass — a setting change applies without a restart.
+#[tokio::test]
+async fn scheduler_applies_updated_retention_config() {
+    let dir = std::env::temp_dir().join(format!("cliptoo_sched_{}", std::process::id()));
+    clean_up(&dir);
+    let db = Arc::new(DbPool::open(&dir).unwrap());
+
+    let thumbs = std::env::temp_dir().join(format!("cliptoo_sched_thumbs_{}", std::process::id()));
+    let favs = std::env::temp_dir().join(format!("cliptoo_sched_favs_{}", std::process::id()));
+    std::fs::create_dir_all(&thumbs).unwrap();
+    std::fs::create_dir_all(&favs).unwrap();
+
+    for i in 0..5 {
+        common::insert_clip(&db, &format!("clip {i}"), &format!("schash{i}"), "text").await;
+    }
+
+    let (tx, rx) = tokio::sync::watch::channel(cliptoo_core::maintenance::RetentionConfig {
+        max_clips: 1000,
+        max_age_days: 0,
+    });
+    cliptoo_core::maintenance::spawn_scheduler(db.clone(), thumbs.clone(), favs.clone(), rx, 1);
+
+    // First pass runs at the initial config (keeps everything); then publish a
+    // lower cap before the second pass and wait for it to prune.
+    tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
+    tx.send(cliptoo_core::maintenance::RetentionConfig {
+        max_clips: 2,
+        max_age_days: 0,
+    })
+    .unwrap();
+
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    loop {
+        let n = db
+            .with(cliptoo_core::db::queries::count_clips)
+            .await
+            .unwrap();
+        if n <= 2 {
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "scheduler did not apply the updated max_clips"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
+
+    clean_up(&dir);
+    let _ = std::fs::remove_dir_all(&thumbs);
+    let _ = std::fs::remove_dir_all(&favs);
+}
+
 /// `prune_cache` must survive a DB row whose ContentHash is not valid UTF-8 on
 /// the 16-byte boundary (corrupt/legacy data written before import validation
 /// existed). The prefix derivation is a byte slice, so without an

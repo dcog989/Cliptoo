@@ -63,13 +63,22 @@ async fn main() -> Result<()> {
     // shortcut registration loop below re-registers when they change.
     let (hotkey_tx, hotkey_rx) = tokio::sync::watch::channel(settings.borrow().hotkey.clone());
 
+    // Watch channel: the settings UI publishes retention changes here; the
+    // scheduled maintenance task reads the latest values on each pass.
+    let (retention_tx, retention_rx) =
+        tokio::sync::watch::channel(cliptoo_core::maintenance::RetentionConfig {
+            max_clips: settings.borrow().max_clips,
+            max_age_days: settings.borrow().max_age_days,
+        });
+
     window::setup_drag(&ui);
     window::setup_resize(&ui);
     window::setup_close_handlers(&ui, &settings, &dirs);
     window::setup_close_to_tray(&ui);
     window::setup_focus_regained(&ui);
 
-    let settings_win = settings::setup_settings_window(&ui, &settings, &dirs, hotkey_tx);
+    let settings_win =
+        settings::setup_settings_window(&ui, &settings, &dirs, hotkey_tx, retention_tx);
     // Slint globals are per-window-instance: the settings window has its own
     // `Theme` global that must be filled separately from the main window's.
     theme::fill_theme(
@@ -115,17 +124,13 @@ async fn main() -> Result<()> {
     actions::setup_clip_actions(&ui, &edit_win, &db, &settings, &dirs, &suppression);
 
     const MAINTENANCE_INTERVAL_SECS: u64 = 6 * 60 * 60;
-    {
-        let s = settings.borrow();
-        cliptoo_core::maintenance::spawn_scheduler(
-            db.clone(),
-            dirs.thumbnails_dir.clone(),
-            dirs.favicons_dir.clone(),
-            s.max_clips,
-            s.max_age_days,
-            MAINTENANCE_INTERVAL_SECS,
-        );
-    }
+    cliptoo_core::maintenance::spawn_scheduler(
+        db.clone(),
+        dirs.thumbnails_dir.clone(),
+        dirs.favicons_dir.clone(),
+        retention_rx,
+        MAINTENANCE_INTERVAL_SECS,
+    );
     maintenance::setup_manual_maintenance(&ui, &db, &dirs, &settings, &settings_win);
 
     // ── Clipboard listener ─────────────────────────────────────────────

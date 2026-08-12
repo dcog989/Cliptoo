@@ -24,6 +24,7 @@ use crate::image::HASH_FILENAME_PREFIX_LEN;
 // ── Public API ────────────────────────────────────────────────────────────────
 
 /// Parameters for the scheduled retention pass.
+#[derive(Clone)]
 pub struct RetentionConfig {
     pub max_clips: u32,
     pub max_age_days: u32,
@@ -527,24 +528,20 @@ pub async fn reclassify_all(db: &Arc<DbPool>) -> Result<u64> {
 }
 
 /// Spawn the background maintenance task. Runs every `interval` seconds.
-/// Retention parameters are fixed at spawn time; restart required to pick up
-/// settings changes.
+/// Retention parameters are read from `retention_rx` at each pass, so a change
+/// made in the settings UI applies on the next run without a restart.
 pub fn spawn_scheduler(
     db: Arc<DbPool>,
     thumbnails_dir: PathBuf,
     favicons_dir: PathBuf,
-    max_clips: u32,
-    max_age_days: u32,
+    retention_rx: tokio::sync::watch::Receiver<RetentionConfig>,
     interval_secs: u64,
 ) {
     tokio::spawn(async move {
         // Stagger first run by one interval so startup isn't burdened.
         tokio::time::sleep(std::time::Duration::from_secs(interval_secs)).await;
         loop {
-            let cfg = RetentionConfig {
-                max_clips,
-                max_age_days,
-            };
+            let cfg = retention_rx.borrow().clone();
             if let Err(e) = run_scheduled(&db, cfg, &thumbnails_dir, &favicons_dir).await {
                 warn!("scheduled maintenance error: {e}");
             }

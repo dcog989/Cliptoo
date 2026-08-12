@@ -459,6 +459,7 @@ fn setup_setting_commit(
     settings_path: &std::path::Path,
     favicons_dir: std::path::PathBuf,
     hotkey_tx: tokio::sync::watch::Sender<String>,
+    retention_tx: tokio::sync::watch::Sender<cliptoo_core::maintenance::RetentionConfig>,
 ) {
     let s = settings.clone();
     let p = settings_path.to_path_buf();
@@ -627,6 +628,15 @@ fn setup_setting_commit(
             }
 
             let _ = s.save(&p);
+
+            // Publish retention changes so the scheduled maintenance task picks
+            // them up on its next pass without a restart.
+            if matches!(key.as_str(), "max_clips" | "max_age_days") {
+                let _ = retention_tx.send(cliptoo_core::maintenance::RetentionConfig {
+                    max_clips: s.max_clips,
+                    max_age_days: s.max_age_days,
+                });
+            }
         },
     );
 }
@@ -668,6 +678,7 @@ pub fn setup_settings_window(
     settings: &std::rc::Rc<std::cell::RefCell<cliptoo_core::Settings>>,
     dirs: &crate::app_dirs::AppDirs,
     hotkey_tx: tokio::sync::watch::Sender<String>,
+    retention_tx: tokio::sync::watch::Sender<cliptoo_core::maintenance::RetentionConfig>,
 ) -> crate::SettingsWindow {
     let settings_win = crate::SettingsWindow::new().expect("SettingsWindow creation");
 
@@ -686,6 +697,7 @@ pub fn setup_settings_window(
         &dirs.settings_path,
         dirs.favicons_dir.clone(),
         hotkey_tx,
+        retention_tx,
     );
     setup_menu_open(&settings_win, ui);
 
