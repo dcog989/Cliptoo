@@ -48,8 +48,15 @@ pub async fn run_listener(
     let mut last_file_hash: Option<String> = None;
     let mut last_mime_types: Option<Vec<String>> = None;
     let mut last_full_read: Option<Instant> = None;
+    let mut last_image_probe: Option<Instant> = None;
     const POLL_INTERVAL: Duration = Duration::from_millis(500);
     const FULL_READ_INTERVAL: Duration = Duration::from_secs(5);
+    // Image payloads must be downloaded in full to recompute their hash, so a
+    // static image clipboard costs real bandwidth on every probe. Re-probe an
+    // *unchanged* image at this slow cadence instead of on every cheap text
+    // stale-read; a freshly ingested image keeps last_image_probe cleared so a
+    // rapid re-copy (image A then B, same mime set) is still caught quickly.
+    const IMAGE_RECHECK_INTERVAL: Duration = Duration::from_secs(30);
 
     // True until the clipboard's state at startup has been observed. Content
     // already present when Cliptoo starts (left over from before launch) must
@@ -72,6 +79,7 @@ pub async fn run_listener(
                 last_file_hash = None;
                 last_mime_types = None;
                 last_full_read = None;
+                last_image_probe = None;
                 tokio::time::sleep(POLL_INTERVAL).await;
                 continue;
             }
@@ -89,6 +97,9 @@ pub async fn run_listener(
 
         let changed = last_mime_types.as_ref() != mime_types.as_ref();
         let stale = last_full_read.is_none_or(|t| t.elapsed() >= FULL_READ_INTERVAL);
+        let image_recheck_due =
+            last_image_probe.is_none_or(|t| t.elapsed() >= IMAGE_RECHECK_INTERVAL);
+        let probe_images = changed || image_recheck_due;
 
         if !changed && !stale {
             tokio::time::sleep(POLL_INTERVAL).await;
@@ -115,14 +126,27 @@ pub async fn run_listener(
         // text/plain: a browser image copy offers image/* AND a non-empty
         // text/plain (URL/alt text), and reading text first would record a
         // spurious Link/Text clip while deferring the image to a stale read.
+        // `probe_images` gates the image download (see IMAGE_RECHECK_INTERVAL).
         let result = poll_clipboard(
             &mut last_text_hash,
             &mut last_rtf_hash,
             &mut last_image_hash,
             &mut last_file_hash,
             mime_types.as_deref(),
+            probe_images,
         )
         .await;
+
+        // A probe that found nothing new (image unchanged/absent) starts the
+        // slow recheck window; a probe that yielded a fresh image leaves the
+        // window cleared so a rapid re-copy is still caught on the next read.
+        let image_found = matches!(
+            result.as_ref().ok().and_then(Option::as_ref),
+            Some(ClipboardPayload::Image { .. })
+        );
+        if probe_images && !image_found {
+            last_image_probe = Some(Instant::now());
+        }
 
         last_mime_types = mime_types;
         last_full_read = Some(Instant::now());
