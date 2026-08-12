@@ -8,6 +8,14 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use wl_clipboard_rs::copy::{ClipboardType, MimeSource, MimeType, Options, Seat, Source};
 
+/// How long a paste-suppression hash stays valid after `insert`. Must
+/// comfortably exceed the clipboard listener's poll interval (500ms in
+/// `clipboard/listener.rs`): if the entry expires before the listener reads
+/// back our own paste, the content is re-ingested as a new clip. The multi-poll
+/// margin also covers the listener being mid-ingest of a large clip when the
+/// paste lands.
+const SUPPRESSION_TTL: Duration = Duration::from_secs(2);
+
 pub struct PasteSuppressionSet {
     inner: Arc<Mutex<HashSet<u64>>>,
     handle: tokio::runtime::Handle,
@@ -29,7 +37,7 @@ impl PasteSuppressionSet {
         }
         let set2 = set.clone();
         self.handle.spawn(async move {
-            tokio::time::sleep(Duration::from_millis(500)).await;
+            tokio::time::sleep(SUPPRESSION_TTL).await;
             let mut guard = set2.lock().expect("PasteSuppressionSet lock");
             guard.remove(&hash);
         });
