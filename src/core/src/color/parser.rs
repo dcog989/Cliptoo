@@ -111,6 +111,12 @@ impl ColorParser {
         if s.is_empty() {
             return None;
         }
+        // Real CSS colors are short (longest named color is ~20 chars, functional
+        // forms < 60 even with high-precision decimals). `is_color` runs on every
+        // text clip, so reject large blobs before the full parser scans them.
+        if s.len() > 128 {
+            return None;
+        }
         if s.starts_with("0x") || s.starts_with("0X") {
             return parse_argb_0x(s);
         }
@@ -158,6 +164,18 @@ mod tests {
             ColorParser::try_parse("transparent").unwrap().hex,
             "#00000000"
         );
+    }
+
+    #[test]
+    fn long_text_is_rejected_before_parsing() {
+        // Multi-kilobyte text blobs (every non-color clip passes through
+        // `is_color`) must not reach the full parser.
+        let blob = "lorem ipsum dolor sit amet ".repeat(200);
+        assert!(!ColorParser::is_color(&blob));
+        let blob = format!("some text that ends with a paren {:?})", "x".repeat(500));
+        assert!(!ColorParser::is_color(&blob));
+        // A generous-but-realistic functional color still parses.
+        assert!(ColorParser::is_color("rgba(255, 0, 128, 0.5)"));
     }
 
     #[test]
