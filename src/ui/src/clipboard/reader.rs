@@ -200,6 +200,7 @@ pub(super) async fn poll_clipboard(
     last_rtf_hash: &mut Option<String>,
     last_image_hash: &mut Option<String>,
     last_file_hash: &mut Option<String>,
+    mime_types: Option<&[String]>,
 ) -> Result<Option<ClipboardPayload>> {
     // File copies first: a file manager (e.g. Dolphin) exposes the copied
     // path both as text/uri-list AND text/plain. If plain text were read
@@ -214,8 +215,20 @@ pub(super) async fn poll_clipboard(
     if let Some(payload) = try_rtf(last_rtf_hash).await? {
         return Ok(Some(payload));
     }
+    // Image before plain text when the clipboard advertises an image type: a
+    // web-page image copy offers image/* alongside a non-empty text/plain
+    // (the image URL or alt text). Reading text first would spawn a spurious
+    // Link/Text clip and push the image ingest off to the next stale re-read.
+    let offers_image =
+        mime_types.is_some_and(|mt| mt.iter().any(|m| IMAGE_MIME_TYPES.contains(&m.as_str())));
+    if offers_image && let Some(payload) = try_image(last_image_hash).await? {
+        return Ok(Some(payload));
+    }
     if let Some(payload) = try_text(last_text_hash).await? {
         return Ok(Some(payload));
     }
+    // Fallback probe for a stale/mismatched mime list whose payload offers an
+    // image type the advertised list omits. Fails fast (NoMimeType) on
+    // text-only clipboards, so this stays cheap on the common path.
     try_image(last_image_hash).await
 }

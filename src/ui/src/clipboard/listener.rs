@@ -111,16 +111,21 @@ pub async fn run_listener(
             .as_deref()
             .is_some_and(|mt| mt.iter().any(|m| m == "text/rtf"));
 
-        last_mime_types = mime_types;
-        last_full_read = Some(Instant::now());
-
+        // The mime list is passed to the reader so it can probe image/* before
+        // text/plain: a browser image copy offers image/* AND a non-empty
+        // text/plain (URL/alt text), and reading text first would record a
+        // spurious Link/Text clip while deferring the image to a stale read.
         let result = poll_clipboard(
             &mut last_text_hash,
             &mut last_rtf_hash,
             &mut last_image_hash,
             &mut last_file_hash,
+            mime_types.as_deref(),
         )
         .await;
+
+        last_mime_types = mime_types;
+        last_full_read = Some(Instant::now());
 
         match result {
             Ok(Some(payload)) => {
@@ -165,6 +170,11 @@ pub async fn run_listener(
                                 )
                             {
                                 debug!("clipboard: path text on a text/uri-list clipboard skipped");
+                                // The accessory path text must not seed
+                                // `last_text_hash`: a later genuine plain-text
+                                // copy of the same path would then be swallowed
+                                // as "unchanged". (Same rule as the RTF branch.)
+                                last_text_hash = None;
                                 continue;
                             }
 
@@ -173,6 +183,10 @@ pub async fn run_listener(
                             // ingested via text/rtf) must not spawn a Text clip.
                             if has_rtf && classified.clip_type != ClipType::Rtf {
                                 debug!("clipboard: plain text on a text/rtf clipboard skipped");
+                                // Clear the seeded hash so a later genuine
+                                // plain-text copy of the same content is still
+                                // ingested instead of matching this rendition.
+                                last_text_hash = None;
                                 continue;
                             }
 
