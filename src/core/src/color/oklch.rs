@@ -242,4 +242,30 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn forward_conversion_known_values() {
+        // Neutral colors: L alone drives the output, chroma 0 is achromatic.
+        assert_eq!(oklch_to_srgb_bytes(1.0, 0.0, 0.0), [255, 255, 255]);
+        assert_eq!(oklch_to_srgb_bytes(0.0, 0.0, 0.0), [0, 0, 0]);
+        assert_eq!(oklch_to_srgb_bytes(0.5, 0.0, 0.0), [99, 99, 99]);
+        // Pure red reconstructed from its CSS Color 4 OKLCH reference values.
+        let [r, g, b] = oklch_to_srgb_bytes(0.628, 0.2577, 29.23);
+        assert!(r == 255 && g <= 1 && b <= 1, "red-ish got [{r},{g},{b}]");
+    }
+
+    #[test]
+    fn out_of_gamut_chroma_clamps_to_gamut_boundary() {
+        // Any chroma beyond the sRGB boundary at a fixed L/H collapses to the
+        // same gamut-boundary color (FindMaxChroma).
+        let boundary = oklch_to_srgb_bytes(0.452, 0.4, 264.05);
+        assert_eq!(oklch_to_srgb_bytes(0.452, 0.5, 264.05), boundary);
+        assert_eq!(oklch_to_srgb_bytes(0.452, 0.6, 264.05), boundary);
+        assert_eq!(oklch_to_srgb_bytes(0.452, 0.8, 264.05), boundary);
+        // High-chroma input at any hue stays clamped to that hue's boundary.
+        for h in (0..360).step_by(15) {
+            let rgb = oklch_to_srgb_bytes(0.5, 0.5, h as f64);
+            assert_eq!(rgb, oklch_to_srgb_bytes(0.5, 0.8, h as f64), "hue {h}");
+        }
+    }
 }
