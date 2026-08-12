@@ -82,6 +82,16 @@ pub const PRAGMA_FOREIGN_KEYS: &str = "PRAGMA foreign_keys = ON;";
 pub const CREATE_INDEX_CLIPS_TS: &str =
     "CREATE INDEX IF NOT EXISTS idx_clips_ts ON clips(IsBookmarked, Timestamp DESC);";
 
+/// Index serving the unfiltered browse path (`WHERE 1=1 ORDER BY Timestamp
+/// DESC, Id DESC` in `queries::search_clips`), hit on every paste-refresh and
+/// filter change. `idx_clips_ts` cannot satisfy a plain `ORDER BY Timestamp` —
+/// its leading column is `IsBookmarked`, which the `all` filter leaves
+/// unconstrained — so without this the browse query did a full scan plus a
+/// temp-b-tree sort. `Id DESC` is included to match the query's tiebreaker
+/// exactly (equal timestamps sort by newest id first).
+pub const CREATE_INDEX_CLIPS_TS_ALL: &str =
+    "CREATE INDEX IF NOT EXISTS idx_clips_ts_all ON clips(Timestamp DESC, Id DESC);";
+
 /// v2 migration: add the `IsDeadhead` column for databases created before the
 /// deadhead feature shipped. Existing rows default to live (0). Gated by
 /// `user_version` in [`migrate`] — never a per-launch guard — so the plain
@@ -98,13 +108,17 @@ pub const MIGRATE_ADD_IS_FILE_URI: &str =
 
 /// Current schema version. Bump when the schema changes and append a matching
 /// entry to `MIGRATIONS`; never edit or reorder a migration that has shipped.
-pub const SCHEMA_VERSION: u32 = 3;
+pub const SCHEMA_VERSION: u32 = 4;
 
 /// Ordered schema migrations. Each entry raises the schema to `target_version`
 /// and runs exactly once, inside its own transaction that also stamps
 /// `user_version` — a crash mid-migration rolls back both the schema change
 /// and the stamp, so the next open retries cleanly.
-const MIGRATIONS: &[(u32, &str)] = &[(2, MIGRATE_ADD_IS_DEADHEAD), (3, MIGRATE_ADD_IS_FILE_URI)];
+const MIGRATIONS: &[(u32, &str)] = &[
+    (2, MIGRATE_ADD_IS_DEADHEAD),
+    (3, MIGRATE_ADD_IS_FILE_URI),
+    (4, CREATE_INDEX_CLIPS_TS_ALL),
+];
 
 /// Bring `conn` up to [`SCHEMA_VERSION`]. No-ops when already current.
 ///
@@ -150,7 +164,7 @@ pub fn migrate(conn: &Connection) -> Result<()> {
 fn apply_baseline(conn: &Connection) -> Result<()> {
     let tx = conn.unchecked_transaction()?;
     tx.execute_batch(&format!(
-        "{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}",
+        "{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}",
         CREATE_CLIPS,
         CREATE_CLIPS_FTS,
         CREATE_STATS,
@@ -159,6 +173,7 @@ fn apply_baseline(conn: &Connection) -> Result<()> {
         TRIGGER_FTS_DELETE,
         TRIGGER_FTS_UPDATE,
         CREATE_INDEX_CLIPS_TS,
+        CREATE_INDEX_CLIPS_TS_ALL,
     ))?;
     tx.pragma_update(None, "user_version", SCHEMA_VERSION)?;
     tx.commit()?;

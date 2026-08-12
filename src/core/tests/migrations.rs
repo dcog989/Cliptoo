@@ -56,8 +56,22 @@ fn columns_of(path: &std::path::Path, table: &str) -> Vec<String> {
         .unwrap()
 }
 
+fn has_browse_index(path: &std::path::Path) -> bool {
+    let conn = rusqlite::Connection::open(path).unwrap();
+    let mut stmt = conn
+        .prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'clips'")
+        .unwrap();
+    stmt.query_map([], |row| row.get::<_, String>(0))
+        .unwrap()
+        .collect::<std::result::Result<Vec<_>, _>>()
+        .unwrap()
+        .iter()
+        .any(|n| n == "idx_clips_ts_all")
+}
+
 /// A brand-new database is created at the current schema version: the migrated
-/// columns are present and it is stamped. Reopening it is a no-op.
+/// columns are present, the browse-path index exists, and it is stamped.
+/// Reopening it is a no-op.
 #[test]
 fn fresh_database_gets_baseline_at_current_version() {
     let p = db_path("cliptoo_mig_fresh");
@@ -67,6 +81,7 @@ fn fresh_database_gets_baseline_at_current_version() {
     let cols = columns_of(&p, "clips");
     assert!(cols.contains(&"IsDeadhead".to_string()));
     assert!(cols.contains(&"IsFileUri".to_string()));
+    assert!(has_browse_index(&p), "v4 browse-path index in baseline");
     assert_eq!(
         user_version(&p),
         cliptoo_core::db::schema::SCHEMA_VERSION as i64
@@ -112,6 +127,7 @@ fn migrates_legacy_v1_database() {
         cols.contains(&"IsFileUri".to_string()),
         "v3 migration applied"
     );
+    assert!(has_browse_index(&p), "v4 migration applied");
     assert_eq!(
         user_version(&p),
         cliptoo_core::db::schema::SCHEMA_VERSION as i64
@@ -156,7 +172,7 @@ fn migrates_legacy_v2_database() {
 }
 
 /// A legacy unversioned database that already has both migrated columns is
-/// stamped at the current version without reapplying any migration.
+/// stamped at v3 and only the v4 browse-path index migration runs.
 #[test]
 fn stamps_legacy_database_without_reapplying_migrations() {
     let p = db_path("cliptoo_mig_v3");
@@ -173,6 +189,7 @@ fn stamps_legacy_database_without_reapplying_migrations() {
     let db = DbPool::open(&p).unwrap();
     drop(db);
 
+    assert!(has_browse_index(&p), "v4 index migration applied");
     assert_eq!(
         user_version(&p),
         cliptoo_core::db::schema::SCHEMA_VERSION as i64
