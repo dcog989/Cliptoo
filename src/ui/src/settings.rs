@@ -642,16 +642,6 @@ fn setup_setting_commit(
                         t.set_font_family(value.as_str().into());
                     });
                 }
-                "accent_color" => {
-                    let hex = value.trim();
-                    if hex.starts_with('#') && hex.len() == 7 {
-                        s.accent_color = value.clone();
-                        if let Some(win) = sw.upgrade() {
-                            win.set_s_accent_color(crate::theme::accent_hex_to_color(hex));
-                        }
-                        reapply_theme(&settings_ui, &sw, &s, favicons_dir.clone());
-                    }
-                }
                 "accent_hue" | "accent_saturation" | "accent_value" => {
                     if let Ok(v) = value.parse::<f64>() {
                         // Baseline from the sliders as currently shown: the
