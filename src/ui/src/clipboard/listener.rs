@@ -209,7 +209,7 @@ pub async fn run_listener(
                             .await;
                         }
                     }
-                    ClipboardPayload::FileUri { hash, content, .. } => {
+                    ClipboardPayload::FileUri { content, .. } => {
                         let source_app = crate::source_app::detect_source_app().await;
 
                         if is_blacklisted(source_app.as_deref(), &blacklisted_apps) {
@@ -217,13 +217,12 @@ pub async fn run_listener(
                             continue;
                         }
 
-                        let (classified, content) = match tokio::task::spawn_blocking(move || {
-                            let classified = ContentProcessor::process(&content, true);
-                            (classified, content)
+                        let classified = match tokio::task::spawn_blocking(move || {
+                            ContentProcessor::process(&content, true)
                         })
                         .await
                         {
-                            Ok(pair) => pair,
+                            Ok(c) => c,
                             Err(e) => {
                                 tracing::error!("classification task failed: {e}");
                                 continue;
@@ -241,9 +240,9 @@ pub async fn run_listener(
 
                         let inserted = insert_clip_with_stat(
                             &db,
-                            &content,
+                            &c.content,
                             &c.preview_content,
-                            &hash,
+                            &c.content_hash,
                             c.clip_type.as_str(),
                             source_app.as_deref(),
                             false,
@@ -257,8 +256,8 @@ pub async fn run_listener(
                         if inserted {
                             let clip_type = c.clip_type.as_str();
                             let thumb_handle = if clip_type == "file_image" {
-                                let path = std::path::Path::new(&content).to_owned();
-                                let hash_c = hash.clone();
+                                let path = std::path::Path::new(&c.content).to_owned();
+                                let hash_c = c.content_hash.clone();
                                 let td = thumbnails_dir.clone();
                                 Some(tokio::task::spawn_blocking(move || {
                                     if let Err(e) =
@@ -276,7 +275,7 @@ pub async fn run_listener(
                                 None
                             };
 
-                            info!("new file-uri clip: {} — {clip_type}", &hash[..12]);
+                            info!("new file-uri clip: {} — {clip_type}", &c.content_hash[..12]);
                             if let Some(h) = thumb_handle {
                                 let _ = h.await;
                             }

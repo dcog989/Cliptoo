@@ -55,7 +55,6 @@ enum ClipboardPayload {
         sup_hash: u64,
     },
     FileUri {
-        hash: String,
         content: String,
         sup_hash: u64,
     },

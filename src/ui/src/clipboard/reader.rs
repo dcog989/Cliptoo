@@ -138,11 +138,7 @@ async fn try_file_uri_list(last_hash: &mut Option<String>) -> Result<Option<Clip
     }
     *last_hash = Some(hash.clone());
 
-    Ok(Some(ClipboardPayload::FileUri {
-        hash,
-        content,
-        sup_hash,
-    }))
+    Ok(Some(ClipboardPayload::FileUri { content, sup_hash }))
 }
 
 async fn try_image(last_hash: &mut Option<String>) -> Result<Option<ClipboardPayload>> {
