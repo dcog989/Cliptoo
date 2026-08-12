@@ -35,7 +35,7 @@ Cliptoo: native background clipboard manager for Wayland/KDE Plasma 6. Rust + SQ
 - **Logging:** `tracing::{info,warn,error,debug}` only (never `println!`/`dbg!`); init in `core/src/logger.rs`.
 - **No `unsafe`** except the Qt FFI shim `src/ui/src/drag.rs` (`#![allow(unsafe_code)]`); crate roots `#![deny(unsafe_code)]`. Do not introduce `unsafe` elsewhere.
 - **Decompose** files over 400 lines if they mix concerns.
-- **Commit message:** every task ends with a conventional commit message, in a fenced code block, from `git status`/`git diff`; nothing after it.
+- **Commit message:** every task ends with a concise conventional commit message, in a fenced code block, from `git status`/`git diff`; nothing after it.
 
 ## Rust FFI
 
