@@ -227,9 +227,21 @@ fn select_accent_fg(lum: f64) -> bool {
     contrast_ratio(1.0, lum) >= contrast_ratio(lum, 0.0)
 }
 
-/// Apply pre-resolved theme tokens to any `Theme` global handle.
-/// Used by the window, the tray, and any other component with `Theme`.
-pub fn fill_theme(
+/// The primary surface color for a theme mode, used for the `bg-primary` token
+/// and as the reference surface the accent must keep contrast against.
+fn bg_primary(is_dark: bool) -> (u8, u8, u8) {
+    if is_dark {
+        BG_PRIMARY_DARK
+    } else {
+        BG_PRIMARY_LIGHT
+    }
+}
+
+/// Apply only the accent-derived tokens (accent, its foregrounds, and the
+/// hover background) to a `Theme` global, leaving the rest of the palette
+/// untouched. Used by the settings accent sliders so a live preview updates
+/// just the accent instead of recomputing the whole theme on every tick.
+pub fn fill_accent(
     t: &Theme,
     settings: &Settings,
     is_dark: bool,
@@ -239,12 +251,8 @@ pub fn fill_theme(
 
     // Surface the accent is applied on; the accent must keep a minimum
     // contrast against it in both theme modes.
-    let bg_primary = if is_dark {
-        BG_PRIMARY_DARK
-    } else {
-        BG_PRIMARY_LIGHT
-    };
-    let bg_lum = relative_luminance(bg_primary.0, bg_primary.1, bg_primary.2);
+    let (bg_r, bg_g, bg_b) = bg_primary(is_dark);
+    let bg_lum = relative_luminance(bg_r, bg_g, bg_b);
 
     // Base accent: the system accent in "System" theme mode, otherwise the
     // user-picked color.
@@ -280,12 +288,25 @@ pub fn fill_theme(
     });
     t.set_accent_primary(accent);
     t.set_border_accent(accent_sibling(accent_h, accent_c, border_accent_l, 0.40));
+    t.set_bg_row_hover(raw_accent);
+}
+
+/// Apply pre-resolved theme tokens to any `Theme` global handle.
+/// Used by the window, the tray, and any other component with `Theme`.
+pub fn fill_theme(
+    t: &Theme,
+    settings: &Settings,
+    is_dark: bool,
+    system_accent: Option<(u8, u8, u8)>,
+) {
+    fill_accent(t, settings, is_dark, system_accent);
+
+    let (bg_r, bg_g, bg_b) = bg_primary(is_dark);
 
     if is_dark {
-        t.set_bg_primary(Color::from_rgb_u8(bg_primary.0, bg_primary.1, bg_primary.2));
+        t.set_bg_primary(Color::from_rgb_u8(bg_r, bg_g, bg_b));
         t.set_bg_header(Color::from_rgb_u8(0x12, 0x12, 0x12));
         t.set_bg_row_alt(Color::from_rgb_u8(0x1C, 0x1C, 0x1C));
-        t.set_bg_row_hover(raw_accent);
         t.set_bg_row_selected(Color::from_rgb_u8(0x28, 0x28, 0x28));
         t.set_bg_input(Color::from_rgb_u8(0x24, 0x24, 0x24));
         t.set_fg_primary(Color::from_rgb_u8(0xE4, 0xE4, 0xE4));
@@ -299,10 +320,9 @@ pub fn fill_theme(
         t.set_border_subtle(Color::from_rgb_u8(0x44, 0x44, 0x44));
         t.set_shadow(Color::from_argb_u8(SHADOW_ALPHA, 0x00, 0x00, 0x00));
     } else {
-        t.set_bg_primary(Color::from_rgb_u8(bg_primary.0, bg_primary.1, bg_primary.2));
+        t.set_bg_primary(Color::from_rgb_u8(bg_r, bg_g, bg_b));
         t.set_bg_header(Color::from_rgb_u8(0xE8, 0xE8, 0xE8));
         t.set_bg_row_alt(Color::from_rgb_u8(0xEE, 0xEE, 0xEE));
-        t.set_bg_row_hover(raw_accent);
         t.set_bg_row_selected(Color::from_rgb_u8(0xDD, 0xDD, 0xDD));
         t.set_bg_input(Color::from_rgb_u8(0xFF, 0xFF, 0xFF));
         t.set_fg_primary(Color::from_rgb_u8(0x1C, 0x1C, 0x1C));

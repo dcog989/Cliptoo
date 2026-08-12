@@ -673,7 +673,7 @@ fn setup_setting_commit(
                         s.accent_value = val;
                         s.accent_color = accent_hex(h, sat, val);
                         if let Some(ui) = settings_ui.upgrade() {
-                            crate::theme::fill_theme(
+                            crate::theme::fill_accent(
                                 &ui.global::<crate::Theme>(),
                                 &s,
                                 is_dark,
@@ -687,7 +687,7 @@ fn setup_setting_commit(
                             win.set_s_accent_color(crate::theme::accent_hex_to_color(
                                 &s.accent_color,
                             ));
-                            crate::theme::fill_theme(
+                            crate::theme::fill_accent(
                                 &win.global::<crate::Theme>(),
                                 &s,
                                 is_dark,
