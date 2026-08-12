@@ -76,7 +76,13 @@ impl ContentProcessor {
             // Text that is wholly a single file path (to a folder or file).
             // Multiline content (e.g. a code block that merely contains a
             // path) never counts — only the whole clip being a path does.
-            (ClipType::FilePath, content)
+            // A `file://` scheme is stripped and percent-encoding decoded so
+            // the stored path matches what `classify_path` stores for a
+            // copied file: `file:///home/foo%20bar` becomes `/home/foo bar`.
+            let decoded = content
+                .strip_prefix("file://")
+                .map(crate::content::percent_decode_path);
+            (ClipType::FilePath, decoded.unwrap_or(content))
         } else if Self::is_code_heuristic(&content) {
             (ClipType::CodeSnippet, content)
         } else {
@@ -349,6 +355,22 @@ mod tests {
     fn single_non_path_text_stays_text() {
         let c = ContentProcessor::process("not a path at all", true).unwrap();
         assert_eq!(c.clip_type, ClipType::Text);
+    }
+
+    #[test]
+    fn plain_single_path_text_is_file_path() {
+        let c = ContentProcessor::process("/home/user/foo.txt", false).unwrap();
+        assert_eq!(c.clip_type, ClipType::FilePath);
+        assert_eq!(c.content, "/home/user/foo.txt");
+    }
+
+    #[test]
+    fn file_uri_text_is_decoded_file_path() {
+        // `file://` + percent-encoding is normalised like a copied file's
+        // path, so the stored path is the real filesystem path, not the URI.
+        let c = ContentProcessor::process("file:///home/user/foo%20bar.txt", false).unwrap();
+        assert_eq!(c.clip_type, ClipType::FilePath);
+        assert_eq!(c.content, "/home/user/foo bar.txt");
     }
 
     #[test]
