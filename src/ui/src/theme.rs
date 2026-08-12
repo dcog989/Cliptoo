@@ -183,10 +183,10 @@ pub fn fill_theme(
         t.set_fg_secondary(Color::from_rgb_u8(0xA1, 0xA1, 0xA1));
         t.set_fg_clip_list(Color::from_rgb_u8(0xB4, 0xB4, 0xB4));
         t.set_fg_muted(Color::from_rgb_u8(0x63, 0x63, 0x63));
-        t.set_fg_danger(Color::from_rgb_u8(0xB0, 0xB0, 0xB0));
-        t.set_fg_success(Color::from_rgb_u8(0x90, 0x90, 0x90));
-        t.set_fg_warning(Color::from_rgb_u8(0xA0, 0xA0, 0xA0));
-        t.set_fg_bookmarked(Color::from_rgb_u8(0xC0, 0xC0, 0xC0));
+        t.set_fg_danger(Color::from_rgb_u8(0xE7, 0x4C, 0x3C));
+        t.set_fg_success(Color::from_rgb_u8(0x2E, 0xCC, 0x71));
+        t.set_fg_warning(Color::from_rgb_u8(0xF3, 0x9C, 0x12));
+        t.set_fg_bookmarked(Color::from_rgb_u8(0xE5, 0xB5, 0x67));
         t.set_border_subtle(Color::from_rgb_u8(0x44, 0x44, 0x44));
         t.set_shadow(Color::from_argb_u8(SHADOW_ALPHA, 0x00, 0x00, 0x00));
     } else {
@@ -200,10 +200,10 @@ pub fn fill_theme(
         t.set_fg_secondary(Color::from_rgb_u8(0x55, 0x55, 0x55));
         t.set_fg_clip_list(Color::from_rgb_u8(0x55, 0x55, 0x55));
         t.set_fg_muted(Color::from_rgb_u8(0x99, 0x99, 0x99));
-        t.set_fg_danger(Color::from_rgb_u8(0xAA, 0xAA, 0xAA));
-        t.set_fg_success(Color::from_rgb_u8(0x88, 0x88, 0x88));
-        t.set_fg_warning(Color::from_rgb_u8(0x99, 0x99, 0x99));
-        t.set_fg_bookmarked(Color::from_rgb_u8(0xBB, 0xBB, 0xBB));
+        t.set_fg_danger(Color::from_rgb_u8(0xC0, 0x39, 0x2B));
+        t.set_fg_success(Color::from_rgb_u8(0x27, 0xAE, 0x60));
+        t.set_fg_warning(Color::from_rgb_u8(0xE6, 0x7E, 0x22));
+        t.set_fg_bookmarked(Color::from_rgb_u8(0xB8, 0x86, 0x0B));
         t.set_border_subtle(Color::from_rgb_u8(0xD0, 0xD0, 0xD0));
         t.set_shadow(Color::from_argb_u8(SHADOW_ALPHA, 0x00, 0x00, 0x00));
     }
