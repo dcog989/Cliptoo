@@ -4,9 +4,16 @@ use cliptoo_core::content::classifier::ContentProcessor;
 use cliptoo_core::db::DbPool;
 use std::sync::Arc;
 
-/// Insert a text clip, deriving its hash from the content.
+/// Insert a text clip, deriving a canonical SHA-256 hash from the content —
+/// the import path rejects non-canonical hashes, so a round-trip needs real ones.
 async fn insert_text(db: &Arc<DbPool>, content: &str, clip_type: &str) {
-    common::insert_clip(db, content, &format!("testhash_{content}"), clip_type).await;
+    common::insert_clip(
+        db,
+        content,
+        &cliptoo_core::content::hash::sha256_hex(content),
+        clip_type,
+    )
+    .await;
 }
 
 #[tokio::test]
