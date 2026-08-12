@@ -38,7 +38,8 @@ const SVG_RENDER_SIZE: u32 = 1024;
 //   preview:    `{thumbnails_dir}/{hash[..HASH_FILENAME_PREFIX_LEN]}_preview.webp`
 //
 // The two directories MUST be distinct so that `prune_cache` in maintenance.rs
-// (which only receives `thumbnails_dir`) never touches the full-res PNGs.
+// (which is handed `thumbnails_dir` and `favicons_dir`, never `images_dir`)
+// never touches the full-res PNGs.
 // Callers in `clipboard.rs` pass `images_dir` to `store_image` and
 // `thumbnails_dir` to `store_both_thumbnails`, satisfying this invariant.
 
