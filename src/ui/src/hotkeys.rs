@@ -153,32 +153,33 @@ pub async fn check_portal_presence() {
 /// APIs to Wayland clients (the X11 `XGrabKey` / `xcb_grab_key` path is
 /// not available), and D-Bus interfaces specific to other toolkits
 /// (KDE's `KGlobalAccel`, GNOME's `org.gnome.Shell` keybindings) are not
-/// portable. This function is therefore a no-op on a system where the
-/// XDG Desktop Portal is not running — it logs a warning and returns a
-/// completed `JoinHandle` so callers can always abort the listener.
+/// portable. This function therefore returns without a listener when the
+/// XDG Desktop Portal is not running — it logs a warning and returns
+/// `Ok(None)` so callers can retry later (see [`run_hotkey_loop`]).
 ///
 /// # Failure modes
 ///
-/// The function gracefully degrades in three places:
+/// The function gracefully degrades:
 ///
-/// 1. `CreateSession` fails (e.g. portal service is absent or hung) — the
-///    `Err` arm emits a `warn!` and returns a completed `JoinHandle`.
-/// 2. `BindShortcuts` fails — the `Err` arm emits a `warn!` and returns a
-///    completed `JoinHandle`.
-/// 3. The `BindShortcuts` Response signal reports an error — the `Err`
-///    arm emits a `warn!`; the function still proceeds to
-///    install the Activated-signal listener because partial success is
-///    possible.
+/// 1. The session bus is unreachable — the only hard-fail case; returns
+///    `Err` (a `warn!` accompanies it).
+/// 2. `CreateSession`, `BindShortcuts`, or the `Activated`-signal
+///    subscription fails (e.g. portal service is absent or hung) — emits a
+///    `warn!` and returns `Ok(None)`, meaning no listener was installed.
+/// 3. The `BindShortcuts` Response signal reports an error — emits a
+///    `warn!`; the function still installs the Activated-signal listener
+///    and returns `Ok(Some(handle))` because partial success is possible.
 ///
 /// In every case the app continues to run; only the global hotkey is
 /// affected. Callers should pair this function with [`check_portal_presence`]
 /// at startup so the user gets an informational heads-up before the
-/// session bus is first exercised.
+/// session bus is first exercised, and retry a `None` result — the portal
+/// is often not yet running when an autostart app launches at login.
 pub async fn register_shortcuts_and_listen<F>(
     shortcut_id: &str,
     trigger: &str,
     mut handler: F,
-) -> Result<tokio::task::JoinHandle<()>>
+) -> Result<Option<tokio::task::JoinHandle<()>>>
 where
     F: FnMut(String) + Send + 'static,
 {
@@ -235,11 +236,11 @@ where
                  with GlobalShortcuts support. On KDE Plasma 6, ensure \
                  xdg-desktop-portal-kde is installed and running."
             );
-            return Ok(tokio::spawn(async {}));
+            return Ok(None);
         }
         Err(_) => {
             tracing::warn!("timed out creating a GlobalShortcuts session");
-            return Ok(tokio::spawn(async {}));
+            return Ok(None);
         }
     };
 
@@ -256,11 +257,11 @@ where
         Ok(Ok(r)) => r,
         Ok(Err(e)) => {
             tracing::warn!("BindShortcuts failed (shortcuts may not work): {e}");
-            return Ok(tokio::spawn(async {}));
+            return Ok(None);
         }
         Err(_) => {
             tracing::warn!("timed out binding shortcuts");
-            return Ok(tokio::spawn(async {}));
+            return Ok(None);
         }
     };
 
@@ -276,7 +277,7 @@ where
         Ok(s) => s,
         Err(e) => {
             tracing::warn!("failed to subscribe to Activated signals: {e}");
-            return Ok(tokio::spawn(async {}));
+            return Ok(None);
         }
     };
 
@@ -286,7 +287,7 @@ where
         }
     });
 
-    Ok(handle)
+    Ok(Some(handle))
 }
 
 /// Best-effort: remove `action` from KGlobalAccel so a changed hotkey takes
@@ -316,8 +317,17 @@ pub async fn clear_kglobalaccel_bindings(action: &str) {
         .await;
 }
 
+/// How long to wait after a failed registration before retrying. Keeps a
+/// late-starting portal from leaving the hotkey unregistered forever: on
+/// login, `xdg-desktop-portal` typically starts *after* autostart apps. The
+/// delay is long enough to be a silent background retry and short enough
+/// that a user who installed/fixed the portal gets the hotkey back promptly.
+const REGISTRATION_RETRY_DELAY: Duration = Duration::from_secs(15);
+
 /// Keep the global toggle shortcut registered, re-registering whenever the
-/// user changes the hotkey in Settings.
+/// user changes the hotkey in Settings, the portal restarts (the listener
+/// ends on its own), or a previous registration failed (the portal was not
+/// yet running).
 ///
 /// The settings UI commits on every key-press, so `wait_for_stable_hotkey`
 /// debounces the re-registration until the combo has been stable for a quiet
@@ -334,50 +344,118 @@ pub async fn run_hotkey_loop(
 
         check_portal_presence().await;
 
-        let handle = register_shortcuts_and_listen(TOGGLE_ID, main_hotkey.as_str(), {
+        let handler = {
             let weak = ui.clone();
-            move |shortcut_id| {
+            move |shortcut_id: String| {
                 if shortcut_id == TOGGLE_ID {
                     let _ = weak.upgrade_in_event_loop(move |ui| {
                         crate::window::toggle_window(&ui);
                     });
                 }
             }
-        })
-        .await;
+        };
 
-        if let Err(e) = &handle {
-            tracing::warn!("Global shortcuts unavailable: {e}");
-        }
+        let shutdown =
+            match register_shortcuts_and_listen(TOGGLE_ID, main_hotkey.as_str(), handler).await {
+                Ok(Some(mut handle)) => {
+                    // A live listener is installed. Re-register when the user
+                    // finishes editing the hotkey (debounced) or the listener
+                    // ends on its own (portal restarted / bus dropped).
+                    if wait_for_stable_hotkey(&mut hotkey_rx, &mut handle).await {
+                        true
+                    } else {
+                        // Drop the old listener, clear the stale KGlobalAccel
+                        // keys so the portal treats the shortcut as new (and
+                        // applies the new preferred_trigger), then loop to
+                        // re-register.
+                        handle.abort();
+                        clear_kglobalaccel_bindings(TOGGLE_ID).await;
+                        false
+                    }
+                }
+                Ok(None) => {
+                    // Registration failed (portal absent or hung): retry in the
+                    // background rather than blocking on the hotkey channel, and
+                    // re-register sooner if the user edits the hotkey meanwhile.
+                    wait_for_retry(&mut hotkey_rx, REGISTRATION_RETRY_DELAY).await
+                }
+                Err(e) => {
+                    tracing::warn!("Global shortcuts unavailable: {e}");
+                    wait_for_retry(&mut hotkey_rx, REGISTRATION_RETRY_DELAY).await
+                }
+            };
 
-        // Wait for the user to finish editing the hotkey in Settings.
-        if wait_for_stable_hotkey(&mut hotkey_rx).await {
+        if shutdown {
             break;
         }
-
-        // Drop the old listener, clear the stale KGlobalAccel keys so the
-        // portal treats the shortcut as new (and applies the new
-        // preferred_trigger), then loop to re-register.
-        handle.map(|h| h.abort()).ok();
-        clear_kglobalaccel_bindings(TOGGLE_ID).await;
     }
 }
 
-/// Wait for the user to finish editing the hotkey in Settings.
+/// Wait for the user to finish editing the hotkey in Settings (the combo has
+/// stayed stable for `HOTKEY_DEBOUNCE`), or for the registration task to end
+/// (the portal restarted or the bus dropped — re-register).
 ///
-/// First waits for a change to arrive, then restarts the debounce timer on
-/// every further change until the value has stayed stable for
-/// `HOTKEY_DEBOUNCE`. Returns `true` when the sender has been dropped
-/// (shutdown).
-async fn wait_for_stable_hotkey(hotkey_rx: &mut tokio::sync::watch::Receiver<String>) -> bool {
-    if hotkey_rx.changed().await.is_err() {
-        return true;
+/// First waits for a change to arrive or the listener to end, then restarts
+/// the debounce timer on every further change until the value has stayed
+/// stable. Returns `true` when the sender has been dropped (shutdown).
+async fn wait_for_stable_hotkey(
+    hotkey_rx: &mut tokio::sync::watch::Receiver<String>,
+    listener: &mut tokio::task::JoinHandle<()>,
+) -> bool {
+    // Wait for the first event: a hotkey change or the listener ending. A
+    // task that already completed (e.g. the portal closed the session right
+    // after binding) resolves immediately here.
+    tokio::select! {
+        changed = hotkey_rx.changed() => match changed {
+            Ok(()) => {}
+            Err(_) => return true,
+        },
+        _ = &mut *listener => {
+            tracing::warn!("global shortcut listener ended; re-registering");
+            return false;
+        }
     }
+
+    loop {
+        tokio::select! {
+            changed = timeout(HOTKEY_DEBOUNCE, hotkey_rx.changed()) => match changed {
+                Err(_) => return false,
+                Ok(Err(_)) => return true,
+                Ok(Ok(())) => {}
+            },
+            // A listener that ends mid-edit also triggers an immediate
+            // re-register; the pending hotkey value is picked up from the
+            // watch channel on the next loop pass.
+            _ = &mut *listener => {
+                tracing::warn!("global shortcut listener ended; re-registering");
+                return false;
+            }
+        }
+    }
+}
+
+/// Wait for the next registration attempt: the retry interval, or the user
+/// finishing a hotkey edit (debounced), whichever comes first. Returns `true`
+/// when the sender has been dropped (shutdown).
+async fn wait_for_retry(
+    hotkey_rx: &mut tokio::sync::watch::Receiver<String>,
+    retry_delay: Duration,
+) -> bool {
+    tokio::select! {
+        changed = hotkey_rx.changed() => match changed {
+            Ok(()) => {}
+            Err(_) => return true,
+        },
+        _ = tokio::time::sleep(retry_delay) => return false,
+    }
+
+    // The hotkey changed: debounce the rest of the edit, then re-register
+    // with the final combo.
     loop {
         match timeout(HOTKEY_DEBOUNCE, hotkey_rx.changed()).await {
             Err(_) => return false,
             Ok(Err(_)) => return true,
-            Ok(Ok(())) => continue,
+            Ok(Ok(())) => {}
         }
     }
 }
