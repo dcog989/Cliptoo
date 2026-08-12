@@ -1,6 +1,8 @@
 use crate::db::models::{ClipData, ClipType};
 use anyhow::Result;
+use chrono::{DateTime, Utc};
 use rusqlite::{Connection, OptionalExtension, params};
+use std::sync::Mutex;
 
 // ── FTS5 snippet configuration ──────────────────────────────────────────────
 // Tag snippets are shorter because tag values are typically brief labels.
@@ -13,9 +15,43 @@ pub const FTS_HL_OPEN: &str = "[HL]";
 /// Closing highlight sentinel emitted by FTS5 `snippet()`.
 pub const FTS_HL_CLOSE: &str = "[/HL]";
 
-/// Sentinel timestamp used by `bump_to_bottom` — Unix epoch.
-/// Clips bumped to bottom sort before anything with a real timestamp.
-const EPOCH_TIMESTAMP: &str = "1970-01-01 00:00:00";
+/// Timestamp prefix used by `bump_to_bottom` — a fixed epoch date that sorts
+/// before every real timestamp. The clip's `Id` is appended as a zero-padded
+/// suffix so bottom-pinned clips stay distinct (and therefore reorderable)
+/// instead of all sharing one identical timestamp.
+const EPOCH_TS_PREFIX: &str = "1970-01-01 00:00:00";
+/// Zero-padded width of the `Id` suffix appended to `EPOCH_TS_PREFIX`.
+/// Fixed width keeps the padded values sortable numerically.
+const EPOCH_TS_SUFFIX_WIDTH: usize = 15;
+
+/// Last reserved write timestamp, microseconds since the Unix epoch.
+/// Writes are serialised on the single connection, but the guard still
+/// guarantees a strictly-increasing, collision-free value for back-to-back
+/// writes landing within the same microsecond — the reorder swaps in
+/// `move_up_one` / `move_down_one` depend on stored `Timestamp`s never being
+/// equal (equal timestamps would make a swap a no-op).
+static LAST_TS_MICROS: Mutex<u64> = Mutex::new(0);
+
+/// Current UTC time as `YYYY-MM-DD HH:MM:SS.ffffff`, strictly increasing
+/// across calls. Each call reserves a microsecond slot greater than every
+/// previously reserved one, so two writes in the same microsecond still sort
+/// in write order.
+fn next_timestamp() -> String {
+    let now = Utc::now().timestamp_micros() as u64;
+    let micros = {
+        let mut last = LAST_TS_MICROS
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        *last = (*last).saturating_add(1).max(now);
+        *last
+    };
+    let dt = DateTime::from_timestamp(
+        (micros / 1_000_000) as i64,
+        ((micros % 1_000_000) as u32) * 1_000,
+    )
+    .expect("reserved timestamp fits in UTC range");
+    dt.format("%Y-%m-%d %H:%M:%S%.6f").to_string()
+}
 
 /// Default row limit for `search_clips` — bounds the list view.
 pub const SEARCH_RESULT_LIMIT: i64 = 1000;
@@ -177,12 +213,13 @@ pub fn insert_or_bump(
         .optional()?
         .is_some();
 
+    let now = next_timestamp();
     conn.execute(
         "INSERT INTO clips
              (Content, PreviewContent, ContentHash, ClipType, SourceApp, Timestamp,
               WasTrimmed, HasLeadingWhitespace, IsMultiline, SizeInBytes, IsFileUri)
-         VALUES (?1, ?2, ?3, ?4, ?5, datetime('now'), ?6, ?7, ?8, ?9, ?10)
-         ON CONFLICT(ContentHash) DO UPDATE SET Timestamp = datetime('now')",
+         VALUES (?1, ?2, ?3, ?4, ?5, ?11, ?6, ?7, ?8, ?9, ?10)
+         ON CONFLICT(ContentHash) DO UPDATE SET Timestamp = ?11",
         params![
             content,
             preview_content,
@@ -194,6 +231,7 @@ pub fn insert_or_bump(
             is_multiline as i32,
             size_in_bytes,
             is_file_uri as i32,
+            now,
         ],
     )?;
 
@@ -250,7 +288,7 @@ pub fn search_clips(
             "SELECT {projection}
              FROM clips c
              WHERE 1=1 {filter_sql}
-             ORDER BY Timestamp DESC
+             ORDER BY Timestamp DESC, Id DESC
              LIMIT ? OFFSET ?",
             projection = BROWSE_PROJECTION,
             filter_sql = ft.sql(),
@@ -266,7 +304,7 @@ pub fn search_clips(
                 "SELECT {projection}
                  FROM clips c
                  WHERE Tags IS NOT NULL AND Tags != '' {filter_sql}
-                 ORDER BY Timestamp DESC
+                 ORDER BY Timestamp DESC, Id DESC
                  LIMIT ? OFFSET ?",
                 projection = BROWSE_PROJECTION,
                 filter_sql = ft.sql(),
@@ -395,8 +433,8 @@ pub fn update_clip_content(
 
 pub fn bump_to_top(conn: &Connection, id: i64) -> Result<()> {
     conn.execute(
-        "UPDATE clips SET Timestamp = datetime('now') WHERE Id = ?1",
-        params![id],
+        "UPDATE clips SET Timestamp = ?1 WHERE Id = ?2",
+        params![next_timestamp(), id],
     )?;
     Ok(())
 }
@@ -412,19 +450,20 @@ pub fn count_clips(conn: &Connection) -> Result<i64> {
 /// separately.
 pub fn record_paste(conn: &Connection, id: i64) -> Result<()> {
     conn.execute(
-        "UPDATE clips SET Timestamp = datetime('now'), PasteCount = PasteCount + 1 WHERE Id = ?1",
-        params![id],
+        "UPDATE clips SET Timestamp = ?1, PasteCount = PasteCount + 1 WHERE Id = ?2",
+        params![next_timestamp(), id],
     )?;
     crate::stats::increment_stat(conn, crate::stats::KEY_PASTE_COUNT)
 }
 
 pub fn bump_to_bottom(conn: &Connection, id: i64) -> Result<()> {
+    let ts = format!(
+        "{EPOCH_TS_PREFIX}.{id:0width$}",
+        width = EPOCH_TS_SUFFIX_WIDTH
+    );
     conn.execute(
-        &format!(
-            "UPDATE clips SET Timestamp = '{ts}' WHERE Id = ?1",
-            ts = EPOCH_TIMESTAMP
-        ),
-        params![id],
+        "UPDATE clips SET Timestamp = ?1 WHERE Id = ?2",
+        params![ts, id],
     )?;
     Ok(())
 }
@@ -447,15 +486,21 @@ pub fn move_up_one(conn: &Connection, id: i64) -> Result<()> {
         )
         .optional()?;
 
+    // Swap the two clips' timestamps inside one transaction: a crash between
+    // the pair of writes would otherwise leave both rows holding the same
+    // timestamp. The reads above run under the caller's connection lock, so
+    // no write can interleave between them and this transaction.
     if let Some((above_id, above_ts)) = above {
-        conn.execute(
+        let tx = conn.unchecked_transaction()?;
+        tx.execute(
             "UPDATE clips SET Timestamp = ?1 WHERE Id = ?2",
             params![&above_ts, id],
         )?;
-        conn.execute(
+        tx.execute(
             "UPDATE clips SET Timestamp = ?1 WHERE Id = ?2",
             params![&current_ts, above_id],
         )?;
+        tx.commit()?;
     }
     Ok(())
 }
@@ -478,15 +523,19 @@ pub fn move_down_one(conn: &Connection, id: i64) -> Result<()> {
         )
         .optional()?;
 
+    // Same atomicity argument as `move_up_one`: both writes land in a single
+    // transaction so an interrupted swap cannot leave duplicated timestamps.
     if let Some((below_id, below_ts)) = below {
-        conn.execute(
+        let tx = conn.unchecked_transaction()?;
+        tx.execute(
             "UPDATE clips SET Timestamp = ?1 WHERE Id = ?2",
             params![&below_ts, id],
         )?;
-        conn.execute(
+        tx.execute(
             "UPDATE clips SET Timestamp = ?1 WHERE Id = ?2",
             params![&current_ts, below_id],
         )?;
+        tx.commit()?;
     }
     Ok(())
 }
