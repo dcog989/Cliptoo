@@ -36,7 +36,10 @@ impl ThumbnailLru {
     }
 
     pub fn get_or_load(&mut self, thumbnails_dir: &Path, hash: &str) -> Image {
-        let key = &hash[..hash.len().min(HASH_FILENAME_PREFIX_LEN)];
+        let Some(key) = hash_key(hash) else {
+            // Malformed hash: can never have keyed a real thumbnail file.
+            return Image::default();
+        };
         if let Some(img) = self.0.get(key) {
             return img.clone();
         }
@@ -56,8 +59,21 @@ impl Default for ThumbnailLru {
     }
 }
 
+/// The 16-char hash prefix used as the thumbnail cache key and filename stem.
+///
+/// Returns `None` when the slice boundary would split a multi-byte UTF-8 char —
+/// a corrupt or legacy hash (e.g. imported before hash validation) can never
+/// have keyed a real thumbnail, mirroring the guard in
+/// `maintenance::prune_cache`.
+fn hash_key(hash: &str) -> Option<&str> {
+    let end = hash.len().min(HASH_FILENAME_PREFIX_LEN);
+    hash.is_char_boundary(end).then(|| &hash[..end])
+}
+
 fn load_thumbnail(thumbnails_dir: &Path, content_hash: &str) -> Image {
-    let key = &content_hash[..content_hash.len().min(HASH_FILENAME_PREFIX_LEN)];
+    let Some(key) = hash_key(content_hash) else {
+        return Image::default();
+    };
     let webp = thumbnails_dir.join(format!("{key}.webp"));
     if webp.exists() {
         return Image::load_from_path(&webp).unwrap_or_default();
@@ -224,4 +240,32 @@ pub fn convert_vec(
         .into_iter()
         .map(|d| convert(d, thumbnails_dir, favicons_dir))
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::hash_key;
+
+    #[test]
+    fn hash_key_truncates_to_prefix() {
+        assert_eq!(hash_key("abcdef1234567890xyz"), Some("abcdef1234567890"));
+    }
+
+    #[test]
+    fn hash_key_shorter_hash_stays_whole() {
+        assert_eq!(hash_key("abc"), Some("abc"));
+    }
+
+    #[test]
+    fn hash_key_exact_prefix_is_boundary() {
+        assert_eq!(hash_key("abcdef1234567890"), Some("abcdef1234567890"));
+    }
+
+    #[test]
+    fn hash_key_rejects_split_multibyte_char() {
+        // 15 ASCII bytes followed by a 2-byte char: byte 16 splits it.
+        let h = "abcdefghijklmno\u{00e9}";
+        assert_eq!(h.len(), 17);
+        assert_eq!(hash_key(h), None);
+    }
 }
