@@ -75,10 +75,19 @@ export component EditWindow inherits Window {
             background: root.editing ? Theme.bg-input : transparent;
             clip: true;
 
-            // Edit mode: plain text input
-            VerticalLayout {
+            // Edit mode: plain text input. Wrapped in a ScrollView so a long
+            // document scrolls instead of growing the layout and pushing the
+            // tags row and action buttons out of the window (a bare TextInput's
+            // minimum height is the full height of its content).
+            edit-scroll := ScrollView {
                 visible: root.editing;
-                padding: 8px;
+                x: 8px;
+                y: 8px;
+                width: parent.width - 16px;
+                height: parent.height - 16px;
+                viewport-width: self.visible-width;
+                viewport-height: max(self.visible-height, content-edit.preferred-height);
+
                 content-edit := TextInput {
                     text <=> root.edit-content;
                     font-family: Theme.font-family;
@@ -86,7 +95,7 @@ export component EditWindow inherits Window {
                     font-size: Theme.font-size;
                     single-line: false;
                     wrap: word-wrap;
-                    vertical-stretch: 1;
+                    page-height: edit-scroll.visible-height;
                 }
             }
 

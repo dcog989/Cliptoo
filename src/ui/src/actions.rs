@@ -115,7 +115,7 @@ pub fn setup_clip_actions(
             // theme change made since startup is reflected here too.
             let s_snap = ctx_edit_settings.borrow().clone();
             tokio::spawn(async move {
-                let content = db
+                let mut content = db
                     .with(|conn| cliptoo_core::db::queries::get_clip_content(conn, id as i64))
                     .await
                     .unwrap_or_default();
@@ -126,6 +126,18 @@ pub fn setup_clip_actions(
                     .await
                     .map(|(_, t, _)| t)
                     .unwrap_or_default();
+                // A text-document clip stores the file path, not its text. Load
+                // the file's actual contents so the editor opens on the document
+                // rather than on a bare path. A missing/unreadable file leaves the
+                // path text in place (the same view the user just had in preview).
+                if clip_type == "file_text" {
+                    let path = content.clone();
+                    let read =
+                        tokio::task::spawn_blocking(move || std::fs::read_to_string(path)).await;
+                    if let Ok(Ok(text)) = read {
+                        content = text;
+                    }
+                }
                 let tags = db
                     .with(|conn| cliptoo_core::db::queries::get_clip_tags(conn, id as i64))
                     .await

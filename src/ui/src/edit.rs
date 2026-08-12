@@ -58,7 +58,8 @@ pub fn setup_edit_window(
         });
     }
 
-    // Save updated clip content to DB, then refresh the list.
+    // Save updated clip content: write text-document edits back to the file,
+    // otherwise reclassify and update the stored clip.
     {
         let ew = edit_win.as_weak();
         let edit_ui = ui.as_weak();
@@ -77,27 +78,58 @@ pub fn setup_edit_window(
                 let content = content.to_string();
                 let tags = tags.to_string();
                 tokio::spawn(async move {
-                    let normalized = cliptoo_core::content::normalize_line_endings(&content);
-                    if let Some(classified) =
-                        cliptoo_core::content::ContentProcessor::process(&normalized, false)
-                        && let Err(e) = db
-                            .with(|conn| {
-                                cliptoo_core::db::queries::update_clip_content(
-                                    conn,
-                                    id as i64,
-                                    &classified.content,
-                                    &classified.preview_content,
-                                    &classified.content_hash,
-                                    classified.clip_type.as_str(),
-                                    classified.was_trimmed,
-                                    classified.has_leading_whitespace,
-                                    classified.is_multiline,
-                                    classified.size_in_bytes,
-                                )
-                            })
-                            .await
-                    {
-                        tracing::error!("edit: failed to update clip {id} content: {e:#}");
+                    // A text-document clip stores its file path in `Content`;
+                    // saving means writing the edited text back to that file.
+                    let (stored_content, clip_type) = db
+                        .with(|conn| {
+                            cliptoo_core::db::queries::get_clip_type_and_content(conn, id as i64)
+                        })
+                        .await
+                        .map(|(c, t, _)| (c, t))
+                        .unwrap_or_default();
+                    if clip_type == "file_text" {
+                        let write_path = stored_content.clone();
+                        let write_content = content.clone();
+                        let wrote = tokio::task::spawn_blocking(move || {
+                            write_text_file(&write_path, &write_content)
+                        })
+                        .await;
+                        match wrote {
+                            Ok(Ok(())) => {}
+                            Ok(Err(e)) => {
+                                tracing::error!(
+                                    "edit: failed to write edited file {stored_content:?}: {e}"
+                                );
+                            }
+                            Err(e) => {
+                                tracing::error!(
+                                    "edit: file write task for {stored_content:?} panicked: {e}"
+                                );
+                            }
+                        }
+                    } else {
+                        let normalized = cliptoo_core::content::normalize_line_endings(&content);
+                        if let Some(classified) =
+                            cliptoo_core::content::ContentProcessor::process(&normalized, false)
+                            && let Err(e) = db
+                                .with(|conn| {
+                                    cliptoo_core::db::queries::update_clip_content(
+                                        conn,
+                                        id as i64,
+                                        &classified.content,
+                                        &classified.preview_content,
+                                        &classified.content_hash,
+                                        classified.clip_type.as_str(),
+                                        classified.was_trimmed,
+                                        classified.has_leading_whitespace,
+                                        classified.is_multiline,
+                                        classified.size_in_bytes,
+                                    )
+                                })
+                                .await
+                        {
+                            tracing::error!("edit: failed to update clip {id} content: {e:#}");
+                        }
                     }
                     if let Err(e) = db
                         .with(|conn| cliptoo_core::db::queries::update_tags(conn, id as i64, &tags))
@@ -129,4 +161,31 @@ pub fn setup_edit_window(
     }
 
     edit_win
+}
+
+/// Write edited text back to a text-document file. Separated so the save path
+/// can be unit-tested without the window/tokio plumbing.
+fn write_text_file(path: &str, contents: &str) -> std::io::Result<()> {
+    std::fs::write(path, contents)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::write_text_file;
+
+    #[test]
+    fn writes_text_file_contents() {
+        let dir = std::env::temp_dir().join(format!("cliptoo_edit_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("doc.txt");
+        write_text_file(path.to_str().unwrap(), "edited text").unwrap();
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "edited text");
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn missing_parent_dir_errors() {
+        let path = "/definitely/not/a/real/dir/doc.txt";
+        assert!(write_text_file(path, "x").is_err());
+    }
 }
