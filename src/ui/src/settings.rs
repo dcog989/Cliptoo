@@ -495,7 +495,12 @@ fn setup_setting_commit(
                         ui.set_quick_paste_mod(value.clone().into());
                     }
                 }
-                "logging_level" => s.logging_level = value.clone(),
+                "logging_level" => {
+                    s.logging_level = value.clone();
+                    // Apply live: the file logger reads the level from an
+                    // atomic, so the new level is in effect immediately.
+                    cliptoo_core::logger::set_level(s.log_level_filter());
+                }
                 "theme" => {
                     s.theme = value.clone();
                     reapply_theme(&settings_ui, &sw, &s, favicons_dir.clone());
