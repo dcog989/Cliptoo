@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use futures::StreamExt;
 use slint::ComponentHandle;
@@ -12,6 +13,17 @@ const PORTAL_DEST: &str = "org.freedesktop.portal.Desktop";
 const PORTAL_PATH: &str = "/org/freedesktop/portal/desktop";
 const FILE_CHOOSER_IFACE: &str = "org.freedesktop.portal.FileChooser";
 const REQUEST_IFACE: &str = "org.freedesktop.portal.Request";
+
+/// Unique per-dialog handle token. The portal derives the Request object path
+/// from it and echoes it back on the Response signal; a fixed token would give
+/// two overlapping dialogs (e.g. a double-click on Export) the same object
+/// path, so each listener could consume the other dialog's Response.
+static FILE_CHOOSER_TOKEN: AtomicU64 = AtomicU64::new(0);
+
+fn next_handle_token() -> String {
+    let n = FILE_CHOOSER_TOKEN.fetch_add(1, Ordering::Relaxed);
+    format!("cliptoo_maintenance_{n}")
+}
 
 /// Convert a `file://` URI to a plain filesystem path, or `None` if the URI
 /// is not a file URI.
@@ -35,7 +47,7 @@ async fn pick_path(save: bool) -> anyhow::Result<Option<std::path::PathBuf>> {
     };
 
     let mut options = HashMap::<&str, Value>::new();
-    options.insert("handle_token", Value::from("cliptoo_maintenance"));
+    options.insert("handle_token", Value::from(next_handle_token()));
     options.insert("current_name", Value::from("cliptoo-export.json"));
 
     let request_handle: OwnedObjectPath = conn
@@ -242,4 +254,19 @@ pub fn setup_manual_maintenance(
             Ok::<Option<String>, anyhow::Error>(None)
         });
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Two overlapping dialogs must never share a handle token, or one could
+    /// consume the other's Response signal.
+    #[test]
+    fn file_chooser_tokens_are_unique() {
+        let mut seen = std::collections::HashSet::new();
+        for _ in 0..100 {
+            assert!(seen.insert(next_handle_token()), "token must be unique");
+        }
+    }
 }
