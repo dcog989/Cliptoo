@@ -60,6 +60,17 @@ enum ClipboardPayload {
     },
 }
 
+/// Test whether `source_app` (the active window's resource id) is excluded.
+///
+/// A blacklist entry matches the full app id or its resource name — the last
+/// dot- or dash-separated component (e.g. "konsole" for "org.kde.konsole",
+/// "chrome" for "google-chrome"). Matching is case-insensitive. A plain
+/// `ends_with` would over-match unrelated ids that merely share a suffix.
 fn is_blacklisted(source_app: Option<&str>, blacklist: &[String]) -> bool {
-    source_app.is_some_and(|app| blacklist.iter().any(|b| app == b || app.ends_with(b)))
+    source_app.is_some_and(|app| {
+        let resource_name = app.rsplit(['.', '-']).next().unwrap_or(app);
+        blacklist
+            .iter()
+            .any(|b| app.eq_ignore_ascii_case(b) || resource_name.eq_ignore_ascii_case(b))
+    })
 }
