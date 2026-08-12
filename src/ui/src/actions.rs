@@ -83,15 +83,33 @@ pub fn setup_clip_actions(
         let mtt_ui = ui.as_weak();
         let mtt_td = thumbnails_dir.clone();
         let mtt_fd = favicons_dir.clone();
+        let mtt_sup = suppression.clone();
         ui.on_move_to_top(move |id: i32| {
             let db = mtt_db.clone();
             let ui = mtt_ui.clone();
             let td = mtt_td.clone();
             let fd = mtt_fd.clone();
+            let sup = mtt_sup.clone();
             tokio::spawn(async move {
                 let _ = db
                     .with(|conn| cliptoo_core::db::queries::bump_to_top(conn, id as i64))
                     .await;
+                // Populate the clipboard as well, so Ctrl+V pastes the moved
+                // clip. Mirrors the paste path; the hash suppression keeps the
+                // listener from re-ingesting our own write.
+                let result = db
+                    .with(|conn| {
+                        cliptoo_core::db::queries::get_clip_type_and_content(conn, id as i64)
+                    })
+                    .await;
+                if let Ok((content, clip_type, _hash)) = result {
+                    crate::paste::register_suppression(&sup, &content, &clip_type);
+                    if let Err(e) =
+                        crate::paste::write_content_to_clipboard(&content, &clip_type, true).await
+                    {
+                        tracing::error!("Move-to-top clipboard write error: {e}");
+                    }
+                }
                 helpers::refresh_clips(&db, &ui, &td, &fd, "", "", None).await;
             });
         });

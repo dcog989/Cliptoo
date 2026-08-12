@@ -48,6 +48,46 @@ pub async fn paste_content(
     window: &slint::Weak<crate::AppWindow>,
     paste_as_plain_text: bool,
 ) -> Result<()> {
+    register_suppression(suppression, content, clip_type);
+
+    write_content_to_clipboard(content, clip_type, !paste_as_plain_text).await?;
+
+    let (tx, rx) = tokio::sync::oneshot::channel::<()>();
+    let _ = window.upgrade_in_event_loop(move |ui| {
+        crate::window::hide_window(&ui);
+        let _ = tx.send(());
+    });
+    rx.await.ok();
+
+    tokio::time::sleep(Duration::from_millis(80)).await;
+
+    simulate_ctrl_v().context("input simulation")?;
+
+    Ok(())
+}
+
+/// Mark a clip's payload as self-originated so the clipboard listener does not
+/// re-ingest it as a new clip. The listener polls text/rtf before text/plain,
+/// so after a rich write it re-reads the raw RTF markup, while after a
+/// plain-text write it re-reads the stripped text. Register both hashes so
+/// either payload is recognised as our own. (For non-RTF content the raw hash
+/// covers the single text/plain payload.)
+pub fn register_suppression(suppression: &PasteSuppressionSet, content: &str, clip_type: &str) {
+    suppression.insert(sha256_u64(&normalize_line_endings(content)));
+    if clip_type == "rtf" {
+        let stripped = cliptoo_core::content::strip_rtf(content);
+        suppression.insert(sha256_u64(&normalize_line_endings(&stripped)));
+    }
+}
+
+/// Write a clip's payload to the regular Wayland clipboard without pasting it.
+/// `offer_rich` controls whether an RTF clip advertises the raw `text/rtf`
+/// MIME type in addition to the stripped `text/plain` fallback.
+pub async fn write_content_to_clipboard(
+    content: &str,
+    clip_type: &str,
+    offer_rich: bool,
+) -> Result<()> {
     let is_file_clip = ClipType::parse(clip_type).is_file_clip();
     let is_rtf = clip_type == "rtf";
 
@@ -61,20 +101,10 @@ pub async fn paste_content(
 
     let normalized = normalize_line_endings(&plain_text);
 
-    // The listener polls text/rtf before text/plain, so after a rich paste it
-    // re-reads the raw RTF markup, while after a plain-text paste it re-reads
-    // the stripped text. Register both hashes so either payload is recognised
-    // as our own paste and not re-ingested. (For non-RTF content the raw hash
-    // covers the single text/plain payload.)
-    suppression.insert(sha256_u64(&normalize_line_endings(content)));
-    if is_rtf {
-        suppression.insert(sha256_u64(&normalized));
-    }
-
     let data = normalized.clone();
     // `content` is a borrowed &str and cannot move into the 'static blocking
     // closure, so pre-normalize the raw RTF payload here.
-    let rich_rtf = if is_rtf && !paste_as_plain_text {
+    let rich_rtf = if is_rtf && offer_rich {
         Some(normalize_line_endings(content))
     } else {
         None
@@ -84,7 +114,7 @@ pub async fn paste_content(
         let mut opts = Options::new();
         opts.clipboard(ClipboardType::Regular).seat(Seat::All);
         if is_file_clip {
-            // File paste: uri-list plus the decoded paths as text/plain.
+            // File write: uri-list plus the decoded paths as text/plain.
             let uri_list = build_uri_list(&data);
             opts.copy_multi(vec![
                 MimeSource {
@@ -97,7 +127,7 @@ pub async fn paste_content(
                 },
             ])
         } else if let Some(raw) = rich_rtf {
-            // Rich-text paste: offer the raw RTF (formatted) plus the stripped
+            // Rich-text write: offer the raw RTF (formatted) plus the stripped
             // text/plain fallback so targets without RTF support still insert
             // the text instead of nothing.
             opts.copy_multi(vec![
@@ -120,17 +150,6 @@ pub async fn paste_content(
     })
     .await
     .context("spawn clipboard write")??;
-
-    let (tx, rx) = tokio::sync::oneshot::channel::<()>();
-    let _ = window.upgrade_in_event_loop(move |ui| {
-        crate::window::hide_window(&ui);
-        let _ = tx.send(());
-    });
-    rx.await.ok();
-
-    tokio::time::sleep(Duration::from_millis(80)).await;
-
-    simulate_ctrl_v().context("input simulation")?;
 
     Ok(())
 }
