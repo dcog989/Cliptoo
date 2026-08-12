@@ -91,6 +91,11 @@ pub async fn detect_system_accent() -> Option<(u8, u8, u8)> {
 /// valid — they mean "use the OS accent", which is only known at runtime.
 const DEFAULT_ACCENT: (u8, u8, u8) = (0x7C, 0x6E, 0xE6);
 
+/// Alpha channel (0–255) for the drop-shadow color shared by menus. Matches
+/// the `#00000030` default in Theme.slint so shadows stay translucent instead
+/// of rendering as opaque black halos.
+const SHADOW_ALPHA: u8 = 0x30;
+
 /// Parse a `#RRGGBB` hex string (leading `#` optional) into `(r, g, b)`.
 /// Returns `DEFAULT_ACCENT` for malformed input.
 pub(crate) fn parse_accent_hex(hex: &str) -> (u8, u8, u8) {
@@ -184,7 +189,7 @@ pub fn fill_theme(
         t.set_fg_warning(Color::from_rgb_u8(0xA0, 0xA0, 0xA0));
         t.set_fg_bookmarked(Color::from_rgb_u8(0xC0, 0xC0, 0xC0));
         t.set_border_subtle(Color::from_rgb_u8(0x44, 0x44, 0x44));
-        t.set_shadow(Color::from_rgb_u8(0x00, 0x00, 0x00));
+        t.set_shadow(Color::from_argb_u8(SHADOW_ALPHA, 0x00, 0x00, 0x00));
     } else {
         t.set_bg_primary(Color::from_rgb_u8(0xF5, 0xF5, 0xF5));
         t.set_bg_header(Color::from_rgb_u8(0xE8, 0xE8, 0xE8));
@@ -201,7 +206,7 @@ pub fn fill_theme(
         t.set_fg_warning(Color::from_rgb_u8(0x99, 0x99, 0x99));
         t.set_fg_bookmarked(Color::from_rgb_u8(0xBB, 0xBB, 0xBB));
         t.set_border_subtle(Color::from_rgb_u8(0xD0, 0xD0, 0xD0));
-        t.set_shadow(Color::from_rgb_u8(0x00, 0x00, 0x00));
+        t.set_shadow(Color::from_argb_u8(SHADOW_ALPHA, 0x00, 0x00, 0x00));
     }
 
     t.set_font_family(SharedString::from(&*settings.font_family));
