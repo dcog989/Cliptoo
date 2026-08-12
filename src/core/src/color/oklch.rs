@@ -7,16 +7,6 @@
 //!
 //! See PORTING.md §4 for the full algorithm and `FindMaxChroma` gamut mapping.
 
-/// Parsed color result with all representations.
-#[derive(Debug, Clone)]
-pub struct ParsedColor {
-    pub r: u8,
-    pub g: u8,
-    pub b: u8,
-    pub a: u8,
-    pub hex: String,
-}
-
 // ── Matrix constants (Björn Ottosson OKLab spec naming) ──────────────────────
 
 /// M1 — OKLab → LMS' mixed matrix.

@@ -5,7 +5,15 @@
 //! the non-standard `hsv()`. Two formats remain here because the crate does
 //! not understand them: Android/Java `0xAARRGGBB` integers and `cmyk()`.
 
-use super::oklch::ParsedColor;
+/// Parsed color result with all representations.
+#[derive(Debug, Clone)]
+pub struct ParsedColor {
+    pub r: u8,
+    pub g: u8,
+    pub b: u8,
+    pub a: u8,
+    pub hex: String,
+}
 
 /// Android/Java `0xAARRGGBB` integer literal → parsed color (ARGB byte order).
 fn parse_argb_0x(s: &str) -> Option<ParsedColor> {
