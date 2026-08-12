@@ -20,6 +20,13 @@ export component EditWindow inherits Window {
     in property <string> clip-type: "text";
     in property <string> meta-info: "";   // "1.4 KB · 320 chars" etc.
     in property <bool> editing: true;
+    // True once the user edits content or tags after opening. Drives the
+    // two-step Cancel button: the first click re-arms it as "Discard?" so
+    // unsaved edits are not lost silently.
+    in-out property <bool> dirty: false;
+    // Armed by the first Cancel/close while `dirty`; while set, the Cancel
+    // button reads "Discard?" and the next click actually closes.
+    in-out property <bool> confirm-cancel: false;
 
     callback save-clicked(int, string, string);   // id, content, tags
     callback cancel-clicked;
@@ -96,6 +103,10 @@ export component EditWindow inherits Window {
                     single-line: false;
                     wrap: word-wrap;
                     page-height: edit-scroll.visible-height;
+                    edited => {
+                        root.dirty = true;
+                        root.confirm-cancel = false;
+                    }
                 }
             }
 
@@ -147,6 +158,10 @@ export component EditWindow inherits Window {
                         color: Theme.fg-primary;
                         font-size: Theme.font-size;
                         vertical-alignment: center;
+                        edited => {
+                            root.dirty = true;
+                            root.confirm-cancel = false;
+                        }
                     }
                 }
             }
@@ -157,15 +172,17 @@ export component EditWindow inherits Window {
             spacing: 8px;
             alignment: end;
 
-            // Cancel
+            // Cancel — two-step when there are unsaved edits: the first click
+            // re-arms the button as "Discard?" so edits are not lost silently,
+            // the second actually closes.
             Rectangle {
                 width: 80px;
                 height: 30px;
                 border-radius: 6px;
-                background: Theme.bg-input;
+                background: root.confirm-cancel ? Theme.error-base : Theme.bg-input;
                 Text {
-                    text: @tr("Cancel");
-                    color: Theme.fg-secondary;
+                    text: root.confirm-cancel ? @tr("Discard?") : @tr("Cancel");
+                    color: root.confirm-cancel ? Theme.error-fg : Theme.fg-secondary;
                     horizontal-alignment: center;
                     vertical-alignment: center;
                     font-size: Theme.font-size;
@@ -173,12 +190,14 @@ export component EditWindow inherits Window {
 
                 TouchArea {
                     clicked => {
-                        root.cancel-clicked();
+                        if (root.dirty && !root.confirm-cancel) {
+                            root.confirm-cancel = true;
+                        } else {
+                            root.cancel-clicked();
+                        }
                     }
                     mouse-cursor: pointer;
                 }
-                // No modified-content guard: Rust is responsible for prompting the
-                // user if unsaved edits exist (EditWindow does not track dirty state).
             }
 
             // Save

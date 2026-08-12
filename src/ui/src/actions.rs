@@ -197,6 +197,10 @@ pub fn setup_clip_actions(
                     edit.set_initial_tags(tags.into());
                     edit.set_clip_type(clip_type.into());
                     edit.set_meta_info(meta.into());
+                    // Fresh open: clear any dirty/discard state left by the
+                    // previous clip (see EditWindow.slint dirty).
+                    edit.set_dirty(false);
+                    edit.set_confirm_cancel(false);
                     edit.window().set_size(slint::LogicalSize {
                         width: edit_w,
                         height: edit_h,

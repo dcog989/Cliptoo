@@ -23,6 +23,12 @@ pub fn setup_edit_window(
         let main_ui = main_ui.clone();
         edit_win.window().on_close_requested(move || {
             if let Some(win) = ew.upgrade() {
+                // A WM close with unsaved edits arms the two-step Cancel (it
+                // becomes "Discard?") instead of silently losing them.
+                if win.get_dirty() && !win.get_confirm_cancel() {
+                    win.set_confirm_cancel(true);
+                    return slint::CloseRequestResponse::KeepWindowShown;
+                }
                 let size = win.window().size();
                 let mut s = s.borrow_mut();
                 s.editor_window_width = size.width as f64;
@@ -44,7 +50,9 @@ pub fn setup_edit_window(
         });
     }
 
-    // Cancel closes the editor.
+    // Cancel closes the editor. The two-step discard guard lives in the Slint
+    // button (first click with `dirty` re-arms as "Discard?"); by the time this
+    // callback fires the user has confirmed.
     {
         let ew = edit_win.as_weak();
         let main_ui = main_ui.clone();
