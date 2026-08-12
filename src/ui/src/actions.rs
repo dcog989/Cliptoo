@@ -12,7 +12,9 @@ pub fn setup_clip_actions(
     settings: &std::rc::Rc<std::cell::RefCell<cliptoo_core::Settings>>,
     dirs: &crate::app_dirs::AppDirs,
     suppression: &Arc<crate::paste::PasteSuppressionSet>,
+    tag_prefix: &str,
 ) {
+    let tag_prefix = tag_prefix.to_string();
     // ── Context menu: send-to app names ─────────────────────────────────
     {
         let names: Vec<slint::SharedString> = settings
@@ -34,16 +36,19 @@ pub fn setup_clip_actions(
         let del_ui = ui.as_weak();
         let del_td = thumbnails_dir.clone();
         let del_fd = favicons_dir.clone();
+        let del_pfx = tag_prefix.clone();
         ui.on_delete_clip(move |id: i32| {
             let db = del_db.clone();
             let ui = del_ui.clone();
             let td = del_td.clone();
             let fd = del_fd.clone();
+            let (query, filter) = helpers::current_view_state(&ui);
+            let pfx = del_pfx.clone();
             tokio::spawn(async move {
                 let _ = db
                     .with(|conn| cliptoo_core::db::queries::delete_clip(conn, id as i64))
                     .await;
-                helpers::refresh_clips(&db, &ui, &td, &fd, "", "", None).await;
+                helpers::refresh_clips(&db, &ui, &td, &fd, &query, &filter, Some(&pfx)).await;
             });
         });
     }
@@ -84,12 +89,15 @@ pub fn setup_clip_actions(
         let mtt_td = thumbnails_dir.clone();
         let mtt_fd = favicons_dir.clone();
         let mtt_sup = suppression.clone();
+        let mtt_pfx = tag_prefix.clone();
         ui.on_move_to_top(move |id: i32| {
             let db = mtt_db.clone();
             let ui = mtt_ui.clone();
             let td = mtt_td.clone();
             let fd = mtt_fd.clone();
             let sup = mtt_sup.clone();
+            let (query, filter) = helpers::current_view_state(&ui);
+            let pfx = mtt_pfx.clone();
             tokio::spawn(async move {
                 let _ = db
                     .with(|conn| cliptoo_core::db::queries::bump_to_top(conn, id as i64))
@@ -110,7 +118,7 @@ pub fn setup_clip_actions(
                         tracing::error!("Move-to-top clipboard write error: {e}");
                     }
                 }
-                helpers::refresh_clips(&db, &ui, &td, &fd, "", "", None).await;
+                helpers::refresh_clips(&db, &ui, &td, &fd, &query, &filter, Some(&pfx)).await;
             });
         });
     }
@@ -211,16 +219,19 @@ pub fn setup_clip_actions(
         let mtb_ui = ui.as_weak();
         let mtb_td = thumbnails_dir.clone();
         let mtb_fd = favicons_dir.clone();
+        let mtb_pfx = tag_prefix.clone();
         ui.on_move_to_bottom(move |id: i32| {
             let db = mtb_db.clone();
             let ui = mtb_ui.clone();
             let td = mtb_td.clone();
             let fd = mtb_fd.clone();
+            let (query, filter) = helpers::current_view_state(&ui);
+            let pfx = mtb_pfx.clone();
             tokio::spawn(async move {
                 let _ = db
                     .with(|conn| cliptoo_core::db::queries::bump_to_bottom(conn, id as i64))
                     .await;
-                helpers::refresh_clips(&db, &ui, &td, &fd, "", "", None).await;
+                helpers::refresh_clips(&db, &ui, &td, &fd, &query, &filter, Some(&pfx)).await;
             });
         });
     }
@@ -231,16 +242,19 @@ pub fn setup_clip_actions(
         let muo_ui = ui.as_weak();
         let muo_td = thumbnails_dir.clone();
         let muo_fd = favicons_dir.clone();
+        let muo_pfx = tag_prefix.clone();
         ui.on_move_up_one(move |id: i32| {
             let db = muo_db.clone();
             let ui = muo_ui.clone();
             let td = muo_td.clone();
             let fd = muo_fd.clone();
+            let (query, filter) = helpers::current_view_state(&ui);
+            let pfx = muo_pfx.clone();
             tokio::spawn(async move {
                 let _ = db
                     .with(|conn| cliptoo_core::db::queries::move_up_one(conn, id as i64))
                     .await;
-                helpers::refresh_clips(&db, &ui, &td, &fd, "", "", None).await;
+                helpers::refresh_clips(&db, &ui, &td, &fd, &query, &filter, Some(&pfx)).await;
             });
         });
     }
@@ -251,16 +265,19 @@ pub fn setup_clip_actions(
         let mdo_ui = ui.as_weak();
         let mdo_td = thumbnails_dir.clone();
         let mdo_fd = favicons_dir.clone();
+        let mdo_pfx = tag_prefix.clone();
         ui.on_move_down_one(move |id: i32| {
             let db = mdo_db.clone();
             let ui = mdo_ui.clone();
             let td = mdo_td.clone();
             let fd = mdo_fd.clone();
+            let (query, filter) = helpers::current_view_state(&ui);
+            let pfx = mdo_pfx.clone();
             tokio::spawn(async move {
                 let _ = db
                     .with(|conn| cliptoo_core::db::queries::move_down_one(conn, id as i64))
                     .await;
-                helpers::refresh_clips(&db, &ui, &td, &fd, "", "", None).await;
+                helpers::refresh_clips(&db, &ui, &td, &fd, &query, &filter, Some(&pfx)).await;
             });
         });
     }
@@ -375,6 +392,7 @@ pub fn setup_clip_actions(
         let paste_settings = settings.clone();
         let paste_td = thumbnails_dir.clone();
         let paste_fd = favicons_dir.clone();
+        let paste_pfx = tag_prefix.clone();
         ui.on_item_activated(move |id: i32| {
             let db = paste_db.clone();
             let ui = paste_ui.clone();
@@ -387,6 +405,8 @@ pub fn setup_clip_actions(
             // activation so a setting change applies without a restart.
             let moves_top = settings.borrow().paste_moves_clip_to_top;
             let paste_plain = settings.borrow().paste_as_plain_text;
+            let (query, filter) = helpers::current_view_state(&ui);
+            let pfx = paste_pfx.clone();
             tokio::spawn(async move {
                 // Bump the clip to the top (and count the paste) only when the
                 // "paste moves clip to top" setting is enabled, then refresh so
@@ -395,7 +415,7 @@ pub fn setup_clip_actions(
                     let _ = db
                         .with(|conn| cliptoo_core::db::queries::record_paste(conn, id as i64))
                         .await;
-                    helpers::refresh_clips(&db, &ui, &td, &fd, "", "", None).await;
+                    helpers::refresh_clips(&db, &ui, &td, &fd, &query, &filter, Some(&pfx)).await;
                 }
                 let result = db
                     .with(|conn| {

@@ -129,7 +129,7 @@ async fn main() -> Result<()> {
     preview::setup_preview(&ui, &db, &dirs);
     preview::setup_dismiss_preview(&ui);
 
-    let edit_win = edit::setup_edit_window(&ui, &settings, &dirs, &db);
+    let edit_win = edit::setup_edit_window(&ui, &settings, &dirs, &db, &tag_prefix);
     theme::fill_theme(
         &edit_win.global::<crate::Theme>(),
         &settings.borrow(),
@@ -138,7 +138,15 @@ async fn main() -> Result<()> {
     );
 
     let suppression = Arc::new(paste::PasteSuppressionSet::new());
-    actions::setup_clip_actions(&ui, &edit_win, &db, &settings, &dirs, &suppression);
+    actions::setup_clip_actions(
+        &ui,
+        &edit_win,
+        &db,
+        &settings,
+        &dirs,
+        &suppression,
+        &tag_prefix,
+    );
 
     const MAINTENANCE_INTERVAL_SECS: u64 = 6 * 60 * 60;
     cliptoo_core::maintenance::spawn_scheduler(

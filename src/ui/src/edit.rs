@@ -10,6 +10,7 @@ pub fn setup_edit_window(
     settings: &std::rc::Rc<std::cell::RefCell<cliptoo_core::Settings>>,
     dirs: &crate::app_dirs::AppDirs,
     db: &Arc<cliptoo_core::db::DbPool>,
+    tag_prefix: &str,
 ) -> crate::EditWindow {
     let edit_win = crate::EditWindow::new().expect("EditWindow creation");
     let main_ui = ui.as_weak();
@@ -67,6 +68,7 @@ pub fn setup_edit_window(
         let edit_td = dirs.thumbnails_dir.clone();
         let edit_fd = dirs.favicons_dir.clone();
         let edit_main_ui = main_ui.clone();
+        let tag_prefix = tag_prefix.to_string();
         edit_win.on_save_clicked(
             move |id: i32, content: slint::SharedString, tags: slint::SharedString| {
                 let db = edit_db.clone();
@@ -77,6 +79,8 @@ pub fn setup_edit_window(
                 let main_ui = edit_main_ui.clone();
                 let content = content.to_string();
                 let tags = tags.to_string();
+                let (query, filter) = helpers::current_view_state(&ui);
+                let pfx = tag_prefix.clone();
                 tokio::spawn(async move {
                     // A text-document clip stores its file path in `Content`;
                     // saving means writing the edited text back to that file.
@@ -137,7 +141,7 @@ pub fn setup_edit_window(
                     {
                         tracing::error!("edit: failed to update clip {id} tags: {e:#}");
                     }
-                    helpers::refresh_clips(&db, &ui, &td, &fd, "", "", None).await;
+                    helpers::refresh_clips(&db, &ui, &td, &fd, &query, &filter, Some(&pfx)).await;
                     let _ = win.upgrade_in_event_loop(move |win| {
                         let _ = win.hide();
                         if let Some(ui) = main_ui.upgrade() {

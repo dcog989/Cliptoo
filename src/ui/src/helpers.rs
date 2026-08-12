@@ -31,6 +31,21 @@ pub async fn fetch_page_title(url: &str) -> Option<String> {
         .map(|m| m.as_str().trim().to_string())
 }
 
+/// Snapshot the list's active search query and filter on the UI thread, so a
+/// background refresh triggered by a mutation (delete, move, paste bump, edit
+/// save) keeps the user's current view instead of resetting to "all" while the
+/// toolbar's filter icon and search box still show the old state. Call from a
+/// UI-thread callback (Slint handlers), then pass the pair to `refresh_clips`.
+pub fn current_view_state(ui: &slint::Weak<crate::AppWindow>) -> (String, String) {
+    let Some(ui) = ui.upgrade() else {
+        return (String::new(), String::new());
+    };
+    (
+        ui.get_search_text().to_string(),
+        ui.get_active_filter().to_string(),
+    )
+}
+
 /// Query the DB for clips and replace the UI model.
 pub async fn refresh_clips(
     db: &Arc<cliptoo_core::db::DbPool>,
