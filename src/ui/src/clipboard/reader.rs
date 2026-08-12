@@ -12,6 +12,7 @@ const IMAGE_MIME_TYPES: &[&str] = &[
     "image/bmp",
     "image/webp",
     "image/tiff",
+    "image/gif",
 ];
 
 async fn try_text(last_hash: &mut Option<String>) -> Result<Option<ClipboardPayload>> {
