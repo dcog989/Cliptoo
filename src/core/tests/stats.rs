@@ -67,3 +67,41 @@ async fn record_paste_bumps_global_paste_counter() {
     let _ = std::fs::remove_file(dir.with_extension("wal"));
     let _ = std::fs::remove_file(dir.with_extension("shm"));
 }
+
+#[tokio::test]
+async fn increment_stat_upserts_and_accumulates() {
+    let dir = std::env::temp_dir().join(format!("cliptoo_statinc_{}", std::process::id()));
+    let db = DbPool::open(&dir).unwrap();
+
+    let key = "TestCounter";
+    db.with(|conn| stats::increment_stat(conn, key))
+        .await
+        .unwrap();
+    db.with(|conn| stats::increment_stat(conn, key))
+        .await
+        .unwrap();
+    db.with(|conn| stats::increment_stat(conn, key))
+        .await
+        .unwrap();
+
+    let value = db.with(|conn| stats::get_stat(conn, key)).await.unwrap();
+    assert_eq!(value.unwrap(), "3");
+
+    // set_stat replaces the accumulated value.
+    db.with(|conn| stats::set_stat(conn, key, "42"))
+        .await
+        .unwrap();
+    let value = db.with(|conn| stats::get_stat(conn, key)).await.unwrap();
+    assert_eq!(value.unwrap(), "42");
+
+    // A missing key reads as None.
+    let missing = db
+        .with(|conn| stats::get_stat(conn, "NoSuchKey"))
+        .await
+        .unwrap();
+    assert_eq!(missing, None);
+
+    let _ = std::fs::remove_file(&dir);
+    let _ = std::fs::remove_file(dir.with_extension("wal"));
+    let _ = std::fs::remove_file(dir.with_extension("shm"));
+}

@@ -382,6 +382,77 @@ async fn mark_deadheads_counts_only_newly_marked_rows() {
     clean_up(&dir);
 }
 
+/// Count-based retention keeps the newest `max_clips` non-bookmarked clips and
+/// drops the rest, even when they are all well inside the age window.
+#[tokio::test]
+async fn retention_enforces_max_clips_count() {
+    let dir = std::env::temp_dir().join(format!("cliptoo_retcount_{}", std::process::id()));
+    clean_up(&dir);
+    let db = DbPool::open(&dir).unwrap();
+
+    for i in 0..5 {
+        common::insert_clip(&db, &format!("clip {i}"), &format!("rcount{i}"), "text").await;
+    }
+
+    let cfg = cliptoo_core::maintenance::RetentionConfig {
+        max_clips: 2,
+        max_age_days: 0,
+    };
+    let deleted = db
+        .with(|conn| cliptoo_core::maintenance::retention(conn, &cfg))
+        .await
+        .unwrap();
+    assert_eq!(deleted, 3);
+
+    let n: i64 = db
+        .with(|conn| {
+            let n: i64 = conn.query_row("SELECT COUNT(*) FROM clips", [], |row| row.get(0))?;
+            Ok(n)
+        })
+        .await
+        .unwrap();
+    assert_eq!(n, 2);
+
+    clean_up(&dir);
+}
+
+/// `clear_history` removes non-bookmarked clips but spares bookmarks.
+#[tokio::test]
+async fn clear_history_keeps_bookmarked_clips() {
+    let dir = std::env::temp_dir().join(format!("cliptoo_clearhist_{}", std::process::id()));
+    clean_up(&dir);
+    let db = DbPool::open(&dir).unwrap();
+
+    common::insert_clip(&db, "regular", "chist_1", "text").await;
+    common::insert_clip(&db, "kept", "chist_2", "text").await;
+
+    let kept_id = db
+        .with(|conn| cliptoo_core::db::queries::search_clips(conn, "kept", "all", 10, 0, None))
+        .await
+        .unwrap()[0]
+        .id;
+    db.with(|conn| cliptoo_core::db::queries::set_bookmarked(conn, kept_id, true))
+        .await
+        .unwrap();
+
+    let deleted = db
+        .with(cliptoo_core::maintenance::clear_history)
+        .await
+        .unwrap();
+    assert_eq!(deleted, 1);
+
+    let n: i64 = db
+        .with(|conn| {
+            let n: i64 = conn.query_row("SELECT COUNT(*) FROM clips", [], |row| row.get(0))?;
+            Ok(n)
+        })
+        .await
+        .unwrap();
+    assert_eq!(n, 1);
+
+    clean_up(&dir);
+}
+
 /// `prune_cache` must survive a DB row whose ContentHash is not valid UTF-8 on
 /// the 16-byte boundary (corrupt/legacy data written before import validation
 /// existed). The prefix derivation is a byte slice, so without an

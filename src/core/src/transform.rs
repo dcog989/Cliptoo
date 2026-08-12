@@ -256,4 +256,38 @@ mod tests {
         // Empty string.
         assert_eq!(transform("", "capitalize"), "");
     }
+
+    /// `ß` uppercases to two characters ("SS") per Unicode case mapping.
+    #[test]
+    fn upper_expands_sharp_s() {
+        assert_eq!(transform("straße", "upper"), "STRASSE");
+    }
+
+    /// A base letter plus a combining mark is one grapheme; capitalising it
+    /// must uppercase the whole cluster, not just the base char.
+    #[test]
+    fn capitalize_handles_combining_marks() {
+        assert_eq!(transform("e\u{301}cole", "capitalize"), "E\u{301}cole");
+    }
+
+    /// Non-cased graphemes (emoji, symbols) are left untouched by invert; a
+    /// lowercase `ß` still expands to "SS".
+    #[test]
+    fn invert_handles_emoji_and_expands_sharp_s() {
+        assert_eq!(transform("Hello \u{1F600}", "invert"), "hELLO \u{1F600}");
+        assert_eq!(transform("stra\u{00DF}e", "invert"), "STRASSE");
+    }
+
+    #[test]
+    fn camel_handles_empty_and_single_word() {
+        assert_eq!(transform("", "camel"), "");
+        assert_eq!(transform("hello", "camel"), "hello");
+        assert_eq!(transform("HELLO", "camel"), "hello");
+    }
+
+    /// Multi-byte content survives line-break removal intact.
+    #[test]
+    fn remove_lf_handles_multibyte_content() {
+        assert_eq!(transform("a\n\u{1F600}\nb", "remove_lf"), "a \u{1F600} b");
+    }
 }

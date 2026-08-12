@@ -279,4 +279,65 @@ mod tests {
 
         let _ = std::fs::remove_dir_all(&dir);
     }
+
+    #[test]
+    fn save_load_round_trip() {
+        let dir = std::env::temp_dir().join(format!("cliptoo_settings_rt_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("cliptoo.json");
+
+        let s = Settings {
+            hotkey: "Ctrl+Shift+V".to_string(),
+            max_clips: 500,
+            theme: "Dark".to_string(),
+            send_to_apps: vec![SendToApp {
+                name: "code".to_string(),
+                path: "/usr/bin/code".to_string(),
+            }],
+            ..Settings::default()
+        };
+        s.save(&path).unwrap();
+
+        let loaded = Settings::load(&path);
+        assert_eq!(loaded.hotkey, "Ctrl+Shift+V");
+        assert_eq!(loaded.max_clips, 500);
+        assert_eq!(loaded.theme, "Dark");
+        assert_eq!(loaded.send_to_apps.len(), 1);
+        assert_eq!(loaded.send_to_apps[0].path, "/usr/bin/code");
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// Settings files written before the newer non-accent fields existed must
+    /// load with their defaults rather than 0 / empty / false.
+    #[test]
+    fn legacy_files_get_non_accent_defaults() {
+        let mut value = serde_json::to_value(Settings::default()).unwrap();
+        value
+            .as_object_mut()
+            .unwrap()
+            .remove("paste_moves_clip_to_top");
+        value
+            .as_object_mut()
+            .unwrap()
+            .remove("quick_paste_modifier");
+        value
+            .as_object_mut()
+            .unwrap()
+            .remove("always_close_to_tray");
+        value
+            .as_object_mut()
+            .unwrap()
+            .remove("settings_window_width");
+        value
+            .as_object_mut()
+            .unwrap()
+            .remove("settings_window_height");
+        let s: Settings = serde_json::from_value(value).unwrap();
+        assert!(s.paste_moves_clip_to_top);
+        assert_eq!(s.quick_paste_modifier, "Right Alt");
+        assert!(s.always_close_to_tray);
+        assert!((s.settings_window_width - 560.0).abs() < f64::EPSILON);
+        assert!((s.settings_window_height - 540.0).abs() < f64::EPSILON);
+    }
 }
