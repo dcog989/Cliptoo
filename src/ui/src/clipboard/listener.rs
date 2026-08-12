@@ -381,7 +381,9 @@ pub async fn run_listener(
                             .await;
                         }
                     }
-                    ClipboardPayload::Image { hash, data, .. } => {
+                    ClipboardPayload::Image {
+                        hash, data, mime, ..
+                    } => {
                         let source_app = crate::source_app::detect_source_app().await;
 
                         if is_blacklisted_live(&blacklist_state, source_app.as_deref()) {
@@ -393,8 +395,12 @@ pub async fn run_listener(
                             .join(format!("{}.png", &hash[..HASH_FILENAME_PREFIX_LEN]))
                             .to_string_lossy()
                             .to_string();
-                        let preview = format!("clipboard-image-{}.png", &hash[..12]);
+                        // A real description (mime + size) so the list row and
+                        // export carry meaningful text instead of the phantom
+                        // "clipboard-image-{hash}.png" placeholder that matched
+                        // no file on disk.
                         let size = data.len() as i64;
+                        let preview = format!("{mime} · {size} bytes");
 
                         let images = images_dir.clone();
                         let thumbnails = thumbnails_dir.clone();

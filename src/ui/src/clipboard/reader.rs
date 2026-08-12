@@ -190,6 +190,7 @@ async fn try_image(last_hash: &mut Option<String>) -> Result<Option<ClipboardPay
             hash,
             data,
             sup_hash,
+            mime: mime_str.to_string(),
         }));
     }
 

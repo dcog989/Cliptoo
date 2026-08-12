@@ -53,6 +53,7 @@ enum ClipboardPayload {
         hash: String,
         data: Vec<u8>,
         sup_hash: u64,
+        mime: String,
     },
     FileUri {
         content: String,
