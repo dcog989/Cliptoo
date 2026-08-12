@@ -195,10 +195,62 @@ fn persist_window_size(
     let _ = s.save(path);
 }
 
-/// Normalise a hotkey string captured from the settings UI. Control
-/// characters (a letter pressed with a modifier arrives as U+0001..U+001A)
-/// are mapped to letters, and the final key token is uppercased so the
-/// assigned key always displays uppercase (e.g. `Ctrl+Alt+q` → `Ctrl+Alt+Q`).
+/// Decode a Slint key-event text into a readable key name. Slint encodes
+/// special keys as control/private-use characters (Backspace → U+0008,
+/// F5 → U+F708, …; see Slint's `key_codes` table), and these must be
+/// translated before display or portal registration.
+fn decode_slint_key(key: char) -> Option<String> {
+    match key {
+        '\u{0008}' => Some("Backspace".to_string()),
+        '\u{0009}' => Some("Tab".to_string()),
+        '\u{000a}' => Some("Return".to_string()),
+        '\u{0010}' => Some("Shift".to_string()),
+        '\u{0011}' => Some("Control".to_string()),
+        '\u{0012}' => Some("Alt".to_string()),
+        '\u{0013}' => Some("AltGr".to_string()),
+        '\u{0014}' => Some("CapsLock".to_string()),
+        '\u{0015}' => Some("ShiftR".to_string()),
+        '\u{0016}' => Some("ControlR".to_string()),
+        '\u{0017}' => Some("Meta".to_string()),
+        '\u{0018}' => Some("MetaR".to_string()),
+        '\u{0019}' => Some("Backtab".to_string()),
+        '\u{0020}' => Some("Space".to_string()),
+        '\u{007f}' => Some("Delete".to_string()),
+        '\u{f700}' => Some("UpArrow".to_string()),
+        '\u{f701}' => Some("DownArrow".to_string()),
+        '\u{f702}' => Some("LeftArrow".to_string()),
+        '\u{f703}' => Some("RightArrow".to_string()),
+        '\u{f704}'..='\u{f71b}' => Some(format!("F{}", key as u32 - 0xf704 + 1)),
+        '\u{f727}' => Some("Insert".to_string()),
+        '\u{f729}' => Some("Home".to_string()),
+        '\u{f72b}' => Some("End".to_string()),
+        '\u{f72c}' => Some("PageUp".to_string()),
+        '\u{f72d}' => Some("PageDown".to_string()),
+        '\u{f72f}' => Some("ScrollLock".to_string()),
+        '\u{f730}' => Some("Pause".to_string()),
+        '\u{f731}' => Some("SysReq".to_string()),
+        '\u{f734}' => Some("Stop".to_string()),
+        '\u{f735}' => Some("Menu".to_string()),
+        '\u{f748}' => Some("Back".to_string()),
+        _ => None,
+    }
+}
+
+/// Uppercase single-character keys (letters/digits) for display; named keys
+/// like `Backspace` or `F5` keep their case.
+fn display_key(key: &str) -> String {
+    if key.chars().count() == 1 {
+        key.to_uppercase()
+    } else {
+        key.to_string()
+    }
+}
+
+/// Normalise a hotkey string captured from the settings UI. Slint's
+/// special-key encodings are decoded to readable names (`\u{0008}` →
+/// `Backspace`, `\u{F708}` → `F5`), and the key token is uppercased when it
+/// is a single letter/digit so the assigned key displays uppercase (e.g.
+/// `Ctrl+Alt+q` → `Ctrl+Alt+Q`).
 ///
 /// A trailing `+` is the plus key itself (`Ctrl++` = Ctrl + the plus key)
 /// when a `+` precedes it; a lone trailing `+` is a dangling separator from
@@ -206,13 +258,9 @@ fn persist_window_size(
 fn clean_hotkey_text(raw: &str) -> String {
     let cleaned: String = raw
         .chars()
-        .map(|c| {
-            let code = c as u32;
-            if (1..=26).contains(&code) {
-                ((b'a' + (code - 1) as u8) as char).to_string()
-            } else {
-                c.to_string()
-            }
+        .map(|c| match decode_slint_key(c) {
+            Some(name) => name,
+            None => c.to_string(),
         })
         .collect();
     match cleaned.strip_suffix('+') {
@@ -227,8 +275,9 @@ fn clean_hotkey_text(raw: &str) -> String {
         // The trailing `+` was a separator with no key after it.
         Some(_) => cleaned.trim_end_matches('+').to_uppercase(),
         None => match cleaned.rsplit_once('+') {
-            Some((mods, key)) if !key.is_empty() => format!("{mods}+{}", key.to_uppercase()),
-            _ => cleaned.to_uppercase(),
+            Some((mods, key)) if !key.is_empty() => format!("{mods}+{}", display_key(key)),
+            // Bare key: no `+` to split on.
+            _ => display_key(&cleaned),
         },
     }
 }

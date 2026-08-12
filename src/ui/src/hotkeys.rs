@@ -20,13 +20,14 @@ const APP_ID: &str = "cliptoo";
 /// triggered (see `wait_for_stable_hotkey`).
 const HOTKEY_DEBOUNCE: Duration = Duration::from_millis(800);
 
-/// Map a key token captured from the settings UI to the XKB keysym name the
+/// Map a key token (as displayed in Settings) to the XKB keysym name the
 /// portal backend (`xdg-desktop-portal-kde`'s `XdgShortcut::parse`) matches
-/// via `xkb_keysym_from_name`. Letters, digits and named keys (F5, Return, …)
-/// round-trip unchanged, but ASCII punctuation the UI reports literally (`+`,
-/// `-`, `=`, …) is not a valid keysym name and must be translated (`plus`,
-/// `minus`, `equal`, …) — otherwise the key fails to parse and the shortcut
-/// is registered with nothing bound.
+/// via `xkb_keysym_from_name`. Letters, digits and most named keys (F5,
+/// Return, …) round-trip unchanged, but ASCII punctuation the UI reports
+/// literally (`+`, `-`, `=`, …) and named keys whose keysym differs from the
+/// display name (`PageUp` → `Prior`, `Backspace` → `BackSpace`, …) must be
+/// translated — otherwise the key fails to parse and the shortcut is
+/// registered with nothing bound.
 fn to_xdg_key(key: &str) -> &str {
     match key {
         "+" => "plus",
@@ -59,6 +60,17 @@ fn to_xdg_key(key: &str) -> &str {
         "|" => "bar",
         "\\" => "backslash",
         " " => "space",
+        "UpArrow" => "Up",
+        "DownArrow" => "Down",
+        "LeftArrow" => "Left",
+        "RightArrow" => "Right",
+        "PageUp" => "Prior",
+        "PageDown" => "Next",
+        "Backtab" => "ISO_Left_Tab",
+        "Backspace" => "BackSpace",
+        "ScrollLock" => "Scroll_Lock",
+        "SysReq" => "Print",
+        "Stop" => "XF86_Stop",
         _ => key,
     }
 }
