@@ -315,7 +315,21 @@ pub async fn prune_cache(
             let prefixes: HashSet<String> = stmt
                 .query_map([], |row| row.get::<_, String>(0))?
                 .filter_map(|r| r.ok())
-                .map(|h| h[..HASH_FILENAME_PREFIX_LEN.min(h.len())].to_string())
+                .filter_map(|h| {
+                    let end = h.len().min(HASH_FILENAME_PREFIX_LEN);
+                    if h.is_char_boundary(end) {
+                        Some(h[..end].to_string())
+                    } else {
+                        // Corrupt/legacy hash (e.g. imported before hash
+                        // validation): the prefix slice would split a
+                        // multi-byte UTF-8 char. It can never have keyed a
+                        // real thumbnail, so it is not a known prefix.
+                        warn!(
+                            "prune_cache: clip has non-UTF-8-boundary ContentHash; ignoring: {h:?}"
+                        );
+                        None
+                    }
+                })
                 .collect();
             let domains = known_favicon_domains(conn)?;
             Ok((prefixes, domains))

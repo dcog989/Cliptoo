@@ -2,6 +2,7 @@ mod common;
 
 use cliptoo_core::db::DbPool;
 use cliptoo_core::maintenance;
+use std::sync::Arc;
 
 #[tokio::test]
 async fn reclassify_only_updates_rows_whose_classification_changed() {
@@ -170,4 +171,41 @@ async fn retention_spares_legacy_plain_epoch_bottom_pins() {
     assert_eq!(count, 1);
 
     clean_up(&dir);
+}
+
+/// `prune_cache` must survive a DB row whose ContentHash is not valid UTF-8 on
+/// the 16-byte boundary (corrupt/legacy data written before import validation
+/// existed). The prefix derivation is a byte slice, so without an
+/// `is_char_boundary` guard this would panic inside the scheduled maintenance
+/// task; the orphan thumbnail must still be pruned.
+#[tokio::test]
+async fn prune_cache_tolerates_multibyte_content_hash() {
+    let dir = std::env::temp_dir().join(format!("cliptoo_prunehash_{}", std::process::id()));
+    clean_up(&dir);
+    let db = Arc::new(DbPool::open(&dir).unwrap());
+
+    // 15 ASCII chars + a 4-byte emoji: byte 16 lands inside the emoji, so a
+    // bare `h[..16]` would panic. The row is skipped as a known prefix.
+    common::insert_clip(&db, "clip", "123456789012345\u{1F600}", "text").await;
+
+    let thumbs =
+        std::env::temp_dir().join(format!("cliptoo_prunehash_thumbs_{}", std::process::id()));
+    let favicons =
+        std::env::temp_dir().join(format!("cliptoo_prunehash_favs_{}", std::process::id()));
+    std::fs::create_dir_all(&thumbs).unwrap();
+    std::fs::create_dir_all(&favicons).unwrap();
+    // A genuine orphan (16-char hex prefix, no matching DB row) must be pruned.
+    std::fs::write(thumbs.join("deadbeefdeadbeef.webp"), b"x").unwrap();
+
+    let pruned = maintenance::prune_cache(&db, &thumbs, &favicons)
+        .await
+        .unwrap();
+    assert_eq!(
+        pruned, 1,
+        "orphan thumbnail pruned without panicking on the malformed hash"
+    );
+
+    clean_up(&dir);
+    let _ = std::fs::remove_dir_all(&thumbs);
+    let _ = std::fs::remove_dir_all(&favicons);
 }

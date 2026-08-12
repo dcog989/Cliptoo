@@ -160,7 +160,8 @@ async fn import_normalizes_foreign_timestamps_to_canonical_form() {
 
     let json = r#"[
         {"id": 1, "content": "ancient clip", "preview_content": "ancient clip",
-         "content_hash": "hash_ancient", "clip_type": "text", "source_app": null,
+         "content_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+         "clip_type": "text", "source_app": null,
          "timestamp": "2020-01-01T00:00:00", "is_bookmarked": false,
          "was_trimmed": false, "has_leading_whitespace": false,
          "is_multiline": false, "size_in_bytes": 12, "paste_count": 0, "tags": null}
@@ -214,7 +215,8 @@ async fn import_falls_back_to_current_time_for_unparseable_timestamps() {
 
     let json = r#"[
         {"id": 1, "content": "weird clip", "preview_content": "weird clip",
-         "content_hash": "hash_weird", "clip_type": "text", "source_app": null,
+         "content_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+         "clip_type": "text", "source_app": null,
          "timestamp": "yesterday-ish", "is_bookmarked": false,
          "was_trimmed": false, "has_leading_whitespace": false,
          "is_multiline": false, "size_in_bytes": 10, "paste_count": 0, "tags": null}
@@ -237,6 +239,67 @@ async fn import_falls_back_to_current_time_for_unparseable_timestamps() {
     // Canonical µs shape: `YYYY-MM-DD HH:MM:SS.ffffff` (26 chars, space at 10).
     assert_eq!(ts.len(), 26, "canonical timestamp, got {ts:?}");
     assert_eq!(ts.as_bytes()[10], b' ', "space separator, got {ts:?}");
+
+    clean_up(&dir);
+}
+
+/// Rows whose `content_hash` is not a canonical 64-char lowercase hex digest
+/// are rejected (skipped), so a corrupt or foreign hash can never reach the
+/// DB where `prune_cache` byte-slices its first 16 bytes into a filename key.
+#[tokio::test]
+async fn import_skips_rows_with_invalid_content_hash() {
+    let dir = std::env::temp_dir().join(format!("cliptoo_imphash_{}", std::process::id()));
+    clean_up(&dir);
+    let db = Arc::new(DbPool::open(&dir).unwrap());
+
+    let json = r#"[
+        {"id": 1, "content": "good clip", "preview_content": "good clip",
+         "content_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+         "clip_type": "text", "source_app": null, "timestamp": "2020-01-01 00:00:00",
+         "is_bookmarked": false, "was_trimmed": false, "has_leading_whitespace": false,
+         "is_multiline": false, "size_in_bytes": 9, "paste_count": 0, "tags": null},
+        {"id": 2, "content": "short hash", "preview_content": "short hash",
+         "content_hash": "nothex", "clip_type": "text", "source_app": null,
+         "timestamp": "2020-01-02 00:00:00", "is_bookmarked": false,
+         "was_trimmed": false, "has_leading_whitespace": false, "is_multiline": false,
+         "size_in_bytes": 10, "paste_count": 0, "tags": null},
+        {"id": 3, "content": "utf8 hash", "preview_content": "utf8 hash",
+         "content_hash": "123456789012345😀", "clip_type": "text", "source_app": null,
+         "timestamp": "2020-01-03 00:00:00", "is_bookmarked": false,
+         "was_trimmed": false, "has_leading_whitespace": false, "is_multiline": false,
+         "size_in_bytes": 9, "paste_count": 0, "tags": null},
+        {"id": 4, "content": "uppercase hex", "preview_content": "uppercase hex",
+         "content_hash": "ABCDEFABCDEFABCDEFABCDEFABCDEFABCDEFABCDEFABCDEFABCDEFABCDEFABCD",
+         "clip_type": "text", "source_app": null, "timestamp": "2020-01-04 00:00:00",
+         "is_bookmarked": false, "was_trimmed": false, "has_leading_whitespace": false,
+         "is_multiline": false, "size_in_bytes": 12, "paste_count": 0, "tags": null}
+    ]"#;
+    let inserted = db
+        .with(|conn| cliptoo_core::export::import_json(conn, json.as_bytes()))
+        .await
+        .unwrap();
+    assert_eq!(
+        inserted, 1,
+        "only the valid-hash row is imported; malformed rows are skipped"
+    );
+
+    let hashes: Vec<String> = db
+        .with(|conn| {
+            let mut stmt = conn.prepare_cached("SELECT ContentHash FROM clips")?;
+            let rows = stmt.query_map([], |row| row.get::<_, String>(0))?;
+            let mut v = Vec::new();
+            for r in rows {
+                v.push(r?);
+            }
+            Ok(v)
+        })
+        .await
+        .unwrap();
+    assert_eq!(hashes.len(), 1);
+    assert!(
+        cliptoo_core::export::is_valid_content_hash(&hashes[0]),
+        "stored hash is canonical"
+    );
 
     clean_up(&dir);
 }

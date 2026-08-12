@@ -9,8 +9,9 @@
 //! ## Import
 //!
 //! Import is **additive**: rows with a `ContentHash` already in the DB are
-//! silently skipped.  `UniqueClipsEver` is incremented by the number of new
-//! inserts.
+//! silently skipped.  Rows whose hash is not the canonical 64-char lowercase
+//! SHA-256 hex shape are rejected (see `import_json`).  `UniqueClipsEver` is
+//! incremented by the number of new inserts.
 
 use anyhow::{Context, Result};
 use chrono::{DateTime, NaiveDateTime, Utc};
@@ -150,8 +151,27 @@ fn normalize_timestamp(s: &str) -> Option<String> {
     None
 }
 
+/// True when `h` matches the canonical ContentHash shape produced by
+/// `content::hash::sha256_hex`: a 64-char **lowercase** SHA-256 hex digest.
+///
+/// `import_json` rejects anything else.  A foreign or corrupt hash would
+/// poison the thumbnail/favicon filename keys derived from its first
+/// `HASH_FILENAME_PREFIX_LEN` bytes, and — because that derivation is a byte
+/// slice over UTF-8 — a hash whose first 16 bytes split a multi-byte char
+/// would panic the scheduled `prune_cache` task.  Uppercase hex is rejected
+/// too: thumbnail filenames are built from lowercase prefixes, so an
+/// uppercase hash would dedup against a different prefix than the files it
+/// keys.
+pub fn is_valid_content_hash(h: &str) -> bool {
+    h.len() == 64
+        && h.bytes()
+            .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
+}
+
 /// Import clips from a JSON byte slice.  Existing rows (by ContentHash) are
-/// skipped.  Returns the number of rows actually inserted.
+/// skipped.  Rows whose `content_hash` is not a canonical 64-char lowercase
+/// SHA-256 hex digest are rejected (skipped with a warning).  Returns the
+/// number of rows actually inserted.
 ///
 /// Runs as a single explicit transaction with existing hashes preloaded into
 /// a `HashSet`, rather than a per-row `SELECT` + autocommitted `INSERT`: for
@@ -175,6 +195,19 @@ pub fn import_json(conn: &Connection, data: &[u8]) -> Result<u64> {
 
     let mut inserted: u64 = 0;
     for row in &rows {
+        // Reject hashes that are not canonical 64-char lowercase SHA-256 hex.
+        // A malformed hash would poison the thumbnail/favicon filename keys
+        // derived from its first `HASH_FILENAME_PREFIX_LEN` bytes and could
+        // panic `prune_cache` if that byte-slice splits a multi-byte UTF-8
+        // char; skipping the row keeps the rest of the import usable.
+        if !is_valid_content_hash(&row.content_hash) {
+            warn!(
+                "import: skipping clip with invalid content_hash {:?} (expected 64 lowercase hex chars)",
+                row.content_hash
+            );
+            continue;
+        }
+
         // Also catches duplicate hashes *within* the same import file, since
         // the set is updated below as each row is inserted.
         if existing_hashes.contains(&row.content_hash) {
@@ -370,5 +403,28 @@ mod tests {
         assert_eq!(normalize_timestamp(""), None);
         assert_eq!(normalize_timestamp("not a timestamp"), None);
         assert_eq!(normalize_timestamp("2024-13-45 99:00:00"), None);
+    }
+
+    #[test]
+    fn accepts_canonical_sha256_hex_hashes() {
+        let valid = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+        assert!(is_valid_content_hash(valid));
+    }
+
+    #[test]
+    fn rejects_malformed_content_hashes() {
+        let valid = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+        // Wrong length.
+        assert!(!is_valid_content_hash(""));
+        assert!(!is_valid_content_hash(&valid[..63]));
+        assert!(!is_valid_content_hash(&format!("{valid}x")));
+        // Non-hex characters.
+        assert!(!is_valid_content_hash(&format!("g{}", &valid[1..])));
+        assert!(!is_valid_content_hash(&format!("-{}", &valid[1..])));
+        // Uppercase hex is not the canonical lowercase shape.
+        assert!(!is_valid_content_hash(&valid.to_uppercase()));
+        // Multi-byte UTF-8 — the first 16 bytes split an emoji, so a naive
+        // prefix byte-slice would panic.
+        assert!(!is_valid_content_hash("123456789012345😀"));
     }
 }
