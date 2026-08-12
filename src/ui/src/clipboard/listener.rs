@@ -183,7 +183,11 @@ pub async fn run_listener(
                                 continue;
                             }
 
-                            let inserted = insert_clip_with_stat(
+                            // A failed insert (e.g. disk full) must not kill the
+                            // listener loop; log and keep polling instead of
+                            // propagating out of run_listener (same error
+                            // containment as the file-uri and image branches).
+                            let inserted = match insert_clip_with_stat(
                                 &db,
                                 &classified.content,
                                 &classified.preview_content,
@@ -196,7 +200,14 @@ pub async fn run_listener(
                                 classified.size_in_bytes,
                                 false,
                             )
-                            .await?;
+                            .await
+                            {
+                                Ok(inserted) => inserted,
+                                Err(e) => {
+                                    tracing::error!("text clip insert failed: {e}");
+                                    continue;
+                                }
+                            };
 
                             if inserted {
                                 let sa = source_app.as_deref().unwrap_or("unknown");
@@ -251,7 +262,7 @@ pub async fn run_listener(
                             continue;
                         };
 
-                        let inserted = insert_clip_with_stat(
+                        let inserted = match insert_clip_with_stat(
                             &db,
                             &c.content,
                             &c.preview_content,
@@ -264,7 +275,14 @@ pub async fn run_listener(
                             c.size_in_bytes,
                             true,
                         )
-                        .await?;
+                        .await
+                        {
+                            Ok(inserted) => inserted,
+                            Err(e) => {
+                                tracing::error!("file-uri clip insert failed: {e}");
+                                continue;
+                            }
+                        };
 
                         if inserted {
                             let clip_type = c.clip_type.as_str();
