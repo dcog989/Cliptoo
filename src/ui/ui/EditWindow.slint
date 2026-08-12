@@ -61,191 +61,191 @@ export component EditWindow inherits Window {
             padding: 16px;
             spacing: 10px;
 
-        // Metadata bar + toggle button
+            // Metadata bar + toggle button
         HorizontalLayout {
-            spacing: 8px;
-            alignment: start;
-
-            Text {
-                text: root.meta-info;
-                color: Theme.fg-muted;
-                font-size: Theme.font-size - 1px;
-                vertical-alignment: center;
-                horizontal-stretch: 1;
-            }
-
-            // Toggle between highlighted view and edit mode
-            Rectangle {
-                visible: root.clip-type == "code_snippet" || root.clip-type == "file_dev";
-                width: 28px;
-                height: 28px;
-                border-radius: 4px;
-                background: root.editing ? Theme.accent-primary : Theme.bg-input;
-                TouchArea {
-                    clicked => {
-                        root.toggle-mode();
-                    }
-                    mouse-cursor: pointer;
-                }
+                spacing: 8px;
+                alignment: start;
 
                 Text {
-                    text: root.editing ? "</>" : "✎";
-                    color: root.editing ? Theme.accent-fg : Theme.fg-primary;
+                    text: root.meta-info;
+                    color: Theme.fg-muted;
                     font-size: Theme.font-size - 1px;
-                    horizontal-alignment: center;
                     vertical-alignment: center;
+                    horizontal-stretch: 1;
+                }
+
+                // Toggle between highlighted view and edit mode
+            Rectangle {
+                    visible: root.clip-type == "code_snippet" || root.clip-type == "file_dev";
+                    width: 28px;
+                    height: 28px;
+                    border-radius: 4px;
+                    background: root.editing ? Theme.accent-primary : Theme.bg-input;
+                    TouchArea {
+                        clicked => {
+                            root.toggle-mode();
+                        }
+                        mouse-cursor: pointer;
+                    }
+
+                    Text {
+                        text: root.editing ? "</>" : "✎";
+                        color: root.editing ? Theme.accent-fg : Theme.fg-primary;
+                        font-size: Theme.font-size - 1px;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
                 }
             }
-        }
 
-        // Content editor — dual mode
+            // Content editor — dual mode
         Rectangle {
-            vertical-stretch: 1;
-            border-radius: Theme.border-radius;
-            border-width: 1px;
-            border-color: root.editing ? Theme.border-subtle : transparent;
-            background: root.editing ? Theme.bg-input : transparent;
-            clip: true;
+                vertical-stretch: 1;
+                border-radius: Theme.border-radius;
+                border-width: 1px;
+                border-color: root.editing ? Theme.border-subtle : transparent;
+                background: root.editing ? Theme.bg-input : transparent;
+                clip: true;
 
-            // Edit mode: plain text input. Wrapped in a ScrollView so a long
+                // Edit mode: plain text input. Wrapped in a ScrollView so a long
             // document scrolls instead of growing the layout and pushing the
             // tags row and action buttons out of the window (a bare TextInput's
             // minimum height is the full height of its content).
             edit-scroll := ScrollView {
-                visible: root.editing;
-                x: 8px;
-                y: 8px;
-                width: parent.width - 16px;
-                height: parent.height - 16px;
-                viewport-width: self.visible-width;
-                viewport-height: max(self.visible-height, content-edit.preferred-height);
-
-                content-edit := TextInput {
-                    text <=> root.edit-content;
-                    font-family: Theme.font-family;
-                    color: Theme.fg-primary;
-                    font-size: Theme.font-size;
-                    single-line: false;
-                    wrap: word-wrap;
-                    page-height: edit-scroll.visible-height;
-                    edited => {
-                        root.dirty = true;
-                        root.confirm-cancel = false;
-                    }
-                }
-            }
-
-            // View mode: monospace read-only text
-            preview-scroll := ScrollView {
-                visible: !root.editing;
-                x: 0;
-                y: 0;
-                width: 100%;
-                height: 100%;
-                Text {
+                    visible: root.editing;
+                    x: 8px;
+                    y: 8px;
                     width: parent.width - 16px;
-                    text: root.edit-content;
-                    color: Theme.fg-primary;
-                    font-family: "monospace";
-                    font-size: Theme.font-size;
-                    wrap: no-wrap;
-                }
-            }
-        }
+                    height: parent.height - 16px;
+                    viewport-width: self.visible-width;
+                    viewport-height: max(self.visible-height, content-edit.preferred-height);
 
-        // Tags input
-        HorizontalLayout {
-            spacing: 8px;
-            alignment: center;
-            Text {
-                text: @tr("Tags:");
-                color: Theme.fg-secondary;
-                font-size: Theme.font-size;
-                vertical-alignment: center;
-            }
-
-            Rectangle {
-                horizontal-stretch: 1;
-                height: 32px;
-                border-radius: Theme.border-radius;
-                border-width: 1px;
-                border-color: tags-edit.has-focus ? Theme.accent-primary : Theme.border-accent;
-                background: Theme.bg-input;
-                clip: true;
-                HorizontalLayout {
-                    padding-left: 8px;
-                    padding-right: 8px;
-                    tags-edit := TextInput {
-                        // One-way initialisation: binding breaks on first user edit, which
-                        // is the desired behaviour. Rust must NOT mutate initial-tags after
-                        // the window opens, or the field will re-sync and discard user input.
-                        text: root.initial-tags;
+                    content-edit := TextInput {
+                        text <=> root.edit-content;
+                        font-family: Theme.font-family;
                         color: Theme.fg-primary;
                         font-size: Theme.font-size;
-                        vertical-alignment: center;
+                        single-line: false;
+                        wrap: word-wrap;
+                        page-height: edit-scroll.visible-height;
                         edited => {
                             root.dirty = true;
                             root.confirm-cancel = false;
                         }
                     }
                 }
+
+                // View mode: monospace read-only text
+            preview-scroll := ScrollView {
+                    visible: !root.editing;
+                    x: 0;
+                    y: 0;
+                    width: 100%;
+                    height: 100%;
+                    Text {
+                        width: parent.width - 16px;
+                        text: root.edit-content;
+                        color: Theme.fg-primary;
+                        font-family: "monospace";
+                        font-size: Theme.font-size;
+                        wrap: no-wrap;
+                    }
+                }
             }
-        }
 
-        // Action buttons
+            // Tags input
         HorizontalLayout {
-            spacing: 8px;
-            alignment: end;
+                spacing: 8px;
+                alignment: center;
+                Text {
+                    text: @tr("Tags:");
+                    color: Theme.fg-secondary;
+                    font-size: Theme.font-size;
+                    vertical-alignment: center;
+                }
 
-            // Cancel — two-step when there are unsaved edits: the first click
+                Rectangle {
+                    horizontal-stretch: 1;
+                    height: 32px;
+                    border-radius: Theme.border-radius;
+                    border-width: 1px;
+                    border-color: tags-edit.has-focus ? Theme.accent-primary : Theme.border-accent;
+                    background: Theme.bg-input;
+                    clip: true;
+                    HorizontalLayout {
+                        padding-left: 8px;
+                        padding-right: 8px;
+                        tags-edit := TextInput {
+                        // One-way initialisation: binding breaks on first user edit, which
+                        // is the desired behaviour. Rust must NOT mutate initial-tags after
+                        // the window opens, or the field will re-sync and discard user input.
+                        text: root.initial-tags;
+                            color: Theme.fg-primary;
+                            font-size: Theme.font-size;
+                            vertical-alignment: center;
+                            edited => {
+                                root.dirty = true;
+                                root.confirm-cancel = false;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Action buttons
+        HorizontalLayout {
+                spacing: 8px;
+                alignment: end;
+
+                // Cancel — two-step when there are unsaved edits: the first click
             // re-arms the button as "Discard?" so edits are not lost silently,
             // the second actually closes.
             Rectangle {
-                width: 80px;
-                height: 30px;
-                border-radius: 6px;
-                background: root.confirm-cancel ? Theme.error-base : Theme.bg-input;
-                Text {
-                    text: root.confirm-cancel ? @tr("Discard?") : @tr("Cancel");
-                    color: root.confirm-cancel ? Theme.error-fg : Theme.fg-secondary;
-                    horizontal-alignment: center;
-                    vertical-alignment: center;
-                    font-size: Theme.font-size;
-                }
-
-                TouchArea {
-                    clicked => {
-                        root.request-cancel();
+                    width: 80px;
+                    height: 30px;
+                    border-radius: 6px;
+                    background: root.confirm-cancel ? Theme.error-base : Theme.bg-input;
+                    Text {
+                        text: root.confirm-cancel ? @tr("Discard?") : @tr("Cancel");
+                        color: root.confirm-cancel ? Theme.error-fg : Theme.fg-secondary;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                        font-size: Theme.font-size;
                     }
-                    mouse-cursor: pointer;
-                }
-            }
 
-            // Save
+                    TouchArea {
+                        clicked => {
+                            root.request-cancel();
+                        }
+                        mouse-cursor: pointer;
+                    }
+                }
+
+                // Save
             Rectangle {
-                width: 80px;
-                height: 30px;
-                border-radius: 6px;
-                background: Theme.accent-primary;
-                Text {
-                    text: @tr("Save");
-                    color: Theme.accent-fg;
-                    horizontal-alignment: center;
-                    vertical-alignment: center;
-                    font-size: Theme.font-size;
-                }
+                    width: 80px;
+                    height: 30px;
+                    border-radius: 6px;
+                    background: Theme.accent-primary;
+                    Text {
+                        text: @tr("Save");
+                        color: Theme.accent-fg;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                        font-size: Theme.font-size;
+                    }
 
-                TouchArea {
-                    clicked => {
-                        root.save-clicked(
+                    TouchArea {
+                        clicked => {
+                            root.save-clicked(
                             root.clip-id,
                             content-edit.text,
                             tags-edit.text);
+                        }
+                        mouse-cursor: pointer;
                     }
-                    mouse-cursor: pointer;
                 }
             }
-        }
         }
     }
 }
