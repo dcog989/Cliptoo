@@ -379,3 +379,74 @@ async fn import_preserves_is_file_uri_across_reclassify() {
     let _ = std::fs::remove_file(&out);
     let _ = std::fs::remove_dir_all(&file_dir);
 }
+
+/// Imported clip types are normalised to canonical stored values: unknown
+/// strings fall back to text, legacy names map to their current equivalent —
+/// arbitrary strings never reach the ClipType column.
+#[tokio::test]
+async fn import_normalizes_unknown_and_legacy_clip_types() {
+    let dir = std::env::temp_dir().join(format!("cliptoo_imptype_{}", std::process::id()));
+    clean_up(&dir);
+    let db = Arc::new(DbPool::open(&dir).unwrap());
+
+    let json = r#"[
+        {"id": 1, "content": "bogus type clip", "preview_content": "bogus type clip",
+         "content_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+         "clip_type": "not_a_real_type", "source_app": null, "timestamp": "2020-01-01 00:00:00",
+         "is_bookmarked": false, "was_trimmed": false, "has_leading_whitespace": false,
+         "is_multiline": false, "size_in_bytes": 9, "paste_count": 0, "tags": null},
+        {"id": 2, "content": "legacy font clip", "preview_content": "legacy font clip",
+         "content_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+         "clip_type": "file_font", "source_app": null, "timestamp": "2020-01-02 00:00:00",
+         "is_bookmarked": false, "was_trimmed": false, "has_leading_whitespace": false,
+         "is_multiline": false, "size_in_bytes": 10, "paste_count": 0, "tags": null}
+    ]"#;
+    let inserted = db
+        .with(|conn| cliptoo_core::export::import_json(conn, json.as_bytes()))
+        .await
+        .unwrap();
+    assert_eq!(inserted, 2);
+
+    let types: Vec<String> = db
+        .with(|conn| {
+            let mut stmt = conn.prepare_cached("SELECT ClipType FROM clips ORDER BY Id")?;
+            let rows = stmt.query_map([], |row| row.get::<_, String>(0))?;
+            let mut v = Vec::new();
+            for r in rows {
+                v.push(r?);
+            }
+            Ok(v)
+        })
+        .await
+        .unwrap();
+    assert_eq!(types, vec!["text".to_string(), "file_generic".to_string()]);
+
+    clean_up(&dir);
+}
+
+/// An oversized import file is refused before it is read or materialised.
+#[tokio::test]
+async fn import_rejects_oversized_files() {
+    const ONE_OVER_LIMIT: u64 = 256 * 1024 * 1024 + 1;
+
+    let dir = std::env::temp_dir().join(format!("cliptoo_impsize_{}", std::process::id()));
+    clean_up(&dir);
+    let db = Arc::new(DbPool::open(&dir).unwrap());
+
+    // Sparse file: reports the huge length without allocating any real space.
+    let path = dir.with_extension("big.json");
+    let f = std::fs::File::create(&path).unwrap();
+    f.set_len(ONE_OVER_LIMIT).unwrap();
+    drop(f);
+
+    let err = cliptoo_core::export::import_from_file(&db, &path)
+        .await
+        .unwrap_err();
+    assert!(
+        err.to_string().contains("byte limit"),
+        "unexpected error: {err}"
+    );
+
+    clean_up(&dir);
+    let _ = std::fs::remove_file(&path);
+}

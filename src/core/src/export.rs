@@ -15,14 +15,18 @@
 //! Import is **additive**: rows with a `ContentHash` already in the DB are
 //! silently skipped.  Rows whose hash is not the canonical 64-char lowercase
 //! SHA-256 hex shape are rejected (see `import_json`).  `UniqueClipsEver` is
-//! incremented by the number of new inserts.
+//! incremented by the number of new inserts.  Clip types are normalised to the
+//! canonical `ClipType` values (legacy names map to their current equivalent;
+//! unknown strings fall back to text), and payloads over `MAX_IMPORT_BYTES`
+//! are refused before they can be materialised in memory.
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use chrono::{DateTime, NaiveDateTime, Utc};
 use rusqlite::{Connection, params};
 use serde::{Deserialize, Serialize};
 use tracing::{info, warn};
 
+use crate::db::models::ClipType;
 use crate::db::queries::{EPOCH_TS_PREFIX, TIMESTAMP_FORMAT, next_timestamp};
 
 // ── Shared row type ───────────────────────────────────────────────────────────
@@ -115,6 +119,11 @@ pub fn fetch_bookmarked(conn: &Connection) -> Result<Vec<ExportRow>> {
 
 // ── JSON ──────────────────────────────────────────────────────────────────────
 
+/// Upper bound on an import payload. A much larger export file would be fully
+/// materialised into `Vec<ExportRow>` in memory (several times the file size),
+/// so anything over this is treated as a mistake rather than a real history.
+const MAX_IMPORT_BYTES: u64 = 256 * 1024 * 1024;
+
 /// Serialise all clips to a pretty-printed JSON byte vector.
 pub fn export_json(conn: &Connection) -> Result<Vec<u8>> {
     let rows = fetch_all(conn)?;
@@ -199,6 +208,12 @@ pub fn is_valid_content_hash(h: &str) -> bool {
 /// a large import that was N*2 unbatched round-trips (each one committing
 /// individually in WAL mode) instead of one lookup pass plus one transaction.
 pub fn import_json(conn: &Connection, data: &[u8]) -> Result<u64> {
+    if data.len() as u64 > MAX_IMPORT_BYTES {
+        bail!(
+            "import payload of {} bytes exceeds the {MAX_IMPORT_BYTES} byte limit",
+            data.len()
+        );
+    }
     let rows: Vec<ExportRow> = serde_json::from_slice(data).context("parse import JSON")?;
 
     let mut existing_hashes: std::collections::HashSet<String> = {
@@ -249,6 +264,18 @@ pub fn import_json(conn: &Connection, data: &[u8]) -> Result<u64> {
             }
         };
 
+        // Normalise the imported clip type to a canonical stored value. Legacy
+        // type names (`file_database`, `file_font`, ...) map to their current
+        // equivalent and unknown strings fall back to text, so arbitrary
+        // strings never land in the ClipType column.
+        let clip_type = ClipType::parse(&row.clip_type).as_str().to_string();
+        if clip_type != row.clip_type {
+            warn!(
+                "import: clip type {:?} normalised to {:?}",
+                row.clip_type, clip_type
+            );
+        }
+
         tx.execute(
             "INSERT INTO clips (
                 Content, PreviewContent, ContentHash, ClipType, SourceApp,
@@ -259,7 +286,7 @@ pub fn import_json(conn: &Connection, data: &[u8]) -> Result<u64> {
                 row.content,
                 row.preview_content,
                 row.content_hash,
-                row.clip_type,
+                clip_type,
                 row.source_app,
                 timestamp,
                 row.is_bookmarked as i32,
@@ -332,6 +359,18 @@ pub async fn import_from_file(
     db: &std::sync::Arc<crate::db::DbPool>,
     path: &std::path::Path,
 ) -> Result<u64> {
+    // Check the size before reading so an oversized file is never loaded into
+    // memory at all (see `MAX_IMPORT_BYTES`).
+    let size = tokio::fs::metadata(path)
+        .await
+        .with_context(|| format!("stat import file {:?}", path))?
+        .len();
+    if size > MAX_IMPORT_BYTES {
+        bail!(
+            "import file {:?} is {size} bytes, exceeding the {MAX_IMPORT_BYTES} byte limit",
+            path
+        );
+    }
     let bytes = tokio::fs::read(path)
         .await
         .with_context(|| format!("read import file {:?}", path))?;
