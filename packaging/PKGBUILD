@@ -1,6 +1,6 @@
 # Maintainer: Cliptoo Contributors
 pkgname=cliptoo
-pkgver=2.13.2
+pkgver=2.13.3
 pkgrel=1
 pkgdesc="Native clipboard manager for KDE Plasma 6 / Wayland"
 arch=('x86_64')
