@@ -22,7 +22,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             qt6-base-dev qt6-wayland libwayland-dev \
-            libxkbcommon-dev pkg-config
+            libxkbcommon-dev libfontconfig1-dev pkg-config
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -54,7 +54,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             qt6-base-dev qt6-wayland libwayland-dev \
-            libxkbcommon-dev pkg-config
+            libxkbcommon-dev libfontconfig1-dev pkg-config
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
