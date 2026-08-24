@@ -1,0 +1,21 @@
+#:schema https://docs.cocogitto.io/cog-schema.json
+
+branch_whitelist = ["main"]
+from_latest_tag = true
+ignore_merge_commits = true
+tag_prefix = "v"
+
+# Sync the version across all manifests before the bump commit is created.
+# `{{version}}` is replaced by cog with the target version before the hooks run.
+pre_bump_hooks = [
+    "./scripts/sync_version.sh {{version}}",
+]
+
+post_bump_hooks = [
+    "git push",
+    "git push origin {{version_tag}}",
+]
+
+[changelog]
+path = "CHANGELOG.md"
+template = "changelog.tpl"

@@ -19,6 +19,12 @@ Cliptoo: native background clipboard manager for Wayland/KDE Plasma 6. Rust + SQ
 - Workspace dep versions in `Cargo.toml` — check before adding or using a crate.
 - Key files: `src/core/` (cliptoo-core: parser, db, settings, logger), `src/ui/` (binary + OS integration), `src/ui/ui/*.slint`, `src/ui/src/main.rs`, `src/ui/src/hotkeys.rs`, `.docs/HLD.md`, `.docs/PORTING.md`, `.docs/Progress.md` (read first), `.docs/ToDo.md`, `packaging/PKGBUILD`, `lefthook.yml`.
 
+## Release (Cocogitto)
+
+- Release: `make release` (`cog bump --auto`) — external Rust binary, `cargo install cocogitto` / `pacman -S cocogitto`; config in `cog.toml`, `tag_prefix = "v"`. Bumps the version from conventional commits, syncs manifests via `scripts/sync_version.sh`, writes `CHANGELOG.md` (template `changelog.tpl`), commits and tags, then pushes (post_bump_hooks). Manual version: `make version V=1.2.3`.
+- Changelog preview: `make changelog` (`cog changelog`).
+- Commit-msg enforced by `lefthook.yml` via `cog verify` (Merge/Revert lines bypass).
+
 ## File System
 
 - Root: `/home/bubba/Projects/Cliptoo/`. All subdirs allowed.
