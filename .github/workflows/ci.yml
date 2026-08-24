@@ -85,17 +85,19 @@ jobs:
           ARCH: x86_64
         run: |
           set -euo pipefail
+          VERSION="$(sed -n 's/^version = "\([0-9][0-9.]*\)"/\1/p' Cargo.toml | head -1)"
           APPDIR="$PWD/AppDir"
           mkdir -p "$APPDIR/usr/bin" "$APPDIR/usr/share/applications" "$APPDIR/usr/share/icons/hicolor/scalable/apps"
           cp target/release/cliptoo "$APPDIR/usr/bin/cliptoo"
           cp packaging/cliptoo.desktop "$APPDIR/usr/share/applications/cliptoo.desktop"
           cp src/ui/assets/cliptoo.svg "$APPDIR/usr/share/icons/hicolor/scalable/apps/cliptoo.svg"
-          wget -q https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
-          wget -q https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage
-          wget -q https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
-          chmod +x linuxdeploy-x86_64.AppImage linuxdeploy-plugin-qt-x86_64.AppImage appimagetool-x86_64.AppImage
-          ./linuxdeploy-x86_64.AppImage --appdir "$APPDIR" --plugin qt
-          ./appimagetool-x86_64.AppImage "$APPDIR" "$PWD/cliptoo.AppImage"
+          mkdir -p tools
+          wget -q -O tools/linuxdeploy.AppImage https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          wget -q -O tools/linuxdeploy-plugin-qt.AppImage https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage
+          wget -q -O tools/appimagetool.AppImage https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x tools/*.AppImage
+          ./tools/linuxdeploy.AppImage --appdir "$APPDIR" --plugin qt
+          ./tools/appimagetool.AppImage "$APPDIR" "$PWD/cliptoo-$VERSION-x86_64.AppImage"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -104,7 +106,7 @@ jobs:
           path: |
             target/debian/*.deb
             target/generate-rpm/*.rpm
-            *.AppImage
+            cliptoo-*.AppImage
 
   release:
     name: Publish GitHub Release
