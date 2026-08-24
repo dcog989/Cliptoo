@@ -54,7 +54,7 @@ name        = "cliptoo"
 description = "Native clipboard manager for KDE Plasma 6 / Wayland"
 license     = "MIT"
 assets      = [
-    { from = "target/release/cliptoo", to = "/usr/bin/" },
-    { from = "packaging/cliptoo.desktop", to = "/usr/share/applications/" },
-    { from = "../LICENSE", to = "/usr/share/licenses/cliptoo/" },
+    { source = "target/release/cliptoo", dest = "/usr/bin/cliptoo", mode = "755" },
+    { source = "packaging/cliptoo.desktop", dest = "/usr/share/applications/cliptoo.desktop", mode = "644" },
+    { source = "LICENSE", dest = "/usr/share/licenses/cliptoo/LICENSE", mode = "644" },
 ]
