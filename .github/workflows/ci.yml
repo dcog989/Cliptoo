@@ -81,10 +81,10 @@ jobs:
       - name: Build AppImage
         run: |
           set -euo pipefail
-          mkdir -p AppDir/usr/bin AppDir/usr/share/applications AppDir/usr/share/icons/hicolor/512x512/apps
+          mkdir -p AppDir/usr/bin AppDir/usr/share/applications AppDir/usr/share/icons/hicolor/scalable/apps
           cp target/release/cliptoo AppDir/usr/bin/cliptoo
           cp packaging/cliptoo.desktop AppDir/usr/share/applications/cliptoo.desktop
-          cp .assets/cliptoo.png AppDir/usr/share/icons/hicolor/512x512/apps/cliptoo.png
+          cp src/ui/assets/cliptoo.svg AppDir/usr/share/icons/hicolor/scalable/apps/cliptoo.svg
           wget -q https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
           wget -q https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage
           chmod +x linuxdeploy-x86_64.AppImage linuxdeploy-plugin-qt-x86_64.AppImage
