@@ -79,17 +79,23 @@ jobs:
         run: cargo generate-rpm -p src/ui
 
       - name: Build AppImage
+        env:
+          QMAKE: /usr/bin/qmake6
+          APPIMAGE_EXTRACT_AND_RUN: 1
+          ARCH: x86_64
         run: |
           set -euo pipefail
-          mkdir -p AppDir/usr/bin AppDir/usr/share/applications AppDir/usr/share/icons/hicolor/scalable/apps
-          cp target/release/cliptoo AppDir/usr/bin/cliptoo
-          cp packaging/cliptoo.desktop AppDir/usr/share/applications/cliptoo.desktop
-          cp src/ui/assets/cliptoo.svg AppDir/usr/share/icons/hicolor/scalable/apps/cliptoo.svg
+          APPDIR="$PWD/AppDir"
+          mkdir -p "$APPDIR/usr/bin" "$APPDIR/usr/share/applications" "$APPDIR/usr/share/icons/hicolor/scalable/apps"
+          cp target/release/cliptoo "$APPDIR/usr/bin/cliptoo"
+          cp packaging/cliptoo.desktop "$APPDIR/usr/share/applications/cliptoo.desktop"
+          cp src/ui/assets/cliptoo.svg "$APPDIR/usr/share/icons/hicolor/scalable/apps/cliptoo.svg"
           wget -q https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
           wget -q https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage
-          chmod +x linuxdeploy-x86_64.AppImage linuxdeploy-plugin-qt-x86_64.AppImage
-          ./linuxdeploy-x86_64.AppImage --appdir AppDir --plugin qt --output appimage
-          mv Cliptoo-*.AppImage cliptoo.AppImage
+          wget -q https://github.com/linuxdeploy/linuxdeploy-plugin-appimage/releases/download/continuous/linuxdeploy-plugin-appimage-x86_64.AppImage
+          chmod +x linuxdeploy-x86_64.AppImage linuxdeploy-plugin-qt-x86_64.AppImage linuxdeploy-plugin-appimage-x86_64.AppImage
+          ./linuxdeploy-x86_64.AppImage --appdir "$APPDIR" --plugin qt --output appimage
+          mv "$(find "$HOME" -maxdepth 1 -name 'Cliptoo-*.AppImage' | head -1)" cliptoo.AppImage
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
