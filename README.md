@@ -115,6 +115,16 @@ cargo update --verbose              # update Cargo.lock within semver ranges
 cargo clean && rm -rf target/       # clean build artifacts
 ```
 
+## Release (Cocogitto)
+
+Releases use [Cocogitto](https://cocogitto.io/) (`cargo install cocogitto` / `sudo pacman -S cocogitto`), configured in `cog.toml` with a `v` tag prefix.
+
+- **Release:** `make release` — bumps the version from conventional commits (auto), syncs manifests via `scripts/sync_version.sh`, writes `CHANGELOG.md` (template `changelog.tpl`), commits, tags, then pushes.
+- **Manual version:** `make version V=2.13.0`.
+- **Changelog preview:** `make changelog`.
+
+Commits must follow [Conventional Commits](https://www.conventionalcommits.org/) — enforced on commit via `cog verify` (Merge/Revert lines bypass).
+
 ## Local Dev Install
 
 ```sh
