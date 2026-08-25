@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v2.13.8 - 2026-08-25
+
+#### Refactoring
+
+- (887237f) makefile tidy - dcog989
+
+- - -
+
 ## v2.13.7 - 2026-08-24
 
 - - -
