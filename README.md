@@ -74,7 +74,13 @@ Use your clip history as a library of things, with instant fuzzy search.
 | Input Emulation     | `enigo`                                   |
 | HTTP Client         | `reqwest` (rustls)                        |
 
-## Building
+### LLM Use
+
+Large Language Models (LLMs) were used to assist with code generation, refactoring, and documentation. All AI output was subject to human code review, automated testing, manual testing, and adversarial reviews.
+
+---
+
+## Development
 
 ### Prerequisites
 
@@ -91,12 +97,7 @@ Use your clip history as a library of things, with instant fuzzy search.
 
 ```sh
 git clone https://github.com/dcog989/cliptoo.git && cd cliptoo
-cargo build --release -p cliptoo
-cargo run
-./target/release/cliptoo
 ```
-
-### Development
 
 ```sh
 cargo install cargo-outdated        # initialize outdated tool
@@ -114,19 +115,7 @@ cargo update --verbose              # update Cargo.lock within semver ranges
 cargo clean && rm -rf target/       # clean build artifacts
 ```
 
-## Release
-
-Releases use [Cocogitto](https://cocogitto.io/) (`cargo install cocogitto` / `sudo pacman -S cocogitto`), configured in `cog.toml`.
-
-```sh
-cog bump                      # bump version, sync manifests, write `CHANGELOG.md`, commit, tag, push
-cog bump --version V=1.23.4   # Manual version
-cog changelog                 # Changelog preview
-```
-
-Commits must use [Conventional Commits](https://www.conventionalcommits.org/) — enforced on commit via `cog verify`.
-
-## Local Dev Install
+### Local Install
 
 ```sh
 cd /home/bubba/Projects/Cliptoo
@@ -140,6 +129,20 @@ cargo build --release -p cliptoo
 sudo install -Dm755 target/release/cliptoo /usr/local/bin/cliptoo
 sudo install -Dm644 packaging/cliptoo.desktop /usr/share/applications/cliptoo.desktop
 ```
+
+### Release
+
+Releases use [Cocogitto](https://cocogitto.io/) (`cargo install cocogitto` / `sudo pacman -S cocogitto`), configured in `cog.toml`.
+
+```sh
+cog bump                      # bump version, sync manifests, write `CHANGELOG.md`, commit, tag, push
+cog bump --version V=1.23.4   # Manual version
+cog changelog                 # Changelog preview
+```
+
+Commits must use [Conventional Commits](https://www.conventionalcommits.org/) — enforced on commit via `cog verify`.
+
+---
 
 ## License
 
