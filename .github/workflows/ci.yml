@@ -116,20 +116,35 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
       - name: Download artifacts
         uses: actions/download-artifact@v7
         with:
           name: linux-packages
           path: packages
 
+      - name: Install cocogitto
+        uses: cocogitto/cocogitto-action@v4
+        with:
+          install-only: true
+
+      - name: Generate release notes
+        run: cog changelog --at ${{ github.ref_name }} > /tmp/release-notes.md
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.ref_name }}
           name: ${{ github.ref_name }}
+          body_path: /tmp/release-notes.md
           files: |
             packages/**/*.deb
             packages/**/*.rpm
             packages/**/*.AppImage
+            CHANGELOG.md
           draft: false
           prerelease: false
