@@ -1,11 +1,10 @@
 # Cliptoo
 
-- Advanced clipboard manager.
-- Cross-platform, Linux-first.
-- Super fast, super slim, packed with features.
-- Rust / Slint / rusqlite - handles thousands of clips without slowing down.
-- Store and categorise clips, links, files, images, color swatches, code snippets.
-- Use your clip history as a library.
+Advanced clipboard manager. Cross-platform, Linux-first. Built with Rust / Slint / SQLite.
+
+Use your clip history as a library of things, with instant fuzzy search.
+
+![assets/screen-1.webp](assets/screen-1.webp)
 
 ---
 
@@ -13,14 +12,14 @@
 
 ### Performance
 
-- **Persistent History:** SQLite with FTS5 full-text search.
-- **Fast Search:** Real-time filtering with match highlighting on thousands of clips.
-- **Virtualized Scrolling:** O(1) visible-row rendering regardless of list size.
-- **Paste Suppression:** SHA-256 dedup discards self-paste events.
+- **Persistent History:** SQLite FTS5 full-text search.
+- **Fast Search:** Real-time filtering with match highlighting.
+- **Virtualized Scrolling:** instant O(1) visible-row rendering regardless of list size.
+- **Paste Suppression:** SHA-256 hashing prevents duplicates.
 
 ### Clipboard & Paste
 
-- **Clipboard Capture:** Text, images (PNG/JPEG/WebP/BMP/TIFF), file URIs.
+- **Clipboard Capture:** Everything you copy is stored, categorised, ready for searching, pasting, previewing.
 - **Paste Emulation:** Select clip → Enter → content pasted via `enigo`.
 - **Global Hotkeys:** System-wide shortcuts via XDG Portal `GlobalShortcuts`.
 - **Quick Paste Overlay:** Just hit the number pad to select and paste.
@@ -28,8 +27,8 @@
 ### Content Intelligence
 
 - **Content-Aware Filtering:** Filter by text, links, images, colors, bookmarks, etc.
-- **Image Previews:** Hover thumbnails for PNG, JPEG, WebP, AVIF, JXL, SVG.
-- **Color Swatches:** `#hex`, `rgb()`, `hsl()`, `oklch()` - all with transparency.
+- **Image Previews:** Hover thumbnails to preview PNG, JPEG, WebP, AVIF, GIF, JXL, SVG.
+- **Color Swatches:** `#hex`, `rgb()`, `hsl()`, `oklch()` - with transparency.
 - **Code Highlighting:** Syntax-highlighted editor via `syntect`.
 - **URL Metadata:** Auto-fetches page titles and favicons.
 - **File Info:** Size, modification date, type classification.
@@ -51,12 +50,12 @@
 
 ### Customisation
 
-- **Theming:** Light/Dark/System, custom accent colors (OKLCH-perceptually uniform).
-- **Typography:** Font family, size, row padding (Compact/Standard/Luxury).
+- **Theming:** Light/Dark/System, custom accent color.
+- **Typography:** Font family, size, row padding.
 
 ### System Integration
 
-- **System Tray:** StatusNotifierItem tray with Show/Settings/Quit menu.
+- **System Tray:** Close to tray.
 
 ## Tech Stack
 
@@ -115,23 +114,23 @@ cargo update --verbose              # update Cargo.lock within semver ranges
 cargo clean && rm -rf target/       # clean build artifacts
 ```
 
-## Release (Cocogitto)
+## Release
 
-Releases use [Cocogitto](https://cocogitto.io/) (`cargo install cocogitto` / `sudo pacman -S cocogitto`), configured in `cog.toml` with a `v` tag prefix.
+Releases use [Cocogitto](https://cocogitto.io/) (`cargo install cocogitto` / `sudo pacman -S cocogitto`), configured in `cog.toml`.
 
 ```sh
-make release            # bump version, sync manifests, write `CHANGELOG.md`, commit, tag, push
-make version V=2.13.0   # Manual version
-make changelog          # Changelog preview
+cog bump                      # bump version, sync manifests, write `CHANGELOG.md`, commit, tag, push
+cog bump --version V=1.23.4   # Manual version
+cog changelog                 # Changelog preview
 ```
 
-Commits must use [Conventional Commits](https://www.conventionalcommits.org/) — enforced on commit via `cog verify` (Merge/Revert lines bypass).
+Commits must use [Conventional Commits](https://www.conventionalcommits.org/) — enforced on commit via `cog verify`.
 
 ## Local Dev Install
 
 ```sh
 cd /home/bubba/Projects/Cliptoo
-make install            # builds + installs binary and desktop file (sudo prompts)
+make install            # builds + installs binary and desktop file
 ```
 
 Manually:
@@ -144,4 +143,4 @@ sudo install -Dm644 packaging/cliptoo.desktop /usr/share/applications/cliptoo.de
 
 ## License
 
-MIT
+GNU General Public License v3
