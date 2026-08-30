@@ -90,7 +90,7 @@ export component ContextMenu {
             }
             if root.is-rich-type: MenuRow {
                 label: @tr("Paste as Rich Text");
-                icon: @image-url("icons/text-align-start.svg");
+                icon: @image-url("icons/text-initial.svg");
                 clicked => {
                     root.paste-as("rich");
                 }
@@ -105,7 +105,7 @@ export component ContextMenu {
 
             if root.is-text-type: MenuRow {
                 label: @tr("Format");
-                icon: @image-url("icons/text-align-start.svg");
+                icon: @image-url("icons/pencil-line.svg");
                 has-arrow: true;
                 clicked => {
                     root.format-open();
