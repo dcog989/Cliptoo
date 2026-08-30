@@ -92,14 +92,12 @@ impl FilterClause {
 
 /// ClipTypes the UI can filter by directly, mapping 1:1 to their stored
 /// `as_str()` value. Kept here so the filter strings always match
-/// `ClipType::as_str()`; the special-cased `file_document` / `file_text`
-/// (shared filter) and `file_generic` (bare "file" filter) are handled
-/// explicitly in `clip_type_filter`.
+/// `ClipType::as_str()`; the special-cased `rtf` (Rich Text covers the
+/// `rtf` + `html` clipboard content types) and `file_generic` (bare "file"
+/// filter) are handled explicitly in `clip_type_filter`.
 const FILTERABLE_TYPES: &[ClipType] = &[
     ClipType::Text,
     ClipType::FilePath,
-    ClipType::Rtf,
-    ClipType::Html,
     ClipType::Link,
     ClipType::Color,
     ClipType::CodeSnippet,
@@ -110,17 +108,18 @@ const FILTERABLE_TYPES: &[ClipType] = &[
     ClipType::FileDev,
     ClipType::FileDanger,
     ClipType::FileData,
+    ClipType::FileDocument,
+    ClipType::FileText,
     ClipType::Folder,
 ];
 
 fn clip_type_filter(filter: &str) -> FilterClause {
     match filter {
         "bookmarked" => FilterClause::NoParam("AND c.IsBookmarked = 1"),
-        // Document covers .docx/.pdf (file_document) and plain text files
-        // (.txt/.md, file_text) — the same icon, so they share a filter.
-        "file_document" => {
-            FilterClause::NoParam("AND c.ClipType IN ('file_document', 'file_text')")
-        }
+        // Rich Text: clipboard rich-text content (RTF + HTML markup). These
+        // are clipboard content types, distinct from the document *files*
+        // a file manager copy produces (see "file_document").
+        "rtf" => FilterClause::NoParam("AND c.ClipType IN ('rtf', 'html')"),
         // A copied generic file: one that isn't any specific type.
         "file" => FilterClause::NoParam("AND c.ClipType = 'file_generic'"),
         _ if FILTERABLE_TYPES.iter().any(|t| t.as_str() == filter) => {
