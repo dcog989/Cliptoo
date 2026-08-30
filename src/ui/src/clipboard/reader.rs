@@ -218,13 +218,23 @@ pub(super) async fn poll_clipboard(
     {
         return Ok(Some(payload));
     }
+    // RTF and HTML are alternative renditions of the same rich-text selection;
+    // a producer offering both (e.g. LibreOffice, Word) has its Rtf clip
+    // ingested by the earlier RTF probe, so the HTML rendition must not spawn
+    // a duplicate Html clip on the next stale re-read.
+    let offers_rtf = mime_types.is_some_and(|mt| mt.iter().any(|m| m == "text/rtf"));
     // HTML after the image probe, gated on the clipboard NOT advertising an
-    // image: a browser image copy offers image/* alongside text/html + the
-    // image's URL/alt text. Reading the HTML first would record a spurious
-    // Html clip and defer the image ingest — the same priority the image
-    // probe already asserts over text/plain. (An HTML payload is text-sized,
-    // so it is polled on every read like text/rtf, not gated on probe_images.)
-    if !offers_image && let Some(payload) = try_html(last_html_hash).await? {
+    // image or RTF: a browser image copy offers image/* alongside text/html +
+    // the image's URL/alt text, and a rich-text copy offers text/rtf
+    // alongside text/html. Reading the HTML first would record a spurious
+    // Html clip and defer the image/RTF ingest — the same priority the image
+    // and RTF probes already assert over text/plain. (An HTML payload is
+    // text-sized, so it is polled on every read like text/rtf, not gated on
+    // probe_images.)
+    if !offers_image
+        && !offers_rtf
+        && let Some(payload) = try_html(last_html_hash).await?
+    {
         return Ok(Some(payload));
     }
     if let Some(payload) = try_text(last_text_hash).await? {
