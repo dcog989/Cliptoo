@@ -30,7 +30,7 @@ export component FilterGrid {
                 width: root.cell-size;
                 height: root.cell-size;
                 border-radius: 5px;
-                background: root.active-filter == key ? Theme.accent-primary : transparent;
+                background: root.active-filter == key || cell-touch.has-hover ? Theme.bg-row-hover : transparent;
 
                 animate background { duration: Theme.anim-fast; }
 
@@ -40,7 +40,7 @@ export component FilterGrid {
                     width: 24px;
                     height: 24px;
                     source: ClipTypeMap.icon-for(key);
-                    colorize: root.active-filter == key ? Theme.accent-fg : Theme.fg-muted;
+                    colorize: root.active-filter == key || cell-touch.has-hover ? Theme.row-hover-fg : Theme.fg-muted;
                     animate colorize { duration: Theme.anim-fast; }
                 }
 
