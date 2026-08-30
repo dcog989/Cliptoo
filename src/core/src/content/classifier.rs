@@ -31,13 +31,14 @@ pub struct ClassifiedContent {
 ///   1. Whitespace trim detection
 ///   2. Empty / whitespace-only  → discard (returns None)
 ///   3. RTF detection             → ClipType::Rtf
-///   4. URL detection             → ClipType::Link
-///   5. Color detection           → ClipType::Color
-///   6. Path detection:
+///   4. HTML detection            → ClipType::Html
+///   5. URL detection             → ClipType::Link
+///   6. Color detection           → ClipType::Color
+///   7. Path detection:
 ///      copied file → ClipType::Folder | file_*
 ///      plain text  → ClipType::FilePath
-///   7. Code heuristic            → ClipType::CodeSnippet
-///   8. Fallback                  → ClipType::Text
+///   8. Code heuristic            → ClipType::CodeSnippet
+///   9. Fallback                  → ClipType::Text
 pub struct ContentProcessor;
 
 impl ContentProcessor {
@@ -62,6 +63,8 @@ impl ContentProcessor {
         // so we don't have to decode/strip a second time below.
         let (clip_type, content) = if Self::is_rtf(&content) {
             (ClipType::Rtf, content)
+        } else if Self::is_html(&content) {
+            (ClipType::Html, content)
         } else if Self::is_url(&content) {
             (ClipType::Link, content)
         } else if crate::color::ColorParser::is_color(&content) {
@@ -91,9 +94,12 @@ impl ContentProcessor {
 
         let size_in_bytes = content.len() as i64;
         let is_multiline = content.contains('\n');
-        // RTF clips preview as their stripped plain text; everything else as-is.
+        // RTF and HTML clips preview as their stripped plain text; everything
+        // else as-is.
         let preview_content = if clip_type == ClipType::Rtf {
             crate::content::preview::build_preview(&crate::content::strip_rtf(&content))
+        } else if clip_type == ClipType::Html {
+            crate::content::preview::build_preview(&crate::content::strip_html(&content))
         } else {
             crate::content::preview::build_preview(&content)
         };
@@ -133,6 +139,35 @@ impl ContentProcessor {
         s.strip_prefix('\u{feff}')
             .unwrap_or(s)
             .starts_with(r"{\rtf")
+    }
+
+    /// True when `s` looks like an HTML fragment/document. Document-level
+    /// markers (`<?xml` prologues, doctypes, comments such as Chrome's
+    /// `<!--StartFragment-->`, `<html>`/`<head>`/`<body>`) match directly;
+    /// otherwise a matching open+close tag pair is required so plain text with
+    /// a stray `<` (e.g. "2 < 3", "<not a tag>") never counts. A leading BOM is
+    /// tolerated, matching `is_rtf`.
+    fn is_html(s: &str) -> bool {
+        let body = s.strip_prefix('\u{feff}').unwrap_or(s).trim_start();
+        if Self::starts_with_ci(body, "<?xml")
+            || Self::starts_with_ci(body, "<!doctype")
+            || Self::starts_with_ci(body, "<html")
+            || Self::starts_with_ci(body, "<head")
+            || Self::starts_with_ci(body, "<body")
+            || body.starts_with("<!--")
+        {
+            return true;
+        }
+        let bytes = body.as_bytes();
+        let opens = bytes
+            .windows(2)
+            .filter(|w| w[0] == b'<' && w[1].is_ascii_alphabetic())
+            .count();
+        let closes = bytes
+            .windows(3)
+            .filter(|w| w[0] == b'<' && w[1] == b'/' && w[2].is_ascii_alphabetic())
+            .count();
+        opens >= 1 && closes >= 1
     }
 
     /// True when `raw` looks like a filesystem path, regardless of whether it
@@ -412,6 +447,46 @@ mod tests {
         let c = ContentProcessor::process("\u{feff}{\\rtf1\\ansi hello}", false).unwrap();
         assert_eq!(c.clip_type, ClipType::Rtf);
         assert_eq!(c.preview_content, "hello");
+    }
+
+    #[test]
+    fn html_fragment_is_html() {
+        let c = ContentProcessor::process(
+            "<div><span style=\"font-weight:bold\">hello</span></div>",
+            false,
+        )
+        .unwrap();
+        assert_eq!(c.clip_type, ClipType::Html);
+        assert_eq!(c.preview_content, "hello");
+    }
+
+    #[test]
+    fn html_document_markers_are_html() {
+        for s in [
+            "<html><head><title>t</title></head><body>hi</body></html>",
+            "<!DOCTYPE html><p>hi</p>",
+            "<?xml version=\"1.0\"?><html>hi</html>",
+            "<!--StartFragment--><b>hi</b><!--EndFragment-->",
+        ] {
+            let c = ContentProcessor::process(s, false).unwrap();
+            assert_eq!(c.clip_type, ClipType::Html, "for {s}");
+        }
+    }
+
+    #[test]
+    fn stray_angle_brackets_stay_text() {
+        for s in ["2 < 3 is true", "<not a tag>", "a < b > c"] {
+            let c = ContentProcessor::process(s, false).unwrap();
+            assert_eq!(c.clip_type, ClipType::Text, "for {s}");
+        }
+    }
+
+    #[test]
+    fn plain_text_of_html_clipboard_stays_text() {
+        // The text/plain rendition of an HTML clipboard must not classify as
+        // Html itself; only markup does.
+        let c = ContentProcessor::process("some plain copied text", false).unwrap();
+        assert_eq!(c.clip_type, ClipType::Text);
     }
 
     #[test]

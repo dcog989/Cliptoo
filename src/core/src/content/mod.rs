@@ -4,11 +4,13 @@
 pub mod classifier;
 pub mod filetype;
 pub mod hash;
+pub mod html;
 pub mod preview;
 pub mod rtf;
 
 pub use classifier::ContentProcessor;
 pub use hash::{normalize_line_endings, sha256_hex, sha256_hex_and_prefix, sha256_u64};
+pub use html::strip_html;
 pub use rtf::strip_rtf;
 
 /// Decode percent-encoded bytes in a `file://` URI path back to a filesystem path.

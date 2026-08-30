@@ -75,22 +75,25 @@ pub async fn paste_content(
 }
 
 /// Mark a clip's payload as self-originated so the clipboard listener does not
-/// re-ingest it as a new clip. The listener polls text/rtf before text/plain,
-/// so after a rich write it re-reads the raw RTF markup, while after a
-/// plain-text write it re-reads the stripped text. Register both hashes so
-/// either payload is recognised as our own. (For non-RTF content the raw hash
-/// covers the single text/plain payload.)
+/// re-ingest it as a new clip. The listener polls text/rtf and text/html
+/// before text/plain, so after a rich write it re-reads the raw markup, while
+/// after a plain-text write it re-reads the stripped text. Register both
+/// hashes so either payload is recognised as our own. (For non-rich content
+/// the raw hash covers the single text/plain payload.)
 pub fn register_suppression(suppression: &PasteSuppressionSet, content: &str, clip_type: &str) {
     suppression.insert(sha256_u64(&normalize_line_endings(content)));
     if clip_type == "rtf" {
         let stripped = cliptoo_core::content::strip_rtf(content);
         suppression.insert(sha256_u64(&normalize_line_endings(&stripped)));
+    } else if clip_type == "html" {
+        let stripped = cliptoo_core::content::strip_html(content);
+        suppression.insert(sha256_u64(&normalize_line_endings(&stripped)));
     }
 }
 
 /// Write a clip's payload to the regular Wayland clipboard without pasting it.
-/// `offer_rich` controls whether an RTF clip advertises the raw `text/rtf`
-/// MIME type in addition to the stripped `text/plain` fallback.
+/// `offer_rich` controls whether an RTF/HTML clip advertises the raw `text/rtf`
+/// or `text/html` MIME type in addition to the stripped `text/plain` fallback.
 pub async fn write_content_to_clipboard(
     content: &str,
     clip_type: &str,
@@ -98,11 +101,15 @@ pub async fn write_content_to_clipboard(
 ) -> Result<()> {
     let is_file_clip = ClipType::parse(clip_type).is_file_clip();
     let is_rtf = clip_type == "rtf";
+    let is_html = clip_type == "html";
+    let is_rich = is_rtf || is_html;
 
-    // The text/plain offer is the stripped RTF text for RTF clips, the content
-    // itself otherwise.
+    // The text/plain offer is the stripped rich text for RTF/HTML clips, the
+    // content itself otherwise.
     let plain_text: std::borrow::Cow<str> = if is_rtf {
         std::borrow::Cow::Owned(cliptoo_core::content::strip_rtf(content))
+    } else if is_html {
+        std::borrow::Cow::Owned(cliptoo_core::content::strip_html(content))
     } else {
         std::borrow::Cow::Borrowed(content)
     };
@@ -111,12 +118,13 @@ pub async fn write_content_to_clipboard(
 
     let data = normalized.clone();
     // `content` is a borrowed &str and cannot move into the 'static blocking
-    // closure, so pre-normalize the raw RTF payload here.
-    let rich_rtf = if is_rtf && offer_rich {
+    // closure, so pre-normalize the raw rich payload here.
+    let rich_raw = if is_rich && offer_rich {
         Some(normalize_line_endings(content))
     } else {
         None
     };
+    let rich_mime = if is_rtf { "text/rtf" } else { "text/html" };
 
     tokio::task::spawn_blocking(move || -> Result<()> {
         let mut opts = Options::new();
@@ -134,14 +142,14 @@ pub async fn write_content_to_clipboard(
                     mime_type: MimeType::Text,
                 },
             ])
-        } else if let Some(raw) = rich_rtf {
-            // Rich-text write: offer the raw RTF (formatted) plus the stripped
-            // text/plain fallback so targets without RTF support still insert
-            // the text instead of nothing.
+        } else if let Some(raw) = rich_raw {
+            // Rich-text write: offer the raw markup (formatted) plus the
+            // stripped text/plain fallback so targets without rich support
+            // still insert the text instead of nothing.
             opts.copy_multi(vec![
                 MimeSource {
                     source: Source::Bytes(raw.into_bytes().into_boxed_slice()),
-                    mime_type: MimeType::Specific("text/rtf".into()),
+                    mime_type: MimeType::Specific(rich_mime.into()),
                 },
                 MimeSource {
                     source: Source::Bytes(data.into_bytes().into_boxed_slice()),

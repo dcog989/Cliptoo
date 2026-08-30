@@ -14,6 +14,7 @@ export global ClipTypeMap {
         "bookmarked",
         "text",
         "rtf",
+        "html",
         "code_snippet",
         "color",
         "link",
@@ -51,14 +52,19 @@ export global ClipTypeMap {
         if key == "file_video" { return @image-url("icons/film.svg"); }
         if key == "file_archive" { return @image-url("icons/file-archive.svg"); }
         if key == "file_document" || key == "file_text" { return @image-url("icons/file-text.svg"); }
-        if key == "rtf" { return @image-url("icons/text-initial.svg"); }
+        if key == "rtf" || key == "html" { return @image-url("icons/text-initial.svg"); }
         if key == "file" || key == "file_generic" { return @image-url("icons/file.svg"); }
         return @image-url("icons/file.svg");
     }
 
     // True when the clip type supports text transformations.
     public pure function is-text-type(key: string) -> bool {
-        return key == "text" || key == "file_path" || key == "code_snippet" || key == "rtf" || key == "link";
+        return key == "text"
+            || key == "file_path"
+            || key == "code_snippet"
+            || key == "rtf"
+            || key == "html"
+            || key == "link";
     }
 
     // Localized label per filter key. Unknown keys fall back to the key itself.
@@ -80,7 +86,7 @@ export global ClipTypeMap {
         if key == "file_archive" { return @tr("Archive File"); }
         if key == "file_document" { return @tr("Document File"); }
         if key == "file_text" { return @tr("Text File"); }
-        if key == "rtf" { return @tr("Rich Text"); }
+        if key == "rtf" || key == "html" { return @tr("Rich Text"); }
         if key == "file" || key == "file_generic" { return @tr("Other File"); }
         return key;
     }

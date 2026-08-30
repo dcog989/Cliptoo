@@ -11,6 +11,11 @@ pub enum ClipType {
     /// actually copied via `text/uri-list`.
     FilePath,
     Rtf,
+    /// A text clip whose content is an HTML fragment/document, captured from
+    /// the `text/html` clipboard MIME type (e.g. a rich-text copy from a
+    /// browser or office suite). Stored verbatim so format-preserving pastes
+    /// can re-offer `text/html`; previews use the stripped plain text.
+    Html,
     Link,
     Color,
     CodeSnippet,
@@ -32,10 +37,11 @@ pub enum ClipType {
 
 impl ClipType {
     /// All variants, in declaration order.
-    pub const ALL: [Self; 17] = [
+    pub const ALL: [Self; 18] = [
         Self::Text,
         Self::FilePath,
         Self::Rtf,
+        Self::Html,
         Self::Link,
         Self::Color,
         Self::CodeSnippet,
@@ -78,6 +84,7 @@ impl ClipType {
             Self::Text => "text",
             Self::FilePath => "file_path",
             Self::Rtf => "rtf",
+            Self::Html => "html",
             Self::Link => "link",
             Self::Color => "color",
             Self::CodeSnippet => "code_snippet",
@@ -98,6 +105,7 @@ impl ClipType {
     pub fn parse(s: &str) -> Self {
         match s {
             "rtf" => Self::Rtf,
+            "html" => Self::Html,
             "file_path" => Self::FilePath,
             "link" => Self::Link,
             "color" => Self::Color,

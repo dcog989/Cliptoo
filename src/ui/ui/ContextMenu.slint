@@ -31,9 +31,9 @@ export component ContextMenu {
 
     // True when the clip type supports text transformations.
     property <bool> is-text-type: ClipTypeMap.is-text-type(root.clip-type);
-    // True for rich-text (RTF) clips — the only type where choosing between a
-    // rich and a plain paste is meaningful.
-    property <bool> is-rtf-type: root.clip-type == "rtf";
+    // True for rich-text (RTF/HTML) clips — the only types where choosing
+    // between a rich and a plain paste is meaningful.
+    property <bool> is-rich-type: root.clip-type == "rtf" || root.clip-type == "html";
 
     // Intrinsic content size, used by ContextMenuHost to size the popup. The
     // height is computed from the fixed row/separator counts because Slint
@@ -44,13 +44,13 @@ export component ContextMenu {
 
     pure function main-menu-height() -> length {
         // Preview, Edit, Delete, 4×Move, Bookmark = 8 rows, plus the
-        // conditional Format (text) and Paste Rich/Plain (rtf) rows.
-        // Separators: the two unconditional, plus one for the rtf block.
+        // conditional Format (text) and Paste Rich/Plain (rich) rows.
+        // Separators: the two unconditional, plus one for the rich block.
         let rows = 8
             + (root.is-text-type ? 1 : 0)
-            + (root.is-rtf-type ? 2 : 0);
+            + (root.is-rich-type ? 2 : 0);
         let seps = 2
-            + (root.is-rtf-type ? 1 : 0);
+            + (root.is-rich-type ? 1 : 0);
         return rows * 32px + seps * 9px + 8px;
     }
 
@@ -85,17 +85,17 @@ export component ContextMenu {
                 }
             }
 
-            if root.is-rtf-type: MenuRow {
+            if root.is-rich-type: MenuRow {
                 is-separator: true;
             }
-            if root.is-rtf-type: MenuRow {
+            if root.is-rich-type: MenuRow {
                 label: @tr("Paste as Rich Text");
                 icon: @image-url("icons/text-align-start.svg");
                 clicked => {
                     root.paste-as("rich");
                 }
             }
-            if root.is-rtf-type: MenuRow {
+            if root.is-rich-type: MenuRow {
                 label: @tr("Paste as Plain Text");
                 icon: @image-url("icons/text.svg");
                 clicked => {

@@ -43,7 +43,7 @@ export component AppWindow inherits Window {
     callback search-backspace();
     callback search-word-backspace();
 
-    callback filter-changed(string);   // "all" | "bookmarked" | "text" | "link" | "file_path" | "file_image" | "color" | "code_snippet" | "folder" | "file_danger" | "file_dev" | "file_audio" | "file_video" | "file_archive" | "file_document" | "rtf" | "file"
+    callback filter-changed(string);   // "all" | "bookmarked" | "text" | "link" | "file_path" | "file_image" | "color" | "code_snippet" | "folder" | "file_danger" | "file_dev" | "file_audio" | "file_video" | "file_archive" | "file_document" | "rtf" | "html" | "file"
     callback item-activated(int);      // paste item with given id
     callback request-preview(int, float, float);  // id, x, y
     callback dismiss-preview();

@@ -73,6 +73,16 @@ async fn try_rtf(last_hash: &mut Option<String>) -> Result<Option<ClipboardPaylo
     try_text_payload(MimeType::Specific("text/rtf"), last_hash).await
 }
 
+/// Read the raw `text/html` payload, if offered. Browsers and office suites
+/// expose rich text as `text/html` (with or without a `text/rtf` rendition);
+/// polling it before `text/plain` lets the classifier record an `Html` clip
+/// instead of a lossy `Text` one. The payload reuses
+/// `ClipboardPayload::Text` — the classifier detects HTML from the content
+/// itself (`is_html`).
+async fn try_html(last_hash: &mut Option<String>) -> Result<Option<ClipboardPayload>> {
+    try_text_payload(MimeType::Specific("text/html"), last_hash).await
+}
+
 async fn try_file_uri_list(last_hash: &mut Option<String>) -> Result<Option<ClipboardPayload>> {
     let result = tokio::task::spawn_blocking(|| {
         get_contents(
@@ -174,6 +184,7 @@ async fn try_image(last_hash: &mut Option<String>) -> Result<Option<ClipboardPay
 pub(super) async fn poll_clipboard(
     last_text_hash: &mut Option<String>,
     last_rtf_hash: &mut Option<String>,
+    last_html_hash: &mut Option<String>,
     last_image_hash: &mut Option<String>,
     last_file_hash: &mut Option<String>,
     mime_types: Option<&[String]>,
@@ -205,6 +216,15 @@ pub(super) async fn poll_clipboard(
         && offers_image
         && let Some(payload) = try_image(last_image_hash).await?
     {
+        return Ok(Some(payload));
+    }
+    // HTML after the image probe, gated on the clipboard NOT advertising an
+    // image: a browser image copy offers image/* alongside text/html + the
+    // image's URL/alt text. Reading the HTML first would record a spurious
+    // Html clip and defer the image ingest — the same priority the image
+    // probe already asserts over text/plain. (An HTML payload is text-sized,
+    // so it is polled on every read like text/rtf, not gated on probe_images.)
+    if !offers_image && let Some(payload) = try_html(last_html_hash).await? {
         return Ok(Some(payload));
     }
     if let Some(payload) = try_text(last_text_hash).await? {

@@ -99,6 +99,7 @@ const FILTERABLE_TYPES: &[ClipType] = &[
     ClipType::Text,
     ClipType::FilePath,
     ClipType::Rtf,
+    ClipType::Html,
     ClipType::Link,
     ClipType::Color,
     ClipType::CodeSnippet,

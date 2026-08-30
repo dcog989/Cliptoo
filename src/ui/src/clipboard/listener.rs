@@ -44,6 +44,7 @@ pub async fn run_listener(
 ) -> Result<()> {
     let mut last_text_hash: Option<String> = None;
     let mut last_rtf_hash: Option<String> = None;
+    let mut last_html_hash: Option<String> = None;
     let mut last_image_hash: Option<String> = None;
     let mut last_file_hash: Option<String> = None;
     let mut last_mime_types: Option<Vec<String>> = None;
@@ -75,6 +76,7 @@ pub async fn run_listener(
                 baseline = false;
                 last_text_hash = None;
                 last_rtf_hash = None;
+                last_html_hash = None;
                 last_image_hash = None;
                 last_file_hash = None;
                 last_mime_types = None;
@@ -122,6 +124,13 @@ pub async fn run_listener(
             .as_deref()
             .is_some_and(|mt| mt.iter().any(|m| m == "text/rtf"));
 
+        // Same for text/html: browsers/office suites offer the markup under
+        // text/html (with or without text/rtf); the plain rendition is an
+        // accessory representation of the Html clip already ingested.
+        let has_html = mime_types
+            .as_deref()
+            .is_some_and(|mt| mt.iter().any(|m| m == "text/html"));
+
         // The mime list is passed to the reader so it can probe image/* before
         // text/plain: a browser image copy offers image/* AND a non-empty
         // text/plain (URL/alt text), and reading text first would record a
@@ -130,6 +139,7 @@ pub async fn run_listener(
         let result = poll_clipboard(
             &mut last_text_hash,
             &mut last_rtf_hash,
+            &mut last_html_hash,
             &mut last_image_hash,
             &mut last_file_hash,
             mime_types.as_deref(),
@@ -202,11 +212,16 @@ pub async fn run_listener(
                                 continue;
                             }
 
-                            // The plain-text rendition of an RTF clipboard (read
-                            // on a stale re-read, after the Rtf clip was already
-                            // ingested via text/rtf) must not spawn a Text clip.
-                            if has_rtf && classified.clip_type != ClipType::Rtf {
-                                debug!("clipboard: plain text on a text/rtf clipboard skipped");
+                            // The plain-text rendition of an RTF/HTML clipboard (read
+                            // on a stale re-read, after the Rtf/Html clip was
+                            // already ingested via text/rtf or text/html) must
+                            // not spawn a Text clip.
+                            if (has_rtf && classified.clip_type != ClipType::Rtf)
+                                || (has_html && classified.clip_type != ClipType::Html)
+                            {
+                                debug!(
+                                    "clipboard: plain text on a text/rtf or text/html clipboard skipped"
+                                );
                                 // Clear the seeded hash so a later genuine
                                 // plain-text copy of the same content is still
                                 // ingested instead of matching this rendition.

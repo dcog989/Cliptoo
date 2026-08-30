@@ -296,6 +296,13 @@ fn show_rtf_preview(ctx: &PreviewContext) {
     ctx.ui.set_preview_text(stripped.into());
 }
 
+/// Preview for HTML clips: show the stripped plain text, not raw markup.
+fn show_html_preview(ctx: &PreviewContext) {
+    ctx.ui.set_preview_clip_type(ctx.clip_type.into());
+    let stripped = cliptoo_core::content::strip_html(ctx.content);
+    ctx.ui.set_preview_text(stripped.into());
+}
+
 /// Preview for a copied text document (`.txt`, `.md`, `.log`, …): read the
 /// file's contents and preview them instead of just the path. Reading happens
 /// on a blocking thread; large files are bounded and binary files fall back to
@@ -370,6 +377,7 @@ const PREVIEW_HANDLERS: &[(&str, PreviewHandler)] = &[
     ("file_text", show_text_file_preview),
     ("folder", show_folder_preview),
     ("rtf", show_rtf_preview),
+    ("html", show_html_preview),
 ];
 
 pub fn setup_preview(
