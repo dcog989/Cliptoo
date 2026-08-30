@@ -50,6 +50,12 @@ pub async fn run_listener(
     let mut last_mime_types: Option<Vec<String>> = None;
     let mut last_full_read: Option<Instant> = None;
     let mut last_image_probe: Option<Instant> = None;
+    // True while the current clipboard generation (mime set) has already been
+    // ingested through a non-text channel (file/uri-list, image, RTF, HTML).
+    // The text/plain rendition of that same selection is accessory and must
+    // not spawn a separate Text clip; reset on mime change so a fresh
+    // plain-text copy is ingested normally.
+    let mut non_text_ingested = false;
     const POLL_INTERVAL: Duration = Duration::from_millis(500);
     const FULL_READ_INTERVAL: Duration = Duration::from_secs(5);
     // Image payloads must be downloaded in full to recompute their hash, so a
@@ -82,6 +88,7 @@ pub async fn run_listener(
                 last_mime_types = None;
                 last_full_read = None;
                 last_image_probe = None;
+                non_text_ingested = false;
                 tokio::time::sleep(POLL_INTERVAL).await;
                 continue;
             }
@@ -103,33 +110,17 @@ pub async fn run_listener(
             last_image_probe.is_none_or(|t| t.elapsed() >= IMAGE_RECHECK_INTERVAL);
         let probe_images = changed || image_recheck_due;
 
+        if changed {
+            // New copy: a previously ingested non-text clip no longer covers
+            // the current selection, so its accessory text/plain must not be
+            // suppressed anymore.
+            non_text_ingested = false;
+        }
+
         if !changed && !stale {
             tokio::time::sleep(POLL_INTERVAL).await;
             continue;
         }
-
-        // A clipboard exposing text/uri-list is a real file/folder copy. The
-        // path it also offers as text/plain is only an accessory representation,
-        // so path-like text read from it (e.g. on a stale re-read, where the
-        // uri-list has already been deduped) must not become a separate
-        // `file_path` clip alongside the real Folder/file_* clip.
-        let has_uri_list = mime_types
-            .as_deref()
-            .is_some_and(|mt| mt.iter().any(|m| m == "text/uri-list"));
-
-        // A clipboard exposing text/rtf is a rich-text copy; its text/plain
-        // rendition is likewise accessory and must not become a separate Text
-        // clip (the Rtf clip already carries the plain text via its preview).
-        let has_rtf = mime_types
-            .as_deref()
-            .is_some_and(|mt| mt.iter().any(|m| m == "text/rtf"));
-
-        // Same for text/html: browsers/office suites offer the markup under
-        // text/html (with or without text/rtf); the plain rendition is an
-        // accessory representation of the Html clip already ingested.
-        let has_html = mime_types
-            .as_deref()
-            .is_some_and(|mt| mt.iter().any(|m| m == "text/html"));
 
         // The mime list is passed to the reader so it can probe image/* before
         // text/plain: a browser image copy offers image/* AND a non-empty
@@ -198,29 +189,17 @@ pub async fn run_listener(
                             }
                         };
                         if let Some(classified) = classified {
-                            if has_uri_list
-                                && cliptoo_core::content::ContentProcessor::looks_like_path(
-                                    &classified.content,
-                                )
-                            {
-                                debug!("clipboard: path text on a text/uri-list clipboard skipped");
-                                // The accessory path text must not seed
-                                // `last_text_hash`: a later genuine plain-text
-                                // copy of the same path would then be swallowed
-                                // as "unchanged". (Same rule as the RTF branch.)
-                                last_text_hash = None;
-                                continue;
-                            }
-
-                            // The plain-text rendition of an RTF/HTML clipboard (read
-                            // on a stale re-read, after the Rtf/Html clip was
-                            // already ingested via text/rtf or text/html) must
-                            // not spawn a Text clip.
-                            if (has_rtf && classified.clip_type != ClipType::Rtf)
-                                || (has_html && classified.clip_type != ClipType::Html)
-                            {
+                            // The text/plain rendition of a clipboard whose
+                            // non-text content (file/uri-list, image, RTF, HTML)
+                            // was already ingested this generation is accessory
+                            // and must not spawn a separate Text clip. Gated on
+                            // ingestion rather than advertised mimes: a clipboard
+                            // that advertises a rich type with an *empty* payload
+                            // (some producers) has no non-text clip yet, so its
+                            // plain text is the genuine content and must be kept.
+                            if non_text_ingested {
                                 debug!(
-                                    "clipboard: plain text on a text/rtf or text/html clipboard skipped"
+                                    "clipboard: accessory plain text on a non-text clipboard skipped"
                                 );
                                 // Clear the seeded hash so a later genuine
                                 // plain-text copy of the same content is still
@@ -234,6 +213,15 @@ pub async fn run_listener(
                             if is_blacklisted_live(&blacklist_state, source_app.as_deref()) {
                                 debug!("blacklisted app {source_app:?} — skipping text clip");
                                 continue;
+                            }
+
+                            // A rich (Rtf/Html) clip is a non-text content type;
+                            // its accessory text/plain rendition must be
+                            // suppressed for the rest of this generation.
+                            if classified.clip_type == ClipType::Rtf
+                                || classified.clip_type == ClipType::Html
+                            {
+                                non_text_ingested = true;
                             }
 
                             // A failed insert (e.g. disk full) must not kill the
@@ -293,6 +281,11 @@ pub async fn run_listener(
                             debug!("blacklisted app {source_app:?} — skipping file-uri clip");
                             continue;
                         }
+
+                        // A file/folder clip is non-text content; the path it
+                        // also offers as text/plain is an accessory rendition
+                        // that must not become a separate `file_path` clip.
+                        non_text_ingested = true;
 
                         let classified = match tokio::task::spawn_blocking(move || {
                             ContentProcessor::process(&content, true)
@@ -406,6 +399,12 @@ pub async fn run_listener(
                             debug!("blacklisted app {source_app:?} — skipping image clip");
                             continue;
                         }
+
+                        // An image clip is non-text content; the image URL/alt
+                        // text it also offers as text/plain is an accessory
+                        // rendition that must not spawn a spurious Link/Text
+                        // clip for the rest of this generation.
+                        non_text_ingested = true;
 
                         let content_str = images_dir
                             .join(format!("{}.png", &hash[..HASH_FILENAME_PREFIX_LEN]))
