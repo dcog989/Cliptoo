@@ -303,10 +303,11 @@ fn show_html_preview(ctx: &PreviewContext) {
     ctx.ui.set_preview_text(stripped.into());
 }
 
-/// Preview for a copied text document (`.txt`, `.md`, `.log`, …): read the
-/// file's contents and preview them instead of just the path. Reading happens
-/// on a blocking thread; large files are bounded and binary files fall back to
-/// showing the path alone (same as a generic file clip).
+/// Preview for a copied text document (`.txt`, `.md`, `.log`, …) and for
+/// document clips whose on-disk file is text-based (markdown, rst, …). Reads
+/// the file's contents and previews them instead of just the path. Reading
+/// happens on a blocking thread; large files are bounded and binary files
+/// fall back to showing the path alone (same as a generic file clip).
 fn show_text_file_preview(ctx: &PreviewContext) {
     // The path line is shown first so the popup is non-empty and the clip stays
     // identifiable even when the contents are truncated or unreadable.
@@ -375,6 +376,10 @@ const PREVIEW_HANDLERS: &[(&str, PreviewHandler)] = &[
     ("link", show_link_preview),
     ("file_image", show_image_preview),
     ("file_text", show_text_file_preview),
+    // Document clips cover text-based formats (markdown, rst, …) and binary
+    // ones (pdf, docx, …); `show_text_file_preview` reads bounded text and
+    // falls back to the path alone for binary/unreadable files.
+    ("file_document", show_text_file_preview),
     ("folder", show_folder_preview),
     ("rtf", show_rtf_preview),
     ("html", show_html_preview),

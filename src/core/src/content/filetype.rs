@@ -86,11 +86,13 @@ const DEV_FILENAMES: &[&str] = &[
 const DOCUMENT: &[&str] = &[
     "pdf", "docx", "doc", "xlsx", "xls", "pptx", "ppt", "odt", "ods", "odp", "epub", "rtf",
     "pages", "numbers", "key",
+    // Markup / document-format text: markdown and its siblings are document
+    // formats (they carry structure, headings, links), distinct from plain
+    // text like .txt/.log/.nfo.
+    "md", "markdown", "rst", "adoc", "org", "tex",
 ];
 
-const TEXT_FILE: &[&str] = &[
-    "txt", "md", "markdown", "log", "nfo", "rst", "org", "adoc", "tex",
-];
+const TEXT_FILE: &[&str] = &["txt", "log", "nfo"];
 const VIDEO: &[&str] = &[
     "mp4", "mkv", "avi", "mov", "webm", "flv", "wmv", "m4v", "3gp", "ts", "vob", "ogv", "rm",
     "rmvb",
@@ -159,9 +161,18 @@ mod tests {
     #[test]
     fn neighbours_unchanged() {
         assert_eq!(classify("x.txt"), ClipType::FileText);
+        assert_eq!(classify("x.log"), ClipType::FileText);
+        assert_eq!(classify("x.nfo"), ClipType::FileText);
         assert_eq!(classify("x.pdf"), ClipType::FileDocument);
         assert_eq!(classify("x.mp3"), ClipType::FileAudio);
         assert_eq!(classify("x.zip"), ClipType::FileArchive);
         assert_eq!(classify("x.xyzzy"), ClipType::FileGeneric);
+    }
+
+    #[test]
+    fn markup_documents_classify_as_file_document() {
+        for ext in ["x.md", "x.markdown", "x.rst", "x.adoc", "x.org", "x.tex"] {
+            assert_eq!(classify(ext), ClipType::FileDocument, "for {ext}");
+        }
     }
 }

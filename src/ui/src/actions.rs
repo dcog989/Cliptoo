@@ -169,7 +169,9 @@ pub fn setup_clip_actions(
                 // the file's actual contents so the editor opens on the document
                 // rather than on a bare path. A missing/unreadable file leaves the
                 // path text in place (the same view the user just had in preview).
-                if clip_type == "file_text" {
+                // Document clips may be binary formats (pdf, docx, …); read_to_string
+                // fails on those, keeping the path text and never loading garbage.
+                if clip_type == "file_text" || clip_type == "file_document" {
                     let path = content.clone();
                     let read =
                         tokio::task::spawn_blocking(move || std::fs::read_to_string(path)).await;

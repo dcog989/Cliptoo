@@ -130,7 +130,24 @@ pub fn setup_edit_window(
                             .await
                             .map(|(c, t, _)| (c, t))
                             .context("loading clip")?;
-                        if clip_type == "file_text" {
+                        // `file_document` covers text-based formats (markdown,
+                        // rst, …) and binary ones (pdf, docx, …). Only write the
+                        // edited text back to the file when it is actually
+                        // text-readable, so a binary document is never
+                        // overwritten with the editor's path text.
+                        let write_back = if clip_type == "file_text" {
+                            true
+                        } else if clip_type == "file_document" {
+                            let write_path = stored_content.clone();
+                            tokio::task::spawn_blocking(move || {
+                                std::fs::read_to_string(&write_path).is_ok()
+                            })
+                            .await
+                            .unwrap_or(false)
+                        } else {
+                            false
+                        };
+                        if write_back {
                             let write_path = stored_content.clone();
                             let write_content = content.clone();
                             let wrote = tokio::task::spawn_blocking(move || {
