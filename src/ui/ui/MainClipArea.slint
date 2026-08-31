@@ -56,7 +56,6 @@ export component MainClipArea inherits Rectangle {
     callback request-preview(int, float, float);  // id, x, y
     callback dismiss-preview();
     callback close-window();           // ESC pressed
-    callback close-popups();           // ESC pressed while a popup menu is open
     callback blur-closed();            // window lost focus
     callback drag-started();
     callback drag-ended();
@@ -114,13 +113,8 @@ export component MainClipArea inherits Rectangle {
                 if (root.popup-just-closed) {
                     return accept;
                 }
-                // A popup menu is a separate top-level window; the Slint
-                // core's built-in ESC-close only fires when the key reaches
-                // the popup's parent, so close the menus here instead.
-                if (root.popup-open) {
-                    root.close-popups();
-                    return accept;
-                }
+                // When a popup menu is open, ESC goes to the popup window
+                // (each menu's esc-scope handles it), never here.
                 if (root.search-text != "") {
                     root.search-text = "";
                     root.search-changed("");
