@@ -94,6 +94,8 @@ async fn main() -> Result<()> {
     window::setup_close_handlers(&ui, &settings, &dirs);
     window::setup_close_to_tray(&ui);
     window::setup_focus_regained(&ui);
+    // Keep the timer alive for the app's lifetime.
+    let _window_active_poll = window::setup_window_active_poll(&ui);
 
     // Windows other than the main/settings ones (tray, About) hold their own
     // `Theme` global; register them here so a live theme/accent change reaches

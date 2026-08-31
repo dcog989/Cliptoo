@@ -14,12 +14,24 @@ export component FilterPopup {
 
     // Read-only for AppWindow: reflects whether the popup is currently open.
     out property <bool> popup-open: popup.is-open;
+    // Armed by show() just before popup.show(); the popup's focus-timer
+    // consumes it once the key-handling scope has focus. Gives that scope
+    // focus on every open so it receives keys (ESC to close).
+    in-out property <bool> focus-armed: false;
 
     callback filter-chosen(string);
 
     // Called by AppWindow from the toolbar filter-icon click.
     public function show() {
+        root.focus-armed = true;
         popup.show();
+    }
+
+    // Closes the popup. Called from AppWindow's close-all-popups when the
+    // window blurs so the grid can't linger as its own top-level window after
+    // the main window hides.
+    public function close-all() {
+        popup.close();
     }
 
     // Opens above the filter icon, right-aligned so its right edge nearly
@@ -30,11 +42,36 @@ export component FilterPopup {
         x: root.window-width - grid.grid-width - root.right-margin;
         y: Math.max(0px, root.window-height - root.toolbar-height - grid.grid-height);
 
-        grid := FilterGrid {
-            active-filter: root.active-filter;
-            filter-chosen(f) => {
-                root.filter-chosen(f);
-                popup.close();
+        // Key handling scope: receives the keys the popup's focused window
+        // delivers, so ESC closes the grid. The focus-timer below gives it
+        // focus as soon as the popup is shown.
+        esc-scope := FocusScope {
+            width: 100%;
+            height: 100%;
+            focus-on-click: false;
+            key-pressed(e) => {
+                if (e.text == Key.Escape) {
+                    root.close-all();
+                    return accept;
+                }
+                reject
+            }
+
+            grid := FilterGrid {
+                active-filter: root.active-filter;
+                filter-chosen(f) => {
+                    root.filter-chosen(f);
+                    popup.close();
+                }
+            }
+        }
+
+        focus-timer := Timer {
+            interval: 1ms;
+            running: root.focus-armed;
+            triggered() => {
+                esc-scope.focus();
+                root.focus-armed = false;
             }
         }
     }

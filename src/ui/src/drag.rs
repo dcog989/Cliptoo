@@ -17,6 +17,7 @@ use i_slint_backend_qt::QtWidgetAccessor;
 unsafe extern "C" {
     fn cliptoo_start_window_move(widget: *mut std::ffi::c_void);
     fn cliptoo_activate_window(widget: *mut std::ffi::c_void);
+    fn cliptoo_app_has_focus() -> bool;
 }
 
 pub fn start_window_move(ui: &crate::AppWindow) {
@@ -39,4 +40,12 @@ pub fn activate_window<C: slint::ComponentHandle>(ui: &C) {
             cliptoo_activate_window(ptr.as_ptr() as *mut std::ffi::c_void);
         }
     }
+}
+
+/// Whether any of the app's windows still holds OS activation (see
+/// cliptoo_app_has_focus in drag_qt.cpp). Polled by `setup_window_active_poll`
+/// because an open popup menu steals the main window's keyboard focus, so the
+/// blur-detection poll can't rely on item focus while a menu is up.
+pub fn app_has_focus() -> bool {
+    unsafe { cliptoo_app_has_focus() }
 }

@@ -92,6 +92,11 @@ export component AppWindow inherits Window {
     property <string> quick-paste-mod-text:
         root.quick-paste-mod == "Right Alt" ? "\u{0013}" : root.quick-paste-mod == "Left Alt" ? "\u{0012}" : "\u{0011}";
     in-out property <bool> popup-just-closed: false;
+    // Set from Rust on a 200ms poll of the Qt window system: true while any
+    // of the app's windows still holds OS activation. MainClipArea's
+    // blur-detection poll uses it because an open popup menu steals the main
+    // window's keyboard focus, making item focus useless as a blur signal.
+    in property <bool> window-active: true;
     // ── Toast notification ───────────────────────────────────────────
     in-out property <bool> toast-visible:   false;
     in-out property <string> toast-message:   "";
@@ -103,6 +108,10 @@ export component AppWindow inherits Window {
     // guard is already true the moment a host popup's show() runs.
     property <bool> popup-open: root.popup-opening || ctx-menu-host.popup-open || hamburger-host.popup-open || filter-popup.popup-open || root.settings-open || root.about-open || root.edit-open;
     property <bool> popup-opening: false;
+    // Only the PopupWindow menus (not the Settings/About/Edit child windows).
+    // MainClipArea's blur poll keys its popup-open branch off this so blurring
+    // while the settings window is open keeps its current behavior.
+    property <bool> popup-windows-open: ctx-menu-host.popup-open || hamburger-host.popup-open || filter-popup.popup-open;
     in-out property <bool> settings-open: false;
     in-out property <bool> about-open: false;
     in-out property <bool> edit-open: false;
@@ -146,6 +155,14 @@ export component AppWindow inherits Window {
     public function reset-scroll() {
         main-clip-area.reset-scroll();
     }
+    // Closes every PopupWindow menu (context/hamburger/filter) at once. Called
+    // from Rust on blur so a menu can't linger as its own top-level window
+    // after the main window closes to tray.
+    public function close-all-popups() {
+        ctx-menu-host.close-all();
+        hamburger-host.close-all();
+        filter-popup.close-all();
+    }
 
     // ── Layout ────────────────────────────────────────────────────────────────
     //
@@ -168,6 +185,8 @@ export component AppWindow inherits Window {
         window-visible: root.window-visible;
         quick-paste-mod-text: root.quick-paste-mod-text;
         popup-open: root.popup-open;
+        popup-windows-open: root.popup-windows-open;
+        window-active: root.window-active;
         popup-just-closed <=> root.popup-just-closed;
         preview-hovered: preview-overlay.hovered;
         selected-index <=> root.selected-index;
@@ -197,6 +216,9 @@ export component AppWindow inherits Window {
         }
         close-window() => {
             root.close-window();
+        }
+        close-popups() => {
+            root.close-all-popups();
         }
         blur-closed() => {
             root.blur-closed();

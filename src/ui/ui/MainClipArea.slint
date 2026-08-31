@@ -28,6 +28,15 @@ export component MainClipArea inherits Rectangle {
     in property <string> quick-paste-mod-text: "\u{0013}";
     // Blur guards, aggregated/owned by AppWindow (popups are host components).
     in property <bool> popup-open: false;
+    // Only the PopupWindow menus (context/hamburger/filter), excluding the
+    // Settings/About/Edit child windows. The blur poll keys its popup branch
+    // off this so blurring while the settings window is open keeps its current
+    // behavior.
+    in property <bool> popup-windows-open: false;
+    // Set from Rust on a 200ms poll of the Qt window system: true while any of
+    // the app's windows still holds OS activation. A popup menu steals the
+    // main window's keyboard focus, so item focus is no blur signal there.
+    in property <bool> window-active: true;
     in-out property <bool> popup-just-closed: false;
     in property <bool> preview-hovered: false;
 
@@ -35,6 +44,9 @@ export component MainClipArea inherits Rectangle {
     in-out property <string> search-text: "";
     in-out property <string> active-filter: "all";
     property <bool> window-was-focused: false;
+    // Latches while a popup menu is open and the app is inactive; fires
+    // blur-closed on the second consecutive inactive tick (see the poll).
+    property <bool> popup-blur-pending: false;
 
     callback search-changed(string);
     callback search-backspace();
@@ -44,6 +56,7 @@ export component MainClipArea inherits Rectangle {
     callback request-preview(int, float, float);  // id, x, y
     callback dismiss-preview();
     callback close-window();           // ESC pressed
+    callback close-popups();           // ESC pressed while a popup menu is open
     callback blur-closed();            // window lost focus
     callback drag-started();
     callback drag-ended();
@@ -96,9 +109,16 @@ export component MainClipArea inherits Rectangle {
                 clip-list.nav-page-down();
                 return accept;
             }
-            // ── ESC: clear search first, then close ──
+            // ── ESC: dismiss any open menu, then clear search, then close ──
             if (e.text == Key.Escape) {
-                if (root.popup-open || root.popup-just-closed) {
+                if (root.popup-just-closed) {
+                    return accept;
+                }
+                // A popup menu is a separate top-level window; the Slint
+                // core's built-in ESC-close only fires when the key reaches
+                // the popup's parent, so close the menus here instead.
+                if (root.popup-open) {
+                    root.close-popups();
                     return accept;
                 }
                 if (root.search-text != "") {
@@ -182,8 +202,29 @@ export component MainClipArea inherits Rectangle {
             // show/hide, so this never polls while the window is hidden.
             running: root.window-visible;
             triggered() => {
-                if (!root.popup-open && !root.popup-just-closed && !focus-scope.has-focus && !toolbar.search-focused) {
-                    root.blur-closed();
+                if (!root.popup-just-closed) {
+                    if (root.popup-windows-open) {
+                        // A popup menu steals the window's keyboard focus while
+                        // open, so item focus is no blur signal here. The Rust
+                        // window-active poll reports whether any of the app's
+                        // windows still holds OS activation; require two
+                        // consecutive inactive ticks so the brief deactivation
+                        // as a popup opens can't close the app.
+                        if (!root.window-active) {
+                            if (root.popup-blur-pending) {
+                                root.blur-closed();
+                            } else {
+                                root.popup-blur-pending = true;
+                            }
+                        } else {
+                            root.popup-blur-pending = false;
+                        }
+                    } else {
+                        root.popup-blur-pending = false;
+                        if (!focus-scope.has-focus && !toolbar.search-focused) {
+                            root.blur-closed();
+                        }
+                    }
                 }
                 // focus-gained above only fires when the focus-scope itself
                 // holds focus; the search field keeps focus once clicked, so

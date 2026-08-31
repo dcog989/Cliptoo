@@ -40,6 +40,12 @@ export component ContextMenuHost {
     // the popup's own size.
     property <length> ctx-menu-x: 0px;
     property <length> ctx-menu-anchor-y: 0px;
+    // Armed by every show function just before popup.show(); the shown popup's
+    // focus-timer consumes it (flips it back to false) once its key-handling
+    // scope has focus. Gives that scope focus on every open so it receives
+    // keys (ESC to close) — a popup with no focused item drops them before
+    // any item sees them.
+    in-out property <bool> focus-armed: false;
 
     // Called by AppWindow from the ClipList right-click callback before the
     // main popup opens.
@@ -49,24 +55,37 @@ export component ContextMenuHost {
         root.ctx-clip-type = clip-type;
         root.ctx-menu-x = x * 1px;
         root.ctx-menu-anchor-y = y * 1px;
+        root.focus-armed = true;
         main-popup.show();
     }
 
     // Submenu navigation: close the current popup and open the requested one.
     public function show-format() {
         main-popup.close();
+        root.focus-armed = true;
         format-popup.show();
     }
 
     public function show-send() {
         main-popup.close();
+        root.focus-armed = true;
         send-popup.show();
     }
 
     public function show-main() {
         format-popup.close();
         send-popup.close();
+        root.focus-armed = true;
         main-popup.show();
+    }
+
+    // Closes every popup in this host at once. Called from AppWindow's
+    // close-all-popups when the window blurs so no menu lingers as its own
+    // top-level window after the main window hides.
+    public function close-all() {
+        main-popup.close();
+        format-popup.close();
+        send-popup.close();
     }
 
     // ── Main actions popup ──────────────────────────────────────────────────
@@ -76,62 +95,91 @@ export component ContextMenuHost {
         // Explicit size for the Qt backend — PopupWindow won't render without it.
         width: ctx-menu.menu-width;
         height: ctx-menu.menu-height;
-        // Solid fill so any extra space below the menu content is not transparent.
-        Rectangle {
+
+        // Key handling scope: receives the keys the popup's focused window
+        // delivers, so ESC closes the menu. A popup with no focused item drops
+        // keys before any item sees them, so the focus-timer below gives this
+        // scope focus as soon as the popup is shown.
+        main-esc-scope := FocusScope {
             width: 100%;
             height: 100%;
-            background: Theme.bg-header;
+            focus-on-click: false;
+            key-pressed(e) => {
+                if (e.text == Key.Escape) {
+                    root.close-all();
+                    return accept;
+                }
+                reject
+            }
+
+            // Solid fill so any extra space below the menu content is not transparent.
+            Rectangle {
+                width: 100%;
+                height: 100%;
+                background: Theme.bg-header;
+            }
+
+            ctx-menu := ContextMenu {
+                width: 100%;
+                height: 100%;
+                clip-id: root.ctx-clip-id;
+                clip-is-bookmarked: root.ctx-clip-is-bookmarked;
+                clip-type: root.ctx-clip-type;
+                send-to-apps: root.send-to-apps;
+
+                preview => {
+                    root.preview-requested(root.ctx-clip-id, main-popup.x / 1px, main-popup.y / 1px);
+                    main-popup.close();
+                }
+                edit => {
+                    root.edit-clip(root.ctx-clip-id);
+                    main-popup.close();
+                }
+                paste-as(mode) => {
+                    root.paste-as(root.ctx-clip-id, mode);
+                    main-popup.close();
+                }
+                toggle-bookmark(id, current) => {
+                    root.toggle-bookmark(id, current);
+                    main-popup.close();
+                }
+                move-to-top => {
+                    root.move-to-top(root.ctx-clip-id);
+                    main-popup.close();
+                }
+                move-to-bottom => {
+                    root.move-to-bottom(root.ctx-clip-id);
+                    main-popup.close();
+                }
+                move-up-one => {
+                    root.move-up-one(root.ctx-clip-id);
+                    main-popup.close();
+                }
+                move-down-one => {
+                    root.move-down-one(root.ctx-clip-id);
+                    main-popup.close();
+                }
+                format-open => {
+                    root.show-format();
+                }
+                send-to-open => {
+                    root.show-send();
+                }
+                delete => {
+                    root.delete-clip(root.ctx-clip-id);
+                    main-popup.close();
+                }
+            }
         }
 
-        ctx-menu := ContextMenu {
-            width: 100%;
-            height: 100%;
-            clip-id: root.ctx-clip-id;
-            clip-is-bookmarked: root.ctx-clip-is-bookmarked;
-            clip-type: root.ctx-clip-type;
-            send-to-apps: root.send-to-apps;
-
-            preview => {
-                root.preview-requested(root.ctx-clip-id, main-popup.x / 1px, main-popup.y / 1px);
-                main-popup.close();
-            }
-            edit => {
-                root.edit-clip(root.ctx-clip-id);
-                main-popup.close();
-            }
-            paste-as(mode) => {
-                root.paste-as(root.ctx-clip-id, mode);
-                main-popup.close();
-            }
-            toggle-bookmark(id, current) => {
-                root.toggle-bookmark(id, current);
-                main-popup.close();
-            }
-            move-to-top => {
-                root.move-to-top(root.ctx-clip-id);
-                main-popup.close();
-            }
-            move-to-bottom => {
-                root.move-to-bottom(root.ctx-clip-id);
-                main-popup.close();
-            }
-            move-up-one => {
-                root.move-up-one(root.ctx-clip-id);
-                main-popup.close();
-            }
-            move-down-one => {
-                root.move-down-one(root.ctx-clip-id);
-                main-popup.close();
-            }
-            format-open => {
-                root.show-format();
-            }
-            send-to-open => {
-                root.show-send();
-            }
-            delete => {
-                root.delete-clip(root.ctx-clip-id);
-                main-popup.close();
+        // One-shot per show: armed by the show functions, fires ~1ms after the
+        // popup opens to give the key-handling scope focus, then disarms.
+        main-focus-timer := Timer {
+            interval: 1ms;
+            running: root.focus-armed;
+            triggered() => {
+                main-esc-scope.focus();
+                root.focus-armed = false;
             }
         }
     }
@@ -142,22 +190,45 @@ export component ContextMenuHost {
         y: Math.max(0px, Math.min(root.ctx-menu-anchor-y, root.window-height - fmt-menu.menu-height));
         width: fmt-menu.menu-width;
         height: fmt-menu.menu-height;
-        Rectangle {
+
+        fmt-esc-scope := FocusScope {
             width: 100%;
             height: 100%;
-            background: Theme.bg-header;
+            focus-on-click: false;
+            key-pressed(e) => {
+                if (e.text == Key.Escape) {
+                    root.close-all();
+                    return accept;
+                }
+                reject
+            }
+
+            Rectangle {
+                width: 100%;
+                height: 100%;
+                background: Theme.bg-header;
+            }
+
+            fmt-menu := FormatMenu {
+                width: 100%;
+                height: 100%;
+
+                back => {
+                    root.show-main();
+                }
+                format(key) => {
+                    root.transform-clip(root.ctx-clip-id, key);
+                    format-popup.close();
+                }
+            }
         }
 
-        fmt-menu := FormatMenu {
-            width: 100%;
-            height: 100%;
-
-            back => {
-                root.show-main();
-            }
-            format(key) => {
-                root.transform-clip(root.ctx-clip-id, key);
-                format-popup.close();
+        format-focus-timer := Timer {
+            interval: 1ms;
+            running: root.focus-armed;
+            triggered() => {
+                fmt-esc-scope.focus();
+                root.focus-armed = false;
             }
         }
     }
@@ -170,34 +241,57 @@ export component ContextMenuHost {
         y: Math.max(0px, Math.min(root.ctx-menu-anchor-y, root.window-height - (((1 + root.send-to-apps.length) * 32px) + 9px + 8px)));
         width: send-menu-root.preferred-width;
         height: ((1 + root.send-to-apps.length) * 32px) + 9px + 8px;
-        Rectangle {
+
+        send-esc-scope := FocusScope {
             width: 100%;
             height: 100%;
-            background: Theme.bg-header;
+            focus-on-click: false;
+            key-pressed(e) => {
+                if (e.text == Key.Escape) {
+                    root.close-all();
+                    return accept;
+                }
+                reject
+            }
+
+            Rectangle {
+                width: 100%;
+                height: 100%;
+                background: Theme.bg-header;
+            }
+
+            send-menu-root := VerticalLayout {
+                padding: 4px;
+                spacing: 0px;
+
+                MenuRow {
+                    label: @tr("Back");
+                    icon: @image-url("icons/arrow-left.svg");
+                    clicked => {
+                        root.show-main();
+                    }
+                }
+
+                MenuRow {
+                    is-separator: true;
+                }
+
+                for app-name in root.send-to-apps: MenuRow {
+                    label: app-name;
+                    clicked => {
+                        root.send-to-clip(root.ctx-clip-id, app-name);
+                        send-popup.close();
+                    }
+                }
+            }
         }
 
-        send-menu-root := VerticalLayout {
-            padding: 4px;
-            spacing: 0px;
-
-            MenuRow {
-                label: @tr("Back");
-                icon: @image-url("icons/arrow-left.svg");
-                clicked => {
-                    root.show-main();
-                }
-            }
-
-            MenuRow {
-                is-separator: true;
-            }
-
-            for app-name in root.send-to-apps: MenuRow {
-                label: app-name;
-                clicked => {
-                    root.send-to-clip(root.ctx-clip-id, app-name);
-                    send-popup.close();
-                }
+        send-focus-timer := Timer {
+            interval: 1ms;
+            running: root.focus-armed;
+            triggered() => {
+                send-esc-scope.focus();
+                root.focus-armed = false;
             }
         }
     }

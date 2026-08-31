@@ -191,6 +191,15 @@ pub fn setup_close_handlers(
                 return;
             };
 
+            // An open popup (context menu / hamburger / filter) steals the
+            // window's keyboard focus, so the poll can only notice the blur
+            // via OS activation. Close the menu here — it is a separate
+            // top-level window and would otherwise linger over the desktop
+            // after the main window hides.
+            if let Some(ui) = weak.upgrade() {
+                ui.invoke_close_all_popups();
+            }
+
             // "Always close to tray" off: losing focus leaves the window open.
             if !s.borrow().always_close_to_tray {
                 return;
@@ -210,6 +219,27 @@ pub fn setup_close_handlers(
             });
         });
     }
+}
+
+/// Poll the Qt window system for whether any of the app's windows still holds
+/// OS activation and mirror it into `window-active`. The Slint focus-poll in
+/// MainClipArea reads this to detect blur while a popup menu is open: a popup
+/// steals the main window's keyboard focus, so item focus is not a reliable
+/// "still focused" signal in that state. The returned timer must be kept
+/// alive for the app's lifetime.
+pub fn setup_window_active_poll(ui: &crate::AppWindow) -> slint::Timer {
+    let weak = ui.as_weak();
+    let timer = slint::Timer::default();
+    timer.start(
+        slint::TimerMode::Repeated,
+        Duration::from_millis(200),
+        move || {
+            if let Some(ui) = weak.upgrade() {
+                ui.set_window_active(crate::drag::app_has_focus());
+            }
+        },
+    );
+    timer
 }
 
 pub fn setup_close_to_tray(ui: &crate::AppWindow) {
