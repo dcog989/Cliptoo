@@ -2,18 +2,13 @@
 
 ## Project Specifics
 
-- Name: Cliptoo
-- Description: Cross-platform, Linux-first clipboard manager.
-- Tech: <languages, frameworks, databases, core tools>
+Cliptoo: native background clipboard manager for Wayland/KDE Plasma 6. Rust + SQLite (rusqlite) + Slint (Qt backend). Wayland-only (no X11 fallback); hotkeys via `org.freedesktop.portal.GlobalShortcuts`. Workspace dep versions in `Cargo.toml` — check before adding or using a crate.
 
-Cliptoo: native background clipboard manager for Wayland/KDE Plasma 6. Rust + SQLite (rusqlite) + Slint (Qt backend). Wayland-only (no X11 fallback); hotkeys via `org.freedesktop.portal.GlobalShortcuts`.
-
-- Workspace dep versions in `Cargo.toml` — check before adding or using a crate.
-- Key files: `src/core/` (cliptoo-core: parser, db, settings, logger), `src/ui/` (binary + OS integration), `src/ui/ui/*.slint`, `src/ui/src/main.rs`, `src/ui/src/hotkeys.rs`, `.docs/HLD.md`, `.docs/PORTING.md`, `.docs/Progress.md` (read first), `.docs/ToDo.md`, `packaging/PKGBUILD`, `lefthook.yml`.
+Key files: `src/core/` (cliptoo-core: parser, db, settings, logger), `src/ui/` (binary + OS integration), `src/ui/ui/*.slint`, `src/ui/src/main.rs`, `src/ui/src/hotkeys.rs`, `.docs/HLD.md`, `.docs/PORTING.md`, `.docs/Progress.md` (read first), `.docs/ToDo.md`, `packaging/PKGBUILD`, `lefthook.yml`.
 
 ### Verification (critical)
 
-**NEVER run `cargo check`, `cargo clippy`, `cargo test`, `cargo build`, `cargo fmt`, or `slint-viewer` unless the user explicitly asks.** The user tests their own changes. The lefthook pre-commit hooks (fmt + clippy on `.rs`, `slint-lsp format -i` on `.slint`, pre-push `cargo test --workspace`) catch regressions. Reference only:
+**Never run `cargo check/clippy/test/build/fmt` or `slint-viewer` unless the user explicitly asks.** The user tests their own changes; lefthook hooks (fmt + clippy on `.rs`, `slint-lsp format -i` on `.slint`, pre-push `cargo test --workspace`) catch regressions. Reference only:
 
 ```sh
 cargo build --release -p cliptoo   # production build
@@ -25,23 +20,23 @@ cargo clippy --workspace --all-targets -- -D warnings
 
 ### Release (Cocogitto)
 
-- Release: `make release` (`cog bump --auto`) — external Rust binary, `cargo install cocogitto` / `pacman -S cocogitto`; config in `cog.toml`, `tag_prefix = "v"`. Bumps the version from conventional commits, syncs manifests via `scripts/sync_version.sh`, writes `CHANGELOG.md` (template `changelog.tpl`), commits and tags, then pushes (post_bump_hooks). Manual version: `make version V=1.2.3`.
+- `make release` (`cog bump --auto`) — external Rust binary (`cargo install cocogitto` / `pacman -S cocogitto`); config in `cog.toml`, `tag_prefix = "v"`. Bumps version from conventional commits, syncs manifests via `scripts/sync_version.sh`, writes `CHANGELOG.md` (template `changelog.tpl`), commits/tags/pushes (post_bump_hooks). Manual: `make version V=1.2.3`.
 - Changelog preview: `make changelog` (`cog changelog`).
 - Commit-msg enforced by `lefthook.yml` via `cog verify` (Merge/Revert lines bypass).
 
 ### File System
 
-- Root: `/home/bubba/Projects/Cliptoo/`. All subdirs allowed.
+- Root: `/home/bubba/Projects/Cliptoo/`; all subdirs allowed, confirm anything outside root.
 - Read-only: `.env*`, `.git/`, `~/.cargo/registry/src/` (read freely for library source).
 - Disallowed: `.assets/`, `.docs/ToDo.md`, `.git/`, `node_modules/`, `.docs/archive/`.
-- Confirm before: adding/removing deps, changes outside `src/`, anything outside project root.
+- Confirm before: adding/removing deps, changes outside `src/`.
 
 ### Rules
 
 - **Style:** explicit types + named constants (no magic numbers); `cargo fmt` defaults; self-documenting names; comments only for WHY.
 - **Errors:** `anyhow::Result` at boundaries, `thiserror` enums in `src/core/`, `.context(...)` across module boundaries; never suppress errors.
 - **Logging:** `tracing::{info,warn,error,debug}` only (never `println!`/`dbg!`); init in `core/src/logger.rs`.
-- **No `unsafe`** except the Qt FFI shim `src/ui/src/drag.rs` (`#![allow(unsafe_code)]`); crate roots `#![deny(unsafe_code)]`. Do not introduce `unsafe` elsewhere.
+- **No `unsafe`** except the Qt FFI shim `src/ui/src/drag.rs` (`#![allow(unsafe_code)]`); crate roots `#![deny(unsafe_code)]`.
 
 ### Rust FFI
 
