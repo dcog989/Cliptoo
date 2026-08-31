@@ -191,7 +191,11 @@ export component MainClipArea inherits Rectangle {
             // click would still just focus the window rather than register
             // on the widget beneath it. Re-request activation here, mirroring
             // show_window()'s activate_window() call.
-            if (reason == FocusReason.window-activation) {
+            // Skipped while a popup menu or child window (Settings/About/Edit)
+            // is open: dismissing a menu popup returns activation to this
+            // window (its parent toplevel), and re-activating then would raise
+            // the main window above a just-opened child window.
+            if (reason == FocusReason.window-activation && !root.popup-open) {
                 root.focus-regained();
             }
         }
@@ -221,7 +225,11 @@ export component MainClipArea inherits Rectangle {
                         }
                     } else {
                         root.popup-blur-pending = false;
-                        if (!focus-scope.has-focus && !toolbar.search-focused) {
+                        // `popup-open` (broad) also covers the Settings/About/
+                        // Edit child windows — without it, opening one would
+                        // make this branch blur-close the main window as soon
+                        // as the child window steals focus.
+                        if (!root.popup-open && !focus-scope.has-focus && !toolbar.search-focused) {
                             root.blur-closed();
                         }
                     }
@@ -229,8 +237,14 @@ export component MainClipArea inherits Rectangle {
                 // focus-gained above only fires when the focus-scope itself
                 // holds focus; the search field keeps focus once clicked, so
                 // detect the false→true focus transition here to re-activate
-                // on Alt+Tab back.
-                if ((focus-scope.has-focus || toolbar.search-focused) && !root.window-was-focused) {
+                // on Alt+Tab back. Skipped while a popup menu or a child
+                // window (Settings/About/Edit) is open: closing a menu restores
+                // item focus to this scope, and firing focus-regained then
+                // would raise the main window above the just-opened child
+                // window (Qt activation is asynchronous).
+                if (!root.popup-open
+                    && (focus-scope.has-focus || toolbar.search-focused)
+                    && !root.window-was-focused) {
                     root.focus-regained();
                 }
                 root.window-was-focused = focus-scope.has-focus || toolbar.search-focused;
