@@ -2,10 +2,12 @@
 /// fallback offered alongside a rich `text/html` paste.
 ///
 /// Not a full HTML parser. It removes `<script>`/`<style>` bodies, maps
-/// block-level and line-break tags to newlines, drops every other tag, decodes
-/// the common character entities, and collapses blank lines. This covers the
-/// fragments browsers and office suites place on the clipboard (`<!--StartFragment-->`
-/// wrappers, nested `<span>`/`<div>` markup) well enough for display.
+/// block-level tags to newlines (except ones declared `display: inline`),
+/// maps line-break tags (`<br>`, `<hr>`) to newlines, drops every other tag,
+/// decodes the common character entities, and collapses blank lines. This
+/// covers the fragments browsers and office suites place on the clipboard
+/// (`<!--StartFragment-->` wrappers, nested `<span>`/`<div>` markup) well
+/// enough for display.
 pub fn strip_html(html: &str) -> String {
     let mut out = String::with_capacity(html.len());
     let mut i = 0;
@@ -13,6 +15,9 @@ pub fn strip_html(html: &str) -> String {
     // While inside a `<script>`/`<style>` body, tag-like tokens are dropped
     // until the matching close tag is seen.
     let mut in_skipped_block: Option<&str> = None;
+    // Open block tags with their inline-display flag; the matching close tag
+    // ends the line unless the open was inline.
+    let mut block_stack: Vec<bool> = Vec::new();
 
     while i < bytes.len() {
         if is_tag_start_at(bytes, i) {
@@ -40,8 +45,24 @@ pub fn strip_html(html: &str) -> String {
                 && (name.eq_ignore_ascii_case("script") || name.eq_ignore_ascii_case("style"))
             {
                 in_skipped_block = Some(name);
-            } else if !name.is_empty() && BLOCK_TAGS.iter().any(|b| name.eq_ignore_ascii_case(b)) {
+            } else if !name.is_empty() && is_void_block_tag(name) {
+                // Void elements end the line at the opening tag.
                 out.push('\n');
+            } else if !name.is_empty() && is_block_tag(name) {
+                if closing {
+                    // A block element's close ends the line, unless the
+                    // matching opening tag declared an inline display.
+                    if !block_stack.pop().is_some_and(|inline| inline) {
+                        out.push('\n');
+                    }
+                } else {
+                    // Track inline display so the matching close knows.
+                    let inline = is_inline_display(tag);
+                    block_stack.push(inline);
+                    if !inline {
+                        out.push('\n');
+                    }
+                }
             }
             // Comments, doctypes and ordinary tags contribute nothing.
 
@@ -61,12 +82,12 @@ pub fn strip_html(html: &str) -> String {
     collapse_blank_lines(&decode_entities(&out))
 }
 
-/// Tags after which a newline is inserted. Nested block elements naturally
-/// produce blank lines; `collapse_blank_lines` folds those runs.
+/// Block elements whose close tag ends the line. Nested block elements
+/// naturally produce blank lines; `collapse_blank_lines` folds those runs.
+/// `<br>`/`<hr>` are void elements handled separately.
 const BLOCK_TAGS: &[&str] = &[
     "p",
     "div",
-    "br",
     "li",
     "h1",
     "h2",
@@ -88,12 +109,88 @@ const BLOCK_TAGS: &[&str] = &[
     "main",
     "nav",
     "figure",
-    "hr",
     "dt",
     "dd",
     "td",
     "th",
 ];
+
+/// Void elements that represent an explicit line break.
+const VOID_BLOCK_TAGS: &[&str] = &["br", "hr"];
+
+fn is_block_tag(name: &str) -> bool {
+    BLOCK_TAGS.iter().any(|b| name.eq_ignore_ascii_case(b))
+}
+
+fn is_void_block_tag(name: &str) -> bool {
+    VOID_BLOCK_TAGS.iter().any(|b| name.eq_ignore_ascii_case(b))
+}
+
+/// True when the tag's `style` attribute sets `display: inline` or
+/// `display: inline-block`. Chromium wraps inline fragments (terminal
+/// colours, editor widgets) in `<div>`s carrying this style; those divs must
+/// not force a block line break.
+fn is_inline_display(tag: &str) -> bool {
+    let Some(style) = attribute_value(tag, "style") else {
+        return false;
+    };
+    style.split(';').any(|declaration| {
+        let Some((property, value)) = declaration.split_once(':') else {
+            return false;
+        };
+        let property = property.trim();
+        let value = value.split_whitespace().next().unwrap_or("");
+        property.eq_ignore_ascii_case("display")
+            && (value.eq_ignore_ascii_case("inline") || value.eq_ignore_ascii_case("inline-block"))
+    })
+}
+
+/// Extract the value of the `name` attribute from a tag span (outer `<`/`>`
+/// included), or `None`. Attribute names are matched case-insensitively as
+/// HTML requires.
+fn attribute_value<'a>(tag: &'a str, name: &str) -> Option<&'a str> {
+    let inner = tag.get(1..tag.len().saturating_sub(1))?;
+    let bytes = inner.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        while i < bytes.len() && bytes[i].is_ascii_whitespace() {
+            i += 1;
+        }
+        let name_start = i;
+        while i < bytes.len() && !bytes[i].is_ascii_whitespace() && bytes[i] != b'=' {
+            i += 1;
+        }
+        if inner[name_start..i].eq_ignore_ascii_case(name) {
+            while i < bytes.len() && bytes[i].is_ascii_whitespace() {
+                i += 1;
+            }
+            if bytes.get(i) == Some(&b'=') {
+                i += 1;
+                while i < bytes.len() && bytes[i].is_ascii_whitespace() {
+                    i += 1;
+                }
+                let quote = bytes.get(i).copied();
+                if let Some(q @ (b'"' | b'\'')) = quote {
+                    i += 1;
+                    let value_start = i;
+                    while i < bytes.len() && bytes[i] != q {
+                        i += 1;
+                    }
+                    return Some(&inner[value_start..i]);
+                }
+                let value_start = i;
+                while i < bytes.len() && !bytes[i].is_ascii_whitespace() {
+                    i += 1;
+                }
+                return Some(&inner[value_start..i]);
+            }
+        }
+        while i < bytes.len() && !bytes[i].is_ascii_whitespace() {
+            i += 1;
+        }
+    }
+    None
+}
 
 /// True when `i` begins a tag: `<` followed by a letter, `/`, `!` or `?`.
 /// A stray `<` in text (e.g. "2 < 3") is never a tag start.
@@ -203,6 +300,40 @@ mod tests {
         assert_eq!(strip_html("<div>a</div><div>b</div>"), "a\nb");
         assert_eq!(strip_html("<ul><li>one</li><li>two</li></ul>"), "one\ntwo");
         assert_eq!(strip_html("line<br>break"), "line\nbreak");
+    }
+
+    #[test]
+    fn inline_display_divs_do_not_break_lines() {
+        // Chromium wraps inline fragments (terminal colours, editor widgets)
+        // in `<div style="display: inline">`; those must not insert newlines.
+        let html = concat!(
+            "<div style=\"font-family: monospace; white-space: pre;\">uv ",
+            "<div style=\"display: inline;color: rgb(23, 185, 196);\">run</div> ",
+            "<div style=\"display: inline;color: rgb(23, 185, 196);\">dicmerge</div> ",
+            "<div style=\"display: inline;color: rgb(23, 185, 196);\">--write-back</div> ",
+            "<div style=\"display: inline;color: rgb(23, 185, 196);\">--dry-run</div></div>"
+        );
+        assert_eq!(strip_html(html), "uv run dicmerge --write-back --dry-run");
+    }
+
+    #[test]
+    fn inline_block_display_is_inline() {
+        assert_eq!(
+            strip_html(
+                "<div style=\"display: inline-block\">a</div><div style=\"display: inline-block\">b</div>"
+            ),
+            "ab"
+        );
+    }
+
+    #[test]
+    fn inline_display_divs_inside_block_still_end_lines() {
+        // A line div containing inline fragments still ends its own line.
+        let html = concat!(
+            "<div>uv <div style=\"display: inline;\">run</div></div>",
+            "<div>next</div>"
+        );
+        assert_eq!(strip_html(html), "uv run\nnext");
     }
 
     #[test]
