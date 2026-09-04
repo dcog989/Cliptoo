@@ -115,6 +115,10 @@ pub async fn run_listener(
             // the current selection, so its accessory text/plain must not be
             // suppressed anymore.
             non_text_ingested = false;
+            // A fresh generation may offer the same plain text that was read as
+            // the accessory rendition of the previous one; drop its seed so the
+            // genuine copy is ingested instead of matching that rendition.
+            last_text_hash = None;
         }
 
         if !changed && !stale {
@@ -201,10 +205,11 @@ pub async fn run_listener(
                                 debug!(
                                     "clipboard: accessory plain text on a non-text clipboard skipped"
                                 );
-                                // Clear the seeded hash so a later genuine
-                                // plain-text copy of the same content is still
-                                // ingested instead of matching this rendition.
-                                last_text_hash = None;
+                                // The hash stays seeded: an unchanged non-text
+                                // clipboard re-reads (and re-logs) its accessory
+                                // text/plain on every stale poll otherwise. The
+                                // seed is dropped on mime change instead, where a
+                                // genuine re-copy becomes distinguishable.
                                 continue;
                             }
 
