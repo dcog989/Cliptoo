@@ -298,7 +298,8 @@ pub fn cache_page_title(url: &str, title: &str, fav_dir: &Path) {
 /// Inserted at dispatch time so `check_pending_favicons` neither double-fetches
 /// an in-flight domain across overlapping refreshes nor re-fetches a domain
 /// whose favicon cannot be obtained (no site icon + DuckDuckGo 404) on every
-/// refresh. Per-session only: cleared on restart, so a site that adds a favicon
+/// refresh. A successful fetch reloads all matching rows, so no removal is
+/// needed. Per-session only: cleared on restart, so a site that adds a favicon
 /// later is retried.
 fn attempted_favicon_domains() -> &'static Mutex<HashSet<String>> {
     static ATTEMPTED: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
@@ -340,7 +341,7 @@ pub fn check_pending_favicons(ui: &crate::AppWindow, db: &Arc<DbPool>, favicons_
     let weak = ui.as_weak();
     let db = db.clone();
     let fav_dir = favicons_dir.to_owned();
-    for (row, clip_id) in pending {
+    for (_, clip_id) in pending {
         let weak = weak.clone();
         let db = db.clone();
         let fav_dir = fav_dir.clone();
@@ -351,29 +352,15 @@ pub fn check_pending_favicons(ui: &crate::AppWindow, db: &Arc<DbPool>, favicons_
             else {
                 return;
             };
-            let Some(fav_path) = fetch_favicon(&content, &fav_dir, dark).await else {
+            let Some(_) = fetch_favicon(&content, &fav_dir, dark).await else {
                 return;
             };
-            // The favicon is cached on disk now, so the domain is no longer a
-            // lost cause: drop it from the attempted set so a sibling row from
-            // the same domain is fetched on the next scan (only one row per
-            // domain is dispatched per pass).
-            if let Some(domain) = extract_domain(&content) {
-                attempted_favicon_domains()
-                    .lock()
-                    .unwrap_or_else(|poisoned| poisoned.into_inner())
-                    .remove(&domain);
-            }
+            // The favicon is now on disk. Reload every row in place: this
+            // clears the LRU's stale empty default (cached while the file was
+            // missing) and picks up the fetched favicon for all rows of this
+            // domain, not just the one that was dispatched.
             let _ = weak.upgrade_in_event_loop(move |ui| {
-                let img = slint::Image::load_from_path(&fav_path).unwrap_or_default();
-                if img.size().width == 0 {
-                    return;
-                }
-                let model = ui.get_clips();
-                if let Some(mut data) = model.row_data(row) {
-                    data.favicon_image = img;
-                    model.set_row_data(row, data);
-                }
+                crate::thumbnail_cache::reload_favicons(&ui, &fav_dir);
             });
         });
     }
