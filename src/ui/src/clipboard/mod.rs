@@ -2,13 +2,22 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use cliptoo_core::db::DbPool;
+use tokio::sync::mpsc;
 
 use crate::paste::PasteSuppressionSet;
+use crate::source_app::ActiveWindowCache;
 
 mod listener;
 mod reader;
+mod watcher;
 
 pub use listener::run_listener;
+pub use watcher::spawn_clipboard_watcher;
+
+/// Buffer of pending selection-change notifications from the watcher thread to
+/// the listener. Sized to absorb copy bursts (e.g. rapid re-copies) without a
+/// source-app snapshot being dropped.
+pub const SELECTION_CHANNEL_CAPACITY: usize = 16;
 
 /// Spawn the clipboard listener as a background task. Wraps `run_listener`
 /// with error logging so the entrypoint doesn't inline the tokio spawn.
@@ -23,6 +32,8 @@ pub fn spawn_listener(
     blacklist_state: Arc<std::sync::Mutex<Vec<String>>>,
     preview_max_dim: Arc<std::sync::atomic::AtomicU32>,
     active_filter_state: Arc<std::sync::Mutex<String>>,
+    selection_rx: mpsc::Receiver<Option<String>>,
+    active_window: ActiveWindowCache,
 ) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
         if let Err(e) = run_listener(
@@ -35,6 +46,8 @@ pub fn spawn_listener(
             blacklist_state,
             preview_max_dim,
             active_filter_state,
+            selection_rx,
+            active_window,
         )
         .await
         {

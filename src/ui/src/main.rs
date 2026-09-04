@@ -175,6 +175,14 @@ async fn main() -> Result<()> {
     maintenance::setup_manual_maintenance(&ui, &db, &dirs, &settings, &settings_win);
 
     // ── Clipboard listener ─────────────────────────────────────────────
+    // Active-window tracker: a resident KWin script keeps a shared cache of
+    // the focused app; the clipboard watcher snapshots it at the exact moment
+    // a copy lands, so the recorded source app is the app the user copied
+    // *from* even when focus moves on before the listener ingests.
+    let active_window_cache = source_app::spawn_active_window_tracker();
+    let (selection_tx, selection_rx) =
+        tokio::sync::mpsc::channel(clipboard::SELECTION_CHANNEL_CAPACITY);
+    clipboard::spawn_clipboard_watcher(active_window_cache.clone(), selection_tx);
     clipboard::spawn_listener(
         db.clone(),
         ui.as_weak(),
@@ -185,6 +193,8 @@ async fn main() -> Result<()> {
         blacklist_state.clone(),
         image_preview_size.clone(),
         active_filter_state.clone(),
+        selection_rx,
+        active_window_cache,
     );
 
     // Populate the clip list from history on startup. The listener no longer

@@ -7,10 +7,12 @@ use cliptoo_core::image::HASH_FILENAME_PREFIX_LEN;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
+use tokio::sync::mpsc;
 use tracing::{debug, info};
 use wl_clipboard_rs::paste::{ClipboardType, Error as WlError, Seat, get_mime_types_ordered};
 
 use crate::paste::PasteSuppressionSet;
+use crate::source_app::ActiveWindowCache;
 
 use super::ClipboardPayload;
 use super::is_blacklisted;
@@ -41,6 +43,8 @@ pub async fn run_listener(
     blacklist_state: Arc<std::sync::Mutex<Vec<String>>>,
     preview_max_dim: Arc<std::sync::atomic::AtomicU32>,
     active_filter_state: Arc<std::sync::Mutex<String>>,
+    mut selection_rx: mpsc::Receiver<Option<String>>,
+    active_window: ActiveWindowCache,
 ) -> Result<()> {
     let mut last_text_hash: Option<String> = None;
     let mut last_rtf_hash: Option<String> = None;
@@ -70,7 +74,23 @@ pub async fn run_listener(
     // not be ingested as a "new" clip; only changes after startup count.
     let mut baseline = true;
 
+    // Source-app snapshot for the clipboard event being ingested: set from the
+    // data-control watcher, which captures the active window at the instant of
+    // the copy — before any focus switch can land. `None` here means no
+    // watcher event is pending and the tracker cache is used as a fallback.
+    let mut pending_source_app: Option<Option<String>> = None;
+
     loop {
+        // Prefer a queued selection event over mime detection: it carries the
+        // source-app snapshot taken at the copy moment and fires even for a
+        // re-copy whose mime set is unchanged. Draining keeps the last event's
+        // snapshot, which matches the (latest) clipboard content about to be
+        // read.
+        while let Ok(app) = selection_rx.try_recv() {
+            pending_source_app = Some(app);
+            last_mime_types = None;
+        }
+
         let mime_types = match tokio::task::spawn_blocking(|| {
             get_mime_types_ordered(ClipboardType::Regular, Seat::Unspecified)
         })
@@ -89,6 +109,7 @@ pub async fn run_listener(
                 last_full_read = None;
                 last_image_probe = None;
                 non_text_ingested = false;
+                pending_source_app = None;
                 tokio::time::sleep(POLL_INTERVAL).await;
                 continue;
             }
@@ -110,7 +131,7 @@ pub async fn run_listener(
             last_image_probe.is_none_or(|t| t.elapsed() >= IMAGE_RECHECK_INTERVAL);
         let probe_images = changed || image_recheck_due;
 
-        if changed {
+        if changed && !baseline {
             // New copy: a previously ingested non-text clip no longer covers
             // the current selection, so its accessory text/plain must not be
             // suppressed anymore.
@@ -118,11 +139,31 @@ pub async fn run_listener(
             // A fresh generation may offer the same plain text that was read as
             // the accessory rendition of the previous one; drop its seed so the
             // genuine copy is ingested instead of matching that rendition.
+            // Gated on `!baseline`: the forced baseline re-reads re-observe the
+            // same startup content and must keep their seeds (see below).
             last_text_hash = None;
         }
 
         if !changed && !stale {
-            tokio::time::sleep(POLL_INTERVAL).await;
+            // Wait for a selection change (data-control watcher) or the poll
+            // interval, whichever comes first. The watcher snapshots the
+            // source app at the exact moment of the copy, so a focus switch
+            // that lands before ingest can't be mistaken for the copy's
+            // source. If the watcher is gone (no data-control on the
+            // compositor) the timeout keeps the plain polling cadence.
+            match tokio::time::timeout(POLL_INTERVAL, selection_rx.recv()).await {
+                Ok(Some(app)) => {
+                    pending_source_app = Some(app);
+                    // Force a poll even when the mime set is unchanged (a
+                    // re-copy of the same kind of content offers the same
+                    // mimes); `changed` is recomputed next iteration.
+                    last_mime_types = None;
+                }
+                Ok(None) => {
+                    tokio::time::sleep(POLL_INTERVAL).await;
+                }
+                Err(_) => {}
+            }
             continue;
         }
 
@@ -159,12 +200,31 @@ pub async fn run_listener(
         match result {
             Ok(Some(payload)) => {
                 if baseline {
-                    // First read after startup: seed the change-detection
-                    // hashes (already updated by the reader) and skip ingest.
-                    baseline = false;
-                    debug!("clipboard: baseline captured; awaiting first change");
+                    // Startup: the pre-existing selection must not be
+                    // ingested. One read stops at the first rendition it can
+                    // classify (image, rich markup, or plain text), so keep
+                    // forcing reads — with the seeds kept, see the gated reset
+                    // above — until a read yields nothing new and every
+                    // rendition's hash is seeded; a later full read then
+                    // dedups instead of ingesting an accessory rendition as a
+                    // new clip. Drop any watcher snapshot from startup so it
+                    // can't be attributed to the first genuine copy.
+                    pending_source_app = None;
+                    last_mime_types = None;
+                    debug!("clipboard: baseline read; seeding change detection");
                     continue;
                 }
+
+                // The source app: prefer the watcher's snapshot taken at the
+                // moment of the copy; fall back to the tracker cache for
+                // stale/poll-detected reads. Taken unconditionally so a
+                // snapshot never leaks into a later, unrelated poll.
+                let source_app = match pending_source_app.take() {
+                    Some(app) => app,
+                    None => crate::source_app::current_active_app(&active_window),
+                };
+                debug!("clipboard: source app {source_app:?}");
+
                 let sup_hash = match &payload {
                     ClipboardPayload::Text { sup_hash, .. }
                     | ClipboardPayload::FileUri { sup_hash, .. }
@@ -212,8 +272,6 @@ pub async fn run_listener(
                                 // genuine re-copy becomes distinguishable.
                                 continue;
                             }
-
-                            let source_app = crate::source_app::detect_source_app().await;
 
                             if is_blacklisted_live(&blacklist_state, source_app.as_deref()) {
                                 debug!("blacklisted app {source_app:?} — skipping text clip");
@@ -280,8 +338,6 @@ pub async fn run_listener(
                         }
                     }
                     ClipboardPayload::FileUri { content, .. } => {
-                        let source_app = crate::source_app::detect_source_app().await;
-
                         if is_blacklisted_live(&blacklist_state, source_app.as_deref()) {
                             debug!("blacklisted app {source_app:?} — skipping file-uri clip");
                             continue;
@@ -398,8 +454,6 @@ pub async fn run_listener(
                     ClipboardPayload::Image {
                         hash, data, mime, ..
                     } => {
-                        let source_app = crate::source_app::detect_source_app().await;
-
                         if is_blacklisted_live(&blacklist_state, source_app.as_deref()) {
                             debug!("blacklisted app {source_app:?} — skipping image clip");
                             continue;
@@ -502,12 +556,14 @@ pub async fn run_listener(
             Ok(None) => {
                 // A readable but content-free clipboard (or no change) also
                 // means the startup state has been observed.
+                pending_source_app = None;
                 baseline = false;
             }
-            Err(e) => tracing::error!("Clipboard poll error: {e}"),
+            Err(e) => {
+                pending_source_app = None;
+                tracing::error!("Clipboard poll error: {e}");
+            }
         }
-
-        tokio::time::sleep(POLL_INTERVAL).await;
     }
 }
 

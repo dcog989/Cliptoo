@@ -42,6 +42,9 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "json", "regis
 unicode-segmentation = "1"
 url = "2"
 uuid = { version = "1", features = ["v4"] }
+wayland-client = "0.31"
+wayland-protocols = { version = "0.32", features = ["client", "staging"] }
+wayland-protocols-wlr = { version = "0.3", features = ["client"] }
 which = "8"
 wl-clipboard-rs = "0.9"
 zbus = { version = "5", default-features = false, features = ["tokio"] }

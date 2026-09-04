@@ -2,8 +2,8 @@
 //!
 //! `zbus::Connection::session()` opens a fresh socket and runs the SASL
 //! handshake on every call — it is not cached internally by zbus. Several
-//! call sites need a session-bus connection (`source_app::detect_source_app`,
-//! called on every clipboard capture; `theme::detect_system_dark` and
+//! call sites need a session-bus connection (`source_app::spawn_active_window_tracker`
+//! for the resident KWin script callbacks; `theme::detect_system_dark` and
 //! `theme::detect_system_accent`), so establishing it once and reusing the
 //! same `Connection` (which is cheaply `Clone`, backed by an `Arc`
 //! internally) avoids paying that setup cost repeatedly.
