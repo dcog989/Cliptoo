@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};
 
@@ -302,6 +302,70 @@ fn attempted_favicon_domains() -> &'static Mutex<HashSet<String>> {
     ATTEMPTED.get_or_init(|| Mutex::new(HashSet::new()))
 }
 
+/// A clip stops being fetched after this many failed favicon attempts. The
+/// ledger is persistent and only reset by the "Clear caches" maintenance
+/// action, so a domain with no obtainable favicon costs at most a handful of
+/// requests ever instead of one per session forever.
+const MAX_FAVICON_FAILURES: u32 = 5;
+const FAVICON_FAILURES_FILE: &str = "favicon_failures.txt";
+
+/// Path of the persistent favicon-fetch failure ledger. Lives beside (not
+/// inside) the favicon cache dir, because scheduled cache pruning deletes any
+/// unrecognised file it finds in `favicons_dir` — which would silently reset
+/// the counts on every maintenance run. Only the explicit "Clear caches"
+/// action resets the ledger.
+fn failures_path(favicons_dir: &Path) -> PathBuf {
+    favicons_dir
+        .parent()
+        .unwrap_or(favicons_dir)
+        .join(FAVICON_FAILURES_FILE)
+}
+
+/// Read the per-clip favicon fetch-failure counts, as `clip_id → failures`.
+fn load_failures(favicons_dir: &Path) -> HashMap<i64, u32> {
+    let Ok(raw) = std::fs::read_to_string(failures_path(favicons_dir)) else {
+        return HashMap::new();
+    };
+    raw.lines()
+        .filter_map(|line| line.split_once(':'))
+        .filter_map(|(id, count)| Some((id.trim().parse().ok()?, count.trim().parse().ok()?)))
+        .collect()
+}
+
+fn save_failures(favicons_dir: &Path, failures: &HashMap<i64, u32>) {
+    let mut ids: Vec<_> = failures.keys().copied().collect();
+    ids.sort_unstable();
+    let mut out = String::new();
+    for id in ids {
+        out.push_str(&format!("{id}:{}\n", failures[&id]));
+    }
+    let _ = std::fs::write(failures_path(favicons_dir), out);
+}
+
+fn increment_failure(favicons_dir: &Path, clip_id: i64) {
+    let mut failures = load_failures(favicons_dir);
+    let count = failures.entry(clip_id).or_insert(0);
+    *count = count.saturating_add(1).min(MAX_FAVICON_FAILURES);
+    save_failures(favicons_dir, &failures);
+}
+
+fn reset_failure(favicons_dir: &Path, clip_id: i64) {
+    let mut failures = load_failures(favicons_dir);
+    if failures.remove(&clip_id).is_some() {
+        save_failures(favicons_dir, &failures);
+    }
+}
+
+fn failures_exhausted(failures: &HashMap<i64, u32>, clip_id: i64) -> bool {
+    failures.get(&clip_id).copied().unwrap_or(0) >= MAX_FAVICON_FAILURES
+}
+
+/// Reset every clip's favicon-fetch failure budget. Called by the "Clear
+/// caches" maintenance action so a cache clear also re-allows favicon retries.
+pub fn reset_favicon_failures(favicons_dir: &Path) {
+    let _ = std::fs::remove_file(failures_path(favicons_dir));
+}
+
 /// After populating the clip list, scan for link clips without cached
 /// favicons and fetch them in the background.  Updates the model row
 /// in-place as each favicon arrives.
@@ -315,15 +379,21 @@ pub fn check_pending_favicons(ui: &crate::AppWindow, db: &Arc<DbPool>, favicons_
     let mut attempted = attempted_favicon_domains()
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let failures = load_failures(favicons_dir);
     for i in 0..model.row_count() {
         if let Some(data) = model.row_data(i) {
             let ct = data.clip_type.as_str();
             if ct == "link" && data.favicon_image.size().width == 0 {
+                // Budget exhausted: never fetch this clip again (until caches
+                // are cleared) — the favicon has proven unobtainable.
+                if failures_exhausted(&failures, data.id as i64) {
+                    continue;
+                }
                 let Some(domain) = extract_domain(&data.preview_content) else {
                     continue;
                 };
                 if attempted.insert(domain) {
-                    pending.push((i, data.id as i64));
+                    pending.push(data.id as i64);
                 }
             }
         }
@@ -337,7 +407,7 @@ pub fn check_pending_favicons(ui: &crate::AppWindow, db: &Arc<DbPool>, favicons_
     let weak = ui.as_weak();
     let db = db.clone();
     let fav_dir = favicons_dir.to_owned();
-    for (_, clip_id) in pending {
+    for clip_id in pending {
         let weak = weak.clone();
         let db = db.clone();
         let fav_dir = fav_dir.clone();
@@ -349,12 +419,17 @@ pub fn check_pending_favicons(ui: &crate::AppWindow, db: &Arc<DbPool>, favicons_
                 return;
             };
             let Some(_) = fetch_favicon(&content, &fav_dir, dark).await else {
+                // Record the failure against this clip; after the budget is
+                // exhausted the scan stops dispatching it entirely.
+                increment_failure(&fav_dir, clip_id);
                 return;
             };
-            // The favicon is now on disk. Reload every row in place: this
-            // clears the LRU's stale empty default (cached while the file was
-            // missing) and picks up the fetched favicon for all rows of this
-            // domain, not just the one that was dispatched.
+            // The favicon is now on disk. Clear this clip's failure count and
+            // reload every row in place: this clears the LRU's stale empty
+            // default (cached while the file was missing) and picks up the
+            // fetched favicon for all rows of this domain, not just the one
+            // that was dispatched.
+            reset_failure(&fav_dir, clip_id);
             let _ = weak.upgrade_in_event_loop(move |ui| {
                 crate::thumbnail_cache::reload_favicons(&ui, &fav_dir);
             });
@@ -454,5 +529,32 @@ mod tests {
             resolve_url("https://example.com/page?x=1", "icon.png").unwrap(),
             "https://example.com/icon.png"
         );
+    }
+
+    #[test]
+    fn failure_budget_exhausts_at_limit_and_resets_on_clear_cache() {
+        let dir = std::env::temp_dir().join("cliptoo-favicon-failures-test");
+        let fav_dir = dir.join("favicons");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&fav_dir).unwrap();
+
+        assert!(!failures_exhausted(&load_failures(&fav_dir), 42));
+        for _ in 0..5 {
+            increment_failure(&fav_dir, 42);
+        }
+        assert!(failures_exhausted(&load_failures(&fav_dir), 42));
+
+        // "Clear caches" deletes the ledger, re-allowing fetches.
+        reset_favicon_failures(&fav_dir);
+        assert!(!failures_exhausted(&load_failures(&fav_dir), 42));
+
+        // A successful fetch clears a single clip's count.
+        increment_failure(&fav_dir, 7);
+        increment_failure(&fav_dir, 7);
+        reset_failure(&fav_dir, 7);
+        assert!(!failures_exhausted(&load_failures(&fav_dir), 7));
+        assert!(!failures_exhausted(&load_failures(&fav_dir), 42));
+
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

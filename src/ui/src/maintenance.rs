@@ -136,6 +136,9 @@ pub fn setup_manual_maintenance(
                     }
                     "clear-caches" => {
                         cliptoo_core::maintenance::prune_cache(&db, &td, &fd).await?;
+                        // A cache clear re-allows favicon retries for clips whose
+                        // fetch-failure budget had been exhausted.
+                        crate::favicon::reset_favicon_failures(&fd);
                         // Evict the in-memory image LRUs on the UI thread so the
                         // refresh below re-reads from disk instead of serving
                         // images whose files were just pruned, and so the decoded
