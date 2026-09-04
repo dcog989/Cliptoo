@@ -1,5 +1,6 @@
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, OnceLock};
 
 use crate::helpers::extract_domain;
 use cliptoo_core::db::DbPool;
@@ -293,6 +294,17 @@ pub fn cache_page_title(url: &str, title: &str, fav_dir: &Path) {
     let _ = std::fs::write(&path, title);
 }
 
+/// Domains for which a favicon fetch has already been dispatched this session.
+/// Inserted at dispatch time so `check_pending_favicons` neither double-fetches
+/// an in-flight domain across overlapping refreshes nor re-fetches a domain
+/// whose favicon cannot be obtained (no site icon + DuckDuckGo 404) on every
+/// refresh. Per-session only: cleared on restart, so a site that adds a favicon
+/// later is retried.
+fn attempted_favicon_domains() -> &'static Mutex<HashSet<String>> {
+    static ATTEMPTED: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
+    ATTEMPTED.get_or_init(|| Mutex::new(HashSet::new()))
+}
+
 /// After populating the clip list, scan for link clips without cached
 /// favicons and fetch them in the background.  Updates the model row
 /// in-place as each favicon arrives.
@@ -303,11 +315,19 @@ pub fn cache_page_title(url: &str, title: &str, fav_dir: &Path) {
 pub fn check_pending_favicons(ui: &crate::AppWindow, db: &Arc<DbPool>, favicons_dir: &Path) {
     let model = ui.get_clips();
     let mut pending = Vec::new();
+    let mut attempted = attempted_favicon_domains()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     for i in 0..model.row_count() {
         if let Some(data) = model.row_data(i) {
             let ct = data.clip_type.as_str();
             if ct == "link" && data.favicon_image.size().width == 0 {
-                pending.push((i, data.id as i64));
+                let Some(domain) = extract_domain(&data.preview_content) else {
+                    continue;
+                };
+                if attempted.insert(domain) {
+                    pending.push((i, data.id as i64));
+                }
             }
         }
     }
@@ -325,23 +345,36 @@ pub fn check_pending_favicons(ui: &crate::AppWindow, db: &Arc<DbPool>, favicons_
         let db = db.clone();
         let fav_dir = fav_dir.clone();
         tokio::spawn(async move {
-            if let Ok(content) = db
+            let Ok(content) = db
                 .with(|conn| cliptoo_core::db::queries::get_clip_content(conn, clip_id))
                 .await
-                && let Some(fav_path) = fetch_favicon(&content, &fav_dir, dark).await
-            {
-                let _ = weak.upgrade_in_event_loop(move |ui| {
-                    let img = slint::Image::load_from_path(&fav_path).unwrap_or_default();
-                    if img.size().width == 0 {
-                        return;
-                    }
-                    let model = ui.get_clips();
-                    if let Some(mut data) = model.row_data(row) {
-                        data.favicon_image = img;
-                        model.set_row_data(row, data);
-                    }
-                });
+            else {
+                return;
+            };
+            let Some(fav_path) = fetch_favicon(&content, &fav_dir, dark).await else {
+                return;
+            };
+            // The favicon is cached on disk now, so the domain is no longer a
+            // lost cause: drop it from the attempted set so a sibling row from
+            // the same domain is fetched on the next scan (only one row per
+            // domain is dispatched per pass).
+            if let Some(domain) = extract_domain(&content) {
+                attempted_favicon_domains()
+                    .lock()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner())
+                    .remove(&domain);
             }
+            let _ = weak.upgrade_in_event_loop(move |ui| {
+                let img = slint::Image::load_from_path(&fav_path).unwrap_or_default();
+                if img.size().width == 0 {
+                    return;
+                }
+                let model = ui.get_clips();
+                if let Some(mut data) = model.row_data(row) {
+                    data.favicon_image = img;
+                    model.set_row_data(row, data);
+                }
+            });
         });
     }
 }
