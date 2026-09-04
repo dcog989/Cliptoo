@@ -50,6 +50,15 @@ pub async fn fetch_favicon(url: &str, fav_dir: &Path, dark: bool) -> Option<Path
             return Some(fav_path);
         }
     }
+    // The site's own (non-dark) declared icon, when it has one. Some sites
+    // ship only a normal favicon (no dark variant) that the DuckDuckGo proxy
+    // doesn't know about, so without this the row would stay icon-less forever.
+    let base_url = format!("https://{domain}");
+    if let Some(bytes) = fetch_site_favicon(&client, &base_url).await
+        && save_favicon(&fav_path, &bytes)
+    {
+        return Some(fav_path);
+    }
     let fallback_url = format!("https://icons.duckduckgo.com/ip3/{domain}.ico");
     if let Some(bytes) = download_bytes(&client, &fallback_url).await
         && save_favicon(&fav_path, &bytes)
@@ -92,30 +101,9 @@ async fn fetch_dark_favicon(client: &reqwest::Client, base_url: &str) -> Option<
 }
 
 fn find_dark_favicon_candidates(html: &str, base_url: &str) -> DarkFaviconCandidates {
-    let tag_re = regex::Regex::new(LINK_TAG_RE).ok();
-    let attr_re = regex::Regex::new(LINK_ATTR_RE).ok();
-    let (Some(tag_re), Some(attr_re)) = (tag_re, attr_re) else {
-        return (Vec::new(), Vec::new());
-    };
     let mut direct = Vec::new();
     let mut probes = Vec::new();
-    for cap in tag_re.captures_iter(html) {
-        let Some(tag) = cap.get(0) else {
-            continue;
-        };
-        let mut rel: Option<String> = None;
-        let mut media: Option<String> = None;
-        let mut href: Option<String> = None;
-        let mut base: Option<String> = None;
-        for a in attr_re.captures_iter(tag.as_str()) {
-            match &a[1] {
-                "rel" => rel = Some(a[2].to_ascii_lowercase()),
-                "media" => media = Some(a[2].to_ascii_lowercase()),
-                "href" => href = Some(a[2].to_string()),
-                "data-base-href" => base = Some(a[2].to_string()),
-                _ => {}
-            }
-        }
+    for (rel, media, href, base) in parse_link_tags(html) {
         let Some(rel) = rel else {
             continue;
         };
@@ -139,6 +127,95 @@ fn find_dark_favicon_candidates(html: &str, base_url: &str) -> DarkFaviconCandid
         }
     }
     (direct, probes)
+}
+
+/// Parse every `<link>` tag in `html` into its `(rel, media, href,
+/// data-base-href)` attributes. Attribute order varies in the wild, so each tag
+/// is captured whole and its attributes inspected individually. Shared by the
+/// dark-variant probe and the generic site-favicon fallback.
+type LinkAttrs = (
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+);
+
+fn parse_link_tags(html: &str) -> Vec<LinkAttrs> {
+    let tag_re = regex::Regex::new(LINK_TAG_RE).ok();
+    let attr_re = regex::Regex::new(LINK_ATTR_RE).ok();
+    let (Some(tag_re), Some(attr_re)) = (tag_re, attr_re) else {
+        return Vec::new();
+    };
+    let mut tags = Vec::new();
+    for cap in tag_re.captures_iter(html) {
+        let Some(tag) = cap.get(0) else {
+            continue;
+        };
+        let mut rel = None;
+        let mut media = None;
+        let mut href = None;
+        let mut base = None;
+        for a in attr_re.captures_iter(tag.as_str()) {
+            match &a[1] {
+                "rel" => rel = Some(a[2].to_ascii_lowercase()),
+                "media" => media = Some(a[2].to_ascii_lowercase()),
+                "href" => href = Some(a[2].to_string()),
+                "data-base-href" => base = Some(a[2].to_string()),
+                _ => {}
+            }
+        }
+        tags.push((rel, media, href, base));
+    }
+    tags
+}
+
+/// Fetch the site's own declared favicon — any `rel="icon"` link, not gated on
+/// a dark-mode `media` query. Runs after the dark-variant probe so a dark icon
+/// is preferred in dark themes, but a site that only ships a normal icon still
+/// gets its favicon instead of falling through to the DuckDuckGo proxy (which
+/// 404s for many smaller sites).
+async fn fetch_site_favicon(client: &reqwest::Client, base_url: &str) -> Option<Vec<u8>> {
+    let resp = client.get(base_url).send().await.ok()?;
+    if !resp.status().is_success() {
+        return None;
+    }
+    let html = resp.text().await.ok()?;
+    // The spec's default icon is the last `rel="icon"` without a `sizes`
+    // attribute; try from the end so an overriding declaration wins, then work
+    // backwards through the rest.
+    for url in site_favicon_hrefs(&html, base_url).into_iter().rev() {
+        if let Some(bytes) = download_bytes(client, &url).await {
+            return Some(bytes);
+        }
+    }
+    None
+}
+
+/// Collect the site's non-dark declared icon URLs, in document order.
+fn site_favicon_hrefs(html: &str, base_url: &str) -> Vec<String> {
+    let mut hrefs = Vec::new();
+    for (rel, media, href, _) in parse_link_tags(html) {
+        let Some(rel) = rel else {
+            continue;
+        };
+        if !rel.split_whitespace().any(|w| w == "icon") {
+            continue;
+        }
+        // Dark-mode variants are probed separately and take priority.
+        if media.as_deref().is_some_and(|m| m.contains("dark")) {
+            continue;
+        }
+        let Some(href) = href.as_deref() else {
+            continue;
+        };
+        if href.starts_with("data:") {
+            continue;
+        }
+        if let Some(url) = resolve_url(base_url, href) {
+            hrefs.push(url);
+        }
+    }
+    hrefs
 }
 
 /// Resolve a (possibly relative) favicon `href` against the page's base URL.
@@ -266,5 +343,50 @@ pub fn check_pending_favicons(ui: &crate::AppWindow, db: &Arc<DbPool>, favicons_
                 });
             }
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_icon_links_regardless_of_attribute_order() {
+        let html = r#"
+            <link rel="icon" sizes="32x32" href="/favicon.ico">
+            <link href="icon.png" media="(prefers-color-scheme: dark)" rel="icon">
+            <link rel="shortcut icon" href="//cdn.example.com/icon.svg">
+            <link data-base-href="https://github.com/foo/bar" rel="stylesheet" href="style.css">
+        "#;
+        let tags = parse_link_tags(html);
+        assert_eq!(tags.len(), 4);
+        // Default icon: rel + href captured in any order.
+        assert_eq!(tags[0].0.as_deref(), Some("icon"));
+        assert_eq!(tags[0].2.as_deref(), Some("/favicon.ico"));
+        // Dark variant.
+        assert_eq!(tags[1].1.as_deref(), Some("(prefers-color-scheme: dark)"));
+        assert_eq!(tags[1].2.as_deref(), Some("icon.png"));
+        // `rel` with extra keywords still counts as an icon.
+        assert_eq!(tags[2].0.as_deref(), Some("shortcut icon"));
+        assert_eq!(tags[2].2.as_deref(), Some("//cdn.example.com/icon.svg"));
+        // Non-icon stylesheet carries the data-base-href.
+        assert_eq!(tags[3].3.as_deref(), Some("https://github.com/foo/bar"));
+    }
+
+    #[test]
+    fn site_favicon_collects_icon_hrefs_and_skips_dark_and_data() {
+        let html = r#"
+            <link rel="icon" href="data:image/svg+xml,...">
+            <link rel="icon" sizes="16x16" href="/favicon-16.png">
+            <link rel="icon" media="(prefers-color-scheme: dark)" href="/dark.svg">
+            <link rel="icon" href="/favicon-32.png">
+        "#;
+        assert_eq!(
+            site_favicon_hrefs(html, "https://example.com"),
+            vec![
+                "https://example.com/favicon-16.png".to_string(),
+                "https://example.com/favicon-32.png".to_string(),
+            ]
+        );
     }
 }

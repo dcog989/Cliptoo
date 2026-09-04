@@ -52,11 +52,17 @@ fn current_level() -> LevelFilter {
 }
 
 /// Predicate backing the file layer's filter: the live-swappable app level,
-/// plus a fixed suppression of noisy zbus proxy-cache WARN messages. Kept as a
-/// plain function so the semantics are testable without installing a global
+/// plus fixed suppressions of noisy third-party diagnostics. Kept as a plain
+/// function so the semantics are testable without installing a global
 /// subscriber.
 fn file_level_allows(target: &str, level: tracing::Level) -> bool {
     if target.starts_with("zbus::proxy") {
+        return level <= LevelFilter::ERROR;
+    }
+    // usvg/simplecss emit per-element parse diagnostics for SVG favicons and
+    // thumbnails. A skipped shape in a 16-32px decoration is never actionable,
+    // and one malformed SVG can emit hundreds of WARN lines per parse.
+    if target.starts_with("usvg::") || target.starts_with("simplecss::") {
         return level <= LevelFilter::ERROR;
     }
     level <= current_level()
@@ -96,10 +102,12 @@ pub fn init(logs_dir: &Path, level: LevelFilter) -> LogGuard {
 
     // If RUST_LOG is set to an invalid value it's silently ignored (can't log
     // before the subscriber is installed). Use e.g. RUST_LOG=cliptoo=debug.
-    // Suppress noisy zbus proxy-cache WARN messages from portal sessions.
+    // Suppress noisy zbus proxy-cache and SVG-parser WARN messages.
     let stderr_filter = EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| EnvFilter::new("info"))
-        .add_directive("zbus::proxy=error".parse().unwrap());
+        .add_directive("zbus::proxy=error".parse().unwrap())
+        .add_directive("usvg=error".parse().unwrap())
+        .add_directive("simplecss=error".parse().unwrap());
 
     let stderr_layer = tracing_subscriber::fmt::layer()
         .with_writer(std::io::stderr)
@@ -203,6 +211,30 @@ mod tests {
         assert!(!file_level_allows("zbus::proxy", tracing::Level::WARN));
         assert!(!file_level_allows("zbus::proxy", tracing::Level::INFO));
         assert!(!file_level_allows("zbus::proxy", tracing::Level::DEBUG));
+    }
+
+    #[test]
+    fn svg_parser_warns_suppressed_at_every_level() {
+        assert!(file_level_allows(
+            "usvg::parser::shapes",
+            tracing::Level::ERROR
+        ));
+        assert!(!file_level_allows(
+            "usvg::parser::shapes",
+            tracing::Level::WARN
+        ));
+        assert!(!file_level_allows(
+            "usvg::parser::shapes",
+            tracing::Level::INFO
+        ));
+        assert!(file_level_allows(
+            "simplecss::selector",
+            tracing::Level::ERROR
+        ));
+        assert!(!file_level_allows(
+            "simplecss::selector",
+            tracing::Level::WARN
+        ));
     }
 
     /// The only test that writes `FILE_LEVEL`; kept single so parallel runs
