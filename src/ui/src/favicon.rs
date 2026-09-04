@@ -44,8 +44,7 @@ pub async fn fetch_favicon(url: &str, fav_dir: &Path, dark: bool) -> Option<Path
         .build()
         .ok()?;
     if dark {
-        let base_url = format!("https://{domain}");
-        if let Some(bytes) = fetch_dark_favicon(&client, &base_url).await
+        if let Some(bytes) = fetch_dark_favicon(&client, url).await
             && save_favicon(&fav_path, &bytes)
         {
             return Some(fav_path);
@@ -54,8 +53,7 @@ pub async fn fetch_favicon(url: &str, fav_dir: &Path, dark: bool) -> Option<Path
     // The site's own (non-dark) declared icon, when it has one. Some sites
     // ship only a normal favicon (no dark variant) that the DuckDuckGo proxy
     // doesn't know about, so without this the row would stay icon-less forever.
-    let base_url = format!("https://{domain}");
-    if let Some(bytes) = fetch_site_favicon(&client, &base_url).await
+    if let Some(bytes) = fetch_site_favicon(&client, url).await
         && save_favicon(&fav_path, &bytes)
     {
         return Some(fav_path);
@@ -220,17 +218,15 @@ fn site_favicon_hrefs(html: &str, base_url: &str) -> Vec<String> {
 }
 
 /// Resolve a (possibly relative) favicon `href` against the page's base URL.
+/// RFC 3986 resolution via `url::Url::join`, so a relative icon declared by a
+/// page under a path (e.g. `/page/favicon.svg`) resolves against that page,
+/// while a root-relative href (`/icon.png`) resolves against the origin.
 fn resolve_url(base_url: &str, href: &str) -> Option<String> {
-    if href.starts_with("http://") || href.starts_with("https://") {
-        return Some(href.to_string());
-    }
-    if let Some(rest) = href.strip_prefix("//") {
-        return Some(format!("https://{rest}"));
-    }
-    if let Some(path) = href.strip_prefix('/') {
-        return Some(format!("{base_url}/{path}"));
-    }
-    Some(format!("{base_url}/{href}"))
+    url::Url::parse(base_url)
+        .ok()?
+        .join(href)
+        .ok()
+        .map(|u| u.to_string())
 }
 
 async fn download_bytes(client: &reqwest::Client, url: &str) -> Option<Vec<u8>> {
@@ -407,6 +403,56 @@ mod tests {
                 "https://example.com/favicon-16.png".to_string(),
                 "https://example.com/favicon-32.png".to_string(),
             ]
+        );
+    }
+
+    #[test]
+    fn resolves_relative_favicon_against_page_path_not_domain_root() {
+        // Regression: a page under a path declaring `favicon.svg` used to be
+        // resolved against the domain root, 404ing for GitHub Pages sites.
+        assert_eq!(
+            resolve_url(
+                "https://dcog989.github.io/Default-fonts-per-OS/",
+                "favicon.svg"
+            )
+            .unwrap(),
+            "https://dcog989.github.io/Default-fonts-per-OS/favicon.svg"
+        );
+        assert_eq!(
+            resolve_url(
+                "https://dcog989.github.io/Goat-Color-Picker-Palette/",
+                "favicon.svg"
+            )
+            .unwrap(),
+            "https://dcog989.github.io/Goat-Color-Picker-Palette/favicon.svg"
+        );
+    }
+
+    #[test]
+    fn resolves_root_relative_and_absolute_hrefs() {
+        assert_eq!(
+            resolve_url("https://example.com/dir/page.html", "/root-icon.png").unwrap(),
+            "https://example.com/root-icon.png"
+        );
+        assert_eq!(
+            resolve_url(
+                "https://example.com/dir/page.html",
+                "//cdn.example.com/i.png"
+            )
+            .unwrap(),
+            "https://cdn.example.com/i.png"
+        );
+        assert_eq!(
+            resolve_url(
+                "https://example.com/dir/page.html",
+                "https://other.net/i.svg"
+            )
+            .unwrap(),
+            "https://other.net/i.svg"
+        );
+        assert_eq!(
+            resolve_url("https://example.com/page?x=1", "icon.png").unwrap(),
+            "https://example.com/icon.png"
         );
     }
 }
