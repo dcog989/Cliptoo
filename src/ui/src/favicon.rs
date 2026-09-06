@@ -43,12 +43,11 @@ pub async fn fetch_favicon(url: &str, fav_dir: &Path, dark: bool) -> Option<Path
         .user_agent(crate::helpers::USER_AGENT)
         .build()
         .ok()?;
-    if dark {
-        if let Some(bytes) = fetch_dark_favicon(&client, url).await
-            && save_favicon(&fav_path, &bytes)
-        {
-            return Some(fav_path);
-        }
+    if dark
+        && let Some(bytes) = fetch_dark_favicon(&client, url).await
+        && save_favicon(&fav_path, &bytes)
+    {
+        return Some(fav_path);
     }
     // The site's own (non-dark) declared icon, when it has one. Some sites
     // ship only a normal favicon (no dark variant) that the DuckDuckGo proxy

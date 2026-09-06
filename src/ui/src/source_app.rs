@@ -195,16 +195,13 @@ async fn install_tracker(cache: &ActiveWindowCache) -> anyhow::Result<()> {
     loop {
         match stream.next().await {
             Some(Ok(msg)) => {
-                match msg.body().deserialize::<String>() {
-                    Ok(app) => {
-                        let app = (!app.is_empty()).then_some(app);
-                        if let Ok(mut guard) = cache.write() {
-                            *guard = app;
-                        }
+                // A malformed callback says nothing about the active window;
+                // leave the cache untouched rather than clearing it.
+                if let Ok(app) = msg.body().deserialize::<String>() {
+                    let app = (!app.is_empty()).then_some(app);
+                    if let Ok(mut guard) = cache.write() {
+                        *guard = app;
                     }
-                    // A malformed callback says nothing about the active
-                    // window; leave the cache untouched rather than clearing it.
-                    Err(_) => {}
                 }
             }
             Some(Err(e)) => {
