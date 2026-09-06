@@ -66,11 +66,10 @@ pub fn transform(content: &str, key: &str) -> String {
                 .collect()
         }
 
-        // Convert slug / snake_case to readable words with first-word capitalisation.
-        "deslug" => {
-            let spaced = content.replace(['_', '-'], " ");
-            capitalize_first(&spaced)
-        }
+        // Convert machine-formatted identifiers — snake_case, kebab-case,
+        // SCREAMING_SNAKE, camelCase, PascalCase, dot.case — to readable text
+        // ("parseXMLResponse_v2" → "Parse xml response v2").
+        "deslug" => capitalize_first(&machine_words(content).join(" ")),
 
         // Normalise to single newlines, collapse 3+ to \n\n.
         "lf1" => {
@@ -131,6 +130,35 @@ fn normalise_to_words(content: &str) -> Vec<&str> {
         .split(|c: char| c.is_whitespace() || c == '-' || c == '_')
         .filter(|w| !w.is_empty())
         .collect()
+}
+
+/// Split machine-formatted identifiers into lowercase words: on whitespace and
+/// `_` `-` `.` separators, plus case boundaries inside each segment —
+/// lowercase/digit→uppercase (`helloWorld`) and acronym-run→word
+/// (`HTTPServer`, `XMLHttpRequest`). A run followed by a single trailing
+/// lowercase letter stays intact so plural acronyms ("URLs", "IDs") survive.
+fn machine_words(content: &str) -> Vec<String> {
+    let mut words: Vec<String> = Vec::new();
+    for segment in content.split(|c: char| c.is_whitespace() || matches!(c, '_' | '-' | '.')) {
+        let chars: Vec<char> = segment.chars().collect();
+        let mut word = String::with_capacity(segment.len());
+        for (i, &ch) in chars.iter().enumerate() {
+            let prev_upper = i > 0 && chars[i - 1].is_uppercase();
+            let lower_tail = matches!(chars.get(i + 1), Some(next) if next.is_lowercase())
+                && matches!(chars.get(i + 2), Some(next) if next.is_lowercase());
+            // An uppercase char starts a new word when it does not continue an
+            // acronym run: the previous char is not uppercase, or the run ends
+            // here because a multi-char lowercase word follows.
+            if ch.is_uppercase() && !word.is_empty() && (!prev_upper || lower_tail) {
+                words.push(std::mem::take(&mut word).to_lowercase());
+            }
+            word.push(ch);
+        }
+        if !word.is_empty() {
+            words.push(word.to_lowercase());
+        }
+    }
+    words
 }
 
 /// Capitalise the first grapheme of each sentence. Sentence boundaries are
@@ -214,6 +242,29 @@ mod tests {
     #[test]
     fn deslug() {
         assert_eq!(transform("hello_world", "deslug"), "Hello world");
+    }
+
+    /// De-slug covers every common machine format: separators, camel/Pascal
+    /// boundaries, SCREAMING_SNAKE, dot.case, acronym runs, plural acronyms,
+    /// digits, and already-readable text (idempotent).
+    #[test]
+    fn deslug_machine_formats() {
+        assert_eq!(transform("hello-world", "deslug"), "Hello world");
+        assert_eq!(transform("helloWorld", "deslug"), "Hello world");
+        assert_eq!(transform("HelloWorld", "deslug"), "Hello world");
+        assert_eq!(transform("HELLO_WORLD", "deslug"), "Hello world");
+        assert_eq!(transform("dot.case.text", "deslug"), "Dot case text");
+        assert_eq!(transform("HTTPServer", "deslug"), "Http server");
+        assert_eq!(transform("XMLHttpRequest", "deslug"), "Xml http request");
+        assert_eq!(
+            transform("parseXMLResponse_v2", "deslug"),
+            "Parse xml response v2"
+        );
+        assert_eq!(transform("saveIDsAndURLs", "deslug"), "Save ids and urls");
+        assert_eq!(transform("Get_URLs", "deslug"), "Get urls");
+        assert_eq!(transform("HTML5Parser", "deslug"), "Html5 parser");
+        assert_eq!(transform("Hello world", "deslug"), "Hello world");
+        assert_eq!(transform("", "deslug"), "");
     }
 
     #[test]
