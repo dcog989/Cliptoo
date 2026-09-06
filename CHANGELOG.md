@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v2.15.1 - 2026-09-06
+
+#### Bug Fixes
+
+- (c7966c2) satisfy clippy 1.98 collapsible-if and single-match lints - dcog989
+
+- - -
+
 ## v2.15.0 - 2026-09-06
 
 #### Features
