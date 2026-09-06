@@ -106,11 +106,11 @@ cargo build                         # debug build
 cargo check                         # type-check only
 cargo clippy --workspace --all-targets -- -D warnings
 cargo fetch && cargo outdated -w    # check for updates above semver range
-cargo fmt --all --check             # formatting
+cargo fmt --check                   # formatting check
 cargo fmt                           # format all files
 cargo run                           # build and run
 cargo test --workspace              # tests
-cargo update --verbose              # update Cargo.lock within semver ranges
+cargo upgrade && cargo update --verbose # update Cargo.lock and dependencies to latest with semver ranges
 
 cargo clean && rm -rf target/       # clean build artifacts
 ```
@@ -135,7 +135,7 @@ sudo install -Dm644 packaging/cliptoo.desktop /usr/share/applications/cliptoo.de
 Releases use [Cocogitto](https://cocogitto.io/) (`cargo install cocogitto` / `sudo pacman -S cocogitto`), configured in `cog.toml`.
 
 ```sh
-cog bump                      # bump version, sync manifests, write `CHANGELOG.md`, commit, tag, push
+cog bump --auto               # bump version, sync manifests, write `CHANGELOG.md`, commit, tag, push
 cog bump --version V=1.23.4   # Manual version
 cog changelog                 # Changelog preview
 ```

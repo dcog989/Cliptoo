@@ -19,7 +19,7 @@ cc = "1"
 chrono = "0.4"
 const-hex = "1"
 csscolorparser = "0.8"
-dirs = "6"
+dirs = "7"
 evdev = "0.13"
 futures = "0.3"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp", "ico", "bmp", "tiff", "avif"] }
