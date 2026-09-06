@@ -3,6 +3,32 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v2.15.0 - 2026-09-06
+
+#### Features
+
+- (5b55e25) extend De-slug to readable-text across camelCase, PascalCase, SCREAMING_SNAKE, dot.case - dcog989
+
+- (0cc63b4) cap favicon fetch attempts per clip at five - dcog989
+
+#### Bug Fixes
+
+- (5623e24) attribute clips to the app focused at copy time - dcog989
+
+- (40b4b2c) resolve favicon hrefs against the page path, not the domain root - dcog989
+
+- (7e5c022) reload all rows after a favicon fetch lands - dcog989
+
+- (98591f7) fetch each favicon domain at most once per session - dcog989
+
+- (32b52ea) render degenerate SVGs and fetch the site's own favicon - dcog989
+
+- (d2b2ed8) stop re-logging accessory text on every stale poll - dcog989
+
+- (41c67c4) don't break lines on inline-styled divs in html strip - dcog989
+
+- - -
+
 ## v2.14.1 - 2026-08-31
 
 - - -
