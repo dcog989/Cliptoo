@@ -1,7 +1,7 @@
 # This is the top level editorconfig
 root = true
 
-# Defaults
+# Defaults: Rust, Python, C/C++, Slint and most languages use 4 spaces
 [*]
 charset = utf-8
 end_of_line = lf
@@ -10,9 +10,18 @@ indent_style = space
 insert_final_newline = true
 trim_trailing_whitespace = true
 
-# These use 2 spaces
-[*.{astro,bash,bash_profile,bashrc,cjs,css,fish,htm,html,js,json,json5,jsonc,jsx,less,mjs,
-  profile,sass,scss,sh,sql,svelte,svg,toml,ts,tsx,vue,xhtml,xml,xsd,xsl,yaml,yml,zsh}]
+# Web and frontend files use 2 spaces
+[*.{astro,cjs,css,htm,html,js,json,json5,jsonc,jsx,less,mjs,sass,scss,svelte,svg,ts,tsx,vue,xhtml,xml,xsd,xsl}]
+indent_size = 2
+
+# Data and config files use 2 spaces
+[*.{yaml,yml,toml}]
+indent_size = 2
+
+# Shell and CMake scripts use 2 spaces
+[*.{bash,bashrc,cmake,fish,sh,zsh}]
+indent_size = 2
+[CMakeLists.txt]
 indent_size = 2
 
 # These use tabs
@@ -29,14 +38,14 @@ trim_trailing_whitespace = false
 end_of_line = crlf
 
 # Do not touch generated directories
-[{.terraform,build,coverage,dist,node_modules,out,target,vendor}/**]
+[{.git,.mypy_cache,.pytest_cache,.ruff_cache,.terraform,.venv,build,coverage,dist,node_modules,out,target,vendor,__pycache__}/**]
 indent_size = unset
 trim_trailing_whitespace = unset
 end_of_line = unset
 insert_final_newline = unset
 
 # Do not touch lock files
-[{*.lock,package-lock.json,pnpm-lock.yaml}]
+[{*.lock,Cargo.lock,package-lock.json,pnpm-lock.yaml,bun.lock,bun.lockb,poetry.lock,uv.lock}]
 indent_size = unset
 trim_trailing_whitespace = unset
 end_of_line = unset
