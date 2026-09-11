@@ -1,8 +1,8 @@
 # Cliptoo
 
-Advanced clipboard manager. Cross-platform, Linux-first. Built with Rust / Slint / SQLite.
+Advanced Linux clipboard manager. Use your clip history as a library of things.
 
-Use your clip history as a library of things, with instant fuzzy search.
+Built with Rust / Slint / SQLite, providing small footprint and fast performance.
 
 ![assets/screen-1.webp](assets/screen-1.webp)
 
@@ -12,7 +12,7 @@ Use your clip history as a library of things, with instant fuzzy search.
 
 ### Performance
 
-- **Persistent History:** SQLite FTS5 full-text search.
+- **Persistent History:** SQLite FTS5 full-text fuzzy search.
 - **Fast Search:** Real-time filtering with match highlighting.
 - **Virtualized Scrolling:** instant O(1) visible-row rendering regardless of list size.
 - **Paste Suppression:** SHA-256 hashing prevents duplicates.
@@ -80,6 +80,51 @@ Large Language Models (LLMs) were used to assist with code generation, refactori
 
 ---
 
+## Installation
+
+Cliptoo runs on **Wayland** (KDE Plasma 6). Keep `xdg-desktop-portal-kde` installed so global shortcuts work.
+
+Prebuilt AppImage, `.deb`, and `.rpm` bundles are on the [releases page](https://github.com/dcog989/Cliptoo/releases).
+
+### AppImage
+
+Download `cliptoo-<version>-x86_64.AppImage` from the [releases page](https://github.com/dcog989/Cliptoo/releases), then:
+
+```sh
+chmod +x cliptoo-*-x86_64.AppImage
+./cliptoo-*-x86_64.AppImage
+```
+
+To add it to your application menu and file associations, use [AppImageLauncher](https://github.com/TheAssassin/AppImageLauncher) or [GearLever](https://github.com/mijorus/gearlever).
+
+### Debian / Ubuntu
+
+```sh
+sudo apt install ./cliptoo_*_amd64.deb
+```
+
+### Fedora / RHEL
+
+```sh
+sudo dnf install ./cliptoo-*.x86_64.rpm
+```
+
+### Arch Linux
+
+```sh
+cd packaging && makepkg -si
+```
+
+### From source
+
+See [Prerequisites](#prerequisites).
+
+```sh
+make install
+```
+
+---
+
 ## Development
 
 ### Prerequisites
@@ -113,21 +158,6 @@ cargo test --workspace              # tests
 cargo upgrade && cargo update --verbose # update Cargo.lock and dependencies to latest with semver ranges
 
 cargo clean && rm -rf target/       # clean build artifacts
-```
-
-### Local Install
-
-```sh
-cd /home/bubba/Projects/Cliptoo
-make install            # builds + installs binary and desktop file
-```
-
-Manually:
-
-```sh
-cargo build --release -p cliptoo
-sudo install -Dm755 target/release/cliptoo /usr/local/bin/cliptoo
-sudo install -Dm644 packaging/cliptoo.desktop /usr/share/applications/cliptoo.desktop
 ```
 
 ### Release
