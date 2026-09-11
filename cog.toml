@@ -8,12 +8,12 @@ tag_prefix = "v"
 # Sync the version across all manifests before the bump commit is created.
 # `{{version}}` is replaced by cog with the target version before the hooks run.
 pre_bump_hooks = [
-    "./scripts/sync_version.sh {{version}}",
+  "./scripts/sync_version.sh {{version}}",
 ]
 
 post_bump_hooks = [
-    "git push",
-    "git push origin {{version_tag}}",
+  "git push",
+  "git push origin {{version_tag}}",
 ]
 
 [changelog]
