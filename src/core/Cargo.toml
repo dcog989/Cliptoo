@@ -1,32 +1,31 @@
 [package]
 name = "cliptoo-core"
-description = "Cliptoo clipboard manager — core backend library"
 version.workspace = true
 edition.workspace = true
-authors.workspace = true
+description = "Cliptoo clipboard manager — core backend library"
 license.workspace = true
-
-[dependencies]
-tokio.workspace = true
-rusqlite.workspace = true
-sha2.workspace = true
-chrono.workspace = true
-const-hex.workspace = true
-csscolorparser.workspace = true
-unicode-segmentation.workspace = true
-image.workspace = true
-resvg.workspace = true
-jxl-oxide.workspace = true
-serde.workspace = true
-serde_json.workspace = true
-tracing.workspace = true
-tracing-appender.workspace = true
-tracing-subscriber.workspace = true
-anyhow.workspace = true
-url.workspace = true
-uuid.workspace = true
-which.workspace = true
 
 [lib]
 name = "cliptoo_core"
 path = "src/lib.rs"
+
+[dependencies]
+anyhow.workspace = true
+chrono.workspace = true
+const-hex.workspace = true
+csscolorparser.workspace = true
+image.workspace = true
+jxl-oxide.workspace = true
+resvg.workspace = true
+rusqlite.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-appender.workspace = true
+tracing-subscriber.workspace = true
+unicode-segmentation.workspace = true
+url.workspace = true
+uuid.workspace = true
+which.workspace = true

@@ -1,63 +1,62 @@
 [package]
 name = "cliptoo"
-description = "Cliptoo — native clipboard manager for KDE Plasma 6 / Wayland"
 version.workspace = true
 edition.workspace = true
-authors.workspace = true
+description = "Cliptoo — native clipboard manager for KDE Plasma 6 / Wayland"
 license.workspace = true
-
-[dependencies]
-chrono.workspace = true
-cliptoo-core = { path = "../core" }
-futures.workspace = true
-image.workspace = true
-i-slint-backend-qt = "1.17"
-lru.workspace = true
-tokio.workspace = true
-tracing.workspace = true
-anyhow.workspace = true
-ashpd.workspace = true
-wayland-client.workspace = true
-wayland-protocols.workspace = true
-wayland-protocols-wlr.workspace = true
-wl-clipboard-rs.workspace = true
-zbus.workspace = true
-slint.workspace = true
-dirs.workspace = true
-evdev.workspace = true
-unicode-segmentation.workspace = true
-sha2.workspace = true
-const-hex.workspace = true
-regex.workspace = true
-reqwest.workspace = true
-url.workspace = true
-
-[build-dependencies]
-cc.workspace = true
-pkg-config.workspace = true
-slint-build.workspace = true
-
-[[bin]]
-name = "cliptoo"
-path = "src/main.rs"
 
 # ── cargo-deb metadata ─────────────────────────────────────────────────────────
 [package.metadata.deb]
-maintainer    = "dcog989 <dcog989@users.noreply.github.com>"
-copyright     = "2026 dcog989"
-license-file  = ["../../LICENSE"]
-depends       = "$auto"
+maintainer = "dcog989 <dcog989@users.noreply.github.com>"
+copyright = "2026 dcog989"
+license-file = ["../../LICENSE"]
+depends = "$auto"
 extended-description = """Cliptoo is a native, background-running clipboard manager for Linux
 desktop environments (KDE Plasma 6 / Wayland).  It captures, parses, and indexes
 clipboard data with a target memory footprint under 20 MB."""
 
 # ── cargo-generate-rpm metadata ────────────────────────────────────────────────
 [package.metadata.generate-rpm]
-name        = "cliptoo"
+name = "cliptoo"
 description = "Native clipboard manager for KDE Plasma 6 / Wayland"
-license     = "MIT"
-assets      = [
-    { source = "target/release/cliptoo", dest = "/usr/bin/cliptoo", mode = "755" },
-    { source = "packaging/cliptoo.desktop", dest = "/usr/share/applications/cliptoo.desktop", mode = "644" },
-    { source = "LICENSE", dest = "/usr/share/licenses/cliptoo/LICENSE", mode = "644" },
+license = "MIT"
+assets = [
+  { source = "target/release/cliptoo", dest = "/usr/bin/cliptoo", mode = "755" },
+  { source = "packaging/cliptoo.desktop", dest = "/usr/share/applications/cliptoo.desktop", mode = "644" },
+  { source = "LICENSE", dest = "/usr/share/licenses/cliptoo/LICENSE", mode = "644" },
 ]
+
+[[bin]]
+name = "cliptoo"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+ashpd.workspace = true
+chrono.workspace = true
+cliptoo-core = { path = "../core" }
+const-hex.workspace = true
+dirs.workspace = true
+evdev.workspace = true
+futures.workspace = true
+i-slint-backend-qt = "1.17"
+image.workspace = true
+lru.workspace = true
+regex.workspace = true
+reqwest.workspace = true
+sha2.workspace = true
+slint.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+unicode-segmentation.workspace = true
+url.workspace = true
+wayland-client.workspace = true
+wayland-protocols.workspace = true
+wayland-protocols-wlr.workspace = true
+wl-clipboard-rs.workspace = true
+zbus.workspace = true
+
+[build-dependencies]
+cc.workspace = true
+pkg-config.workspace = true
+slint-build.workspace = true
