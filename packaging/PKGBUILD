@@ -4,7 +4,7 @@
 # than rebuilding from source. Run `make package` from the repository root,
 # or `cargo build --release -p cliptoo` then `makepkg` from this directory.
 pkgname=cliptoo
-pkgver=2.15.1
+pkgver=2.16.0
 pkgrel=1
 pkgdesc="Native clipboard manager for KDE Plasma 6 / Wayland"
 arch=('x86_64')
