@@ -1,4 +1,8 @@
 # Maintainer: Cliptoo Contributors
+#
+# Packages the already-built release binary (target/release/cliptoo) rather
+# than rebuilding from source. Run `make package` from the repository root,
+# or `cargo build --release -p cliptoo` then `makepkg` from this directory.
 pkgname=cliptoo
 pkgver=2.15.1
 pkgrel=1
@@ -6,6 +10,7 @@ pkgdesc="Native clipboard manager for KDE Plasma 6 / Wayland"
 arch=('x86_64')
 url="https://github.com/dcog989/Cliptoo"
 license=('MIT')
+options=('!debug')
 # Cliptoo targets Wayland / KDE Plasma 6. On Wayland, the XDG Desktop Portal
 # is the only sanctioned mechanism for client apps to register a global
 # hotkey; there is no X11-style XGrabKey fallback. The KDE portal backend
@@ -16,26 +21,16 @@ depends=(
     'qt6-base'
     'qt6-wayland'
     'wayland'
-    'xkbcommon'
+    'libxkbcommon'
     'xdg-desktop-portal-kde'
     'kwindowsystem'
 )
-makedepends=('rust' 'cargo' 'pkg-config')
-source=("$pkgname-$pkgver.tar.gz::https://github.com/dcog989/Cliptoo/archive/v$pkgver.tar.gz")
-sha256sums=('SKIP')
-
-build() {
-    cd "$srcdir/cliptoo-$pkgver"
-    cargo build --release --locked -p cliptoo
-}
+source=()
+sha256sums=()
 
 package() {
-    cd "$srcdir/cliptoo-$pkgver"
-
-    install -Dm755 "target/release/cliptoo" "$pkgdir/usr/bin/cliptoo"
-    install -Dm644 "packaging/cliptoo.desktop" "$pkgdir/usr/share/applications/cliptoo.desktop"
-    install -Dm644 "LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
-
-    # TODO: install .svg app icon at multiple sizes
-    # install -Dm644 ".assets/icon.svg" "$pkgdir/usr/share/icons/hicolor/scalable/apps/cliptoo.svg"
+    install -Dm755 "$startdir/../target/release/cliptoo" "$pkgdir/usr/bin/cliptoo"
+    install -Dm644 "$startdir/../packaging/cliptoo.desktop" "$pkgdir/usr/share/applications/cliptoo.desktop"
+    install -Dm644 "$startdir/../src/ui/assets/cliptoo.svg" "$pkgdir/usr/share/icons/hicolor/scalable/apps/cliptoo.svg"
+    install -Dm644 "$startdir/../LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
 }

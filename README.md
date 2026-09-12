@@ -84,7 +84,7 @@ Large Language Models (LLMs) were used to assist with code generation, refactori
 
 Cliptoo runs on **Wayland** (KDE Plasma 6). Keep `xdg-desktop-portal-kde` installed so global shortcuts work.
 
-Prebuilt AppImage, `.deb`, and `.rpm` bundles are on the [releases page](https://github.com/dcog989/Cliptoo/releases).
+Prebuilt AppImage, `.deb`, `.rpm`, and `.pkg.tar.zst` bundles are on the [releases page](https://github.com/dcog989/Cliptoo/releases).
 
 ### AppImage
 
@@ -111,8 +111,17 @@ sudo dnf install ./cliptoo-*.x86_64.rpm
 
 ### Arch Linux
 
+Install a prebuilt package from the [releases page](https://github.com/dcog989/Cliptoo/releases):
+
 ```sh
-cd packaging && makepkg -si
+sudo pacman -U cliptoo-*.pkg.tar.zst
+```
+
+Or build and package the local release binary:
+
+```sh
+make package
+sudo pacman -U .pkg/cliptoo-*.pkg.tar.zst
 ```
 
 ### From source

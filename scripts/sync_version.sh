@@ -13,3 +13,8 @@ for pkg in cliptoo cliptoo-core; do
 done
 
 sed -i "s/^pkgver=.*/pkgver=$version/" packaging/PKGBUILD
+
+# Keep the local makepkg scratch copy in sync when it exists.
+if [[ -f .pkg/PKGBUILD ]]; then
+    sed -i "s/^pkgver=.*/pkgver=$version/" .pkg/PKGBUILD
+fi

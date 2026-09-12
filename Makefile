@@ -1,12 +1,18 @@
 BINARY  := target/release/cliptoo
 DESKTOP := packaging/cliptoo.desktop
+PKGDIR  := .pkg
 
-.PHONY: all build install uninstall clean
+.PHONY: all build package install uninstall clean
 
 all: build
 
 build:
 	cargo build --release -p cliptoo
+
+package: build
+	mkdir -p $(PKGDIR)
+	cp packaging/PKGBUILD $(PKGDIR)/
+	cd $(PKGDIR) && makepkg -f --nodeps --noconfirm
 
 install: build
 	sudo install -Dm755 $(BINARY) /usr/local/bin/cliptoo

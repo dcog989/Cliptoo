@@ -99,6 +99,23 @@ jobs:
           ./tools/linuxdeploy.AppImage --appdir "$APPDIR" --plugin qt
           ./tools/appimagetool.AppImage "$APPDIR" "$PWD/cliptoo-$VERSION-x86_64.AppImage"
 
+      - name: Build Arch package
+        run: |
+          set -euo pipefail
+          mkdir -p .pkg
+          cp packaging/PKGBUILD .pkg/
+          docker run --rm \
+            -v "${{ github.workspace }}:/workspace" \
+            -w /workspace/.pkg \
+            archlinux:latest \
+            bash -c "
+              pacman -Sy --noconfirm archlinux-keyring
+              pacman -Su --noconfirm --needed base-devel
+              useradd -m builder
+              chown -R builder:builder /workspace
+              su builder -c 'makepkg -f --nodeps --noconfirm'
+            "
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v6
         with:
@@ -107,6 +124,7 @@ jobs:
             target/debian/*.deb
             target/generate-rpm/*.rpm
             cliptoo-*.AppImage
+            .pkg/*.pkg.tar.zst
 
   release:
     name: Publish GitHub Release
@@ -144,6 +162,7 @@ jobs:
             packages/**/*.deb
             packages/**/*.rpm
             packages/**/*.AppImage
+            packages/**/*.pkg.tar.zst
             CHANGELOG.md
           draft: false
           prerelease: false
