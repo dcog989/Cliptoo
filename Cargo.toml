@@ -6,7 +6,7 @@ members = [
 ]
 
 [workspace.package]
-version = "2.16.1"
+version = "2.16.2"
 edition = "2024"
 repository = "https://github.com/dcog989/Cliptoo"
 license = "MIT"
