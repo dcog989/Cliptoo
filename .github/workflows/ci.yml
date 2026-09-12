@@ -120,6 +120,7 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: linux-packages
+          include-hidden-files: true
           path: |
             target/debian/*.deb
             target/generate-rpm/*.rpm
