@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v2.16.1 - 2026-09-12
+
+#### Bug Fixes
+
+- (27535cc) include hidden .pkg dir in release artifact upload - dcog989
+
+- - -
+
 ## v2.16.0 - 2026-09-12
 
 #### Features
