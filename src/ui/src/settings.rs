@@ -1,5 +1,11 @@
 use slint::ComponentHandle;
 
+/// Suffixes of the cached hover-preview images written by `cliptoo_core::image`
+/// (see `store_both_thumbnails_for_file`). Used to invalidate them when the
+/// preview size setting changes.
+const PREVIEW_WEBP_SUFFIX: &str = "_preview.webp";
+const PREVIEW_SVG_SUFFIX: &str = "_preview.svg";
+
 /// Index of `needle` in `haystack` (case-insensitive), for combo boxes whose
 /// persisted value came from the same option list. Falls back to index 0 when
 /// `needle` is not in the list (a hand-edit or a value removed between
@@ -318,6 +324,28 @@ fn apply_theme_to_windows(
     if let Some(win) = settings_win_ui.upgrade() {
         apply(&win.global::<crate::Theme>());
     }
+}
+
+/// Delete cached hover-preview images so the next hover regenerates them at the
+/// new `hover_image_preview_size`. The 36px list-cell thumbnails are left
+/// alone. Best-effort and off the UI thread; a failure only leaves a stale
+/// (possibly upscaled) preview in place until the next cache clear.
+fn invalidate_image_previews(thumbnails_dir: std::path::PathBuf) {
+    std::mem::drop(tokio::task::spawn_blocking(move || {
+        let Ok(entries) = std::fs::read_dir(&thumbnails_dir) else {
+            return;
+        };
+        for entry in entries.filter_map(|e| e.ok()) {
+            let name = entry.file_name();
+            let name = name.to_string_lossy();
+            if !name.ends_with(PREVIEW_WEBP_SUFFIX) && !name.ends_with(PREVIEW_SVG_SUFFIX) {
+                continue;
+            }
+            if let Err(e) = std::fs::remove_file(entry.path()) {
+                tracing::warn!("invalidate_image_previews: {:?}: {e}", entry.path());
+            }
+        }
+    }));
 }
 
 fn reapply_theme(
@@ -680,6 +708,7 @@ fn setup_setting_commit(
     settings: &std::rc::Rc<std::cell::RefCell<cliptoo_core::Settings>>,
     settings_path: &std::path::Path,
     favicons_dir: std::path::PathBuf,
+    thumbnails_dir: std::path::PathBuf,
     hotkey_tx: tokio::sync::watch::Sender<String>,
     retention_tx: tokio::sync::watch::Sender<cliptoo_core::maintenance::RetentionConfig>,
     blacklist_state: std::sync::Arc<std::sync::Mutex<Vec<String>>>,
@@ -692,6 +721,7 @@ fn setup_setting_commit(
     let sw = settings_win.as_weak();
     let fillers = fillers.clone();
     let image_preview_size = image_preview_size.clone();
+    let thumbnails_dir = thumbnails_dir.clone();
     settings_win.on_setting_changed(
         move |key: slint::SharedString, value: slint::SharedString| {
             let key = key.to_string();
@@ -830,8 +860,15 @@ fn setup_setting_commit(
                     if let Ok(v) = value.parse::<u32>() {
                         s.hover_image_preview_size = v;
                         // The clipboard listener reads this shared value per
-                        // thumbnail generation, so the change applies live.
+                        // thumbnail generation, and the preview popup reads the
+                        // Theme token, so the change applies live.
                         image_preview_size.store(v, std::sync::atomic::Ordering::Relaxed);
+                        apply_theme_to_windows(&settings_ui, &sw, |t| {
+                            t.set_preview_image_size(v as f32);
+                        });
+                        // Drop cached hover previews so the next hover rebuilds
+                        // them at the new size instead of upscaling the old one.
+                        invalidate_image_previews(thumbnails_dir.clone());
                     }
                 }
                 "paste_as_plain_text" => s.paste_as_plain_text = value == "true",
@@ -954,6 +991,7 @@ pub fn setup_settings_window(
         settings,
         &dirs.settings_path,
         dirs.favicons_dir.clone(),
+        dirs.thumbnails_dir.clone(),
         hotkey_tx,
         retention_tx,
         blacklist_state,

@@ -13,6 +13,14 @@ const CODE_PREVIEW_WIDTH: f32 = 560.0;
 const DEFAULT_PREVIEW_WIDTH: f32 = 400.0;
 const POPUP_MARGIN: f32 = 8.0;
 const POPUP_OFFSET_X: f32 = 20.0;
+/// Popup content padding (12px each side), matching PreviewTooltip.slint.
+const POPUP_PADDING: f32 = 24.0;
+/// Horizontal room reserved around an image popup inside the window.
+const IMAGE_BOX_H_MARGIN: f32 = 32.0;
+/// Vertical room reserved for an image popup's caption and padding.
+const IMAGE_BOX_V_MARGIN: f32 = 80.0;
+/// Floor for the computed image box, so a tiny window still shows a preview.
+const IMAGE_BOX_MIN: f32 = 80.0;
 /// Maximum bytes read from a copied file for its text preview, so a huge file
 /// (e.g. a multi-GB log) is never slurped into memory just to render a tooltip.
 const FILE_TEXT_PREVIEW_MAX_BYTES: usize = 64 * 1024;
@@ -46,16 +54,29 @@ struct PreviewContext<'a> {
     generation: &'a Arc<AtomicU64>,
 }
 
+/// On-screen image box (logical px) for a `file_image` popup, mirroring
+/// `PreviewTooltip.slint`: the configured max, floored and capped so the popup
+/// fits the window.
+fn image_box(preview_max_dim: u32, window_w: f32, window_h: f32) -> f32 {
+    let cap = (window_w - IMAGE_BOX_H_MARGIN)
+        .min(window_h - IMAGE_BOX_V_MARGIN)
+        .max(IMAGE_BOX_MIN);
+    (preview_max_dim as f32).min(cap)
+}
+
 /// Position the preview popup next to the pointer, clamped inside the window.
-fn position_popup(ui: &crate::AppWindow, clip_type: &str, x: f32, y: f32) {
-    let popup_w: f32 = if clip_type == "code_snippet" {
-        CODE_PREVIEW_WIDTH
-    } else {
-        DEFAULT_PREVIEW_WIDTH
-    };
-    let window_w = ui.window().size().width as f32;
+fn position_popup(ui: &crate::AppWindow, clip_type: &str, x: f32, y: f32, preview_max_dim: u32) {
     let scale = ui.window().scale_factor();
-    let window_w_logical = window_w / scale;
+    let window_size = ui.window().size();
+    let window_w_logical = window_size.width as f32 / scale;
+    let window_h_logical = window_size.height as f32 / scale;
+    let popup_w: f32 = match clip_type {
+        "code_snippet" => CODE_PREVIEW_WIDTH,
+        "file_image" => {
+            image_box(preview_max_dim, window_w_logical, window_h_logical) + POPUP_PADDING
+        }
+        _ => DEFAULT_PREVIEW_WIDTH,
+    };
     let max_x = (window_w_logical - popup_w - POPUP_MARGIN).max(POPUP_MARGIN);
     let popup_x = (x + POPUP_OFFSET_X).clamp(POPUP_MARGIN, max_x);
     ui.set_preview_popup_x(popup_x);
@@ -418,7 +439,8 @@ pub fn setup_preview(
                     if generation_cell.load(Ordering::Relaxed) != generation {
                         return;
                     }
-                    position_popup(&ui, &clip_type, x, y);
+                    let preview_max_dim = max_dim.load(Ordering::Relaxed);
+                    position_popup(&ui, &clip_type, x, y, preview_max_dim);
                     let ctx = PreviewContext {
                         ui: &ui,
                         clip_type: &clip_type,
@@ -427,7 +449,7 @@ pub fn setup_preview(
                         clip_id: id,
                         fav_dir: &fav_dir,
                         td: &td,
-                        preview_max_dim: max_dim.load(Ordering::Relaxed),
+                        preview_max_dim,
                         request_generation: generation,
                         generation: &generation_cell,
                     };

@@ -18,9 +18,14 @@ export component PreviewTooltip {
     // cursor has simply moved onto the tooltip rather than away from it.
     out property <bool> hovered: hover-catch.has-hover;
 
+    // On-screen box for the image preview: the configured maximum, floored so
+    // it stays usable and capped to what the window leaves room for.
+    private property <length> image-box: Math.min(Theme.preview-image-size, Math.max(80px, Math.min(root.width - 32px, root.height - 80px)));
+
     // Cap on the tooltip content height; taller content is hard-clipped and
-    // signalled by the bottom fade-out gradient below.
-    private property <length> max-content-height: 260px;
+    // signalled by the bottom fade-out gradient below. Image previews size to
+    // the configured image box, so their cap tracks it.
+    private property <length> max-content-height: root.preview-clip-type == "file_image" ? root.image-box + 56px : 260px;
 
     // Fills the window so the inner Rectangle can use absolute x/y coordinates.
     // No background — transparent overlay.
@@ -40,7 +45,7 @@ export component PreviewTooltip {
         // content-layout.preferred-height reflects the actual text-wrapped height.
         property <length> actual-h: content-layout.preferred-height > root.max-content-height ? root.max-content-height : content-layout.preferred-height;
         y: (root.popup-y * 1px + actual-h > root.height - 8px) ? (root.height - actual-h - 8px) : root.popup-y * 1px;
-        width: root.preview-clip-type == "code_snippet" ? 560px : 400px;
+        width: root.preview-clip-type == "code_snippet" ? 560px : (root.preview-clip-type == "file_image" ? root.image-box + 24px : 400px);
         height: actual-h;
         clip: true;
         border-radius: Theme.border-radius;
@@ -82,7 +87,7 @@ export component PreviewTooltip {
                 spacing: 8px;
                 Image {
                     source: root.preview-image;
-                    height: 200px;
+                    height: root.image-box;
                     image-fit: contain;
                 }
 
