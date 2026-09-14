@@ -14,14 +14,15 @@ export component PreviewTooltip inherits Rectangle {
     in property <string> preview-file-info: "";
 
     // On-screen box for the image preview, from the preview-size setting.
-    private property <length> image-box: Theme.preview-image-size;
+    private property <length> image-box: Theme.preview-size;
 
     // Cap on the content height; taller content is hard-clipped and signalled
-    // by the bottom fade-out gradient below. Image previews size to the
-    // configured image box, so their cap tracks it.
-    private property <length> max-content-height: root.preview-clip-type == "file_image" ? root.image-box + 56px : 260px;
+    // by the bottom fade-out gradient below. Image previews add room for the
+    // caption row below the image; every other type caps at the setting.
+    private property <length> max-content-height: root.preview-clip-type == "file_image" ? root.image-box + 56px : Theme.preview-size;
 
-    width: root.preview-clip-type == "code_snippet" ? 560px : (root.preview-clip-type == "file_image" ? root.image-box + 24px : 400px);
+    // The preview-size setting drives the popup width for every clip type.
+    width: root.preview-clip-type == "file_image" ? root.image-box + 24px : Theme.preview-size;
     height: Math.min(content-layout.preferred-height, root.max-content-height);
     clip: true;
     border-radius: Theme.border-radius;

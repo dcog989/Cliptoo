@@ -45,10 +45,10 @@ pub fn hide_preview() {
 
 /// Update the preview window's image-size `Theme` token. The preview window has
 /// its own per-window global, which `apply_theme_to_windows` does not reach.
-pub fn set_preview_image_size(size: f32) {
+pub fn set_preview_size(size: f32) {
     PREVIEW_WINDOW.with(|slot| {
         if let Some(window) = slot.borrow().as_ref().and_then(|w| w.upgrade()) {
-            window.global::<crate::Theme>().set_preview_image_size(size);
+            window.global::<crate::Theme>().set_preview_size(size);
         }
     });
 }

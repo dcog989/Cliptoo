@@ -165,7 +165,7 @@ const APPEARANCE_CLIP_FONT_SIZE: &str = "appearance clip list font size text";
 const APPEARANCE_PREVIEW_FONT_SIZE: &str = "appearance preview font size code color";
 const APPEARANCE_PADDING: &str = "appearance row padding compact standard luxury";
 const APPEARANCE_HOVER_DELAY: &str = "appearance preview hover delay tooltip milliseconds";
-const APPEARANCE_IMAGE_PREVIEW_SIZE: &str = "appearance image preview size thumbnail pixels";
+const APPEARANCE_IMAGE_PREVIEW_SIZE: &str = "appearance preview size hover thumbnail pixels";
 const EXTERNAL_DIFF_TOOL: &str = "external apps diff tool path compare";
 const EXTERNAL_SENDTO: &str = "external apps send to apps list";
 const EXTERNAL_BLACKLIST: &str = "external apps blacklist apps exclude ignore";
@@ -864,11 +864,11 @@ fn setup_setting_commit(
                         // Theme token, so the change applies live.
                         image_preview_size.store(v, std::sync::atomic::Ordering::Relaxed);
                         apply_theme_to_windows(&settings_ui, &sw, |t| {
-                            t.set_preview_image_size(v as f32);
+                            t.set_preview_size(v as f32);
                         });
                         // The preview window has its own per-window Theme global
                         // that apply_theme_to_windows does not reach.
-                        crate::preview::set_preview_image_size(v as f32);
+                        crate::preview::set_preview_size(v as f32);
                         // Drop cached hover previews so the next hover rebuilds
                         // them at the new size instead of upscaling the old one.
                         invalidate_image_previews(thumbnails_dir.clone());

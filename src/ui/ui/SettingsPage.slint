@@ -374,8 +374,8 @@ export component SettingsPage inherits ScrollView {
         }
 
         if root.row-image-preview-size-visible: IntRow {
-            label: @tr("Image preview size");
-            tooltip-text: @tr("Maximum width/height of hover preview images");
+            label: @tr("Preview size");
+            tooltip-text: @tr("Maximum width/height of hover previews");
             value <=> root.s-image-preview-size;
             min-val: 100;
             max-val: 800;
