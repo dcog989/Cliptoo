@@ -8,6 +8,8 @@ tag_prefix = "v"
 # Sync the version across all manifests before the bump commit is created.
 # `{{version}}` is replaced by cog with the target version before the hooks run.
 pre_bump_hooks = [
+  "cargo test --workspace",
+  "cargo clippy --workspace --all-targets -- -D warnings",
   "./scripts/sync_version.sh {{version}}",
 ]
 
