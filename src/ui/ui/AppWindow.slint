@@ -1,13 +1,14 @@
 // AppWindow.slint — Root component.
 // Imports all sub-components and manages global UI state. The clip list +
-// keyboard handling live in MainClipArea; popups, the preview overlay, and
-// resize handles are delegated to child host components.
+// keyboard handling live in MainClipArea; popups and resize handles are
+// delegated to child host components. The hover preview is a separate
+// top-level `PreviewWindow` (rendered as a Qt tooltip from Rust).
 
 import { MainClipArea }   from "MainClipArea.slint";
 import { ContextMenuHost }  from "ContextMenuHost.slint";
 import { HamburgerMenuHost } from "HamburgerMenuHost.slint";
 import { FilterPopup }      from "FilterPopup.slint";
-import { PreviewOverlay }   from "PreviewOverlay.slint";
+import { PreviewWindow }    from "PreviewWindow.slint";
 import { ResizeHandles }    from "ResizeHandles.slint";
 import { Theme }           from "Theme.slint";
 import { ClipData }        from "ClipData.slint";
@@ -21,6 +22,7 @@ export {
     SettingsWindow,
     EditWindow,
     AboutWindow,
+    PreviewWindow,
     CliptooTray,
 }
 
@@ -129,18 +131,6 @@ export component AppWindow inherits Window {
     // Populated by Rust from settings.send_to_apps before each show().
     in property <[string]> ctx-send-to-apps: [];
 
-    // ── Preview shadow properties (set from Rust, bound to PreviewOverlay) ─────
-    in property <bool> preview-visible: false;
-    in property <image> preview-image;
-    in property <image> preview-favicon;
-    in property <string> preview-clip-type: "text";
-    in property <string> preview-text: "";
-    in property <color> preview-color: #888888;
-    in property <string> preview-web-title: "";
-    in property <string> preview-file-info: "";
-    in property <float> preview-popup-x: 0.0;
-    in property <float> preview-popup-y: 0.0;
-
     // Re-anchors keyboard focus to the clip area's focus-scope. forward-focus
     // only applies the *first* time the window is activated (Slint focus docs);
     // once search-input is clicked it keeps focus permanently, silencing the
@@ -188,7 +178,6 @@ export component AppWindow inherits Window {
         popup-windows-open: root.popup-windows-open;
         window-active: root.window-active;
         popup-just-closed <=> root.popup-just-closed;
-        preview-hovered: preview-overlay.hovered;
         selected-index <=> root.selected-index;
         search-text <=> root.search-text;
         active-filter <=> root.active-filter;
@@ -321,26 +310,6 @@ export component AppWindow inherits Window {
         filter-chosen(f) => {
             root.active-filter = f;
             root.filter-changed(f);
-        }
-    }
-
-    // ── Preview tooltip overlay ──────────────────────────────────
-    preview-overlay := PreviewOverlay {
-        x: 0px;
-        y: 0px;
-        visible-preview: root.preview-visible;
-        preview-image: root.preview-image;
-        preview-favicon: root.preview-favicon;
-        preview-clip-type: root.preview-clip-type;
-        preview-text: root.preview-text;
-        preview-color: root.preview-color;
-        preview-web-title: root.preview-web-title;
-        preview-file-info: root.preview-file-info;
-        popup-x: root.preview-popup-x;
-        popup-y: root.preview-popup-y;
-
-        dismiss-preview() => {
-            root.dismiss-preview();
         }
     }
 

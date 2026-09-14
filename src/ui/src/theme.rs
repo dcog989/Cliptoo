@@ -496,6 +496,7 @@ macro_rules! register_theme_filler {
 }
 
 register_theme_filler!(register_about_theme_filler, crate::AboutWindow);
+register_theme_filler!(register_preview_theme_filler, crate::PreviewWindow);
 register_theme_filler!(register_tray_theme_filler, crate::CliptooTray);
 
 #[cfg(test)]

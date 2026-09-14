@@ -1,0 +1,37 @@
+// PreviewWindow.slint — standalone always-on-top surface for the hover
+// preview. It is turned into a focus-less, input-transparent Qt tooltip from
+// Rust (drag.rs) so it can extend beyond the main window without stealing
+// focus or the pointer hover that opened it.
+import { Theme }          from "Theme.slint";
+import { PreviewTooltip } from "PreviewTooltip.slint";
+
+export component PreviewWindow inherits Window {
+    title: @tr("Cliptoo Preview");
+    no-frame: true;
+    always-on-top: true;
+    background: transparent;
+    default-font-size: Theme.font-size;
+
+    in property <string> preview-clip-type: "text";
+    in property <string> preview-text: "";
+    in property <color> preview-color: #888888;
+    in property <image> preview-image;
+    in property <image> preview-favicon;
+    in property <string> preview-web-title: "";
+    in property <string> preview-file-info: "";
+
+    // Bind the window size directly to the content (preferred-* alone does not
+    // size a Qt/Wayland window; see the About window note in about.rs).
+    width: tooltip.width;
+    height: tooltip.height;
+
+    tooltip := PreviewTooltip {
+        preview-clip-type: root.preview-clip-type;
+        preview-text: root.preview-text;
+        preview-color: root.preview-color;
+        preview-image: root.preview-image;
+        preview-favicon: root.preview-favicon;
+        preview-web-title: root.preview-web-title;
+        preview-file-info: root.preview-file-info;
+    }
+}

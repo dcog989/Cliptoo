@@ -17,6 +17,7 @@ use i_slint_backend_qt::QtWidgetAccessor;
 unsafe extern "C" {
     fn cliptoo_start_window_move(widget: *mut std::ffi::c_void);
     fn cliptoo_activate_window(widget: *mut std::ffi::c_void);
+    fn cliptoo_make_tooltip_window(child: *mut std::ffi::c_void, parent: *mut std::ffi::c_void);
     fn cliptoo_app_has_focus() -> bool;
 }
 
@@ -38,6 +39,26 @@ pub fn activate_window<C: slint::ComponentHandle>(ui: &C) {
     if let Some(ptr) = win.qt_widget_ptr() {
         unsafe {
             cliptoo_activate_window(ptr.as_ptr() as *mut std::ffi::c_void);
+        }
+    }
+}
+
+/// Re-parent `preview`'s native window onto `main` as a focus-less,
+/// input-transparent tooltip (see cliptoo_make_tooltip_window). Must run before
+/// the preview is first shown. Generic over handles so it is not tied to a
+/// specific window type.
+pub fn make_tooltip_window<C: slint::ComponentHandle, P: slint::ComponentHandle>(
+    preview: &C,
+    main: &P,
+) {
+    let child = slint::ComponentHandle::window(preview).qt_widget_ptr();
+    let parent = slint::ComponentHandle::window(main).qt_widget_ptr();
+    if let (Some(child), Some(parent)) = (child, parent) {
+        unsafe {
+            cliptoo_make_tooltip_window(
+                child.as_ptr() as *mut std::ffi::c_void,
+                parent.as_ptr() as *mut std::ffi::c_void,
+            );
         }
     }
 }

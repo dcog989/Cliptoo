@@ -866,6 +866,9 @@ fn setup_setting_commit(
                         apply_theme_to_windows(&settings_ui, &sw, |t| {
                             t.set_preview_image_size(v as f32);
                         });
+                        // The preview window has its own per-window Theme global
+                        // that apply_theme_to_windows does not reach.
+                        crate::preview::set_preview_image_size(v as f32);
                         // Drop cached hover previews so the next hover rebuilds
                         // them at the new size instead of upscaling the old one.
                         invalidate_image_previews(thumbnails_dir.clone());

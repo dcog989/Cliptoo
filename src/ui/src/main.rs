@@ -129,6 +129,21 @@ async fn main() -> Result<()> {
     );
     theme::register_about_theme_filler(&theme_fillers, &about_win.as_weak());
 
+    // Standalone hover-preview surface. It is re-parented onto the main window
+    // as an input-transparent, focus-less Qt tooltip (see drag.rs) so a preview
+    // can be larger than the main window without stealing focus (which would
+    // close the main window to the tray) or the pointer hover that opened it.
+    let preview_win = PreviewWindow::new()?;
+    theme::fill_theme(
+        &preview_win.global::<crate::Theme>(),
+        &settings.borrow(),
+        is_dark,
+        system_accent,
+    );
+    theme::register_preview_theme_filler(&theme_fillers, &preview_win.as_weak());
+    drag::make_tooltip_window(&preview_win, &ui);
+    preview::register_preview_window(&preview_win);
+
     stats_ui::setup_stats(&settings_win, &db, &dirs.db_path);
 
     // Mirror of the toolbar's active clip-type filter. Slint properties are
@@ -142,8 +157,8 @@ async fn main() -> Result<()> {
 
     search::setup_filter(&ui, &db, &dirs, &active_filter_state);
 
-    preview::setup_preview(&ui, &db, &dirs, image_preview_size.clone());
-    preview::setup_dismiss_preview(&ui);
+    preview::setup_preview(&ui, &preview_win, &db, &dirs, image_preview_size.clone());
+    preview::setup_dismiss_preview(&ui, &preview_win);
 
     let edit_win = edit::setup_edit_window(&ui, &settings, &dirs, &db, &tag_prefix);
     theme::fill_theme(

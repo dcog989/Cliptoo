@@ -12,10 +12,11 @@ pub fn hide_window(ui: &crate::AppWindow) {
         ui.set_search_text("".into());
         ui.invoke_search_changed("".into());
     }
-    // Dismiss a showing hover preview: its preview-visible latch survives a
-    // hide, so without this the popup would reappear orphaned on the next
-    // show() with no cursor under it to ever dismiss it.
-    ui.set_preview_visible(false);
+    // Dismiss a showing hover preview: the preview is its own top-level window
+    // and would otherwise reappear orphaned on the next show() with no cursor
+    // under it to ever dismiss it. Hide it before the main window so the
+    // tooltip doesn't linger over the desktop after the main window is gone.
+    crate::preview::hide_preview();
     let _ = ComponentHandle::hide(ui);
 }
 

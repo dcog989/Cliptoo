@@ -38,7 +38,6 @@ export component MainClipArea inherits Rectangle {
     // main window's keyboard focus, so item focus is no blur signal there.
     in property <bool> window-active: true;
     in-out property <bool> popup-just-closed: false;
-    in property <bool> preview-hovered: false;
 
     in-out property <int> selected-index: 0;  // reset by Rust on search/filter change
     in-out property <string> search-text: "";
@@ -272,12 +271,7 @@ export component MainClipArea inherits Rectangle {
                     root.request-preview(id, x, y);
                 }
                 dismiss-preview => {
-                    // Cursor may have moved onto the tooltip itself rather
-                    // than away from the preview area — the tooltip-hover
-                    // Timer in PreviewOverlay takes over closing it there.
-                    if (!root.preview-hovered) {
-                        root.dismiss-preview();
-                    }
+                    root.dismiss-preview();
                 }
             }
 

@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::io::Read;
 use std::path::Path;
 use std::sync::Arc;
@@ -9,18 +10,8 @@ use cliptoo_core::image::HASH_FILENAME_PREFIX_LEN;
 
 use crate::helpers;
 
-const CODE_PREVIEW_WIDTH: f32 = 560.0;
-const DEFAULT_PREVIEW_WIDTH: f32 = 400.0;
-const POPUP_MARGIN: f32 = 8.0;
+/// Horizontal offset (logical px) of the preview popup from the pointer.
 const POPUP_OFFSET_X: f32 = 20.0;
-/// Popup content padding (12px each side), matching PreviewTooltip.slint.
-const POPUP_PADDING: f32 = 24.0;
-/// Horizontal room reserved around an image popup inside the window.
-const IMAGE_BOX_H_MARGIN: f32 = 32.0;
-/// Vertical room reserved for an image popup's caption and padding.
-const IMAGE_BOX_V_MARGIN: f32 = 80.0;
-/// Floor for the computed image box, so a tiny window still shows a preview.
-const IMAGE_BOX_MIN: f32 = 80.0;
 /// Maximum bytes read from a copied file for its text preview, so a huge file
 /// (e.g. a multi-GB log) is never slurped into memory just to render a tooltip.
 const FILE_TEXT_PREVIEW_MAX_BYTES: usize = 64 * 1024;
@@ -30,11 +21,46 @@ const FILE_PREVIEW_SEPARATOR_GLYPH: &str = "─";
 /// Length (in glyphs) of the path/contents divider line.
 const FILE_PREVIEW_SEPARATOR_LEN: usize = 40;
 
+thread_local! {
+    // The live preview window, registered at startup so modules without a
+    // handle (e.g. `window::hide_window`) can hide it. UI-thread only.
+    static PREVIEW_WINDOW: RefCell<Option<slint::Weak<crate::PreviewWindow>>> =
+        const { RefCell::new(None) };
+}
+
+/// Remember the created preview window so [`hide_preview`] can reach it.
+pub fn register_preview_window(window: &crate::PreviewWindow) {
+    PREVIEW_WINDOW.with(|slot| *slot.borrow_mut() = Some(window.as_weak()));
+}
+
+/// Hide the hover preview without a window handle. Called when the main window
+/// hides, so a stale preview can't reappear orphaned on the next show.
+pub fn hide_preview() {
+    PREVIEW_WINDOW.with(|slot| {
+        if let Some(window) = slot.borrow().as_ref().and_then(|w| w.upgrade()) {
+            let _ = window.hide();
+        }
+    });
+}
+
+/// Update the preview window's image-size `Theme` token. The preview window has
+/// its own per-window global, which `apply_theme_to_windows` does not reach.
+pub fn set_preview_image_size(size: f32) {
+    PREVIEW_WINDOW.with(|slot| {
+        if let Some(window) = slot.borrow().as_ref().and_then(|w| w.upgrade()) {
+            window.global::<crate::Theme>().set_preview_image_size(size);
+        }
+    });
+}
+
 /// Everything a preview handler needs, bundled so the per-type handlers can
 /// share one uniform `fn(&PreviewContext)` signature and be dispatched from a
 /// table instead of a growing `match`.
 struct PreviewContext<'a> {
-    ui: &'a crate::AppWindow,
+    /// The main window, for the clip model (link favicon row refresh).
+    app: &'a crate::AppWindow,
+    /// The standalone window that renders the popup.
+    preview: &'a crate::PreviewWindow,
     clip_type: &'a str,
     content: &'a str,
     content_hash: &'a str,
@@ -54,59 +80,40 @@ struct PreviewContext<'a> {
     generation: &'a Arc<AtomicU64>,
 }
 
-/// On-screen image box (logical px) for a `file_image` popup, mirroring
-/// `PreviewTooltip.slint`: the configured max, floored and capped so the popup
-/// fits the window.
-fn image_box(preview_max_dim: u32, window_w: f32, window_h: f32) -> f32 {
-    let cap = (window_w - IMAGE_BOX_H_MARGIN)
-        .min(window_h - IMAGE_BOX_V_MARGIN)
-        .max(IMAGE_BOX_MIN);
-    (preview_max_dim as f32).min(cap)
-}
-
-/// Position the preview popup next to the pointer, clamped inside the window.
-fn position_popup(ui: &crate::AppWindow, clip_type: &str, x: f32, y: f32, preview_max_dim: u32) {
-    let scale = ui.window().scale_factor();
-    let window_size = ui.window().size();
-    let window_w_logical = window_size.width as f32 / scale;
-    let window_h_logical = window_size.height as f32 / scale;
-    let popup_w: f32 = match clip_type {
-        "code_snippet" => CODE_PREVIEW_WIDTH,
-        "file_image" => {
-            image_box(preview_max_dim, window_w_logical, window_h_logical) + POPUP_PADDING
-        }
-        _ => DEFAULT_PREVIEW_WIDTH,
-    };
-    let max_x = (window_w_logical - popup_w - POPUP_MARGIN).max(POPUP_MARGIN);
-    let popup_x = (x + POPUP_OFFSET_X).clamp(POPUP_MARGIN, max_x);
-    ui.set_preview_popup_x(popup_x);
-    ui.set_preview_popup_y(y);
+/// Place the preview next to the pointer. Coordinates are main-window-local;
+/// the preview is a Qt tooltip child of the main window, so Slint translates
+/// them to screen coordinates. Positioning is not clamped to the main window.
+fn position_preview(preview: &crate::PreviewWindow, x: f32, y: f32) {
+    preview
+        .window()
+        .set_position(slint::LogicalPosition::new(x + POPUP_OFFSET_X, y));
 }
 
 /// Preview for a code-snippet clip: the snippet text in a fixed-width popup.
 fn show_code_preview(ctx: &PreviewContext) {
-    ctx.ui.set_preview_clip_type("code_snippet".into());
-    ctx.ui.set_preview_text(ctx.content.into());
+    ctx.preview.set_preview_clip_type("code_snippet".into());
+    ctx.preview.set_preview_text(ctx.content.into());
 }
 
 /// Preview for a link clip: the URL plus the cached or fetched page title and
 /// favicon, updating the row in-place when the favicon arrives.
 fn show_link_preview(ctx: &PreviewContext) {
-    let ui = ctx.ui;
-    ui.set_preview_clip_type("link".into());
-    ui.set_preview_text(ctx.content.into());
-    ui.set_preview_favicon(slint::Image::default());
-    ui.set_preview_web_title("".into());
+    let preview = ctx.preview;
+    preview.set_preview_clip_type("link".into());
+    preview.set_preview_text(ctx.content.into());
+    preview.set_preview_favicon(slint::Image::default());
+    preview.set_preview_web_title("".into());
     let c = ctx.content.to_string();
     let fd = ctx.fav_dir.to_path_buf();
     let clip_id = ctx.clip_id;
     let dark = crate::theme::cached_resolved_theme().0;
-    let w = ui.as_weak();
+    let preview_w = preview.as_weak();
+    let app_w = ctx.app.as_weak();
     // Read the cached title once and reuse it both for the immediate title and
     // the background branch decision below.
     let cached_title = crate::favicon::load_cached_page_title(&c, &fd);
     if let Some(ref t) = cached_title {
-        ui.set_preview_web_title(t.clone().into());
+        preview.set_preview_web_title(t.clone().into());
     }
     let generation = ctx.request_generation;
     let generation_cell = ctx.generation.clone();
@@ -124,25 +131,28 @@ fn show_link_preview(ctx: &PreviewContext) {
             }
             (t, f)
         };
-        let _ = w.upgrade_in_event_loop(move |ui| {
+        let _ = preview_w.upgrade_in_event_loop(move |preview| {
             // Ignore the result if a newer request has taken over the popup.
             if generation_cell.load(Ordering::Relaxed) != generation {
                 return;
             }
             if let Some(t) = title.or(cached_title) {
-                ui.set_preview_web_title(t.into());
+                preview.set_preview_web_title(t.into());
             }
             if let Some(p) = fav_path {
                 let img = slint::Image::load_from_path(&p).unwrap_or_default();
-                ui.set_preview_favicon(img.clone());
-                let model = ui.get_clips();
-                for i in 0..model.row_count() {
-                    if let Some(mut data) = model.row_data(i)
-                        && data.id == clip_id
-                    {
-                        data.favicon_image = img;
-                        model.set_row_data(i, data);
-                        break;
+                preview.set_preview_favicon(img.clone());
+                // Refresh the list row's favicon on the main window.
+                if let Some(app) = app_w.upgrade() {
+                    let model = app.get_clips();
+                    for i in 0..model.row_count() {
+                        if let Some(mut data) = model.row_data(i)
+                            && data.id == clip_id
+                        {
+                            data.favicon_image = img;
+                            model.set_row_data(i, data);
+                            break;
+                        }
                     }
                 }
             }
@@ -153,7 +163,7 @@ fn show_link_preview(ctx: &PreviewContext) {
 /// Preview for a file-image clip: the stored preview WebP/SVG if present,
 /// otherwise generate it in the background and load the result when ready.
 fn show_image_preview(ctx: &PreviewContext) {
-    let ui = ctx.ui;
+    let preview = ctx.preview;
     let content = ctx.content;
     let content_hash = ctx.content_hash;
     let td = ctx.td;
@@ -167,10 +177,10 @@ fn show_image_preview(ctx: &PreviewContext) {
     ));
     if preview_webp.exists() {
         let img = slint::Image::load_from_path(&preview_webp).unwrap_or_default();
-        ui.set_preview_image(img);
+        preview.set_preview_image(img);
     } else if preview_svg.exists() {
         let img = slint::Image::load_from_path(&preview_svg).unwrap_or_default();
-        ui.set_preview_image(img);
+        preview.set_preview_image(img);
     } else {
         let file_path = content.to_string();
         let td2 = td.to_path_buf();
@@ -178,7 +188,7 @@ fn show_image_preview(ctx: &PreviewContext) {
         let max_dim = ctx.preview_max_dim;
         let generation = ctx.request_generation;
         let generation_cell = ctx.generation.clone();
-        let w = ui.as_weak();
+        let w = preview.as_weak();
         tokio::spawn(async move {
             let _ = cliptoo_core::image::store_both_thumbnails_for_file(
                 &td2,
@@ -191,13 +201,13 @@ fn show_image_preview(ctx: &PreviewContext) {
                 &hash2[..HASH_FILENAME_PREFIX_LEN]
             ));
             if p.exists() {
-                let _ = w.upgrade_in_event_loop(move |ui| {
+                let _ = w.upgrade_in_event_loop(move |preview| {
                     // A newer request has taken over the popup; leave it alone.
                     if generation_cell.load(Ordering::Relaxed) != generation {
                         return;
                     }
                     let img = slint::Image::load_from_path(&p).unwrap_or_default();
-                    ui.set_preview_image(img);
+                    preview.set_preview_image(img);
                 });
             } else {
                 let svg_p = td2.join(format!(
@@ -205,19 +215,19 @@ fn show_image_preview(ctx: &PreviewContext) {
                     &hash2[..HASH_FILENAME_PREFIX_LEN]
                 ));
                 if svg_p.exists() {
-                    let _ = w.upgrade_in_event_loop(move |ui| {
+                    let _ = w.upgrade_in_event_loop(move |preview| {
                         if generation_cell.load(Ordering::Relaxed) != generation {
                             return;
                         }
                         let img = slint::Image::load_from_path(&svg_p).unwrap_or_default();
-                        ui.set_preview_image(img);
+                        preview.set_preview_image(img);
                     });
                 }
             }
         });
     }
-    ui.set_preview_clip_type("file_image".into());
-    ui.set_preview_text(content.into());
+    preview.set_preview_clip_type("file_image".into());
+    preview.set_preview_text(content.into());
 }
 
 /// Preview for a folder clip: the path plus an entry count, total size and the
@@ -225,10 +235,10 @@ fn show_image_preview(ctx: &PreviewContext) {
 /// so a large folder (or slow network mount) can't stall the UI thread; the
 /// path line is shown first so the popup is immediately non-empty.
 fn show_folder_preview(ctx: &PreviewContext) {
-    ctx.ui.set_preview_clip_type("folder".into());
-    ctx.ui.set_preview_text(ctx.content.into());
+    ctx.preview.set_preview_clip_type("folder".into());
+    ctx.preview.set_preview_text(ctx.content.into());
     let path = ctx.content.to_string();
-    let ui_fin = ctx.ui.as_weak();
+    let ui_fin = ctx.preview.as_weak();
     let generation = ctx.request_generation;
     let generation_cell = ctx.generation.clone();
     tokio::spawn(async move {
@@ -236,12 +246,12 @@ fn show_folder_preview(ctx: &PreviewContext) {
         let Ok(info) = info else {
             return;
         };
-        let _ = ui_fin.upgrade_in_event_loop(move |ui| {
+        let _ = ui_fin.upgrade_in_event_loop(move |preview| {
             // Ignore the result if a newer request has taken over the popup.
             if generation_cell.load(Ordering::Relaxed) != generation {
                 return;
             }
-            ui.set_preview_file_info(info.into());
+            preview.set_preview_file_info(info.into());
         });
     });
 }
@@ -293,8 +303,8 @@ fn scan_folder_info(path: &str) -> String {
 
 /// Preview for every other clip type (text, file_*): show text.
 fn show_text_preview(ctx: &PreviewContext) {
-    ctx.ui.set_preview_clip_type(ctx.clip_type.into());
-    ctx.ui.set_preview_text(ctx.content.into());
+    ctx.preview.set_preview_clip_type(ctx.clip_type.into());
+    ctx.preview.set_preview_text(ctx.content.into());
 }
 
 /// Preview for a color clip: the parsed colour as a full-size swatch plus the
@@ -302,26 +312,26 @@ fn show_text_preview(ctx: &PreviewContext) {
 /// the placeholder grey the popup defaults to. Falls back to transparent on a
 /// parse failure, mirroring the list-row swatch in thumbnail_cache::convert.
 fn show_color_preview(ctx: &PreviewContext) {
-    ctx.ui.set_preview_clip_type("color".into());
-    ctx.ui.set_preview_text(ctx.content.into());
+    ctx.preview.set_preview_clip_type("color".into());
+    ctx.preview.set_preview_text(ctx.content.into());
     let color = cliptoo_core::color::ColorParser::try_parse(ctx.content)
         .map(|c| slint::Color::from_argb_u8(c.a, c.r, c.g, c.b))
         .unwrap_or(slint::Color::from_argb_u8(0, 0, 0, 0));
-    ctx.ui.set_preview_color(color);
+    ctx.preview.set_preview_color(color);
 }
 
 /// Preview for RTF clips: show the stripped plain text, not raw markup.
 fn show_rtf_preview(ctx: &PreviewContext) {
-    ctx.ui.set_preview_clip_type(ctx.clip_type.into());
+    ctx.preview.set_preview_clip_type(ctx.clip_type.into());
     let stripped = cliptoo_core::content::strip_rtf(ctx.content);
-    ctx.ui.set_preview_text(stripped.into());
+    ctx.preview.set_preview_text(stripped.into());
 }
 
 /// Preview for HTML clips: show the stripped plain text, not raw markup.
 fn show_html_preview(ctx: &PreviewContext) {
-    ctx.ui.set_preview_clip_type(ctx.clip_type.into());
+    ctx.preview.set_preview_clip_type(ctx.clip_type.into());
     let stripped = cliptoo_core::content::strip_html(ctx.content);
-    ctx.ui.set_preview_text(stripped.into());
+    ctx.preview.set_preview_text(stripped.into());
 }
 
 /// Preview for a copied text document (`.txt`, `.md`, `.log`, …) and for
@@ -334,10 +344,10 @@ fn show_text_file_preview(ctx: &PreviewContext) {
     // identifiable even when the contents are truncated or unreadable.
     let path_line = ctx.content.to_string();
     let file_path = ctx.content.to_string();
-    ctx.ui.set_preview_clip_type("file_text".into());
-    ctx.ui.set_preview_text(path_line.clone().into());
+    ctx.preview.set_preview_clip_type("file_text".into());
+    ctx.preview.set_preview_text(path_line.clone().into());
 
-    let ui_fin = ctx.ui.as_weak();
+    let ui_fin = ctx.preview.as_weak();
     let generation = ctx.request_generation;
     let generation_cell = ctx.generation.clone();
     tokio::spawn(async move {
@@ -352,12 +362,12 @@ fn show_text_file_preview(ctx: &PreviewContext) {
         if truncated {
             preview.push_str("\n… (preview truncated)");
         }
-        let _ = ui_fin.upgrade_in_event_loop(move |ui| {
+        let _ = ui_fin.upgrade_in_event_loop(move |preview_win| {
             // Ignore the result if a newer request has taken over the popup.
             if generation_cell.load(Ordering::Relaxed) != generation {
                 return;
             }
-            ui.set_preview_text(preview.into());
+            preview_win.set_preview_text(preview.into());
         });
     });
 }
@@ -407,24 +417,27 @@ const PREVIEW_HANDLERS: &[(&str, PreviewHandler)] = &[
 ];
 
 pub fn setup_preview(
-    ui: &crate::AppWindow,
+    app: &crate::AppWindow,
+    preview: &crate::PreviewWindow,
     db: &Arc<cliptoo_core::db::DbPool>,
     dirs: &crate::app_dirs::AppDirs,
     preview_size: Arc<std::sync::atomic::AtomicU32>,
 ) {
     let preview_db = db.clone();
-    let preview_ui = ui.as_weak();
+    let app_weak = app.as_weak();
+    let preview_weak = preview.as_weak();
     let preview_fd = dirs.favicons_dir.clone();
     let preview_td = dirs.thumbnails_dir.clone();
     let preview_max_dim = preview_size.clone();
     // Bumped on every preview request; async completions use it to detect and
     // discard results for a clip the user has already moved on from.
     let request_generation = Arc::new(AtomicU64::new(0));
-    ui.on_request_preview(move |id: i32, x: f32, y: f32| {
+    app.on_request_preview(move |id: i32, x: f32, y: f32| {
         // Invalidate any still-running work from an earlier request.
         let generation = request_generation.fetch_add(1, Ordering::Relaxed) + 1;
         let db = preview_db.clone();
-        let ui = preview_ui.clone();
+        let app = app_weak.clone();
+        let preview = preview_weak.clone();
         let fav_dir = preview_fd.clone();
         let td = preview_td.clone();
         let max_dim = preview_max_dim.clone();
@@ -434,15 +447,18 @@ pub fn setup_preview(
                 .with(|conn| cliptoo_core::db::queries::get_clip_type_and_content(conn, id as i64))
                 .await;
             if let Ok((content, clip_type, content_hash)) = result {
-                let _ = ui.upgrade_in_event_loop(move |ui| {
+                let _ = app.upgrade_in_event_loop(move |app| {
+                    let Some(preview) = preview.upgrade() else {
+                        return;
+                    };
                     // A newer request already took over the popup; drop this one.
                     if generation_cell.load(Ordering::Relaxed) != generation {
                         return;
                     }
                     let preview_max_dim = max_dim.load(Ordering::Relaxed);
-                    position_popup(&ui, &clip_type, x, y, preview_max_dim);
                     let ctx = PreviewContext {
-                        ui: &ui,
+                        app: &app,
+                        preview: &preview,
                         clip_type: &clip_type,
                         content: &content,
                         content_hash: &content_hash,
@@ -458,18 +474,21 @@ pub fn setup_preview(
                         .find(|(t, _)| *t == clip_type.as_str())
                         .map_or(show_text_preview as PreviewHandler, |(_, h)| *h);
                     handler(&ctx);
-                    ui.set_preview_visible(true);
+                    // Position after the content is set so the window can size
+                    // itself before it becomes visible.
+                    position_preview(&preview, x, y);
+                    let _ = preview.show();
                 });
             }
         });
     });
 }
 
-pub fn setup_dismiss_preview(ui: &crate::AppWindow) {
-    let dismiss_ui = ui.as_weak();
-    ui.on_dismiss_preview(move || {
-        if let Some(ui) = dismiss_ui.upgrade() {
-            ui.set_preview_visible(false);
+pub fn setup_dismiss_preview(app: &crate::AppWindow, preview: &crate::PreviewWindow) {
+    let preview = preview.as_weak();
+    app.on_dismiss_preview(move || {
+        if let Some(preview) = preview.upgrade() {
+            let _ = preview.hide();
         }
     });
 }
