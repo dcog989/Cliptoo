@@ -70,6 +70,7 @@ export component AboutWindow inherits Window {
 
     in property <string> version: "";
     in property <string> install-path: "";
+    in property <string> config-path: "";
     in property <string> data-path: "";
     in property <string> cache-path: "";
     in property <string> logs-folder-path: "";
@@ -148,6 +149,12 @@ export component AboutWindow inherits Window {
                 label: "Install";
                 value: root.install-path;
                 value-clicked => { root.open-folder(root.install-path); }
+            }
+
+            AboutRow {
+                label: "Config";
+                value: root.config-path;
+                value-clicked => { root.open-folder(root.config-path); }
             }
 
             AboutRow {

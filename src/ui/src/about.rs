@@ -9,7 +9,8 @@ pub fn setup_about_window(
     let about_win = crate::AboutWindow::new().expect("AboutWindow creation");
     about_win.set_version(env!("CARGO_PKG_VERSION").into());
     about_win.set_install_path(install_dir().into());
-    about_win.set_data_path(dirs.config_dir.display().to_string().into());
+    about_win.set_config_path(dirs.config_dir.display().to_string().into());
+    about_win.set_data_path(dirs.data_dir.display().to_string().into());
     about_win.set_cache_path(dirs.cache_dir.display().to_string().into());
     about_win.set_logs_folder_path(dirs.logs_dir.display().to_string().into());
 

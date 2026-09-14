@@ -306,7 +306,7 @@ fn attempted_favicon_domains() -> &'static Mutex<HashSet<String>> {
 /// action, so a domain with no obtainable favicon costs at most a handful of
 /// requests ever instead of one per session forever.
 const MAX_FAVICON_FAILURES: u32 = 5;
-const FAVICON_FAILURES_FILE: &str = "favicon_failures.txt";
+pub(crate) const FAVICON_FAILURES_FILE: &str = "favicon_failures.txt";
 
 /// Path of the persistent favicon-fetch failure ledger. Lives beside (not
 /// inside) the favicon cache dir, because scheduled cache pruning deletes any
