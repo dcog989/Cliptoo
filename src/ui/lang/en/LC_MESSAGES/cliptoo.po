@@ -293,8 +293,8 @@ msgstr "Font family used for the clip list"
 
 #: src/ui/ui/SettingsWindow.slint:64
 msgctxt "SettingsWindow"
-msgid "Delay before the image hover preview appears"
-msgstr "Delay before the image hover preview appears"
+msgid "Delay before the hover preview appears"
+msgstr "Delay before the hover preview appears"
 
 #: src/ui/ui/SettingsWindow.slint:92
 msgctxt "SettingsWindow"
