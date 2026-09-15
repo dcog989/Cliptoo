@@ -239,8 +239,8 @@ fn bg_primary(is_dark: bool) -> (u8, u8, u8) {
 
 /// Apply only the accent-derived tokens (accent, its foregrounds, and the
 /// hover background) to a `Theme` global, leaving the rest of the palette
-/// untouched. Used by the settings accent sliders so a live preview updates
-/// just the accent instead of recomputing the whole theme on every tick.
+/// untouched. Used by the settings accent picker so a live preview updates
+/// just the accent instead of recomputing the whole theme.
 pub fn fill_accent(
     t: &Theme,
     settings: &Settings,
@@ -374,28 +374,9 @@ pub fn cached_resolved_theme() -> ResolvedTheme {
         .unwrap_or((true, None))
 }
 
-/// Convert HSV (hue 0–360, s/v 0–1) to an sRGB color. Standard algorithm;
-/// used to derive the accent color from the settings hue/saturation/brightness
-/// tuning sliders.
-pub(crate) fn hsv_to_rgb(h: f64, s: f64, v: f64) -> (u8, u8, u8) {
-    let c = v * s;
-    let x = c * (1.0 - ((h / 60.0) % 2.0 - 1.0).abs());
-    let m = v - c;
-    let (r, g, b) = match h as u32 % 360 {
-        0..=59 => (c, x, 0.0),
-        60..=119 => (x, c, 0.0),
-        120..=179 => (0.0, c, x),
-        180..=239 => (0.0, x, c),
-        240..=299 => (x, 0.0, c),
-        _ => (c, 0.0, x),
-    };
-    let to_u8 = |z: f64| ((z + m) * 255.0).round() as u8;
-    (to_u8(r), to_u8(g), to_u8(b))
-}
-
 /// Convert sRGB (0–255) to HSV (hue 0–360, saturation 0–1, value 0–1).
-/// Inverse of `hsv_to_rgb`; used to recover the selected accent's hue so the
-/// settings tuning sliders can re-render it at a new saturation/brightness.
+/// Used by the settings accent picker to keep the persisted HSV fields in
+/// sync with the picked hex.
 pub(crate) fn rgb_to_hsv(r: u8, g: u8, b: u8) -> (f64, f64, f64) {
     let r = r as f64 / 255.0;
     let g = g as f64 / 255.0;

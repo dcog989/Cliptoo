@@ -43,9 +43,6 @@ export component SettingsWindow inherits Window {
     // Visuals
     in-out property <int> s-theme-idx:            0;  // System/Light/Dark
     in-out property <color> s-accent-color:       #7C6EE6;
-    in-out property <int> s-accent-hue:       247;  // 0–360 degrees
-    in-out property <int> s-accent-saturation: 65;  // 0–100 %
-    in-out property <int> s-accent-value:      95;  // 0–100 % brightness
     in-out property <string> s-font-family:          "Inter";
     in-out property <int> s-font-size-hundredths: 1300;  // 13.00 pt
     in-out property <int> s-preview-font-size-hundredths: 1200;
@@ -83,9 +80,6 @@ export component SettingsWindow inherits Window {
     // Appearance
     in-out property <bool> row-theme-visible: true;
     in-out property <bool> row-accent-visible: true;
-    in-out property <bool> row-accent-hue-visible: true;
-    in-out property <bool> row-accent-sat-visible: true;
-    in-out property <bool> row-accent-value-visible: true;
     in-out property <bool> row-font-visible: true;
     in-out property <bool> row-clip-font-size-visible: true;
     in-out property <bool> row-preview-font-size-visible: true;
@@ -101,6 +95,7 @@ export component SettingsWindow inherits Window {
     callback setting-changed(string, string);
     callback maintenance-action(string);
     callback clear-accent-color();
+    callback accent-picker();
     callback font-picker();
     callback database-page-shown();
     callback open-log();
@@ -167,9 +162,6 @@ export component SettingsWindow inherits Window {
                     s-log-level-idx <=> root.s-log-level-idx;
                     s-theme-idx <=> root.s-theme-idx;
                     s-accent-color <=> root.s-accent-color;
-                    s-accent-hue <=> root.s-accent-hue;
-                    s-accent-saturation <=> root.s-accent-saturation;
-                    s-accent-value <=> root.s-accent-value;
                     s-font-family <=> root.s-font-family;
                     s-font-size-hundredths <=> root.s-font-size-hundredths;
                     s-preview-font-size-hundredths <=> root.s-preview-font-size-hundredths;
@@ -192,9 +184,6 @@ export component SettingsWindow inherits Window {
                     row-logfile-visible: root.row-logfile-visible;
                     row-theme-visible: root.row-theme-visible;
                     row-accent-visible: root.row-accent-visible;
-                    row-accent-hue-visible: root.row-accent-hue-visible;
-                    row-accent-sat-visible: root.row-accent-sat-visible;
-                    row-accent-value-visible: root.row-accent-value-visible;
                     row-font-visible: root.row-font-visible;
                     row-clip-font-size-visible: root.row-clip-font-size-visible;
                     row-preview-font-size-visible: root.row-preview-font-size-visible;
@@ -210,6 +199,9 @@ export component SettingsWindow inherits Window {
                     }
                     clear-accent-color() => {
                         root.clear-accent-color();
+                    }
+                    accent-picker() => {
+                        root.accent-picker();
                     }
                     font-picker() => {
                         root.font-picker();

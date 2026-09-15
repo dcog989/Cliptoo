@@ -91,58 +91,6 @@ fn parse_blacklist(raw: &str) -> Vec<String> {
         .collect()
 }
 
-/// Derive the custom accent hex from the three tuning sliders: HSV hue in
-/// degrees (0–360) plus saturation and brightness (both 0.0–1.0).
-fn accent_hex(hue: f64, saturation: f64, value: f64) -> String {
-    let (r, g, b) = crate::theme::hsv_to_rgb(hue, saturation, value);
-    format!("#{r:02X}{g:02X}{b:02X}")
-}
-
-/// The HSV of the accent currently in effect. A custom hex is authoritative
-/// (a color chosen before the tuning sliders existed may not match the
-/// persisted tuning values); with no custom color ("Clear" / OS accent) the
-/// detected OS accent is used, falling back to the persisted tuning values.
-/// Returning all three components means the sliders always start from the
-/// accent that is actually shown, so tuning one of them (e.g. brightness on a
-/// muted OS green) never makes the other components jump to stored defaults.
-fn current_accent_hsv(
-    s: &cliptoo_core::Settings,
-    system_accent: Option<(u8, u8, u8)>,
-) -> (f64, f64, f64) {
-    if !s.accent_color.trim().is_empty() {
-        let (r, g, b) = crate::theme::parse_accent_hex(&s.accent_color);
-        crate::theme::rgb_to_hsv(r, g, b)
-    } else if let Some((r, g, b)) = system_accent {
-        crate::theme::rgb_to_hsv(r, g, b)
-    } else {
-        (s.accent_hue, s.accent_saturation, s.accent_value)
-    }
-}
-
-/// Apply one slider move to the currently shown tuning. The moved component
-/// (`key` in {"accent_hue", "accent_saturation", "accent_value"}) is set to
-/// `value`; the other two stay locked at the values currently displayed. Hue
-/// arrives in degrees 0–360, saturation/brightness in percent. Baselining on
-/// the displayed values (not on a re-parse of the derived hex) is what keeps
-/// the untouched sliders from wobbling.
-fn retune_accent(
-    current_hue: f64,
-    current_saturation: f64,
-    current_value: f64,
-    key: &str,
-    value: f64,
-) -> (f64, f64, f64) {
-    match key {
-        "accent_hue" => (value.clamp(0.0, 360.0), current_saturation, current_value),
-        "accent_saturation" => (current_hue, value.clamp(0.0, 100.0) / 100.0, current_value),
-        _ => (
-            current_hue,
-            current_saturation,
-            value.clamp(0.0, 100.0) / 100.0,
-        ),
-    }
-}
-
 /// Instant-filter keyword lists, one per setting row, grouped by section.
 /// The header search box is matched against these (case-insensitive) by
 /// `apply_settings_filter`; a row shows when the query matches any keyword.
@@ -157,9 +105,6 @@ const GENERAL_LOGLEVEL: &str = "general log level logging verbosity debug info w
 const GENERAL_LOGFILE: &str = "general log file open latest log viewer";
 const APPEARANCE_THEME: &str = "appearance theme system light dark mode";
 const APPEARANCE_ACCENT: &str = "appearance accent color swatch clear picker";
-const APPEARANCE_ACCENT_HUE: &str = "appearance accent hue color wheel degrees";
-const APPEARANCE_ACCENT_SAT: &str = "appearance accent saturation intensity color vivid";
-const APPEARANCE_ACCENT_VALUE: &str = "appearance accent brightness value light dark";
 const APPEARANCE_FONT: &str = "appearance font family typeface picker";
 const APPEARANCE_CLIP_FONT_SIZE: &str = "appearance clip list font size text";
 const APPEARANCE_PREVIEW_FONT_SIZE: &str = "appearance preview font size code color";
@@ -190,9 +135,6 @@ fn apply_settings_filter(win: &crate::SettingsWindow, query: &str) {
     win.set_row_logfile_visible(row_matches(GENERAL_LOGFILE, &q));
     win.set_row_theme_visible(row_matches(APPEARANCE_THEME, &q));
     win.set_row_accent_visible(row_matches(APPEARANCE_ACCENT, &q));
-    win.set_row_accent_hue_visible(row_matches(APPEARANCE_ACCENT_HUE, &q));
-    win.set_row_accent_sat_visible(row_matches(APPEARANCE_ACCENT_SAT, &q));
-    win.set_row_accent_value_visible(row_matches(APPEARANCE_ACCENT_VALUE, &q));
     win.set_row_font_visible(row_matches(APPEARANCE_FONT, &q));
     win.set_row_clip_font_size_visible(row_matches(APPEARANCE_CLIP_FONT_SIZE, &q));
     win.set_row_preview_font_size_visible(row_matches(APPEARANCE_PREVIEW_FONT_SIZE, &q));
@@ -438,11 +380,6 @@ fn init_settings_properties(
     } else {
         crate::theme::accent_hex_to_color(&s.accent_color)
     });
-    let (accent_h, accent_s, accent_v) =
-        current_accent_hsv(&s, crate::theme::cached_resolved_theme().1);
-    settings_win.set_s_accent_hue(accent_h.round() as i32);
-    settings_win.set_s_accent_saturation((accent_s * 100.0).round() as i32);
-    settings_win.set_s_accent_value((accent_v * 100.0).round() as i32);
     settings_win.set_s_font_family(s.font_family.as_str().into());
     settings_win.set_s_font_size_hundredths((s.font_size * 100.0) as i32);
     settings_win.set_s_preview_font_size_hundredths((s.preview_font_size * 100.0) as i32);
@@ -515,10 +452,6 @@ fn setup_clear_accent(
             // shows the fallback color until a second click.
             let (is_dark, system_accent) = crate::theme::resolve_theme(&s_snap).await;
             let swatch = crate::theme::default_accent_color();
-            // Seed the tuning sliders from the OS accent so they reflect
-            // the swatch instead of the stale custom tuning values; the
-            // persisted fields are refreshed on the first slider move.
-            let os_hsv = system_accent.map(|(r, g, b)| crate::theme::rgb_to_hsv(r, g, b));
             let main_weak = settings_ui.clone();
             let settings_weak = sw.clone();
             let s_main = s_snap.clone();
@@ -541,11 +474,6 @@ fn setup_clear_accent(
                 // Re-fill the tray and About window globals too.
                 crate::theme::apply_theme_fillers(&fillers, &s_settings, is_dark, system_accent);
                 win.set_s_accent_color(swatch);
-                if let Some((h, sat, val)) = os_hsv {
-                    win.set_s_accent_hue(h.round() as i32);
-                    win.set_s_accent_saturation((sat * 100.0).round() as i32);
-                    win.set_s_accent_value((val * 100.0).round() as i32);
-                }
             });
             let _ = s_snap.save(&p);
         });
@@ -699,6 +627,123 @@ if ok:
     });
 }
 
+/// Normalize a color-dialog result to an uppercase `#RRGGBB` string, returning
+/// `None` when the output is not a 6-digit hex color (e.g. the user cancelled).
+fn normalize_picker_hex(raw: &str) -> Option<String> {
+    let hex = raw.trim().trim_start_matches('#');
+    if hex.len() == 6 && hex.chars().all(|c| c.is_ascii_hexdigit()) {
+        Some(format!("#{}", hex.to_ascii_uppercase()))
+    } else {
+        None
+    }
+}
+
+/// Accent color picker — native KDE color dialog via `kdialog --getcolor`.
+///
+/// The dialog runs in a child `kdialog` process; the blocking `.output()` call
+/// runs on a background thread so the app stays responsive while the dialog is
+/// open. `slint::spawn_local` polls the continuation on the UI thread, which
+/// is what lets it capture the non-Send `Rc<RefCell<Settings>>`. Cancelling the
+/// dialog is not an error; a launch failure is logged and surfaced via the
+/// settings toast instead of silently doing nothing.
+fn setup_accent_picker(
+    settings_win: &crate::SettingsWindow,
+    main_ui: &crate::AppWindow,
+    settings: &std::rc::Rc<std::cell::RefCell<cliptoo_core::Settings>>,
+    settings_path: &std::path::Path,
+    fillers: crate::theme::ThemeFillers,
+) {
+    let sw = settings_win.as_weak();
+    let settings_ui = main_ui.as_weak();
+    let s = settings.clone();
+    let p = settings_path.to_path_buf();
+    settings_win.on_accent_picker(move || {
+        let sw = sw.clone();
+        let settings_ui = settings_ui.clone();
+        let s = s.clone();
+        let p = p.clone();
+        let fillers = fillers.clone();
+        // Preselect the colour currently shown on the swatch. When "Clear" is
+        // active this is the resolved OS/default accent, so the dialog still
+        // opens on the colour the user actually sees.
+        let current = sw.upgrade().map(|win| {
+            let c = win.get_s_accent_color();
+            format!("#{:02X}{:02X}{:02X}", c.red(), c.green(), c.blue())
+        });
+        if let Err(e) = slint::spawn_local(async move {
+            let result = tokio::task::spawn_blocking(move || {
+                let mut cmd = std::process::Command::new("kdialog");
+                cmd.arg("--title").arg("Cliptoo accent color");
+                if let Some(current) = current.as_deref() {
+                    cmd.arg("--default").arg(current);
+                }
+                cmd.arg("--getcolor").output()
+            })
+            .await;
+
+            // A successful run prints `#rrggbb`; a cancelled dialog exits
+            // non-zero with nothing on stderr. A missing hex is treated as a
+            // cancel; only genuine launch/output errors are surfaced.
+            let (hex, error): (Option<String>, Option<String>) = match result {
+                Ok(Ok(output)) if output.status.success() => (
+                    normalize_picker_hex(&String::from_utf8_lossy(&output.stdout)),
+                    None,
+                ),
+                Ok(Ok(output)) => {
+                    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+                    (
+                        None,
+                        if stderr.is_empty() {
+                            None
+                        } else {
+                            Some(format!("kdialog exited {}: {stderr}", output.status))
+                        },
+                    )
+                }
+                Ok(Err(e)) => (None, Some(format!("failed to run kdialog: {e}"))),
+                Err(e) => (None, Some(format!("accent picker task panicked: {e}"))),
+            };
+            if let Some(err) = error.as_ref() {
+                tracing::warn!("accent-picker: {err}");
+            }
+
+            let Some(hex) = hex else {
+                if error.is_some()
+                    && let Some(win) = sw.upgrade()
+                {
+                    show_settings_toast(&win, "Color picker failed (kdialog required)", "error");
+                }
+                return;
+            };
+
+            {
+                let mut settings = s.borrow_mut();
+                let (r, g, b) = crate::theme::parse_accent_hex(&hex);
+                let (h, sat, val) = crate::theme::rgb_to_hsv(r, g, b);
+                // The hex is authoritative; the HSV fields are kept in sync so
+                // older settings files and any remaining readers stay valid.
+                settings.accent_color.clone_from(&hex);
+                settings.accent_hue = h;
+                settings.accent_saturation = sat;
+                settings.accent_value = val;
+                let _ = settings.save(&p);
+            }
+            let (is_dark, _) = crate::theme::cached_resolved_theme();
+            if let Some(ui) = settings_ui.upgrade() {
+                crate::theme::fill_accent(&ui.global::<crate::Theme>(), &s.borrow(), is_dark, None);
+            }
+            if let Some(win) = sw.upgrade() {
+                win.set_s_accent_color(crate::theme::accent_hex_to_color(&hex));
+                let s = s.borrow();
+                crate::theme::fill_accent(&win.global::<crate::Theme>(), &s, is_dark, None);
+                crate::theme::apply_theme_fillers(&fillers, &s, is_dark, None);
+            }
+        }) {
+            tracing::warn!("accent-picker: failed to schedule on the event loop: {e}");
+        }
+    });
+}
+
 /// Handle setting changes: persist each key/value into `Settings` and re-apply
 /// live effects (theme, fonts, hotkeys).
 #[allow(clippy::too_many_arguments)]
@@ -771,60 +816,6 @@ fn setup_setting_commit(
                     apply_theme_to_windows(&settings_ui, &sw, |t| {
                         t.set_font_family(value.as_str().into());
                     });
-                }
-                "accent_hue" | "accent_saturation" | "accent_value" => {
-                    if let Ok(v) = value.parse::<f64>() {
-                        // Baseline from the sliders as currently shown: the
-                        // full HSV of the accent in effect (a custom hex,
-                        // the OS accent while "Clear" is active, or the
-                        // persisted tuning) was folded into them when the
-                        // window opened or "Clear" ran. Only the moved
-                        // slider changes — the others stay locked at their
-                        // displayed values. Re-deriving the baseline from
-                        // `s.accent_color` (a hex round-trip) let the
-                        // untouched sliders wobble by ±1 unit per move.
-                        let (is_dark, _) = crate::theme::cached_resolved_theme();
-                        let (h, sat, val) = if let Some(win) = sw.upgrade() {
-                            retune_accent(
-                                win.get_s_accent_hue() as f64,
-                                win.get_s_accent_saturation() as f64 / 100.0,
-                                win.get_s_accent_value() as f64 / 100.0,
-                                &key,
-                                v,
-                            )
-                        } else {
-                            (s.accent_hue, s.accent_saturation, s.accent_value)
-                        };
-                        // Moving any slider defines a custom accent, so this
-                        // also works from a "Clear" (OS accent) start
-                        // instead of doing nothing until a color is picked.
-                        s.accent_hue = h;
-                        s.accent_saturation = sat;
-                        s.accent_value = val;
-                        s.accent_color = accent_hex(h, sat, val);
-                        if let Some(ui) = settings_ui.upgrade() {
-                            crate::theme::fill_accent(
-                                &ui.global::<crate::Theme>(),
-                                &s,
-                                is_dark,
-                                None,
-                            );
-                        }
-                        if let Some(win) = sw.upgrade() {
-                            win.set_s_accent_hue(h.round() as i32);
-                            win.set_s_accent_saturation((sat * 100.0).round() as i32);
-                            win.set_s_accent_value((val * 100.0).round() as i32);
-                            win.set_s_accent_color(crate::theme::accent_hex_to_color(
-                                &s.accent_color,
-                            ));
-                            crate::theme::fill_accent(
-                                &win.global::<crate::Theme>(),
-                                &s,
-                                is_dark,
-                                None,
-                            );
-                        }
-                    }
                 }
                 "font_size" => {
                     if let Ok(v) = value.parse::<f64>() {
@@ -987,6 +978,13 @@ pub fn setup_settings_window(
     );
     setup_open_log(&settings_win, &dirs.logs_dir);
     setup_settings_closing(&settings_win, ui, settings, &dirs.settings_path);
+    setup_accent_picker(
+        &settings_win,
+        ui,
+        settings,
+        &dirs.settings_path,
+        theme_fillers.clone(),
+    );
     setup_font_picker(&settings_win, ui, settings, &dirs.settings_path);
     setup_setting_commit(
         &settings_win,
@@ -1010,87 +1008,16 @@ pub fn setup_settings_window(
 mod tests {
     use super::*;
 
-    /// A saturation/brightness change must keep the hue read back from the
-    /// current custom hex (no swatch-grid snapping anymore), and the result
-    /// must itself be a valid accent at the new saturation/brightness.
     #[test]
-    fn accent_hex_keeps_hue_when_retuned() {
-        let (s_old, v_old) = (0.9, 0.95);
-        let (s_new, v_new) = (0.45, 0.75);
-        for hue in [0.0, 30.0, 120.0, 180.0, 247.0, 300.0] {
-            let hex = accent_hex(hue, s_old, v_old);
-            let (r, g, b) = crate::theme::parse_accent_hex(&hex);
-            let recovered = crate::theme::rgb_to_hsv(r, g, b).0;
-            let retuned = accent_hex(recovered, s_new, v_new);
-            let (rr, rg, rb) = crate::theme::parse_accent_hex(&retuned);
-            let (h, s, v) = crate::theme::rgb_to_hsv(rr, rg, rb);
-            assert!((h - recovered).abs() < 1.5, "hue drifted {hue}: {h}");
-            assert!((s - s_new).abs() < 0.02, "saturation drifted {hue}: {s}");
-            assert!((v - v_new).abs() < 0.02, "brightness drifted {hue}: {v}");
-        }
-    }
-
-    /// Tuning from a "Clear" (OS accent) start must start from the OS accent's
-    /// hue, saturation and brightness — not the stored tuning defaults — so a
-    /// muted green stays green and muted when its brightness is adjusted.
-    #[test]
-    fn current_accent_hsv_uses_os_accent_when_clear() {
-        let s = cliptoo_core::Settings::default();
-        let (r, g, b) = crate::theme::hsv_to_rgb(120.0, 0.3, 0.5);
-        let (h, sat, val) = current_accent_hsv(&s, Some((r, g, b)));
-        assert!((h - 120.0).abs() < 2.0, "OS hue drifted: {h}");
-        assert!((sat - 0.3).abs() < 0.02, "OS saturation drifted: {sat}");
-        assert!((val - 0.5).abs() < 0.02, "OS brightness drifted: {val}");
-    }
-
-    /// A custom hex is authoritative for all three tuning components.
-    #[test]
-    fn current_accent_hsv_reads_custom_hex() {
-        let s = cliptoo_core::Settings {
-            accent_color: "#7C6EE6".into(),
-            ..cliptoo_core::Settings::default()
-        };
-        let (r, g, b) = crate::theme::parse_accent_hex(&s.accent_color);
-        let (eh, es, ev) = crate::theme::rgb_to_hsv(r, g, b);
-        let (h, sat, val) = current_accent_hsv(&s, None);
-        assert!((h - eh).abs() < f64::EPSILON);
-        assert!((sat - es).abs() < f64::EPSILON);
-        assert!((val - ev).abs() < f64::EPSILON);
-    }
-
-    /// Moving one tuning slider leaves the other two exactly at their current
-    /// values — bit-identical, not a hex round-trip — so repeated moves never
-    /// make the untouched sliders drift.
-    #[test]
-    fn retune_accent_locks_untouched_sliders() {
-        let (h, sat, val) = retune_accent(247.0, 0.65, 0.95, "accent_value", 72.0);
-        assert_eq!(h, 247.0);
-        assert_eq!(sat, 0.65);
-        assert_eq!(val, 0.72);
-
-        let (h, sat, val) = retune_accent(247.0, 0.65, 0.95, "accent_saturation", 30.0);
-        assert_eq!(h, 247.0);
-        assert_eq!(sat, 0.30);
-        assert_eq!(val, 0.95);
-
-        let (h, sat, val) = retune_accent(247.0, 0.65, 0.95, "accent_hue", 120.0);
-        assert_eq!(h, 120.0);
-        assert_eq!(sat, 0.65);
-        assert_eq!(val, 0.95);
-    }
-
-    /// Out-of-range slider input is clamped to the slider's bounds.
-    #[test]
-    fn retune_accent_clamps_input() {
-        let (h, sat, val) = retune_accent(247.0, 0.65, 0.95, "accent_value", 500.0);
-        assert_eq!(h, 247.0);
-        assert_eq!(sat, 0.65);
-        assert_eq!(val, 1.0);
-
-        let (h, sat, val) = retune_accent(247.0, 0.65, 0.95, "accent_hue", -40.0);
-        assert_eq!(h, 0.0);
-        assert_eq!(sat, 0.65);
-        assert_eq!(val, 0.95);
+    fn normalize_picker_hex_accepts_hex_and_rejects_cancel() {
+        assert_eq!(
+            normalize_picker_hex("#7c6ee6\n").as_deref(),
+            Some("#7C6EE6")
+        );
+        assert_eq!(normalize_picker_hex("7C6EE6").as_deref(), Some("#7C6EE6"));
+        assert_eq!(normalize_picker_hex(""), None);
+        assert_eq!(normalize_picker_hex("#12345"), None);
+        assert_eq!(normalize_picker_hex("#gggggg"), None);
     }
 
     #[test]

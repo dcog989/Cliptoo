@@ -35,12 +35,11 @@ pub struct Settings {
     // no longer read.
     #[serde(default = "default_accent_color")]
     pub accent_color: String,
-    // Accent tuning: the accent color is fully described by a hue (degrees,
-    // 0–360) plus a saturation and brightness (HSV value, both 0.0–1.0); the
-    // stored accent_color hex is derived from these by the settings UI. Hue
-    // is kept separately so the settings hue slider keeps its position while
-    // "Clear" (OS accent) is active and there is no custom hex to read it back
-    // from. The defaults match the fallback accent (#7C6EE6, hue 247°).
+    // Accent tuning: a legacy HSV description of the accent color (hue in
+    // degrees 0–360, saturation and brightness 0.0–1.0). The hex in
+    // accent_color is authoritative; the settings UI keeps these in sync when
+    // a color is picked. Retained so older settings files still deserialize.
+    // The defaults match the fallback accent (#7C6EE6, hue 247°).
     #[serde(default = "default_accent_hue")]
     pub accent_hue: f64,
     #[serde(default = "default_accent_saturation")]
