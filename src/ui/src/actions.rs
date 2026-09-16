@@ -57,11 +57,24 @@ pub fn setup_clip_actions(
             let fd = del_fd.clone();
             let (query, filter) = helpers::current_view_state(&ui);
             let pfx = del_pfx.clone();
+            // The row can be removed from the model in place when the model
+            // holds every row of the view; otherwise a re-query is needed to
+            // refill the truncated list. See helpers::model_is_complete.
+            let in_place = ui
+                .upgrade()
+                .is_some_and(|ui| helpers::model_is_complete(&ui));
             tokio::spawn(async move {
-                let _ = db
+                let db_ok = db
                     .with(|conn| cliptoo_core::db::queries::delete_clip(conn, id as i64))
-                    .await;
-                helpers::refresh_clips(&db, &ui, &td, &fd, &query, &filter, Some(&pfx)).await;
+                    .await
+                    .is_ok();
+                if in_place && db_ok {
+                    let _ = ui.upgrade_in_event_loop(move |ui| {
+                        helpers::remove_row_by_id(&ui, id);
+                    });
+                } else {
+                    helpers::refresh_clips(&db, &ui, &td, &fd, &query, &filter, Some(&pfx)).await;
+                }
             });
         });
     }
@@ -111,10 +124,14 @@ pub fn setup_clip_actions(
             let sup = mtt_sup.clone();
             let (query, filter) = helpers::current_view_state(&ui);
             let pfx = mtt_pfx.clone();
+            let in_place = ui
+                .upgrade()
+                .is_some_and(|ui| helpers::model_is_timestamp_ordered(&ui));
             tokio::spawn(async move {
-                let _ = db
+                let db_ok = db
                     .with(|conn| cliptoo_core::db::queries::bump_to_top(conn, id as i64))
-                    .await;
+                    .await
+                    .is_ok();
                 // Populate the clipboard as well, so Ctrl+V pastes the moved
                 // clip. Mirrors the paste path; the hash suppression keeps the
                 // listener from re-ingesting our own write.
@@ -131,7 +148,13 @@ pub fn setup_clip_actions(
                         tracing::error!("Move-to-top clipboard write error: {e}");
                     }
                 }
-                helpers::refresh_clips(&db, &ui, &td, &fd, &query, &filter, Some(&pfx)).await;
+                if in_place && db_ok {
+                    let _ = ui.upgrade_in_event_loop(move |ui| {
+                        helpers::apply_row_move(&ui, id, helpers::RowMove::Top);
+                    });
+                } else {
+                    helpers::refresh_clips(&db, &ui, &td, &fd, &query, &filter, Some(&pfx)).await;
+                }
             });
         });
     }
@@ -246,11 +269,21 @@ pub fn setup_clip_actions(
             let fd = mtb_fd.clone();
             let (query, filter) = helpers::current_view_state(&ui);
             let pfx = mtb_pfx.clone();
+            let in_place = ui
+                .upgrade()
+                .is_some_and(|ui| helpers::model_is_timestamp_ordered(&ui));
             tokio::spawn(async move {
-                let _ = db
+                let db_ok = db
                     .with(|conn| cliptoo_core::db::queries::bump_to_bottom(conn, id as i64))
-                    .await;
-                helpers::refresh_clips(&db, &ui, &td, &fd, &query, &filter, Some(&pfx)).await;
+                    .await
+                    .is_ok();
+                if in_place && db_ok {
+                    let _ = ui.upgrade_in_event_loop(move |ui| {
+                        helpers::apply_row_move(&ui, id, helpers::RowMove::Bottom);
+                    });
+                } else {
+                    helpers::refresh_clips(&db, &ui, &td, &fd, &query, &filter, Some(&pfx)).await;
+                }
             });
         });
     }
@@ -269,11 +302,21 @@ pub fn setup_clip_actions(
             let fd = muo_fd.clone();
             let (query, filter) = helpers::current_view_state(&ui);
             let pfx = muo_pfx.clone();
+            let in_place = ui
+                .upgrade()
+                .is_some_and(|ui| helpers::model_is_timestamp_ordered(&ui));
             tokio::spawn(async move {
-                let _ = db
+                let db_ok = db
                     .with(|conn| cliptoo_core::db::queries::move_up_one(conn, id as i64))
-                    .await;
-                helpers::refresh_clips(&db, &ui, &td, &fd, &query, &filter, Some(&pfx)).await;
+                    .await
+                    .is_ok();
+                if in_place && db_ok {
+                    let _ = ui.upgrade_in_event_loop(move |ui| {
+                        helpers::apply_row_move(&ui, id, helpers::RowMove::Up);
+                    });
+                } else {
+                    helpers::refresh_clips(&db, &ui, &td, &fd, &query, &filter, Some(&pfx)).await;
+                }
             });
         });
     }
@@ -292,11 +335,21 @@ pub fn setup_clip_actions(
             let fd = mdo_fd.clone();
             let (query, filter) = helpers::current_view_state(&ui);
             let pfx = mdo_pfx.clone();
+            let in_place = ui
+                .upgrade()
+                .is_some_and(|ui| helpers::model_is_timestamp_ordered(&ui));
             tokio::spawn(async move {
-                let _ = db
+                let db_ok = db
                     .with(|conn| cliptoo_core::db::queries::move_down_one(conn, id as i64))
-                    .await;
-                helpers::refresh_clips(&db, &ui, &td, &fd, &query, &filter, Some(&pfx)).await;
+                    .await
+                    .is_ok();
+                if in_place && db_ok {
+                    let _ = ui.upgrade_in_event_loop(move |ui| {
+                        helpers::apply_row_move(&ui, id, helpers::RowMove::Down);
+                    });
+                } else {
+                    helpers::refresh_clips(&db, &ui, &td, &fd, &query, &filter, Some(&pfx)).await;
+                }
             });
         });
     }

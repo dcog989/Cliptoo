@@ -97,6 +97,125 @@ pub async fn refresh_clips(
     }
 }
 
+/// A single-row reorder already applied to the DB, to mirror in the UI model.
+#[derive(Clone, Copy)]
+pub enum RowMove {
+    Top,
+    Bottom,
+    Up,
+    Down,
+}
+
+/// Whether the visible model is the full, timestamp-ordered clip list: no active
+/// text query, no type/bookmark filter, and not truncated by
+/// [`SEARCH_RESULT_LIMIT`]. Only then does the model's row order match the DB's
+/// `ORDER BY Timestamp DESC, Id DESC`, so a single-row mutation can be mirrored
+/// in the model instead of re-querying and rebuilding it (`search_clips` orders
+/// filtered or full-text results differently, so those must re-query).
+pub fn model_is_timestamp_ordered(ui: &crate::AppWindow) -> bool {
+    ui.get_search_text().is_empty()
+        && ui.get_active_filter().as_str() == "all"
+        && model_is_complete(ui)
+}
+
+/// Whether the model holds every row of the current view, so removing one row in
+/// place cannot leave a truncated list that a re-query would refill.
+pub fn model_is_complete(ui: &crate::AppWindow) -> bool {
+    ui.get_clips().row_count() < SEARCH_RESULT_LIMIT as usize
+}
+
+/// Mirror a clip reorder in the UI model in place, keeping the selected clip
+/// selected. Does nothing unless [`model_is_timestamp_ordered`] still holds
+/// when the mutation runs, so a view change since the DB write can't corrupt a
+/// filtered or full-text-ordered model.
+pub fn apply_row_move(ui: &crate::AppWindow, id: i32, how: RowMove) {
+    if !model_is_timestamp_ordered(ui) {
+        return;
+    }
+    let model = ui.get_clips();
+    let Some(index) = row_index_of(&model, id) else {
+        return;
+    };
+    let previous_selection = selected_clip_id(ui);
+    let last = model.row_count().saturating_sub(1);
+    match how {
+        RowMove::Top if index > 0 => {
+            if let Some(data) = model.row_data(index) {
+                if let Err(e) = model.remove_row(index) {
+                    tracing::warn!("apply_row_move(Top): remove row {index} failed: {e}");
+                    return;
+                }
+                if let Err(e) = model.insert_row(0, data) {
+                    tracing::warn!("apply_row_move(Top): insert row failed: {e}");
+                    return;
+                }
+            }
+        }
+        RowMove::Bottom if index < last => {
+            if let Some(data) = model.row_data(index) {
+                if let Err(e) = model.remove_row(index) {
+                    tracing::warn!("apply_row_move(Bottom): remove row {index} failed: {e}");
+                    return;
+                }
+                if let Err(e) = model.push_row(data) {
+                    tracing::warn!("apply_row_move(Bottom): push row failed: {e}");
+                    return;
+                }
+            }
+        }
+        RowMove::Up if index > 0 => swap_rows(&model, index - 1, index),
+        RowMove::Down if index < last => swap_rows(&model, index, index + 1),
+        _ => {}
+    }
+    restore_selection(ui, previous_selection);
+}
+
+/// Remove a clip row from the UI model in place, keeping the selected clip
+/// selected. Does nothing unless [`model_is_complete`] still holds when the
+/// mutation runs.
+pub fn remove_row_by_id(ui: &crate::AppWindow, id: i32) {
+    if !model_is_complete(ui) {
+        return;
+    }
+    let model = ui.get_clips();
+    let Some(index) = row_index_of(&model, id) else {
+        return;
+    };
+    let previous_selection = selected_clip_id(ui);
+    if let Err(e) = model.remove_row(index) {
+        tracing::warn!("remove_row_by_id: remove row {index} failed: {e}");
+        return;
+    }
+    restore_selection(ui, previous_selection);
+}
+
+fn row_index_of(model: &slint::ModelRc<crate::ClipData>, id: i32) -> Option<usize> {
+    (0..model.row_count()).find(|&i| model.row_data(i).is_some_and(|d| d.id == id))
+}
+
+fn selected_clip_id(ui: &crate::AppWindow) -> Option<i32> {
+    let index = ui.get_selected_index();
+    if index < 0 {
+        return None;
+    }
+    ui.get_clips().row_data(index as usize).map(|d| d.id)
+}
+
+/// Re-point `selected-index` at `previous`'s new row, or fall back to the top
+/// when it is gone. Mirrors the selection restore in [`refresh_clips`].
+fn restore_selection(ui: &crate::AppWindow, previous: Option<i32>) {
+    let model = ui.get_clips();
+    let index = previous.and_then(|id| row_index_of(&model, id));
+    ui.set_selected_index(index.map(|i| i as i32).unwrap_or(0));
+}
+
+fn swap_rows(model: &slint::ModelRc<crate::ClipData>, a: usize, b: usize) {
+    if let (Some(a_data), Some(b_data)) = (model.row_data(a), model.row_data(b)) {
+        model.set_row_data(a, b_data);
+        model.set_row_data(b, a_data);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::extract_domain;
