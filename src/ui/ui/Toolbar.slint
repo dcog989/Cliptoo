@@ -21,8 +21,6 @@ export component Toolbar {
     callback filter-changed(string);
     callback toggle-filter-grid();
     callback menu-clicked();
-    callback drag-started();
-    callback drag-ended();
 
     in-out property <string> active-filter: "all";
     in-out property <string> search-text: "";
@@ -125,22 +123,12 @@ export component Toolbar {
                     }
                 }
 
-                property <bool> dragging: false;
-                touch := TouchArea {
-                    mouse-cursor: dragging ? MouseCursor.grabbing : MouseCursor.grab;
-                    pointer-event(e) => {
-                        if e.kind == PointerEventKind.move && touch.pressed && !dragging {
-                            dragging = true;
-                            root.drag-started();
-                        }
-                        if e.kind == PointerEventKind.up {
-                            dragging = false;
-                            root.drag-ended();
-                        }
-                        if e.kind == PointerEventKind.cancel {
-                            dragging = false;
-                            root.drag-ended();
-                        }
+                // Interactive window move (xdg-shell _move via the platform).
+                // The nested TouchArea only supplies the grab cursor; a plain
+                // click stays a click, a drag past the small threshold moves.
+                WindowMoveArea {
+                    TouchArea {
+                        mouse-cursor: self.pressed ? MouseCursor.grabbing : MouseCursor.grab;
                     }
                 }
             }

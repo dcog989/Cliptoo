@@ -1,6 +1,7 @@
-// The only `unsafe` in the codebase — a Qt FFI shim (drag_qt.cpp) for
-// QWindow::startSystemMove, which Slint's public API can't provide on the Qt
-// backend (the xdg-shell interactive-move request).
+// The only `unsafe` in the codebase — Qt FFI shims (drag_qt.cpp) for window
+// activation, tooltip parenting, and the app-focus query, which Slint's public
+// API can't provide on the Qt backend. Interactive window move is handled by
+// the `WindowMoveArea` element in Toolbar.slint.
 // Crate roots `#![deny(unsafe_code)]`; this module is the sole carve-out.
 #![allow(unsafe_code)]
 
@@ -15,19 +16,9 @@ use i_slint_backend_qt::QtWidgetAccessor;
 //   pointer back into Rust references; out-params are written by C++ and read
 //   immediately.
 unsafe extern "C" {
-    fn cliptoo_start_window_move(widget: *mut std::ffi::c_void);
     fn cliptoo_activate_window(widget: *mut std::ffi::c_void);
     fn cliptoo_make_tooltip_window(child: *mut std::ffi::c_void, parent: *mut std::ffi::c_void);
     fn cliptoo_app_has_focus() -> bool;
-}
-
-pub fn start_window_move(ui: &crate::AppWindow) {
-    let win = slint::ComponentHandle::window(ui);
-    if let Some(ptr) = win.qt_widget_ptr() {
-        unsafe {
-            cliptoo_start_window_move(ptr.as_ptr() as *mut std::ffi::c_void);
-        }
-    }
 }
 
 /// Raise and activate the window so the first click on a freshly-shown window

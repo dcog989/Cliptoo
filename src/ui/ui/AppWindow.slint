@@ -52,8 +52,6 @@ export component AppWindow inherits Window {
     callback close-window();           // ESC pressed
     callback blur-closed();            // window lost focus
     callback focus-regained();         // window regained OS focus (e.g. Alt+Tab back in)
-    callback drag-started();               // window drag started
-    callback drag-ended();                 // window drag ended (pointer released)
     callback resize-start();               // window resize started (pointer down)
     callback resize-delta(float, float);   // window resize delta from press point
     callback resize-ended();               // window resize ended (pointer up)
@@ -211,12 +209,6 @@ export component AppWindow inherits Window {
         }
         focus-regained() => {
             root.focus-regained();
-        }
-        drag-started() => {
-            root.drag-started();
-        }
-        drag-ended() => {
-            root.drag-ended();
         }
         open-context-menu(id, x, y, bookmarked, ctype) => {
             root.popup-opening = true;

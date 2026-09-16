@@ -89,7 +89,6 @@ async fn main() -> Result<()> {
         settings.borrow().hover_image_preview_size,
     ));
 
-    window::setup_drag(&ui);
     window::setup_resize(&ui);
     window::setup_close_handlers(&ui, &settings, &dirs);
     window::setup_close_to_tray(&ui);

@@ -56,8 +56,6 @@ export component MainClipArea inherits Rectangle {
     callback dismiss-preview();
     callback close-window();           // ESC pressed
     callback blur-closed();            // window lost focus
-    callback drag-started();
-    callback drag-ended();
     callback open-context-menu(int, float, float, bool, string);  // id, x, y, is-bookmarked, clip-type
     callback open-hamburger-menu();
     callback open-filter-popup();
@@ -292,12 +290,6 @@ export component MainClipArea inherits Rectangle {
                 }
                 menu-clicked() => {
                     root.open-hamburger-menu();
-                }
-                drag-started() => {
-                    root.drag-started();
-                }
-                drag-ended() => {
-                    root.drag-ended();
                 }
                 active-filter: root.active-filter;
             }

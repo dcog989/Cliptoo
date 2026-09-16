@@ -54,30 +54,6 @@ pub fn toggle_window(ui: &crate::AppWindow) {
     }
 }
 
-/// Window drag via Qt FFI (xdg-shell _move protocol).
-pub fn setup_drag(ui: &crate::AppWindow) {
-    let drag_started = std::rc::Rc::new(std::cell::Cell::new(false));
-    {
-        let started = drag_started.clone();
-        let weak = ui.as_weak();
-        ui.on_drag_started(move || {
-            if started.replace(true) {
-                return;
-            }
-            if let Some(ui) = weak.upgrade() {
-                crate::drag::start_window_move(&ui);
-            }
-            started.set(false);
-        });
-    }
-    {
-        let started = drag_started;
-        ui.on_drag_ended(move || {
-            started.set(false);
-        });
-    }
-}
-
 /// Window resize via stored width/height.
 pub fn setup_resize(ui: &crate::AppWindow) {
     let resize_origin = std::rc::Rc::new(std::cell::RefCell::new(None::<(f32, f32)>));
