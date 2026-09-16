@@ -130,30 +130,38 @@ pub async fn write_content_to_clipboard(
         let mut opts = Options::new();
         opts.clipboard(ClipboardType::Regular).seat(Seat::All);
         if is_file_clip {
-            // File write: uri-list plus the decoded paths as text/plain.
+            // File write: the decoded paths as text/plain plus a text/uri-list
+            // rendition. The plain-text source is listed first on purpose:
+            // wl-clipboard-rs uses the first text/* source to populate the
+            // generic text aliases (text/plain;charset=utf-8, UTF8_STRING, …).
+            // With the uri-list first, those aliases carry `file://` URLs, and
+            // apps that request the modern text/plain;charset=utf-8 type (e.g.
+            // Zed) get a URI instead of the path.
             let uri_list = build_uri_list(&data);
             opts.copy_multi(vec![
                 MimeSource {
-                    source: Source::Bytes(uri_list.into_bytes().into_boxed_slice()),
-                    mime_type: MimeType::Specific("text/uri-list".into()),
-                },
-                MimeSource {
                     source: Source::Bytes(data.into_bytes().into_boxed_slice()),
                     mime_type: MimeType::Text,
+                },
+                MimeSource {
+                    source: Source::Bytes(uri_list.into_bytes().into_boxed_slice()),
+                    mime_type: MimeType::Specific("text/uri-list".into()),
                 },
             ])
         } else if let Some(raw) = rich_raw {
             // Rich-text write: offer the raw markup (formatted) plus the
             // stripped text/plain fallback so targets without rich support
-            // still insert the text instead of nothing.
+            // still insert the text instead of nothing. Plain text is listed
+            // first for the same alias reason as above — otherwise the generic
+            // text aliases would carry the raw markup.
             opts.copy_multi(vec![
-                MimeSource {
-                    source: Source::Bytes(raw.into_bytes().into_boxed_slice()),
-                    mime_type: MimeType::Specific(rich_mime.into()),
-                },
                 MimeSource {
                     source: Source::Bytes(data.into_bytes().into_boxed_slice()),
                     mime_type: MimeType::Text,
+                },
+                MimeSource {
+                    source: Source::Bytes(raw.into_bytes().into_boxed_slice()),
+                    mime_type: MimeType::Specific(rich_mime.into()),
                 },
             ])
         } else {
