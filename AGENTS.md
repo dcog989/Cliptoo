@@ -47,7 +47,7 @@ Generic over `ComponentHandle` for child windows: `activate_window<C: slint::Com
 1. Read `.docs/.slint-docs/slint-docs-flat/gotchas.md` → `language-and-layout.md` → `interop.md` before writing Slint; never guess syntax.
 2. Look up the widget/element in `INDEX.md` for properties and callbacks.
 3. Rust FFI: grep `interop.md` or fetch `https://docs.slint.dev/latest/docs/slint/<path>.md`.
-4. Slint 1.18: `Tooltip` and `SystemTrayIcon` (via `inherits SystemTrayIcon`) are available; `.docs/slint.1.17.md` changelog still relevant.
+4. Slint 1.18: `WindowMoveArea`, `FlexboxLayout`, dynamic `z`, `spring` easing, model `push`/`remove`/`insert`, `string.starts-with`/`ends-with`/`replace-all` are available. `Flickable.viewport-*` is renamed to `content-*` (old names deprecated). Full changelog: `.docs/.slint-docs/slint.1.18.md`.
 
 ---
 
