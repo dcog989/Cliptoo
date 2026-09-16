@@ -35,7 +35,7 @@ export component SettingsHeader {
             spacing: 8px;
 
             // Instant filter search (settings page) / page title (database page)
-            if !root.on-database-page : Rectangle {
+            if !root.on-database-page: Rectangle {
                 horizontal-stretch: 1;
                 height: 32px;
                 border-radius: 8px;
@@ -52,11 +52,14 @@ export component SettingsHeader {
                         width: 16px;
                         height: 16px;
                     }
+
                     search-input := LineEdit {
                         horizontal-stretch: 1;
                         width: 100%;
                         height: 100%;
                         font-size: Theme.font-size;
+                        input-type: InputType.search;
+                        accessible-label: @tr("Search settings");
                         text <=> root.settings-filter;
                         placeholder-text: @tr("Search settings…");
                         edited => {
@@ -75,7 +78,7 @@ export component SettingsHeader {
                     }
                 }
             }
-            if root.on-database-page : HorizontalLayout {
+            if root.on-database-page: HorizontalLayout {
                 horizontal-stretch: 1;
                 spacing: 8px;
                 cross-axis-alignment: center;
@@ -94,12 +97,14 @@ export component SettingsHeader {
                         x: (parent.width - 18px) / 2;
                         y: (parent.height - 18px) / 2;
                     }
+
                     TouchArea {
                         mouse-cursor: pointer;
                         clicked => {
                             root.on-database-page = false;
                         }
                     }
+
                     Tooltip {
                         text: @markdown("\{root.tip-back}");
                     }
@@ -129,6 +134,7 @@ export component SettingsHeader {
                     x: 6px;
                     y: 6px;
                 }
+
                 TouchArea {
                     mouse-cursor: pointer;
                     clicked => {
@@ -138,6 +144,7 @@ export component SettingsHeader {
                         }
                     }
                 }
+
                 Tooltip {
                     text: @markdown("\{root.tip-database}");
                 }

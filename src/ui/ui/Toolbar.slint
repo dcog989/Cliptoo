@@ -145,6 +145,11 @@ export component Toolbar {
                     width: 100%;
                     height: 100%;
                     font-size: Theme.font-size;
+                    // The placeholder below is hidden from assistive tech
+                    // (accessible-role: none), so name the field explicitly and
+                    // mark it as a search field.
+                    input-type: InputType.search;
+                    accessible-label: @tr("Search clips");
                     text <=> root.search-text;
                     edited => {
                         root.search-changed(self.text);
