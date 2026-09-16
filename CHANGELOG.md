@@ -3,6 +3,42 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v2.17.0 - 2026-09-16
+
+#### Features
+
+- (d1f3982) expose search fields to assistive tech - dcog989
+
+- (2b4908d) replace accent sliders with native color picker - dcog989
+
+- (8d11f91) make preview size setting apply to all previews - dcog989
+
+- (383e743) render hover preview in a standalone tooltip window - dcog989
+
+#### Bug Fixes
+
+- (5993f31) keep window visible when the system tray fails to show - dcog989
+
+- (e522211) migrate deprecated Flickable viewport-* properties to content-* - dcog989
+
+- (c23eb90) offer plain text before uri-list so text aliases carry the path - dcog989
+
+- (55a39ec) correct hover preview tooltip, remove 'image' - dcog989
+
+- (6c3efe7) make hover image preview size setting affect the popup - dcog989
+
+- (7948179) store regenerable cache under XDG cache dir - dcog989
+
+#### Performance Improvements
+
+- (86dace5) mutate clip list in place for single-row delete/move - dcog989
+
+#### Refactoring
+
+- (7bc48f3) move window via WindowMoveArea instead of Qt FFI - dcog989
+
+- - -
+
 ## v2.16.2 - 2026-09-12
 
 #### Features
