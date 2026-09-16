@@ -2,7 +2,7 @@
 
 Advanced Linux clipboard manager. Use your clip history as a library of things.
 
-Built with Rust / Slint / SQLite, providing small footprint and fast performance.
+Built with Rust / Slint / SQLite, providing small footprint and very fast performance.
 
 ![assets/screen-1.webp](assets/screen-1.webp)
 
@@ -154,19 +154,19 @@ git clone https://github.com/dcog989/cliptoo.git && cd cliptoo
 ```
 
 ```sh
-cargo install cargo-outdated        # initialize outdated tool
+cargo install cargo-outdated             # initialize outdated tool
 
-cargo build                         # debug build
-cargo check                         # type-check only
+cargo build                              # debug build
+cargo check                              # type-check only
 cargo clippy --workspace --all-targets -- -D warnings
-cargo fetch && cargo outdated -w    # check for updates above semver range
-cargo fmt --check                   # formatting check
-cargo fmt                           # format all files
-cargo run                           # build and run
-cargo test --workspace              # tests
-cargo upgrade && cargo update --verbose # update Cargo.lock and dependencies to latest with semver ranges
+cargo fetch && cargo outdated -w         # check for updates above semver range
+cargo fmt --check                        # formatting check
+cargo fmt                                # format all files
+cargo run                                # build and run
+cargo test --workspace                   # tests
+cargo upgrade && cargo update --verbose  # update Cargo.lock and dependencies to latest with semver ranges
 
-cargo clean && rm -rf target/       # clean build artifacts
+cargo clean && rm -rf target/            # clean build artifacts
 ```
 
 ### Release
@@ -185,4 +185,4 @@ Commits must use [Conventional Commits](https://www.conventionalcommits.org/) â€
 
 ## License
 
-GNU General Public License v3
+[GNU General Public License v3](LICENSE).
