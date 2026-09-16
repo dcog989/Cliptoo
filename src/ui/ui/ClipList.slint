@@ -30,10 +30,10 @@ export component ClipList {
     public function ensure-visible() {
         let top = root.selected-index * Theme.row-height;
         let bottom = top + Theme.row-height;
-        if (top < -list-view.viewport-y) {
-            list-view.viewport-y = -top;
-        } else if (bottom > -list-view.viewport-y + list-view.visible-height) {
-            list-view.viewport-y = -bottom + list-view.visible-height;
+        if (top < -list-view.content-y) {
+            list-view.content-y = -top;
+        } else if (bottom > -list-view.content-y + list-view.visible-height) {
+            list-view.content-y = -bottom + list-view.visible-height;
         }
     }
 
@@ -55,14 +55,14 @@ export component ClipList {
         if (root.clips.length > 0) {
             root.selected-index = 0;
         }
-        list-view.viewport-y = 0px;
+        list-view.content-y = 0px;
     }
 
     public function nav-end() {
         if (root.clips.length > 0) {
             root.selected-index = root.clips.length - 1;
             // Scroll so the last row's *bottom* is at the viewport bottom.
-            list-view.viewport-y = -(root.clips.length * Theme.row-height - list-view.visible-height);
+            list-view.content-y = -(root.clips.length * Theme.row-height - list-view.visible-height);
         }
     }
 
@@ -108,10 +108,10 @@ export component ClipList {
                 root.item-activated(clip.id);
             }
             right-clicked(x, y) => {
-                root.item-right-clicked(clip.id, x, idx * Theme.row-height / 1px + list-view.viewport-y / 1px + y + root.list-offset-y, clip.is-bookmarked, clip.clip-type);
+                root.item-right-clicked(clip.id, x, idx * Theme.row-height / 1px + list-view.content-y / 1px + y + root.list-offset-y, clip.is-bookmarked, clip.clip-type);
             }
             hovered(mx, my) => {
-                root.request-preview(clip.id, mx, idx * Theme.row-height / 1px + list-view.viewport-y / 1px + my + root.list-offset-y);
+                root.request-preview(clip.id, mx, idx * Theme.row-height / 1px + list-view.content-y / 1px + my + root.list-offset-y);
             }
             hover-exited => {
                 root.dismiss-preview();
@@ -124,11 +124,11 @@ export component ClipList {
         y: 0px;
         width: root.scrollbar-width;
         height: root.height;
-        content-height: list-view.viewport-height;
+        content-height: list-view.content-height;
         visible-height: list-view.visible-height;
-        position: -list-view.viewport-y;
+        position: -list-view.content-y;
         position-changed(p) => {
-            list-view.viewport-y = -p;
+            list-view.content-y = -p;
         }
     }
 }
