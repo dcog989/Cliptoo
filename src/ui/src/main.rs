@@ -263,14 +263,22 @@ async fn main() -> Result<()> {
                 let _ = slint::quit_event_loop();
             });
 
-            let _ = tray.show();
-            _tray = Some(tray);
+            // Slint 1.18 reports a missing system tray backend from show().
+            // Only keep the tray when it actually appeared: otherwise
+            // start_hidden below would hide the window behind a tray icon that
+            // isn't there, leaving the app unreachable.
+            match tray.show() {
+                Ok(()) => _tray = Some(tray),
+                Err(e) => {
+                    tracing::warn!("System tray unavailable, keeping the window visible: {e}")
+                }
+            }
         }
         Err(e) => tracing::warn!("System tray unavailable (app will still work): {e}"),
     }
 
     // Start closed to tray. Only fall back to showing the window when the
-    // tray failed to initialise, otherwise the app would be unreachable.
+    // tray failed to initialise or show, otherwise the app would be unreachable.
     // When "Always close to tray" is off, start with the main window visible.
     let start_hidden = _tray.is_some() && settings.borrow().always_close_to_tray;
     if start_hidden {
