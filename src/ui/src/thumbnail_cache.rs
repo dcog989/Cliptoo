@@ -150,11 +150,15 @@ pub fn reload_favicons(ui: &crate::AppWindow, favicons_dir: &Path) {
     }
 }
 
-/// Convert a DB clip to a Slint ClipData, loading the thumbnail
-/// from disk for file_image clips (via LRU cache) and the favicon for link clips.
-/// Must be called on the UI thread because `slint::Image` is not Send.
+/// Convert a DB clip to a Slint ClipData, loading the thumbnail from disk for
+/// file_image clips and SVG source clips (via LRU cache) and the favicon for
+/// link clips. Must be called on the UI thread because `slint::Image` is not Send.
 pub fn convert(db_clip: DbClipData, thumbnails_dir: &Path, favicons_dir: &Path) -> crate::ClipData {
-    let thumbnail = if db_clip.clip_type == ClipType::FileImage {
+    // SVG source clips stay Text/CodeSnippet for preview and paste, but get a
+    // rasterised list-cell thumbnail written at ingest time.
+    let is_svg_source = matches!(db_clip.clip_type, ClipType::Text | ClipType::CodeSnippet)
+        && cliptoo_core::content::is_svg_markup(&db_clip.preview_content);
+    let thumbnail = if db_clip.clip_type == ClipType::FileImage || is_svg_source {
         THUMB_LRU.with(|lru| {
             lru.borrow_mut()
                 .get_or_load(thumbnails_dir, &db_clip.content_hash)

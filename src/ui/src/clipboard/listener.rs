@@ -287,6 +287,12 @@ pub async fn run_listener(
                                 non_text_ingested = true;
                             }
 
+                            // SVG source stays a Text/CodeSnippet clip (so paste
+                            // re-offers the markup), but is rendered to a
+                            // list-cell thumbnail below.
+
+                            let is_svg = cliptoo_core::content::is_svg_markup(&classified.content);
+
                             // A failed insert (e.g. disk full) must not kill the
                             // listener loop; log and keep polling instead of
                             // propagating out of run_listener (same error
@@ -325,16 +331,44 @@ pub async fn run_listener(
                             }
 
                             let filter = active_filter_state.lock().unwrap().clone();
-                            refresh_clips(
-                                &db,
-                                &ui,
-                                &thumbnails_dir,
-                                &favicons_dir,
-                                "",
-                                &filter,
-                                None,
-                            )
-                            .await;
+                            if is_svg {
+                                // Rasterise + write the thumbnail before the
+                                // refresh so the list isn't rebuilt (and the
+                                // empty image cached) ahead of the files.
+                                let svg_data = svg_thumbnail_source(&classified.content);
+                                let thumb_hash = classified.content_hash.clone();
+                                let store_td = thumbnails_dir.clone();
+                                let max_dim = preview_max_dim.clone();
+                                let db2 = db.clone();
+                                let ui2 = ui.clone();
+                                let td2 = thumbnails_dir.clone();
+                                let fd2 = favicons_dir.clone();
+                                std::mem::drop(tokio::spawn(async move {
+                                    let store = tokio::task::spawn_blocking(move || {
+                                        if let Err(e) = cliptoo_core::image::store_both_thumbnails(
+                                            &store_td,
+                                            &thumb_hash,
+                                            &svg_data,
+                                            max_dim.load(std::sync::atomic::Ordering::Relaxed),
+                                        ) {
+                                            tracing::warn!("svg thumbnail store: {e}");
+                                        }
+                                    });
+                                    let _ = store.await;
+                                    refresh_clips(&db2, &ui2, &td2, &fd2, "", &filter, None).await;
+                                }));
+                            } else {
+                                refresh_clips(
+                                    &db,
+                                    &ui,
+                                    &thumbnails_dir,
+                                    &favicons_dir,
+                                    "",
+                                    &filter,
+                                    None,
+                                )
+                                .await;
+                            }
                         }
                     }
                     ClipboardPayload::FileUri { content, .. } => {
@@ -610,4 +644,19 @@ async fn insert_clip_with_stat(
         Ok(inserted)
     })
     .await
+}
+
+/// Fill for `currentColor` when rasterising an SVG source clip into a
+/// thumbnail. usvg resolves `currentColor` to black (the SVG initial value),
+/// which is invisible against the list's dark row background; a mid-grey is
+/// legible on both light and dark themes.
+const SVG_CURRENT_COLOR_FALLBACK: &str = "#888888";
+
+/// Bytes to feed the SVG rasteriser for a source clip's thumbnail. Only the
+/// rendering copy substitutes `currentColor` (see
+/// [`SVG_CURRENT_COLOR_FALLBACK`]); the stored clip content keeps the original
+/// markup so a paste re-offers it unchanged.
+fn svg_thumbnail_source(svg: &str) -> Vec<u8> {
+    svg.replace("currentColor", SVG_CURRENT_COLOR_FALLBACK)
+        .into_bytes()
 }

@@ -149,6 +149,11 @@ impl ContentProcessor {
     /// tolerated, matching `is_rtf`.
     fn is_html(s: &str) -> bool {
         let body = s.strip_prefix('\u{feff}').unwrap_or(s).trim_start();
+        // SVG is markup-shaped but not HTML. Left to the HTML branch, it would
+        // preview and paste as the empty result of stripping its tags.
+        if crate::content::is_svg_markup(body) {
+            return false;
+        }
         if Self::starts_with_ci(body, "<?xml")
             || Self::starts_with_ci(body, "<!doctype")
             || Self::starts_with_ci(body, "<html")
@@ -479,6 +484,27 @@ mod tests {
             let c = ContentProcessor::process(s, false).unwrap();
             assert_eq!(c.clip_type, ClipType::Text, "for {s}");
         }
+    }
+
+    #[test]
+    fn svg_markup_is_not_html() {
+        // SVG has HTML's tag shape; classified as Html it would strip to an
+        // empty preview/paste. It must stay a text clip with the markup intact.
+        let svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M17 12h.01\"/></svg>";
+        let c = ContentProcessor::process(svg, false).unwrap();
+        assert_eq!(c.clip_type, ClipType::Text);
+        assert_eq!(c.content, svg);
+        // The preview is truncated but keeps the opening tag the UI uses to
+        // recognise an SVG source clip.
+        assert!(c.preview_content.starts_with("<svg"));
+    }
+
+    #[test]
+    fn svg_with_xml_prolog_is_not_html() {
+        let svg = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><svg xmlns=\"http://www.w3.org/2000/svg\"></svg>";
+        let c = ContentProcessor::process(svg, false).unwrap();
+        assert_ne!(c.clip_type, ClipType::Html);
+        assert!(c.preview_content.contains("<svg"));
     }
 
     #[test]
