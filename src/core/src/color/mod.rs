@@ -1,8 +1,7 @@
-// Color parsing and OKLCH ↔ sRGB conversion.
-// See PORTING.md §4 for full algorithm.
+// Color parsing and palette-backed colour space conversions.
 
-pub mod oklch;
+pub mod convert;
 pub mod parser;
 
-pub use oklch::{oklch_to_srgb_bytes, srgb_bytes_to_oklch};
+pub use convert::{okhsl_to_srgb_bytes, oklch_to_srgb_bytes, srgb_bytes_to_oklch};
 pub use parser::{ColorParser, ParsedColor};

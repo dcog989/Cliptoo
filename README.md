@@ -28,7 +28,7 @@ Built with Rust / Slint / SQLite, providing small footprint and very fast perfor
 
 - **Content-Aware Filtering:** Filter by text, links, images, colors, bookmarks, etc.
 - **Image Previews:** Hover thumbnails to preview PNG, JPEG, WebP, AVIF, GIF, JXL, SVG.
-- **Color Swatches:** `#hex`, `rgb()`, `hsl()`, `oklch()` - with transparency.
+- **Color Swatches:** `#hex`, `rgb()`, `hsl()`, `oklch()`, `okhsl()` - with transparency.
 - **Code Highlighting:** Syntax-highlighted editor via `syntect`.
 - **URL Metadata:** Auto-fetches page titles and favicons.
 - **File Info:** Size, modification date, type classification.
@@ -68,7 +68,7 @@ Built with Rust / Slint / SQLite, providing small footprint and very fast perfor
 | Async Runtime       | Tokio                                     |
 | Image Processing    | `image`, `resvg`, `jxl-oxide`             |
 | Syntax Highlighting | `syntect`                                 |
-| Colour Science      | Custom OKLCH→sRGB (Björn Ottosson spec)   |
+| Colour Science      | `palette` (OKLab / OKLCH / Okhsl)         |
 | D-Bus / Portals     | `zbus`                                    |
 | System Tray         | D-Bus StatusNotifierItem via `zbus`       |
 | Input Emulation     | `enigo`                                   |

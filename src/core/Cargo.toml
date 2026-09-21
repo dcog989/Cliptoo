@@ -16,6 +16,7 @@ const-hex.workspace = true
 csscolorparser.workspace = true
 image.workspace = true
 jxl-oxide.workspace = true
+palette.workspace = true
 resvg.workspace = true
 rusqlite.workspace = true
 serde.workspace = true

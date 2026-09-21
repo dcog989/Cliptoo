@@ -2,8 +2,9 @@
 //!
 //! `csscolorparser` implements CSS Color Module Level 4: named colors, hex,
 //! `rgb()`, `hsl()`, `hwb()`, `lab()`, `lch()`, `oklab()`, `oklch()`, plus
-//! the non-standard `hsv()`. Two formats remain here because the crate does
-//! not understand them: Android/Java `0xAARRGGBB` integers and `cmyk()`.
+//! the non-standard `hsv()`. Formats the crate does not understand live here:
+//! Android/Java `0xAARRGGBB` integers, `cmyk()`, and Björn Ottosson's
+//! `okhsl()` (converted via [`crate::color::okhsl_to_srgb_bytes`]).
 
 /// Parsed color result with all representations.
 /// `hex` is `#RRGGBB` for fully-opaque colors and `#RRGGBBAA` otherwise, so
@@ -88,6 +89,72 @@ fn is_bare_hex(s: &str) -> bool {
     matches!(s.len(), 3 | 4 | 6 | 8) && s.bytes().all(|b| b.is_ascii_hexdigit())
 }
 
+/// Parse an angle in degrees, tolerating a case-insensitive `deg` suffix.
+fn parse_angle_deg(v: &str) -> Option<f64> {
+    let v = v.trim();
+    // `get` (not direct slicing) so a multi-byte character straddling the
+    // last three bytes can never panic on non-ASCII clipboard text.
+    let numeric = match v.len().checked_sub(3).and_then(|i| v.get(i..)) {
+        Some(suffix) if suffix.eq_ignore_ascii_case("deg") => &v[..v.len() - 3],
+        _ => v,
+    };
+    numeric.trim().parse::<f64>().ok()
+}
+
+/// Parse a 0..=1 channel written as a percentage or as a plain number. A bare
+/// value above 1 is read as a percentage so `okhsl(0 100 50)` works too.
+fn parse_unit_interval(v: &str) -> Option<f64> {
+    let v = v.trim();
+    if let Some(p) = v.strip_suffix('%') {
+        return Some(p.trim().parse::<f64>().ok()? / 100.0);
+    }
+    let x = v.parse::<f64>().ok()?;
+    Some(if x > 1.0 { x / 100.0 } else { x })
+}
+
+/// `okhsl()` — Björn Ottosson's perceptually-uniform HSL-like space. Not part
+/// of CSS Color 4, so `csscolorparser` rejects it.
+///
+/// Accepts `okhsl(h s l)` or `okhsl(h, s, l)`, with an optional `/ alpha`.
+/// `h` is degrees (bare or `deg`); `s`/`l`/`alpha` are percentages or 0..1.
+fn parse_okhsl(s: &str) -> Option<ParsedColor> {
+    let paren = s.find('(')?;
+    if !s[..paren].trim().eq_ignore_ascii_case("okhsl") {
+        return None;
+    }
+    let body = s[paren + 1..].strip_suffix(')')?.trim();
+    let (main, alpha) = match body.split_once('/') {
+        Some((m, a)) => (m.trim(), Some(a.trim())),
+        None => (body, None),
+    };
+    let args: Vec<&str> = if main.contains(',') {
+        main.split(',').map(str::trim).collect()
+    } else {
+        main.split_whitespace().collect()
+    };
+    if args.len() != 3 || args.iter().any(|a| a.is_empty()) {
+        return None;
+    }
+
+    let h = parse_angle_deg(args[0])?;
+    let saturation = parse_unit_interval(args[1])?;
+    let lightness = parse_unit_interval(args[2])?;
+    let a = match alpha {
+        Some(a) => parse_unit_interval(a)?,
+        None => 1.0,
+    };
+
+    let [r, g, b] = crate::color::okhsl_to_srgb_bytes(h, saturation, lightness);
+    let a = (a.clamp(0.0, 1.0) * 255.0).round() as u8;
+    Some(ParsedColor {
+        r,
+        g,
+        b,
+        a,
+        hex: rgba_hex(r, g, b, a),
+    })
+}
+
 fn to_parsed(c: csscolorparser::Color) -> ParsedColor {
     let [r, g, b, a] = c.to_rgba8();
     ParsedColor {
@@ -130,6 +197,9 @@ impl ColorParser {
             return None;
         }
         if let Some(c) = parse_cmyk(s) {
+            return Some(c);
+        }
+        if let Some(c) = parse_okhsl(s) {
             return Some(c);
         }
         Some(to_parsed(csscolorparser::parse(s).ok()?))
@@ -332,6 +402,67 @@ mod tests {
             ColorParser::try_parse("CMYK(0 0 0 50%)").unwrap().hex,
             "#808080"
         );
+    }
+
+    #[test]
+    fn okhsl() {
+        assert!(ColorParser::is_color("okhsl(210 80% 60%)"));
+        // Achromatic endpoints are independent of the conversion.
+        assert_eq!(
+            ColorParser::try_parse("okhsl(0 0% 0%)").unwrap().hex,
+            "#000000"
+        );
+        assert_eq!(
+            ColorParser::try_parse("okhsl(0 0% 100%)").unwrap().hex,
+            "#FFFFFF"
+        );
+    }
+
+    #[test]
+    fn okhsl_syntax_variants() {
+        // Comma form, decimal channels, bare percentages and a `deg` suffix all
+        // address the same colour.
+        let expected = ColorParser::try_parse("okhsl(210, 0.8, 0.6)").unwrap().hex;
+        for s in ["okhsl(210 80 60)", "okhsl(210deg 80% 60%)"] {
+            assert_eq!(ColorParser::try_parse(s).unwrap().hex, expected, "for {s}");
+        }
+        // Hue wraps around 360 and tolerates negatives.
+        assert_eq!(
+            ColorParser::try_parse("okhsl(390 100% 50%)").unwrap().hex,
+            ColorParser::try_parse("okhsl(30 100% 50%)").unwrap().hex
+        );
+        assert_eq!(
+            ColorParser::try_parse("okhsl(-30 100% 50%)").unwrap().hex,
+            ColorParser::try_parse("okhsl(330 100% 50%)").unwrap().hex
+        );
+    }
+
+    #[test]
+    fn okhsl_alpha() {
+        assert_eq!(
+            ColorParser::try_parse("okhsl(0 100% 50% / 50%)").unwrap().a,
+            128
+        );
+        assert_eq!(
+            ColorParser::try_parse("okhsl(0 100% 50% / 0.5)").unwrap().a,
+            128
+        );
+        assert!(ColorParser::is_color("okhsl(240 100% 50% / 0.25)"));
+    }
+
+    #[test]
+    fn okhsl_malformed_is_rejected() {
+        for s in [
+            "okhsl(0 100%)",
+            "okhsl()",
+            "okhsl(0 100% 50% 10%)",
+            "okhsl(a b c)",
+            "notokhsl(0 100% 50%)",
+            // Multi-byte angle must not panic the `deg`-suffix check.
+            "okhsl(ab\u{1f600} 100% 50%)",
+        ] {
+            assert!(!ColorParser::is_color(s), "for {s}");
+        }
     }
 
     #[test]
