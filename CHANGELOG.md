@@ -3,6 +3,26 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v2.17.1 - 2026-09-21
+
+#### Bug Fixes
+
+- (94357ff) keep SVG markup out of HTML classification and render source thumbnails - dcog989
+
+- (86a219f) keep bookmark fg color on selected clip row - dcog989
+
+#### Refactoring
+
+- (aa9a45b) replace hand-rolled OKLCH/Okhsl math with palette - dcog989
+
+- (4523b6d) split theme module by concern - dcog989
+
+- (1836db1) split maintenance module by task - dcog989
+
+- (423479e) split settings module by concern - dcog989
+
+- - -
+
 ## v2.17.0 - 2026-09-16
 
 #### Features
