@@ -17,7 +17,7 @@ ashpd = { version = "0.13", features = ["global_shortcuts", "tokio"] }
 cc = "1"
 chrono = "0.4"
 const-hex = "1"
-csscolorparser = "0.8"
+csscolorparser = "0.9"
 dirs = "7"
 evdev = "0.13"
 futures = "0.3"
