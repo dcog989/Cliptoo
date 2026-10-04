@@ -77,7 +77,10 @@ export component AppWindow inherits Window {
     // ── Properties set from Rust ──────────────────────────────────────────────
     // Theme tokens are set directly via ui.global::<Theme>() in Rust.
     // Components reference Theme.* and pick up the runtime values automatically.
-    background: Theme.bg-primary;
+    // Transparent so MainClipArea's rounded, clipped background defines the
+    // window shape; the Qt backend uses WA_TranslucentBackground, so the
+    // corners outside the radius show through.
+    background: transparent;
     default-font-size: Theme.font-size;
     in property <[ClipData]> clips: [];
     in property <bool> is-searching: false;

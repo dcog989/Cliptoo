@@ -10,7 +10,7 @@ import { ClipData }  from "ClipData.slint";
 export component MainClipArea inherits Rectangle {
     border-radius: Theme.border-radius;
     clip: true;
-    background: transparent;
+    background: Theme.bg-primary;
     // Seed focus to the key-handling scope (AppWindow re-anchors it on every
     // show via reset-focus()).
     forward-focus: focus-scope;
