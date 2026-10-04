@@ -75,6 +75,27 @@ pub const SEARCH_RESULT_LIMIT: i64 = 1000;
 /// above any non-bookmark whose match is at most ~1.0 rank better.
 const BOOKMARK_RANK_BONUS: &str = "1.0";
 
+/// Pastes beyond this count earn no further frequency bonus, bounding how far a
+/// long-lived hot clip can outrank a strong text match. Chosen equal to
+/// [`BOOKMARK_RANK_BONUS`] so the frequency ceiling matches a bookmark's lift
+/// and never lets popularity alone outweigh a bookmark.
+const FREQUENCY_CAP: i64 = 10;
+
+/// Rank bonus subtracted from FTS5 `rank` per prior paste (before the cap), so
+/// frequently re-used clips sort above rarely-used ones.
+const FREQUENCY_WEIGHT: &str = "0.1";
+
+/// ORDER BY body ranking FTS5 matches: text relevance first, then lifting
+/// bookmarked and frequently pasted clips. FTS5 `rank` is BM25 (more negative =
+/// better match), so each bonus is subtracted. `MIN(PasteCount, cap)` is the
+/// scalar two-argument `min`, keeping frequency gains bounded and monotonic.
+fn rank_order() -> String {
+    format!(
+        "rank - (c.IsBookmarked * {BOOKMARK_RANK_BONUS})\
+         - (MIN(c.PasteCount, {FREQUENCY_CAP}) * {FREQUENCY_WEIGHT})"
+    )
+}
+
 enum FilterClause {
     /// SQL fragment with no extra bind parameter.
     NoParam(&'static str),
@@ -333,10 +354,11 @@ pub fn search_clips(
              FROM clips_fts
              JOIN clips c ON c.Id = clips_fts.rowid
              WHERE clips_fts MATCH ? {filter_sql}
-             ORDER BY rank - (c.IsBookmarked * {BOOKMARK_RANK_BONUS})
+             ORDER BY {rank_order}
              LIMIT ? OFFSET ?",
             projection = fts_projection(1, TAG_SNIPPET_TOKENS),
             filter_sql = ft.sql(),
+            rank_order = rank_order(),
         );
         return run_search(conn, &sql, &ft, filter, &[&fts_col_query], limit, offset);
     }
@@ -352,10 +374,11 @@ pub fn search_clips(
          FROM clips_fts
          JOIN clips c ON c.Id = clips_fts.rowid
          WHERE clips_fts MATCH ? {filter_sql}
-         ORDER BY rank - (c.IsBookmarked * {BOOKMARK_RANK_BONUS})
+         ORDER BY {rank_order}
          LIMIT ? OFFSET ?",
         projection = fts_projection(0, CONTENT_SNIPPET_TOKENS),
         filter_sql = ft.sql(),
+        rank_order = rank_order(),
     );
     run_search(conn, &sql, &ft, filter, &[&fts_query], limit, offset)
 }

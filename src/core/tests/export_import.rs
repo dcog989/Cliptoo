@@ -124,6 +124,46 @@ async fn search_ranks_bookmarks_first() {
     let _ = std::fs::remove_file(dir.with_extension("shm"));
 }
 
+/// Frequently pasted clips must be weighted above comparable matches: a clip
+/// with a slightly worse (or equal) raw FTS rank overtakes a better one once it
+/// has been pasted enough times — the capped frequency bonus outweighs a small
+/// rank gap.
+#[tokio::test]
+async fn search_ranks_frequently_pasted_first() {
+    let dir = std::env::temp_dir().join(format!("cliptoo_freqrank_{}", std::process::id()));
+    clean_up(&dir);
+    let db = Arc::new(DbPool::open(&dir).unwrap());
+
+    insert_text(&db, "the quick brown fox", "text").await;
+    insert_text(&db, "quick fox runs fast", "text").await;
+
+    let base = db
+        .with(|conn| cliptoo_core::db::queries::search_clips(conn, "quick fox", "all", 10, 0, None))
+        .await
+        .unwrap();
+    assert_eq!(base.len(), 2, "both clips must match the FTS query");
+    let boosted = base[1].id;
+
+    // 100 exceeds the frequency cap, so the bonus saturates at its maximum.
+    db.with(|conn| {
+        conn.execute("UPDATE clips SET PasteCount = 100 WHERE Id = ?1", [boosted])
+            .map_err(Into::into)
+    })
+    .await
+    .unwrap();
+
+    let ranked = db
+        .with(|conn| cliptoo_core::db::queries::search_clips(conn, "quick fox", "all", 10, 0, None))
+        .await
+        .unwrap();
+    assert_eq!(
+        ranked[0].id, boosted,
+        "frequently pasted clip must be weighted above a better raw match"
+    );
+
+    clean_up(&dir);
+}
+
 #[tokio::test]
 async fn export_import_roundtrip() {
     let dir = std::env::temp_dir().join(format!("cliptoo_ei_{}", std::process::id()));
