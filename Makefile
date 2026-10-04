@@ -20,10 +20,12 @@ package: build
 
 install: build
 	sudo install -Dm755 $(BINARY) /usr/local/bin/cliptoo
-	sudo install -Dm644 $(DESKTOP) /usr/share/applications/cliptoo.desktop
+	# Install under /usr/local so a local `make install` never drops unowned
+	# files into /usr/share and blocks a later `pacman -U` with file conflicts.
+	sudo install -Dm644 $(DESKTOP) /usr/local/share/applications/cliptoo.desktop
 
 uninstall:
-	sudo rm -f /usr/local/bin/cliptoo /usr/share/applications/cliptoo.desktop
+	sudo rm -f /usr/local/bin/cliptoo /usr/local/share/applications/cliptoo.desktop
 
 clean:
 	cargo clean -p cliptoo
