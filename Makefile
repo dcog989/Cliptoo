@@ -11,6 +11,10 @@ build:
 
 package: build
 	mkdir -p $(PKGDIR)
+	# Drop prior versions first: makepkg -f only overwrites the same version, so
+	# stale bundles accumulate and `pacman -U .pkg/cliptoo-*.pkg.tar.zst` then
+	# fails with "duplicate target" (same pkgname listed twice).
+	rm -f $(PKGDIR)/*.pkg.tar.zst
 	cp packaging/PKGBUILD $(PKGDIR)/
 	cd $(PKGDIR) && makepkg -f --nodeps --noconfirm
 
