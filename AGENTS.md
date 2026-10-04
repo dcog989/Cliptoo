@@ -8,7 +8,7 @@ Key files: `src/core/` (cliptoo-core: parser, db, settings, logger), `src/ui/` (
 
 ### Verification (critical)
 
-**Never run `cargo check/clippy/test/build/fmt` or `slint-viewer` unless the user explicitly asks.** The user tests their own changes; lefthook hooks (fmt + clippy on `.rs`, `slint-lsp format -i` on `.slint`, pre-push `cargo test --workspace`) catch regressions. Reference only:
+**Never run `cargo check/clippy/test/build/fmt` or `slint-viewer` unless the user explicitly asks.** The user tests their own changes; Lefthook hooks (fmt + clippy on `.rs`, `slint-lsp format -i` on `.slint`, pre-push `cargo test --workspace`) catch regressions. Reference only:
 
 ```sh
 cargo build --release -p cliptoo   # production build

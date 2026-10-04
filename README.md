@@ -4,7 +4,7 @@ Advanced Linux clipboard manager. Use your clip history as a library of things.
 
 Built with Rust / Slint / SQLite, providing small footprint and very fast performance.
 
-![assets/screen-1.webp](assets/screen-1.webp)
+![assets/screen-1.WebP](assets/screen-1.webp)
 
 ---
 
@@ -68,7 +68,7 @@ Built with Rust / Slint / SQLite, providing small footprint and very fast perfor
 | Async Runtime       | Tokio                                     |
 | Image Processing    | `image`, `resvg`, `jxl-oxide`             |
 | Syntax Highlighting | `syntect`                                 |
-| Colour Science      | `palette` (OKLab / OKLCH / Okhsl)         |
+| Colour Science      | `palette` (Oklab / Oklch / Okhsl)         |
 | D-Bus / Portals     | `zbus`                                    |
 | System Tray         | D-Bus StatusNotifierItem via `zbus`       |
 | Input Emulation     | `enigo`                                   |
