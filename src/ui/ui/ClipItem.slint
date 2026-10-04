@@ -218,8 +218,10 @@ export component ClipItem {
                 // Bookmark icon — printed at the right end of column 2, right after the clip text
                 if clip-data.is-bookmarked: Image {
                     source: @image-url("icons/bookmark.svg");
-                    // Match the clip text color so the icon reads as part of the row.
-                    colorize: touch.has-hover && !root.is-selected ? Theme.row-hover-fg : clip-data.is-deadhead ? Theme.fg-muted : root.is-selected ? Theme.fg-primary : Theme.fg-bookmarked;
+                    // Same expression as the clip text `color` above, so the icon
+                    // always matches it (branch order included: `is-bookmarked`
+                    // is tested before `is-selected`).
+                    colorize: touch.has-hover && !root.is-selected ? Theme.row-hover-fg : clip-data.is-deadhead ? Theme.fg-muted : clip-data.is-bookmarked ? Theme.fg-bookmarked : root.is-selected ? Theme.fg-primary : Theme.fg-clip-list;
                     x: parent.width - 18px;
                     y: (parent.height - 18px) / 2;
                     width: 18px;
