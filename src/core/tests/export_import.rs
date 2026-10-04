@@ -57,11 +57,12 @@ async fn export_bookmarks_only() {
 
 /// Bookmarked clips must be weighted above regular clips in full-text search:
 /// a bookmark ranks ahead of a non-bookmark even when its raw match is slightly
-/// worse (the rank bonus outweighs the gap, so ties and close matches both win).
+/// worse (the multiplicative boost outweighs the gap, so ties and close matches
+/// both win).
 #[tokio::test]
 async fn search_ranks_bookmarks_first() {
     // Distinct content + hashes (insert_or_bump dedupes on hash), so the FTS
-    // ranks differ; the bookmark rank bonus must still lift it to the top.
+    // ranks differ; the bookmark boost must still lift it to the top.
     let dir = std::env::temp_dir().join(format!("cliptoo_bmrank_{}", std::process::id()));
     let db = Arc::new(DbPool::open(&dir).unwrap());
     let clips = [
@@ -126,7 +127,7 @@ async fn search_ranks_bookmarks_first() {
 
 /// Frequently pasted clips must be weighted above comparable matches: a clip
 /// with a slightly worse (or equal) raw FTS rank overtakes a better one once it
-/// has been pasted enough times — the capped frequency bonus outweighs a small
+/// has been pasted enough times — the capped frequency boost outweighs a small
 /// rank gap.
 #[tokio::test]
 async fn search_ranks_frequently_pasted_first() {

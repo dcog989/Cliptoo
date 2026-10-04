@@ -69,30 +69,35 @@ pub(crate) fn next_timestamp() -> String {
 /// Default row limit for `search_clips` — bounds the list view.
 pub const SEARCH_RESULT_LIMIT: i64 = 1000;
 
-/// Rank bonus subtracted from FTS5 `rank` for bookmarked clips (lower rank =
-/// better match), so bookmarks sort above comparable non-bookmark matches.
-/// FTS5 BM25 ranks are small negative floats; a bonus of 1.0 lifts a bookmark
-/// above any non-bookmark whose match is at most ~1.0 rank better.
-const BOOKMARK_RANK_BONUS: &str = "1.0";
+/// Fractional boost applied to a bookmarked clip's BM25 `rank` (1.5× total).
+///
+/// The boost is multiplicative, not additive: BM25 `rank` is a negative score
+/// whose magnitude grows with corpus size and term rarity, so a fixed additive
+/// bonus is meaningless. A `+1.0` bonus swamps a three-document test corpus
+/// (ranks ~1e-6) yet is negligible against a large real one (ranks of ~-8), so
+/// bookmarks never actually rose. Multiplying a negative rank by a factor > 1
+/// makes it more negative — i.e. ranks the clip higher — proportionally to its
+/// own match quality, independent of corpus size.
+const BOOKMARK_BOOST: &str = "0.5";
 
-/// Pastes beyond this count earn no further frequency bonus, bounding how far a
-/// long-lived hot clip can outrank a strong text match. Chosen equal to
-/// [`BOOKMARK_RANK_BONUS`] so the frequency ceiling matches a bookmark's lift
-/// and never lets popularity alone outweigh a bookmark.
+/// Pastes beyond this count earn no further frequency boost, bounding how far a
+/// long-lived hot clip can outrank a strong text match.
 const FREQUENCY_CAP: i64 = 10;
 
-/// Rank bonus subtracted from FTS5 `rank` per prior paste (before the cap), so
-/// frequently re-used clips sort above rarely-used ones.
-const FREQUENCY_WEIGHT: &str = "0.1";
+/// Fractional boost per prior paste, before the cap (cap 10 × 0.05 ⇒ up to
+/// 1.5×). Applied multiplicatively for the same corpus-scale reason as
+/// [`BOOKMARK_BOOST`].
+const FREQUENCY_BOOST: &str = "0.05";
 
-/// ORDER BY body ranking FTS5 matches: text relevance first, then lifting
-/// bookmarked and frequently pasted clips. FTS5 `rank` is BM25 (more negative =
-/// better match), so each bonus is subtracted. `MIN(PasteCount, cap)` is the
-/// scalar two-argument `min`, keeping frequency gains bounded and monotonic.
+/// ORDER BY body ranking FTS5 matches: text relevance scaled by bookmark and
+/// use-frequency multipliers. `rank` is FTS5 BM25 (more negative = better), so
+/// every factor is > 1 and multiplies the negative score proportional to how
+/// well the clip matched. `MIN(PasteCount, cap)` is the scalar two-argument
+/// `min`, keeping frequency gains bounded and monotonic.
 fn rank_order() -> String {
     format!(
-        "rank - (c.IsBookmarked * {BOOKMARK_RANK_BONUS})\
-         - (MIN(c.PasteCount, {FREQUENCY_CAP}) * {FREQUENCY_WEIGHT})"
+        "rank * (1 + c.IsBookmarked * {BOOKMARK_BOOST})\
+         * (1 + MIN(c.PasteCount, {FREQUENCY_CAP}) * {FREQUENCY_BOOST})"
     )
 }
 
