@@ -3,6 +3,26 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v2.18.0 - 2026-10-04
+
+#### Features
+
+- (ae4362c) weight search results by bookmark and paste frequency - dcog989
+
+#### Bug Fixes
+
+- (3b7dea2) order bookmark icon color branches to match clip text - dcog989
+
+- (b6d0277) install desktop entry under /usr/local prefix - dcog989
+
+- (a9c3700) drop stale package artifacts before makepkg - dcog989
+
+- (dc6a017) make search rank boosts multiplicative to be scale-invariant - dcog989
+
+- (e147b6f) color bookmark icon to match clip text - dcog989
+
+- - -
+
 ## v2.17.1 - 2026-09-21
 
 #### Bug Fixes
