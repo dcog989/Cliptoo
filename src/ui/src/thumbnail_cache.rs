@@ -78,7 +78,9 @@ fn load_thumbnail(thumbnails_dir: &Path, content_hash: &str) -> Image {
         return Image::load_from_path(&webp).unwrap_or_default();
     }
     let svg = thumbnails_dir.join(format!("{key}.svg"));
-    if svg.exists() {
+    // A 0-byte SVG (a copied empty source file from before validation was
+    // added) would make Slint log a parse error; treat it as absent.
+    if svg.metadata().is_ok_and(|m| m.len() > 0) {
         return Image::load_from_path(&svg).unwrap_or_default();
     }
     Image::default()

@@ -1,5 +1,13 @@
 use anyhow::Result;
 
+/// True when `svg_data` parses as an SVG document. Parse-only (no raster) so it
+/// is cheap enough to validate a file before caching it; a 0-byte or otherwise
+/// malformed file (e.g. an empty placeholder) is rejected here rather than
+/// failing later at render time.
+pub fn svg_is_valid(svg_data: &[u8]) -> bool {
+    resvg::usvg::Tree::from_data(svg_data, &resvg::usvg::Options::default()).is_ok()
+}
+
 /// Rasterize an SVG to RGBA pixels at the given size.
 pub fn rasterize_svg(svg_data: &[u8], size: u32) -> Result<(Vec<u8>, u32, u32)> {
     let opt = resvg::usvg::Options::default();
@@ -29,4 +37,28 @@ pub fn rasterize_svg(svg_data: &[u8], size: u32) -> Result<(Vec<u8>, u32, u32)> 
         &mut pixmap.as_mut(),
     );
     Ok((pixmap.data().to_vec(), w, h))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::svg_is_valid;
+
+    #[test]
+    fn empty_svg_is_rejected() {
+        // The regression this guards: a 0-byte source file copied verbatim into
+        // the thumbnail cache and later failing to render in Slint.
+        assert!(!svg_is_valid(b""));
+    }
+
+    #[test]
+    fn minimal_svg_is_accepted() {
+        assert!(svg_is_valid(
+            br#"<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"></svg>"#
+        ));
+    }
+
+    #[test]
+    fn non_svg_bytes_are_rejected() {
+        assert!(!svg_is_valid(b"not an svg"));
+    }
 }

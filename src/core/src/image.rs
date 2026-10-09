@@ -199,8 +199,9 @@ fn make_placeholder(size: u32) -> image::DynamicImage {
 
 /// Write thumbnails for a `FileImage` clip backed by an on-disk file.
 ///
-/// * **SVG** – the file is copied directly to `{hash}.svg` / `{hash}_preview.svg`
-///   so Slint can load it natively. No decode attempt.
+/// * **SVG** – a valid file is copied directly to `{hash}.svg` /
+///   `{hash}_preview.svg` so Slint can load it natively. An invalid or empty
+///   SVG falls back to the placeholder, like the undecodable formats below.
 /// * **PSD, XCF, RAW, …** – a generic gradient placeholder is written as WebP
 ///   since the `image` crate cannot decode these.
 /// * **All other formats** – decoded and written as WebP (same as
@@ -225,11 +226,29 @@ pub fn store_both_thumbnails_for_file(
 
     match ext.as_deref() {
         Some("svg") => {
+            let data = std::fs::read(file_path)?;
+            // Copy a valid SVG verbatim so Slint renders it natively (crisp at
+            // any size). A 0-byte or malformed file (e.g. an empty placeholder
+            // committed by mistake) must not be cached: Slint would later fail
+            // to load it with "document does not have a root node". Fall back
+            // to the placeholder used for undecodable formats and drop any
+            // stale invalid SVG pair so it can't shadow the placeholder.
+            if !icon::svg_is_valid(&data) {
+                let _ = std::fs::remove_file(&thumb_svg);
+                let _ = std::fs::remove_file(&preview_svg);
+                return write_thumbnails_pair(
+                    &thumb_webp,
+                    &preview_webp,
+                    THUMB_MAX_DIM,
+                    preview_max_dim,
+                    make_placeholder,
+                );
+            }
             if !thumb_svg.exists() {
-                std::fs::copy(file_path, &thumb_svg)?;
+                std::fs::write(&thumb_svg, &data)?;
             }
             if !preview_svg.exists() {
-                std::fs::copy(file_path, &preview_svg)?;
+                std::fs::write(&preview_svg, &data)?;
             }
             Ok(())
         }

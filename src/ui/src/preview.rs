@@ -178,7 +178,7 @@ fn show_image_preview(ctx: &PreviewContext) {
     if preview_webp.exists() {
         let img = slint::Image::load_from_path(&preview_webp).unwrap_or_default();
         preview.set_preview_image(img);
-    } else if preview_svg.exists() {
+    } else if preview_svg.metadata().is_ok_and(|m| m.len() > 0) {
         let img = slint::Image::load_from_path(&preview_svg).unwrap_or_default();
         preview.set_preview_image(img);
     } else {
