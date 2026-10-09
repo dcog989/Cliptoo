@@ -29,6 +29,12 @@ export component ClipItem {
     // Prevents the Timer from re-firing every 300 ms while the hover continues.
     property <bool> preview-triggered: false;
 
+    // Base body-text colour, before the hover/selection/bookmark overrides
+    // below. When clip-type color coding is on, non-text types use their type
+    // colour; text clips keep the list base colour.
+    private property <color> body-color:
+        Theme.color-code-clip-types ? ClipTypeMap.color-for(clip-data.clip-type) : Theme.fg-clip-list;
+
     height: Theme.row-height;
 
     Rectangle {
@@ -169,7 +175,7 @@ export component ClipItem {
                     overflow: elide;
                     horizontal-alignment: left;
                     vertical-alignment: center;
-                    color: touch.has-hover && !root.is-selected ? Theme.row-hover-fg : clip-data.is-deadhead ? Theme.fg-muted : clip-data.is-bookmarked ? Theme.fg-bookmarked : root.is-selected ? Theme.fg-primary : Theme.fg-clip-list;
+                    color: touch.has-hover && !root.is-selected ? Theme.row-hover-fg : clip-data.is-deadhead ? Theme.fg-muted : clip-data.is-bookmarked ? Theme.fg-bookmarked : root.is-selected ? Theme.fg-primary : root.body-color;
                     font-size: Theme.clip-list-font-size;
                 }
 
@@ -208,7 +214,7 @@ export component ClipItem {
                             overflow: clip;
                             horizontal-alignment: left;
                             vertical-alignment: center;
-                            color: touch.has-hover && !root.is-selected ? Theme.row-hover-fg : span.is-highlight ? Theme.accent-primary : clip-data.is-bookmarked ? Theme.fg-bookmarked : root.is-selected ? Theme.fg-primary : Theme.fg-clip-list;
+                            color: touch.has-hover && !root.is-selected ? Theme.row-hover-fg : span.is-highlight ? Theme.accent-primary : clip-data.is-bookmarked ? Theme.fg-bookmarked : root.is-selected ? Theme.fg-primary : root.body-color;
                             font-weight: span.is-highlight ? 700 : 400;
                             font-size: Theme.clip-list-font-size;
                         }

@@ -30,6 +30,7 @@ export component SettingsPage inherits ScrollView {
     in-out property <int> s-row-padding-idx:      1;  // Compact/Standard/Luxury
     in-out property <int> hover-delay:            400;
     in-out property <int> s-image-preview-size:   300;
+    in-out property <bool> s-color-code-clip-types: false;
     in-out property <bool> s-paste-as-plain-text:  false;
     in-out property <bool> s-paste-moves-to-top:   true;
     in-out property <string> s-diff-tool-path:       "";
@@ -55,6 +56,7 @@ export component SettingsPage inherits ScrollView {
     in property <bool> row-padding-visible: true;
     in property <bool> row-hover-delay-visible: true;
     in property <bool> row-image-preview-size-visible: true;
+    in property <bool> row-color-code-visible: true;
     // External Apps
     in property <bool> row-diff-tool-visible: true;
     in property <bool> row-sendto-visible: true;
@@ -196,7 +198,7 @@ export component SettingsPage inherits ScrollView {
         if (root.row-theme-visible || root.row-accent-visible || root.row-font-visible
             || root.row-clip-font-size-visible || root.row-preview-font-size-visible
             || root.row-padding-visible || root.row-hover-delay-visible
-            || root.row-image-preview-size-visible): SectionHeader {
+            || root.row-image-preview-size-visible || root.row-color-code-visible): SectionHeader {
             text: @tr("Appearance");
         }
 
@@ -206,6 +208,15 @@ export component SettingsPage inherits ScrollView {
             options: ["System", "Light", "Dark"];
             committed(v) => {
                 root.setting-changed("theme", v);
+            }
+        }
+
+        if root.row-color-code-visible: ToggleRow {
+            label: @tr("Color code clip types");
+            tooltip-text: @tr("Tint clip text by type: URLs blue, images green, videos red, rich text cream, and so on");
+            value <=> root.s-color-code-clip-types;
+            committed(v) => {
+                root.setting-changed("color_code_clip_types", v ? "true" : "false");
             }
         }
 

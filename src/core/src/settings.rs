@@ -53,6 +53,11 @@ pub struct Settings {
     pub font_size: f64,
     pub preview_font_size: f64,
     pub clip_item_padding: String,
+    // When true, clip-list body text is tinted by clip type (URLs blue,
+    // images green, videos red, rich text cream, …). Text clips keep the base
+    // list colour. See `ClipTypeMap.color-for` for the mapping.
+    #[serde(default = "default_color_code_clip_types")]
+    pub color_code_clip_types: bool,
 
     // Behaviour
     pub hover_preview_delay: u32,
@@ -103,6 +108,7 @@ impl Default for Settings {
             font_size: 13.0,
             preview_font_size: 12.0,
             clip_item_padding: "Standard".to_string(),
+            color_code_clip_types: false,
             hover_preview_delay: 400,
             hover_image_preview_size: 300,
             paste_as_plain_text: false,
@@ -219,6 +225,10 @@ fn default_paste_moves_clip_to_top() -> bool {
     Settings::default().paste_moves_clip_to_top
 }
 
+fn default_color_code_clip_types() -> bool {
+    Settings::default().color_code_clip_types
+}
+
 fn default_quick_paste_modifier() -> String {
     Settings::default().quick_paste_modifier
 }
@@ -332,11 +342,16 @@ mod tests {
             .as_object_mut()
             .unwrap()
             .remove("settings_window_height");
+        value
+            .as_object_mut()
+            .unwrap()
+            .remove("color_code_clip_types");
         let s: Settings = serde_json::from_value(value).unwrap();
         assert!(s.paste_moves_clip_to_top);
         assert_eq!(s.quick_paste_modifier, "Right Alt");
         assert!(s.always_close_to_tray);
         assert!((s.settings_window_width - 560.0).abs() < f64::EPSILON);
         assert!((s.settings_window_height - 540.0).abs() < f64::EPSILON);
+        assert!(!s.color_code_clip_types);
     }
 }

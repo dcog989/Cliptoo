@@ -140,6 +140,13 @@ pub fn fill_theme(
         t.set_fg_success(Color::from_rgb_u8(0x2E, 0xCC, 0x71));
         t.set_fg_warning(Color::from_rgb_u8(0xF3, 0x9C, 0x12));
         t.set_fg_bookmarked(Color::from_rgb_u8(0xE5, 0xB5, 0x67));
+        t.set_fg_type_code(Color::from_rgb_u8(0x4D, 0xD0, 0xE1));
+        t.set_fg_type_path(Color::from_rgb_u8(0x4D, 0xB6, 0xAC));
+        t.set_fg_type_color(Color::from_rgb_u8(0xF0, 0x62, 0x92));
+        t.set_fg_type_archive(Color::from_rgb_u8(0xC9, 0xA2, 0x27));
+        t.set_fg_type_document(Color::from_rgb_u8(0x64, 0xB5, 0xF6));
+        t.set_fg_type_dev(Color::from_rgb_u8(0xB3, 0x88, 0xFF));
+        t.set_fg_type_data(Color::from_rgb_u8(0x90, 0xA4, 0xAE));
         t.set_border_subtle(Color::from_rgb_u8(0x44, 0x44, 0x44));
         t.set_shadow(Color::from_argb_u8(SHADOW_ALPHA, 0x00, 0x00, 0x00));
     } else {
@@ -156,11 +163,19 @@ pub fn fill_theme(
         t.set_fg_success(Color::from_rgb_u8(0x27, 0xAE, 0x60));
         t.set_fg_warning(Color::from_rgb_u8(0xE6, 0x7E, 0x22));
         t.set_fg_bookmarked(Color::from_rgb_u8(0xB8, 0x86, 0x0B));
+        t.set_fg_type_code(Color::from_rgb_u8(0x00, 0x83, 0x8F));
+        t.set_fg_type_path(Color::from_rgb_u8(0x00, 0x69, 0x5C));
+        t.set_fg_type_color(Color::from_rgb_u8(0xC2, 0x18, 0x5B));
+        t.set_fg_type_archive(Color::from_rgb_u8(0x8A, 0x5A, 0x22));
+        t.set_fg_type_document(Color::from_rgb_u8(0x15, 0x65, 0xC0));
+        t.set_fg_type_dev(Color::from_rgb_u8(0x6A, 0x1B, 0x9A));
+        t.set_fg_type_data(Color::from_rgb_u8(0x45, 0x5A, 0x64));
         t.set_border_subtle(Color::from_rgb_u8(0xD0, 0xD0, 0xD0));
         t.set_shadow(Color::from_argb_u8(SHADOW_ALPHA, 0x00, 0x00, 0x00));
     }
 
     t.set_font_family(SharedString::from(&*settings.font_family));
+    t.set_color_code_clip_types(settings.color_code_clip_types);
     t.set_clip_list_font_size(settings.font_size as f32);
     t.set_preview_font_size(settings.preview_font_size as f32);
     t.set_preview_size(settings.hover_image_preview_size as f32);

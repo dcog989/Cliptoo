@@ -22,6 +22,8 @@ const APPEARANCE_PREVIEW_FONT_SIZE: &str = "appearance preview font size code co
 const APPEARANCE_PADDING: &str = "appearance row padding compact standard luxury";
 const APPEARANCE_HOVER_DELAY: &str = "appearance preview hover delay tooltip milliseconds";
 const APPEARANCE_IMAGE_PREVIEW_SIZE: &str = "appearance preview size hover thumbnail pixels";
+const APPEARANCE_COLOR_CODE: &str =
+    "appearance color code clip types text tint url image video rich";
 const EXTERNAL_DIFF_TOOL: &str = "external apps diff tool path compare";
 const EXTERNAL_SENDTO: &str = "external apps send to apps list";
 const EXTERNAL_BLACKLIST: &str = "external apps blacklist apps exclude ignore";
@@ -52,6 +54,7 @@ pub(super) fn apply_settings_filter(win: &crate::SettingsWindow, query: &str) {
     win.set_row_padding_visible(row_matches(APPEARANCE_PADDING, &q));
     win.set_row_hover_delay_visible(row_matches(APPEARANCE_HOVER_DELAY, &q));
     win.set_row_image_preview_size_visible(row_matches(APPEARANCE_IMAGE_PREVIEW_SIZE, &q));
+    win.set_row_color_code_visible(row_matches(APPEARANCE_COLOR_CODE, &q));
     win.set_row_diff_tool_visible(row_matches(EXTERNAL_DIFF_TOOL, &q));
     win.set_row_sendto_visible(row_matches(EXTERNAL_SENDTO, &q));
     win.set_row_blacklist_visible(row_matches(EXTERNAL_BLACKLIST, &q));

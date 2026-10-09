@@ -88,6 +88,7 @@ fn init_settings_properties(
     ));
     settings_win.set_hover_delay(s.hover_preview_delay as i32);
     settings_win.set_s_image_preview_size(s.hover_image_preview_size as i32);
+    settings_win.set_s_color_code_clip_types(s.color_code_clip_types);
     settings_win.set_s_paste_as_plain_text(s.paste_as_plain_text);
     settings_win.set_s_paste_moves_to_top(s.paste_moves_clip_to_top);
     settings_win.set_s_diff_tool_path(s.compare_tool_path.as_str().into());

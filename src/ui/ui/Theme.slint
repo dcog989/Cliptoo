@@ -33,6 +33,16 @@ export global Theme {
     in property <color> fg-success:        #2ECC71;
     in property <color> fg-warning:        #F39C12;
     in property <color> fg-bookmarked:     #E5B567;
+    // Per-clip-type body-text colours, used only when `color-code-clip-types`
+    // is on. Text clips keep `fg-clip-list`. These are the dark-mode values;
+    // the light-mode variants are filled from Rust in `theme::fill_theme`.
+    in property <color> fg-type-code:      #4DD0E1;  // code snippets (cyan)
+    in property <color> fg-type-path:      #4DB6AC;  // file paths / folders (teal)
+    in property <color> fg-type-color:     #F06292;  // colour clips (pink)
+    in property <color> fg-type-archive:   #C9A227;  // archives (ochre)
+    in property <color> fg-type-document:  #64B5F6;  // documents (sky)
+    in property <color> fg-type-dev:       #B388FF;  // dev/config files (violet)
+    in property <color> fg-type-data:      #90A4AE;  // data/tabular files (slate)
 
     in property <color> border-subtle:     #444444;
     in property <color> shadow:            #00000030;
@@ -51,6 +61,10 @@ export global Theme {
     // setting drives clip-list-font-size below, not this.
     in property <length> font-size:        13px;
     in property <length> clip-list-font-size: 13px;
+    // When true, clip-list body text is tinted by clip type (URLs blue,
+    // images green, videos red, rich text cream, …). Text clips keep the base
+    // list colour. `ClipTypeMap.color-for` holds the mapping.
+    in property <bool> color-code-clip-types: false;
     in property <length> preview-font-size: 12px;
     // Max box (px) for the hover preview; drives the popup's width and height
     // cap for every clip type (and the on-disk image generation size).

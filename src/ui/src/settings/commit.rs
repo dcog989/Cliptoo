@@ -127,6 +127,15 @@ pub(super) fn setup_setting_commit(
                         invalidate_image_previews(thumbnails_dir.clone());
                     }
                 }
+                "color_code_clip_types" => {
+                    let enabled = value == "true";
+                    s.color_code_clip_types = enabled;
+                    // The mapping itself lives in Slint (ClipTypeMap.color-for);
+                    // only the on/off token needs re-applying here.
+                    apply_theme_to_windows(&settings_ui, &sw, |t| {
+                        t.set_color_code_clip_types(enabled);
+                    });
+                }
                 "paste_as_plain_text" => s.paste_as_plain_text = value == "true",
                 "paste_moves_to_top" => s.paste_moves_clip_to_top = value == "true",
                 "compare_tool_path" => s.compare_tool_path = value.clone(),

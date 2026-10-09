@@ -3,8 +3,10 @@
 // tooltip label), and FilterGrid (filter popup grid).
 //
 // Adding a new ClipType requires one icon-for branch (+ label-for where it
-// appears in a filter/tooltip). `filter-keys` lists which keys appear in the
-// filter popup, in display order.
+// appears in a filter/tooltip, + color-for for color coding). `filter-keys`
+// lists which keys appear in the filter popup, in display order.
+
+import { Theme } from "Theme.slint";
 
 export global ClipTypeMap {
     // Filter keys shown in the FilterGrid popup, in display order. Every key
@@ -65,6 +67,25 @@ export global ClipTypeMap {
             || key == "rtf"
             || key == "html"
             || key == "link";
+    }
+
+    // Body-text colour per clip type, used when the "Color code clip types"
+    // setting is on. Text-ish clips (text, file_text, file_generic) and
+    // unknown keys stay the base list colour, so plain text never changes.
+    public pure function color-for(key: string) -> color {
+        if key == "link" { return Theme.link-fg; }            // blue
+        if key == "file_image" { return Theme.fg-success; }   // green
+        if key == "file_video" || key == "file_danger" { return Theme.fg-danger; }  // red
+        if key == "file_audio" { return Theme.fg-warning; }   // orange
+        if key == "rtf" || key == "html" { return Theme.fg-bookmarked; }  // cream
+        if key == "code_snippet" { return Theme.fg-type-code; }
+        if key == "file_path" || key == "folder" { return Theme.fg-type-path; }
+        if key == "color" { return Theme.fg-type-color; }
+        if key == "file_archive" { return Theme.fg-type-archive; }
+        if key == "file_document" { return Theme.fg-type-document; }
+        if key == "file_dev" { return Theme.fg-type-dev; }
+        if key == "file_data" { return Theme.fg-type-data; }
+        return Theme.fg-clip-list;
     }
 
     // Localized label per filter key. Unknown keys fall back to the key itself.
