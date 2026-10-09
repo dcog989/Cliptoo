@@ -3,6 +3,22 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v2.19.0 - 2026-10-09
+
+#### Features
+
+- (eb29d51) color code clip list text by clip type - dcog989
+
+- (ba2eac6) round main window corners - dcog989
+
+#### Bug Fixes
+
+- (93d296d) don't cache empty or malformed SVG thumbnails - dcog989
+
+- (d5bbbd8) scroll clip list by wheel angleDelta, not Wayland pixelDelta - dcog989
+
+- - -
+
 ## v2.18.0 - 2026-10-04
 
 #### Features
