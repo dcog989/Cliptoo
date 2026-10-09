@@ -55,6 +55,10 @@ async fn main() -> Result<()> {
     let db = Arc::new(cliptoo_core::db::DbPool::open(&dirs.db_path)?);
     let ui = AppWindow::new()?;
 
+    // App-wide: scroll by the wheel's angleDelta instead of Wayland's tiny
+    // pixelDelta, which otherwise makes one notch scroll only a few pixels.
+    drag::normalize_wheel_delta();
+
     ui.set_clips(std::rc::Rc::new(VecModel::<ClipData>::from(vec![])).into());
     let (is_dark, system_accent) = theme::apply_theme(&ui, &settings).await;
     ui.set_stored_width(settings.window_width as f32);

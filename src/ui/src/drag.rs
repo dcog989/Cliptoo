@@ -1,7 +1,8 @@
 // The only `unsafe` in the codebase — Qt FFI shims (drag_qt.cpp) for window
-// activation, tooltip parenting, and the app-focus query, which Slint's public
-// API can't provide on the Qt backend. Interactive window move is handled by
-// the `WindowMoveArea` element in Toolbar.slint.
+// activation, tooltip parenting, the app-focus query, and mouse-wheel delta
+// normalization, which Slint's public API can't provide on the Qt backend.
+// Interactive window move is handled by the `WindowMoveArea` element in
+// Toolbar.slint.
 // Crate roots `#![deny(unsafe_code)]`; this module is the sole carve-out.
 #![allow(unsafe_code)]
 
@@ -19,6 +20,7 @@ unsafe extern "C" {
     fn cliptoo_activate_window(widget: *mut std::ffi::c_void);
     fn cliptoo_make_tooltip_window(child: *mut std::ffi::c_void, parent: *mut std::ffi::c_void);
     fn cliptoo_app_has_focus() -> bool;
+    fn cliptoo_normalize_wheel_delta();
 }
 
 /// Raise and activate the window so the first click on a freshly-shown window
@@ -60,4 +62,12 @@ pub fn make_tooltip_window<C: slint::ComponentHandle, P: slint::ComponentHandle>
 /// blur-detection poll can't rely on item focus while a menu is up.
 pub fn app_has_focus() -> bool {
     unsafe { cliptoo_app_has_focus() }
+}
+
+/// Install an application-wide Qt event filter that makes Slint's Qt backend
+/// scroll by the wheel's `angleDelta` rather than Wayland's tiny `pixelDelta`
+/// (see cliptoo_normalize_wheel_delta in drag_qt.cpp). Must run on the Qt GUI
+/// thread after the backend has created `qApp`; call once at startup.
+pub fn normalize_wheel_delta() {
+    unsafe { cliptoo_normalize_wheel_delta() }
 }
