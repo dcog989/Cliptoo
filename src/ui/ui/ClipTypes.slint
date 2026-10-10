@@ -94,7 +94,8 @@ export global ClipTypeMap {
 
     // Body-text / icon colour per clip type, used when the "Color code clip
     // types" setting is on. Each type maps to its own theme token; the tokens
-    // are an evenly spaced OKLCH palette (see Theme.slint / theme::fill_theme).
+    // are an OKLCH palette with evenly spaced hues and alternating lightness
+    // (see Theme.slint / theme::fill_theme).
     // Text-ish clips (text, file_text, file_generic) and unknown keys stay the
     // base list colour, so plain text never changes.
     public pure function color-for(key: string) -> color {
@@ -104,7 +105,8 @@ export global ClipTypeMap {
         if key == "file_audio" { return Theme.fg-type-audio; }
         if key == "rtf" || key == "html" { return Theme.fg-type-rich; }
         if key == "code_snippet" { return Theme.fg-type-code; }
-        if key == "file_path" || key == "folder" { return Theme.fg-type-path; }
+        if key == "file_path" { return Theme.fg-type-path; }
+        if key == "folder" { return Theme.fg-type-folder; }
         if key == "color" { return Theme.fg-type-color; }
         if key == "file_archive" { return Theme.fg-type-archive; }
         if key == "file_document" { return Theme.fg-type-document; }

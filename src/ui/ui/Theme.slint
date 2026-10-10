@@ -38,24 +38,26 @@ export global Theme {
     in property <color> fg-warning:        #F39C12;
     in property <color> fg-bookmarked:     #E5B567;
     // Per-clip-type body-text and filter-icon colours, used only when
-    // `color-code-clip-types` is on. Text clips keep `fg-clip-list`. The hues
-    // are spaced evenly around the OKLCH wheel (12 steps of 30°, anchored so
-    // links stay blue, images green, videos red, rich text cream) at a single
-    // lightness and chroma, so no two types read as the same colour. These are
-    // the dark-mode values; light variants are filled from Rust in
-    // `theme::fill_theme`.
-    in property <color> fg-type-video:     #E88F87;  //  25°  video / danger
-    in property <color> fg-type-audio:     #E09865;  //  55°  audio
-    in property <color> fg-type-rich:      #CBA553;  //  85°  rich text
-    in property <color> fg-type-archive:   #A8B35E;  // 115°  archives
-    in property <color> fg-type-image:     #7DBD7F;  // 145°  images
-    in property <color> fg-type-path:      #51C1A7;  // 175°  paths / folders
-    in property <color> fg-type-code:      #3FBFCC;  // 205°  code
-    in property <color> fg-type-document:  #5EB6E6;  // 235°  documents
-    in property <color> fg-type-link:      #89A9F1;  // 265°  links
-    in property <color> fg-type-dev:       #B09DE9;  // 295°  dev / config
-    in property <color> fg-type-color:     #CE92D1;  // 325°  colour clips
-    in property <color> fg-type-data:      #E28DAE;  // 355°  data / tabular
+    // `color-code-clip-types` is on. Text clips keep `fg-clip-list`. Hues are
+    // spaced evenly around the OKLCH wheel (12 steps of 30°, anchored so links
+    // stay blue, images green, videos red, rich text cream). Each type sits on
+    // one of three OKLCH lightness levels (dark L 0.64/0.74/0.84) so adjacent
+    // hues never share one — roughly doubling the perceived separation versus a
+    // single lightness. These are the dark-mode values; light variants are
+    // filled from Rust in `theme::fill_theme`.
+    in property <color> fg-type-video:     #C67069;  //  25°  L 0.64  video / danger
+    in property <color> fg-type-audio:     #E09864;  //  55°  L 0.74  audio
+    in property <color> fg-type-rich:      #ECC573;  //  85°  L 0.84  rich text
+    in property <color> fg-type-archive:   #8A943F;  // 115°  L 0.64  archives
+    in property <color> fg-type-image:     #7DBD7F;  // 145°  L 0.74  images
+    in property <color> fg-type-path:      #28A289;  // 175°  L 0.64  file paths
+    in property <color> fg-type-folder:    #73E2C7;  // 175°  L 0.84  folders
+    in property <color> fg-type-code:      #3FBFCC;  // 205°  L 0.74  code
+    in property <color> fg-type-document:  #3B96C5;  // 235°  L 0.64  documents
+    in property <color> fg-type-link:      #89A9F1;  // 265°  L 0.74  links
+    in property <color> fg-type-dev:       #917EC8;  // 295°  L 0.64  dev / config
+    in property <color> fg-type-color:     #CE92D1;  // 325°  L 0.74  colour clips
+    in property <color> fg-type-data:      #FFAFCD;  // 355°  L 0.84  data / tabular
 
     in property <color> border-subtle:     #444444;
     in property <color> shadow:            #00000030;
