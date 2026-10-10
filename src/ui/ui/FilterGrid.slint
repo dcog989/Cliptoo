@@ -40,7 +40,15 @@ export component FilterGrid {
                     width: 24px;
                     height: 24px;
                     source: ClipTypeMap.icon-for(key);
-                    colorize: root.active-filter == key || cell-touch.has-hover ? Theme.row-hover-fg : Theme.fg-muted;
+                    // Active/hover cells sit on the accent background, so keep
+                    // the contrast foreground there. Otherwise, when color
+                    // coding is on, tint the icon by its clip type; non-type
+                    // keys ("all", "bookmarked", plain text) stay muted.
+                    colorize: root.active-filter == key || cell-touch.has-hover
+                        ? Theme.row-hover-fg
+                        : (Theme.color-code-clip-types && ClipTypeMap.has-color-for(key)
+                        ? ClipTypeMap.color-for(key)
+                        : Theme.fg-muted);
                     animate colorize { duration: Theme.anim-fast; }
                 }
 

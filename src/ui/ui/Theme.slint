@@ -33,16 +33,25 @@ export global Theme {
     in property <color> fg-success:        #2ECC71;
     in property <color> fg-warning:        #F39C12;
     in property <color> fg-bookmarked:     #E5B567;
-    // Per-clip-type body-text colours, used only when `color-code-clip-types`
-    // is on. Text clips keep `fg-clip-list`. These are the dark-mode values;
-    // the light-mode variants are filled from Rust in `theme::fill_theme`.
-    in property <color> fg-type-code:      #4DD0E1;  // code snippets (cyan)
-    in property <color> fg-type-path:      #4DB6AC;  // file paths / folders (teal)
-    in property <color> fg-type-color:     #F06292;  // colour clips (pink)
-    in property <color> fg-type-archive:   #C9A227;  // archives (ochre)
-    in property <color> fg-type-document:  #64B5F6;  // documents (sky)
-    in property <color> fg-type-dev:       #B388FF;  // dev/config files (violet)
-    in property <color> fg-type-data:      #90A4AE;  // data/tabular files (slate)
+    // Per-clip-type body-text and filter-icon colours, used only when
+    // `color-code-clip-types` is on. Text clips keep `fg-clip-list`. The hues
+    // are spaced evenly around the OKLCH wheel (12 steps of 30°, anchored so
+    // links stay blue, images green, videos red, rich text cream) at a single
+    // lightness and chroma, so no two types read as the same colour. These are
+    // the dark-mode values; light variants are filled from Rust in
+    // `theme::fill_theme`.
+    in property <color> fg-type-video:     #E88F87;  //  25°  video / danger
+    in property <color> fg-type-audio:     #E09865;  //  55°  audio
+    in property <color> fg-type-rich:      #CBA553;  //  85°  rich text
+    in property <color> fg-type-archive:   #A8B35E;  // 115°  archives
+    in property <color> fg-type-image:     #7DBD7F;  // 145°  images
+    in property <color> fg-type-path:      #51C1A7;  // 175°  paths / folders
+    in property <color> fg-type-code:      #3FBFCC;  // 205°  code
+    in property <color> fg-type-document:  #5EB6E6;  // 235°  documents
+    in property <color> fg-type-link:      #89A9F1;  // 265°  links
+    in property <color> fg-type-dev:       #B09DE9;  // 295°  dev / config
+    in property <color> fg-type-color:     #CE92D1;  // 325°  colour clips
+    in property <color> fg-type-data:      #E28DAE;  // 355°  data / tabular
 
     in property <color> border-subtle:     #444444;
     in property <color> shadow:            #00000030;

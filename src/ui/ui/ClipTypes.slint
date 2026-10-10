@@ -3,8 +3,9 @@
 // tooltip label), and FilterGrid (filter popup grid).
 //
 // Adding a new ClipType requires one icon-for branch (+ label-for where it
-// appears in a filter/tooltip, + color-for for color coding). `filter-keys`
-// lists which keys appear in the filter popup, in display order.
+// appears in a filter/tooltip, + color-for and its has-color-for entry for
+// color coding). `filter-keys` lists which keys appear in the filter popup,
+// in display order.
 
 import { Theme } from "Theme.slint";
 
@@ -69,15 +70,39 @@ export global ClipTypeMap {
             || key == "link";
     }
 
-    // Body-text colour per clip type, used when the "Color code clip types"
-    // setting is on. Text-ish clips (text, file_text, file_generic) and
-    // unknown keys stay the base list colour, so plain text never changes.
+    // True when `key` is a clip type with its own colour — excludes plain text,
+    // generic file clips, and non-type filter keys like "all"/"bookmarked".
+    // Callers drawing on their own base colour (filter grid icons) use this to
+    // fall back instead of the list base colour.
+    public pure function has-color-for(key: string) -> bool {
+        return key == "link"
+            || key == "file_image"
+            || key == "file_video"
+            || key == "file_danger"
+            || key == "file_audio"
+            || key == "rtf"
+            || key == "html"
+            || key == "code_snippet"
+            || key == "file_path"
+            || key == "folder"
+            || key == "color"
+            || key == "file_archive"
+            || key == "file_document"
+            || key == "file_dev"
+            || key == "file_data";
+    }
+
+    // Body-text / icon colour per clip type, used when the "Color code clip
+    // types" setting is on. Each type maps to its own theme token; the tokens
+    // are an evenly spaced OKLCH palette (see Theme.slint / theme::fill_theme).
+    // Text-ish clips (text, file_text, file_generic) and unknown keys stay the
+    // base list colour, so plain text never changes.
     public pure function color-for(key: string) -> color {
-        if key == "link" { return Theme.link-fg; }            // blue
-        if key == "file_image" { return Theme.fg-success; }   // green
-        if key == "file_video" || key == "file_danger" { return Theme.fg-danger; }  // red
-        if key == "file_audio" { return Theme.fg-warning; }   // orange
-        if key == "rtf" || key == "html" { return Theme.fg-bookmarked; }  // cream
+        if key == "link" { return Theme.fg-type-link; }
+        if key == "file_image" { return Theme.fg-type-image; }
+        if key == "file_video" || key == "file_danger" { return Theme.fg-type-video; }
+        if key == "file_audio" { return Theme.fg-type-audio; }
+        if key == "rtf" || key == "html" { return Theme.fg-type-rich; }
         if key == "code_snippet" { return Theme.fg-type-code; }
         if key == "file_path" || key == "folder" { return Theme.fg-type-path; }
         if key == "color" { return Theme.fg-type-color; }
