@@ -3,9 +3,10 @@ use std::path::{Path, PathBuf};
 
 /// Resolved application directory paths.
 ///
-///   config/state  (~/.config/Cliptoo/)      — settings, DB, logs
-///   data          (~/.local/share/Cliptoo/) — full-resolution clipboard images
-///   cache         (~/.cache/Cliptoo/)       — thumbnails, favicons (regenerable)
+///   config  (~/.config/Cliptoo/)      — settings
+///   state   (~/.local/state/Cliptoo/) — logs
+///   data    (~/.local/share/Cliptoo/) — clip history DB, full-resolution images
+///   cache   (~/.cache/Cliptoo/)       — thumbnails, favicons (regenerable)
 pub struct AppDirs {
     pub config_dir: PathBuf,
     pub data_dir: PathBuf,
@@ -24,14 +25,21 @@ impl AppDirs {
         let config_home = dirs::config_dir().context("no config dir (unset HOME?)")?;
         let data_home = dirs::data_dir().context("no data dir (unset HOME?)")?;
         let cache_home = dirs::cache_dir().context("no cache dir (unset HOME?)")?;
+        let state_home = dirs::state_dir().context("no state dir (unset HOME?)")?;
 
-        // Config/state — settings, DB, logs
+        // Config — settings only.
         let config_dir = config_home.join("Cliptoo");
-        let logs_dir = config_dir.join("Logs");
+        let settings_path = config_dir.join("settings.json");
 
-        // Data — full-resolution images are referenced by clip rows, so they
-        // must survive a cache clear and live under `$XDG_DATA_HOME`.
+        // State — logs (`$XDG_STATE_HOME`, per the Base Directory spec).
+        let state_dir = state_home.join("Cliptoo");
+        let logs_dir = state_dir.join("Logs");
+
+        // Data — the clip history DB and full-resolution images are referenced
+        // by clip rows, so they must survive a cache clear and live under
+        // `$XDG_DATA_HOME`.
         let data_dir = data_home.join("Cliptoo");
+        let db_path = data_dir.join("clips.db");
         let images_dir = data_dir.join("images");
 
         // Cache — thumbnails and favicons are derived and rebuilt on demand.
@@ -42,6 +50,7 @@ impl AppDirs {
         // Create all directories on first run
         for dir in &[
             &config_dir,
+            &state_dir,
             &data_dir,
             &cache_dir,
             &logs_dir,
@@ -52,10 +61,24 @@ impl AppDirs {
             std::fs::create_dir_all(dir)?;
         }
 
-        // One-time migration: thumbnails/favicons previously lived under the
-        // data dir. Move existing files across so cached favicons (and their
-        // failure counters) survive the split; they regenerate if the move
-        // fails (e.g. data and cache on different filesystems).
+        // One-time migrations from the pre-XDG layout, where the DB, logs and
+        // cache all lived under the config dir. Best-effort: a failure leaves
+        // data in place rather than discarding it.
+        migrate_dir(&config_dir.join("Logs"), &logs_dir);
+
+        // The DB must move with its WAL/SHM sidecars so no uncommitted writes
+        // are orphaned. `migrate_file` skips a sidecar whose destination already
+        // exists, so an existing DB is never clobbered.
+        for suffix in ["", "-wal", "-shm"] {
+            migrate_file(
+                &config_dir.join(format!("clips.db{suffix}")),
+                &data_dir.join(format!("clips.db{suffix}")),
+            );
+        }
+
+        // Thumbnails/favicons previously lived under the data dir. Move them
+        // across so cached favicons (and their failure counters) survive; they
+        // regenerate if the move fails.
         migrate_dir(&data_dir.join("thumbnails"), &thumbnails_dir);
         migrate_dir(&data_dir.join("favicons"), &favicons_dir);
         migrate_file(
@@ -64,8 +87,8 @@ impl AppDirs {
         );
 
         Ok(Self {
-            db_path: config_dir.join("clips.db"),
-            settings_path: config_dir.join("settings.json"),
+            db_path,
+            settings_path,
             config_dir,
             data_dir,
             cache_dir,
@@ -78,13 +101,24 @@ impl AppDirs {
 }
 
 /// Move a single file to `new` when the source exists and the destination does
-/// not. Best-effort, like `migrate_dir`.
+/// not. Prefers an atomic rename; falls back to copy + remove when the two
+/// directories sit on different filesystems (`rename` then fails with `EXDEV`),
+/// so non-regenerable files such as the clip DB are not stranded. Best-effort,
+/// like `migrate_dir`.
 fn migrate_file(old: &Path, new: &Path) {
     if old == new || !old.is_file() || new.exists() {
         return;
     }
-    if let Err(e) = std::fs::rename(old, new) {
-        tracing::warn!("app_dirs: cannot migrate {:?} -> {:?}: {e}", old, new);
+    if std::fs::rename(old, new).is_ok() {
+        return;
+    }
+    match std::fs::copy(old, new) {
+        Ok(_) => {
+            if let Err(e) = std::fs::remove_file(old) {
+                tracing::warn!("app_dirs: copied {:?} but cannot remove source: {e}", old);
+            }
+        }
+        Err(e) => tracing::warn!("app_dirs: cannot migrate {:?} -> {:?}: {e}", old, new),
     }
 }
 

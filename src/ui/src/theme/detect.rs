@@ -26,11 +26,11 @@ pub async fn detect_system_dark() -> Option<bool> {
     }
 }
 
-/// Try to read the KDE Plasma 6 accent color from `~/.config/kdeglobals`.
+/// Try to read the KDE Plasma 6 accent color from `$XDG_CONFIG_HOME/kdeglobals`.
 /// Plasma 6 writes the user's chosen accent color as `AccentColor=r,g,b,a`
 /// under `[General]` in this file.
 fn read_kdeglobals_accent() -> Option<(u8, u8, u8)> {
-    let path = dirs::home_dir()?.join(".config").join("kdeglobals");
+    let path = dirs::config_dir()?.join("kdeglobals");
 
     let text = std::fs::read_to_string(path).ok()?;
     let mut in_general = false;
@@ -58,7 +58,7 @@ fn read_kdeglobals_accent() -> Option<(u8, u8, u8)> {
 }
 
 /// Detect the system accent color, trying xdg-desktop-portal first,
-/// then falling back to `~/.config/kdeglobals` on KDE Plasma 6.
+/// then falling back to `$XDG_CONFIG_HOME/kdeglobals` on KDE Plasma 6.
 /// Returns `(r, g, b)` in 0–255, or `None` if undetectable.
 pub async fn detect_system_accent() -> Option<(u8, u8, u8)> {
     // Try the portal (org.freedesktop.appearance.accent-color)
