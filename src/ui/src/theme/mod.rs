@@ -1,6 +1,6 @@
 //! Theme resolution and token filling for every Slint window.
 //!
-//! System detection lives in [`detect`]; the WCAG/OKLCH accent math lives in
+//! System detection lives in [`detect`]; the APCA/OKLCH accent math lives in
 //! [`contrast`]. This module owns the resolved-theme cache, the `Theme`-global
 //! fill functions, and the filler registry for windows other than the main and
 //! settings ones.
@@ -12,8 +12,7 @@ use slint::{Color, ComponentHandle, SharedString};
 use std::sync::Mutex;
 
 use self::contrast::{
-    accent_sibling, bg_primary, contrast_safe_accent, match_highlight, relative_luminance,
-    select_accent_fg,
+    accent_sibling, bg_primary, contrast_safe_accent, match_highlight, select_accent_fg,
 };
 
 mod contrast;
@@ -74,9 +73,8 @@ pub fn fill_accent(
     let border_accent_l = if is_dark { 0.54 } else { 0.40 };
 
     // Surface the accent is applied on; the accent must keep a minimum
-    // contrast against it in both theme modes.
-    let (bg_r, bg_g, bg_b) = bg_primary(is_dark);
-    let bg_lum = relative_luminance(bg_r, bg_g, bg_b);
+    // APCA contrast against it in both theme modes.
+    let bg = bg_primary(is_dark);
 
     // Base accent: the system accent in "System" theme mode, otherwise the
     // user-picked color.
@@ -92,11 +90,11 @@ pub fn fill_accent(
     // contrast with the surface; hovered rows keep the exact accent so the
     // user sees the color they actually picked.
     let (accent_is_dark, (accent_r, accent_g, accent_b)) =
-        contrast_safe_accent(accent_rgb, accent_l, accent_c, accent_h, bg_lum);
+        contrast_safe_accent(accent_rgb, accent_l, accent_c, accent_h, bg);
     let accent = Color::from_rgb_u8(accent_r, accent_g, accent_b);
     let (raw_r, raw_g, raw_b) = accent_rgb;
     let raw_accent = Color::from_rgb_u8(raw_r, raw_g, raw_b);
-    let raw_is_dark = select_accent_fg(relative_luminance(raw_r, raw_g, raw_b));
+    let raw_is_dark = select_accent_fg((raw_r, raw_g, raw_b));
     // Content sitting on an accent background flips to this for contrast.
     t.set_accent_fg(if accent_is_dark {
         Color::from_rgb_u8(0xFF, 0xFF, 0xFF)
@@ -115,7 +113,7 @@ pub fn fill_accent(
     t.set_bg_row_hover(raw_accent);
     // FTS match spans: the accent's hue at a fixed strong chroma and a high
     // contrast against the surface, so a match never reads as body text.
-    t.set_match_highlight(match_highlight(accent_h, bg_lum));
+    t.set_match_highlight(match_highlight(accent_h, bg));
 }
 
 /// Apply pre-resolved theme tokens to any `Theme` global handle.
