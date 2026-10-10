@@ -28,10 +28,6 @@ export component SettingsWindow inherits Window {
     in-out property <bool> toast-visible:   false;
     in-out property <string> toast-message:   "";
     in-out property <string> toast-severity:  "info";
-    // Instant filter query from the header search box. Matched against each
-    // option's keywords by Rust (Slint strings have no substring matching);
-    // the match result drives the per-row *-visible properties below.
-    in-out property <string> settings-filter: "";
 
     // General
     in-out property <string> s-hotkey:               "Ctrl+Alt+Q";
@@ -68,31 +64,6 @@ export component SettingsWindow inherits Window {
     in-out property <string> s-copies:      "";
     in-out property <string> s-pastes:      "";
 
-    // Per-row filter visibility, set by Rust from `settings-filter`.
-    // General
-    in-out property <bool> row-hotkey-visible: true;
-    in-out property <bool> row-startup-visible: true;
-    in-out property <bool> row-tray-visible: true;
-    in-out property <bool> row-quickpaste-visible: true;
-    in-out property <bool> row-plaintext-visible: true;
-    in-out property <bool> row-paste-top-visible: true;
-    in-out property <bool> row-loglevel-visible: true;
-    in-out property <bool> row-logfile-visible: true;
-    // Appearance
-    in-out property <bool> row-theme-visible: true;
-    in-out property <bool> row-accent-visible: true;
-    in-out property <bool> row-font-visible: true;
-    in-out property <bool> row-clip-font-size-visible: true;
-    in-out property <bool> row-preview-font-size-visible: true;
-    in-out property <bool> row-padding-visible: true;
-    in-out property <bool> row-hover-delay-visible: true;
-    in-out property <bool> row-image-preview-size-visible: true;
-    in-out property <bool> row-color-code-visible: true;
-    // External Apps
-    in-out property <bool> row-diff-tool-visible: true;
-    in-out property <bool> row-sendto-visible: true;
-    in-out property <bool> row-blacklist-visible: true;
-
     callback settings-closing();
     callback setting-changed(string, string);
     callback maintenance-action(string);
@@ -101,16 +72,11 @@ export component SettingsWindow inherits Window {
     callback font-picker();
     callback database-page-shown();
     callback open-log();
-    callback filter-changed(string);
-
-    public function focus-search() {
-        header.focus-search();
-    }
 
     forward-focus: settings-focus;
     // Keyboard focus scope. Its `key-pressed` handles ESC to close the window;
     // the whole window content lives *inside* the scope so key events from any
-    // focused child (e.g. the search LineEdit) bubble up to it. A sibling scope
+    // focused child (e.g. a text field) bubble up to it. A sibling scope
     // only sees keys the focused widget rejected.
     settings-focus := FocusScope {
         key-pressed(event) => {
@@ -127,13 +93,9 @@ export component SettingsWindow inherits Window {
             padding: 0;
             spacing: 0;
 
-            // ── Header: filter search + Database navigation ──────────────────
+            // ── Header: page title + Database navigation ─────────────────────
             header := SettingsHeader {
                 on-database-page <=> root.on-database-page;
-                settings-filter <=> root.settings-filter;
-                filter-changed(q) => {
-                    root.filter-changed(q);
-                }
                 database-page-shown() => {
                     root.database-page-shown();
                 }
@@ -145,11 +107,10 @@ export component SettingsWindow inherits Window {
                 vertical-stretch: 1;
                 clip: true;
 
-                // Settings page — grouped, filterable option list. The two pages
-                // overlay each other (absolute x/y) so they never stack; only one
-                // is visible at a time, but both stay instantiated so filter state
-                // survives page switches. Rows are conditionally instantiated
-                // (`if`), so filtered-out options take no layout space.
+                // Settings page — grouped option list. The two pages overlay
+                // each other (absolute x/y) so they never stack; only one is
+                // visible at a time, but both stay instantiated so state
+                // survives page switches.
                 settings-page := SettingsPage {
                     x: 0px;
                     y: 0px;
@@ -176,27 +137,6 @@ export component SettingsWindow inherits Window {
                     s-diff-tool-path <=> root.s-diff-tool-path;
                     s-send-to-apps <=> root.s-send-to-apps;
                     s-blacklist-apps <=> root.s-blacklist-apps;
-
-                    row-hotkey-visible: root.row-hotkey-visible;
-                    row-startup-visible: root.row-startup-visible;
-                    row-tray-visible: root.row-tray-visible;
-                    row-quickpaste-visible: root.row-quickpaste-visible;
-                    row-plaintext-visible: root.row-plaintext-visible;
-                    row-paste-top-visible: root.row-paste-top-visible;
-                    row-loglevel-visible: root.row-loglevel-visible;
-                    row-logfile-visible: root.row-logfile-visible;
-                    row-theme-visible: root.row-theme-visible;
-                    row-accent-visible: root.row-accent-visible;
-                    row-font-visible: root.row-font-visible;
-                    row-clip-font-size-visible: root.row-clip-font-size-visible;
-                    row-preview-font-size-visible: root.row-preview-font-size-visible;
-                    row-padding-visible: root.row-padding-visible;
-                    row-hover-delay-visible: root.row-hover-delay-visible;
-                    row-image-preview-size-visible: root.row-image-preview-size-visible;
-                    row-color-code-visible: root.row-color-code-visible;
-                    row-diff-tool-visible: root.row-diff-tool-visible;
-                    row-sendto-visible: root.row-sendto-visible;
-                    row-blacklist-visible: root.row-blacklist-visible;
 
                     setting-changed(k, v) => {
                         root.setting-changed(k, v);

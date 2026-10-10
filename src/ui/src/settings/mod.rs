@@ -6,7 +6,6 @@ use slint::ComponentHandle;
 use self::parse::{clean_hotkey_text, format_send_to_apps, idx_of};
 
 mod commit;
-mod filter;
 mod parse;
 mod pickers;
 mod theme_apply;
@@ -159,10 +158,8 @@ fn setup_menu_open(settings_win: &crate::SettingsWindow, main_ui: &crate::AppWin
                 ui.set_settings_open(true);
             }
             // Always reopen on the settings page (not the Database page),
-            // with a cleared filter, regardless of where the user left off.
+            // regardless of where the user left off.
             win.set_on_database_page(false);
-            win.set_settings_filter("".into());
-            filter::apply_settings_filter(&win, "");
             // preferred-height is shrunk by the WM decorations on Wayland, so
             // size the window explicitly to open at the computed content size.
             win.window().set_size(slint::LogicalSize {
@@ -170,7 +167,6 @@ fn setup_menu_open(settings_win: &crate::SettingsWindow, main_ui: &crate::AppWin
                 height: win.get_desired_height(),
             });
             win.show().ok();
-            win.invoke_focus_search();
             // Qt's show() doesn't raise a freshly-shown window; after a popup
             // (context/hamburger menu) closes it can restart under the main
             // window. Raise+activate so Settings always opens on top.
@@ -195,7 +191,6 @@ pub fn setup_settings_window(
     setup_close_persistence(&settings_win, ui, settings, &dirs.settings_path);
     init_settings_properties(&settings_win, settings);
     setup_maintenance_forwarding(&settings_win, ui);
-    filter::setup_settings_filter(&settings_win);
     pickers::setup_clear_accent(
         &settings_win,
         ui,

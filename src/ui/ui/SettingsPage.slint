@@ -1,6 +1,5 @@
 // SettingsPage.slint — Settings > main page: options grouped by category
-// (General | Appearance | External Apps), filtered by the header search query
-// via the per-row `row-*-visible` properties driven from Rust.
+// (General | Appearance | External Apps).
 
 import { Theme } from "Theme.slint";
 import {
@@ -37,31 +36,6 @@ export component SettingsPage inherits ScrollView {
     in-out property <string> s-send-to-apps:         "";
     in-out property <string> s-blacklist-apps:       "";
 
-    // ── Per-row filter visibility, set by Rust from `settings-filter` ────────
-    // General
-    in property <bool> row-hotkey-visible: true;
-    in property <bool> row-startup-visible: true;
-    in property <bool> row-tray-visible: true;
-    in property <bool> row-quickpaste-visible: true;
-    in property <bool> row-plaintext-visible: true;
-    in property <bool> row-paste-top-visible: true;
-    in property <bool> row-loglevel-visible: true;
-    in property <bool> row-logfile-visible: true;
-    // Appearance
-    in property <bool> row-theme-visible: true;
-    in property <bool> row-accent-visible: true;
-    in property <bool> row-font-visible: true;
-    in property <bool> row-clip-font-size-visible: true;
-    in property <bool> row-preview-font-size-visible: true;
-    in property <bool> row-padding-visible: true;
-    in property <bool> row-hover-delay-visible: true;
-    in property <bool> row-image-preview-size-visible: true;
-    in property <bool> row-color-code-visible: true;
-    // External Apps
-    in property <bool> row-diff-tool-visible: true;
-    in property <bool> row-sendto-visible: true;
-    in property <bool> row-blacklist-visible: true;
-
     callback setting-changed(string, string);
     callback clear-accent-color();
     callback accent-picker();
@@ -92,14 +66,12 @@ export component SettingsPage inherits ScrollView {
         alignment: start;
 
         // ── General ──────────────────────────────────────────────────────
-        if (root.row-hotkey-visible || root.row-startup-visible || root.row-tray-visible
-            || root.row-quickpaste-visible || root.row-plaintext-visible
-            || root.row-loglevel-visible || root.row-logfile-visible): SectionHeader {
+        SectionHeader {
             text: @tr("General");
             top-margin: 0px;
         }
 
-        if root.row-hotkey-visible: HotkeyRow {
+        HotkeyRow {
             label: @tr("Launch hotkey");
             tooltip-text: @tr("Global hotkey to toggle the Cliptoo window");
             value <=> root.s-hotkey;
@@ -108,7 +80,7 @@ export component SettingsPage inherits ScrollView {
             }
         }
 
-        if root.row-startup-visible: ToggleRow {
+        ToggleRow {
             label: @tr("Start with system");
             tooltip-text: @tr("Launch Cliptoo automatically when you log in");
             value <=> root.s-start-with-system;
@@ -117,7 +89,7 @@ export component SettingsPage inherits ScrollView {
             }
         }
 
-        if root.row-tray-visible: ToggleRow {
+        ToggleRow {
             label: @tr("Always close to tray");
             tooltip-text: @tr("Hide to the system tray when the window loses focus");
             value <=> root.s-always-close-to-tray;
@@ -126,7 +98,7 @@ export component SettingsPage inherits ScrollView {
             }
         }
 
-        if root.row-quickpaste-visible: DropRow {
+        DropRow {
             label: @tr("Quick-paste modifier");
             tooltip-text: @tr("Modifier key to hold for the quick-paste number overlay");
             index <=> root.s-quick-paste-mod-idx;
@@ -136,7 +108,7 @@ export component SettingsPage inherits ScrollView {
             }
         }
 
-        if root.row-plaintext-visible: ToggleRow {
+        ToggleRow {
             label: @tr("Paste as plain text");
             tooltip-text: @tr("Strip formatting when pasting text from Cliptoo");
             value <=> root.s-paste-as-plain-text;
@@ -145,7 +117,7 @@ export component SettingsPage inherits ScrollView {
             }
         }
 
-        if root.row-paste-top-visible: ToggleRow {
+        ToggleRow {
             label: @tr("Paste moves clip to top");
             tooltip-text: @tr("Move a clip to the top of the list when you paste it");
             value <=> root.s-paste-moves-to-top;
@@ -154,7 +126,7 @@ export component SettingsPage inherits ScrollView {
             }
         }
 
-        if root.row-loglevel-visible: DropRow {
+        DropRow {
             label: @tr("Log level");
             tooltip-text: @tr("Verbosity of messages written to the log file");
             index <=> root.s-log-level-idx;
@@ -164,7 +136,7 @@ export component SettingsPage inherits ScrollView {
             }
         }
 
-        if root.row-logfile-visible: HorizontalLayout {
+        HorizontalLayout {
             spacing: 12px;
             alignment: start;
             height: 32px;
@@ -195,14 +167,11 @@ export component SettingsPage inherits ScrollView {
         }
 
         // ── Appearance ───────────────────────────────────────────────────
-        if (root.row-theme-visible || root.row-accent-visible || root.row-font-visible
-            || root.row-clip-font-size-visible || root.row-preview-font-size-visible
-            || root.row-padding-visible || root.row-hover-delay-visible
-            || root.row-image-preview-size-visible || root.row-color-code-visible): SectionHeader {
+        SectionHeader {
             text: @tr("Appearance");
         }
 
-        if root.row-theme-visible: DropRow {
+        DropRow {
             label: @tr("Theme");
             index <=> root.s-theme-idx;
             options: ["System", "Light", "Dark"];
@@ -211,7 +180,7 @@ export component SettingsPage inherits ScrollView {
             }
         }
 
-        if root.row-color-code-visible: ToggleRow {
+        ToggleRow {
             label: @tr("Color code clip types");
             tooltip-text: @tr("Tint clip text by type: URLs blue, images green, videos red, rich text cream, and so on");
             value <=> root.s-color-code-clip-types;
@@ -220,7 +189,7 @@ export component SettingsPage inherits ScrollView {
             }
         }
 
-        if root.row-accent-visible: HorizontalLayout {
+        HorizontalLayout {
             spacing: 12px;
             alignment: start;
             height: 32px;
@@ -266,7 +235,7 @@ export component SettingsPage inherits ScrollView {
             }
         }
 
-        if root.row-font-visible: HorizontalLayout {
+        HorizontalLayout {
             spacing: 12px;
             alignment: start;
             height: 32px;
@@ -310,7 +279,7 @@ export component SettingsPage inherits ScrollView {
             }
         }
 
-        if root.row-clip-font-size-visible: FloatRow {
+        FloatRow {
             label: @tr("Clip list font size");
             tooltip-text: @tr("Font size of clip entries in the main list");
             value-hundredths <=> root.s-font-size-hundredths;
@@ -323,7 +292,7 @@ export component SettingsPage inherits ScrollView {
             }
         }
 
-        if root.row-preview-font-size-visible: FloatRow {
+        FloatRow {
             label: @tr("Preview font size");
             tooltip-text: @tr("Font size used for code and color previews");
             value-hundredths <=> root.s-preview-font-size-hundredths;
@@ -336,7 +305,7 @@ export component SettingsPage inherits ScrollView {
             }
         }
 
-        if root.row-padding-visible: DropRow {
+        DropRow {
             label: @tr("Row padding");
             tooltip-text: @tr("Vertical padding of items in the clip list");
             index <=> root.s-row-padding-idx;
@@ -346,7 +315,7 @@ export component SettingsPage inherits ScrollView {
             }
         }
 
-        if root.row-hover-delay-visible: SliderRow {
+        SliderRow {
             label: @tr("Preview hover delay");
             tooltip-text: @tr("Delay before the hover preview appears");
             value <=> root.hover-delay;
@@ -360,7 +329,7 @@ export component SettingsPage inherits ScrollView {
             }
         }
 
-        if root.row-image-preview-size-visible: IntRow {
+        IntRow {
             label: @tr("Preview size");
             tooltip-text: @tr("Maximum width/height of hover previews");
             value <=> root.s-image-preview-size;
@@ -374,11 +343,11 @@ export component SettingsPage inherits ScrollView {
         }
 
         // ── External Apps ────────────────────────────────────────────────
-        if (root.row-diff-tool-visible || root.row-sendto-visible || root.row-blacklist-visible): SectionHeader {
+        SectionHeader {
             text: @tr("External Apps");
         }
 
-        if root.row-diff-tool-visible: TextRow {
+        TextRow {
             label: @tr("Diff tool path");
             tooltip-text: @tr("Command used to compare two text clips");
             value <=> root.s-diff-tool-path;
@@ -387,7 +356,7 @@ export component SettingsPage inherits ScrollView {
             }
         }
 
-        if root.row-sendto-visible: TextRow {
+        TextRow {
             label: @tr("Send To apps");
             tooltip-text: @tr("Comma-separated list of apps that can open a clip. 'Name: command'");
             value <=> root.s-send-to-apps;
@@ -396,7 +365,7 @@ export component SettingsPage inherits ScrollView {
             }
         }
 
-        if root.row-blacklist-visible: TextRow {
+        TextRow {
             label: @tr("Blacklist apps");
             tooltip-text: @tr("Comma-separated list of apps excluded from clipboard capture");
             value <=> root.s-blacklist-apps;
