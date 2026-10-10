@@ -26,6 +26,10 @@ export component Toolbar {
     in-out property <string> search-text: "";
     callback search-changed(string);
     callback accepted();
+    // Emitted when the search field gains or loses focus. Lets the host dismiss
+    // a manually-invoked (context-menu) preview when the user clicks into
+    // search — clicking the field is a blur of the clip list.
+    callback search-focus-changed(bool);
 
     // Localized label of the active filter, shown in the filter icon tooltip.
     // Labels mirror FilterGrid.slint's cells via the shared ClipTypeMap.
@@ -34,6 +38,13 @@ export component Toolbar {
     property <string> filter-tooltip: @tr("Filter: {}", root.filter-label);
 
     out property <bool> search-focused: search-input.has-focus;
+
+    // Report focus transitions on the search field. MainClipArea uses the
+    // gain edge to dismiss a manually-invoked preview lingering over the
+    // toolbar (hover previews dismiss themselves via hover-exited).
+    changed search-focused => {
+        root.search-focus-changed(root.search-focused);
+    }
 
     height: Theme.toolbar-height;
 

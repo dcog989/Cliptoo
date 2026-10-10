@@ -292,6 +292,11 @@ export component MainClipArea inherits Rectangle {
                     root.open-hamburger-menu();
                 }
                 active-filter: root.active-filter;
+                search-focus-changed(focused) => {
+                    if (focused) {
+                        root.dismiss-preview();
+                    }
+                }
             }
         }
     }
