@@ -32,6 +32,27 @@ fn is_blacklisted_live(
     is_blacklisted(source_app, &blacklist)
 }
 
+/// Logs a clipboard-read failure once, then downgrades repeats to `debug!`
+/// until [`note_read_recovered`] clears the flag. Without this the 500 ms poll
+/// loop would emit an error line every tick for a persistently broken clipboard.
+fn note_read_failure(failed: &mut bool, label: &str, err: &impl std::fmt::Display) {
+    if *failed {
+        debug!("{label} still failing: {err}");
+    } else {
+        tracing::error!("{label}: {err}");
+        *failed = true;
+    }
+}
+
+/// Clears the failure flag and logs the recovery once, so the next failure is
+/// reported at `error!` again.
+fn note_read_recovered(failed: &mut bool) {
+    if *failed {
+        info!("clipboard read recovered");
+        *failed = false;
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 pub async fn run_listener(
     db: Arc<DbPool>,
@@ -80,6 +101,11 @@ pub async fn run_listener(
     // watcher event is pending and the tracker cache is used as a fallback.
     let mut pending_source_app: Option<Option<String>> = None;
 
+    // Set on the first clipboard-read failure and cleared on the next
+    // successful read, so a persistently failing read is logged once on the
+    // transition rather than once per poll interval.
+    let mut read_failed = false;
+
     loop {
         // Prefer a queued selection event over mime detection: it carries the
         // source-app snapshot taken at the copy moment and fires even for a
@@ -96,8 +122,12 @@ pub async fn run_listener(
         })
         .await
         {
-            Ok(Ok(mt)) => Some(mt),
+            Ok(Ok(mt)) => {
+                note_read_recovered(&mut read_failed);
+                Some(mt)
+            }
             Ok(Err(WlError::ClipboardEmpty | WlError::NoSeats)) => {
+                note_read_recovered(&mut read_failed);
                 // An empty clipboard at startup seeds the baseline too.
                 baseline = false;
                 last_text_hash = None;
@@ -114,12 +144,12 @@ pub async fn run_listener(
                 continue;
             }
             Ok(Err(e)) => {
-                tracing::error!("MIME type check: {e}");
+                note_read_failure(&mut read_failed, "MIME type check", &e);
                 tokio::time::sleep(POLL_INTERVAL).await;
                 continue;
             }
             Err(e) => {
-                tracing::error!("spawn_blocking: {e}");
+                note_read_failure(&mut read_failed, "spawn_blocking", &e);
                 tokio::time::sleep(POLL_INTERVAL).await;
                 continue;
             }
@@ -232,7 +262,7 @@ pub async fn run_listener(
                 };
 
                 if sup_hash != 0 && suppression.check_and_remove(sup_hash) {
-                    info!("suppressed re-ingest of own paste");
+                    debug!("suppressed re-ingest of own paste");
                     continue;
                 }
 
@@ -321,13 +351,13 @@ pub async fn run_listener(
 
                             if inserted {
                                 let sa = source_app.as_deref().unwrap_or("unknown");
-                                info!(
+                                debug!(
                                     "new clip: {} — {:?} (from {sa})",
                                     &hash[..12],
                                     classified.clip_type
                                 );
                             } else {
-                                info!("existing clip updated: {} — text", &hash[..12]);
+                                debug!("existing clip updated: {} — text", &hash[..12]);
                             }
 
                             let filter = active_filter_state.lock().unwrap().clone();
@@ -428,7 +458,7 @@ pub async fn run_listener(
                         let filter = active_filter_state.lock().unwrap().clone();
                         if inserted {
                             let clip_type = c.clip_type.as_str();
-                            info!("new file-uri clip: {} — {clip_type}", &c.content_hash[..12]);
+                            debug!("new file-uri clip: {} — {clip_type}", &c.content_hash[..12]);
                             if clip_type == "file_image" {
                                 // Decode + thumbnail writes are blocking and slow
                                 // for large image files; hand the store-and-refresh
@@ -578,9 +608,9 @@ pub async fn run_listener(
                                 }
                             };
                             if inserted {
-                                info!("new image clip: {} ({} bytes)", &hash[..12], size);
+                                debug!("new image clip: {} ({} bytes)", &hash[..12], size);
                             } else {
-                                info!("existing image clip updated: {}", &hash[..12]);
+                                debug!("existing image clip updated: {}", &hash[..12]);
                             }
                             refresh_clips(&db2, &ui2, &td2, &fd2, "", &filter2, None).await;
                         }));
