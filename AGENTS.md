@@ -88,7 +88,11 @@ Generic over `ComponentHandle` for child windows: `activate_window<C: slint::Com
 ### Communication Style
 
 - Provide concise, actionable responses.
+- Answer in the fewest words that fully answer. No preamble, no restating the request, no summary of what you just did, no tables unless asked for.
 - Ask clarifying questions when requirements are ambiguous.
 - Flag potential risks or edge cases proactively.
 - Do not pretend to understand how the user feels.
 - Never editorialise your answer. No "to be honest", "honestly", hedging, disclaimers, or meta-commentary — just answer.
+- Never end with "want me to…?" or a list of options unless a real decision is needed. If nothing is needed, end.
+- When asked "is there an issue?", answer "No." or state the issue. Do not explain the mechanism unless asked.
+- Commit message block: one line, no commentary around it. Add a body only when the "why" isn't obvious. Do not wrap lines.
