@@ -16,6 +16,21 @@ const MIN_CONTRAST_RATIO: f64 = 4.5;
 /// Precision is bounded by the lightness range (0–1) divided by 2^iters.
 const CONTRAST_SEARCH_ITERS: u32 = 32;
 
+/// WCAG contrast ratio the FTS search-match highlight must keep against the
+/// row surface. Higher than the accent's AA floor: a match is a few characters
+/// embedded in a line of body text and must read clearly at a glance.
+const MATCH_HIGHLIGHT_CONTRAST: f64 = 7.0;
+
+/// Fixed OKLCH chroma for the search-match highlight. Taken as a floor rather
+/// than the accent's own chroma so a muted or near-grey accent still yields a
+/// visibly chromatic match instead of one that reads as body text.
+const MATCH_HIGHLIGHT_CHROMA: f64 = 0.16;
+
+/// Seed OKLCH lightness for the highlight search. Mid-lightness keeps the
+/// strong fixed chroma inside the sRGB gamut for every hue; the search only
+/// moves off it when contrast against the surface requires it.
+const MATCH_HIGHLIGHT_SEED_L: f64 = 0.5;
+
 /// Derive an accent-tinted color at a fixed OKLCH lightness `l`, scaling the
 /// base accent's chroma by `chroma_scale`. Used for the subtle accent border,
 /// so a picked Neon stays vibrant and a picked Muted stays restrained.
@@ -64,18 +79,35 @@ pub(super) fn contrast_safe_accent(
     bg_lum: f64,
 ) -> (bool, (u8, u8, u8)) {
     let base_lum = relative_luminance(rgb.0, rgb.1, rgb.2);
+    match contrast_safe_lightness(base_lum, l, c, h, bg_lum, MIN_CONTRAST_RATIO) {
+        None => (select_accent_fg(base_lum), rgb),
+        Some(adjusted_l) => {
+            let [r, g, b] = oklch_to_srgb_bytes(adjusted_l, c, h);
+            (select_accent_fg(relative_luminance(r, g, b)), (r, g, b))
+        }
+    }
+}
 
+/// The OKLCH lightness (hue and chroma held fixed) that first reaches
+/// `min_ratio` contrast against `bg_lum`, moving away from the surface — up
+/// when `base_lum` is already above it, down otherwise. Returns `None` when
+/// `l` already meets the ratio, so callers keep the original colour unchanged.
+fn contrast_safe_lightness(
+    base_lum: f64,
+    l: f64,
+    c: f64,
+    h: f64,
+    bg_lum: f64,
+    min_ratio: f64,
+) -> Option<f64> {
     let meets = |candidate_l: f64| -> bool {
-        let lum = accent_luminance(candidate_l, c, h);
-        contrast_ratio(lum, bg_lum) >= MIN_CONTRAST_RATIO
+        contrast_ratio(accent_luminance(candidate_l, c, h), bg_lum) >= min_ratio
     };
 
     if meets(l) {
-        return (select_accent_fg(base_lum), rgb);
+        return None;
     }
 
-    // Push away from the surface: lighten if the accent is already lighter
-    // than it, otherwise darken.
     let lighten = base_lum >= bg_lum;
     let (mut low, mut high) = if lighten { (l, 1.0) } else { (0.0, l) };
     for _ in 0..CONTRAST_SEARCH_ITERS {
@@ -92,9 +124,32 @@ pub(super) fn contrast_safe_accent(
             high = mid;
         }
     }
-    let adjusted_l = if lighten { high } else { low };
-    let [r, g, b] = oklch_to_srgb_bytes(adjusted_l, c, h);
-    (select_accent_fg(relative_luminance(r, g, b)), (r, g, b))
+    Some(if lighten { high } else { low })
+}
+
+/// Build the FTS search-match highlight: the accent's hue rendered at a fixed
+/// strong chroma ([`MATCH_HIGHLIGHT_CHROMA`]) with a high minimum contrast
+/// ([`MATCH_HIGHLIGHT_CONTRAST`]) against the row surface.
+///
+/// Unlike [`contrast_safe_accent`], the chroma is not inherited from the accent
+/// — a muted or near-grey pick would otherwise leave the highlight looking like
+/// body text. Only the hue is calibrated from the accent, so the match stays
+/// on-theme while standing out.
+pub(super) fn match_highlight(hue: f64, bg_lum: f64) -> Color {
+    let l = MATCH_HIGHLIGHT_SEED_L;
+    let [r, g, b] = oklch_to_srgb_bytes(l, MATCH_HIGHLIGHT_CHROMA, hue);
+    let base_lum = relative_luminance(r, g, b);
+    let adjusted_l = contrast_safe_lightness(
+        base_lum,
+        l,
+        MATCH_HIGHLIGHT_CHROMA,
+        hue,
+        bg_lum,
+        MATCH_HIGHLIGHT_CONTRAST,
+    )
+    .unwrap_or(l);
+    let [r, g, b] = oklch_to_srgb_bytes(adjusted_l, MATCH_HIGHLIGHT_CHROMA, hue);
+    Color::from_rgb_u8(r, g, b)
 }
 
 /// Pick the more contrasting of white and black for `accent-fg` at a given
@@ -115,7 +170,9 @@ pub(super) fn bg_primary(is_dark: bool) -> (u8, u8, u8) {
 
 #[cfg(test)]
 mod tests {
-    use super::{contrast_ratio, contrast_safe_accent, relative_luminance, select_accent_fg};
+    use super::{
+        contrast_ratio, contrast_safe_accent, match_highlight, relative_luminance, select_accent_fg,
+    };
     use cliptoo_core::color::srgb_bytes_to_oklch;
 
     const DARK_BG: (u8, u8, u8) = (0x18, 0x18, 0x18);
@@ -222,5 +279,38 @@ mod tests {
         let (_, _, out_h) = srgb_bytes_to_oklch(out.0, out.1, out.2);
         let delta = (out_h - h).abs().min(360.0 - (out_h - h).abs());
         assert!(delta < 5.0, "hue drifted {h} -> {out_h}");
+    }
+
+    fn bytes(c: super::Color) -> (u8, u8, u8) {
+        (
+            (c.red() * 255.0).round() as u8,
+            (c.green() * 255.0).round() as u8,
+            (c.blue() * 255.0).round() as u8,
+        )
+    }
+
+    #[test]
+    fn match_highlight_keeps_strong_chroma() {
+        // A near-grey accent hue still yields a chromatic highlight: the fixed
+        // chroma floor is what separates the match from achromatic body text.
+        for bg in [DARK_BG, LIGHT_BG] {
+            let bg_lum = relative_luminance(bg.0, bg.1, bg.2);
+            let (r, g, b) = bytes(match_highlight(285.0, bg_lum));
+            let (_, out_c, _) = srgb_bytes_to_oklch(r, g, b);
+            assert!(out_c >= 0.08, "highlight chroma too low on {bg:?}: {out_c}");
+        }
+    }
+
+    #[test]
+    fn match_highlight_contrasts_with_both_surfaces() {
+        for bg in [DARK_BG, LIGHT_BG] {
+            let bg_lum = relative_luminance(bg.0, bg.1, bg.2);
+            for hue in [25.0, 85.0, 145.0, 205.0, 265.0, 325.0] {
+                let (r, g, b) = bytes(match_highlight(hue, bg_lum));
+                let lum = relative_luminance(r, g, b);
+                let ratio = contrast_ratio(lum, bg_lum);
+                assert!(ratio >= 5.0, "hue {hue} on {bg:?}: contrast {ratio}");
+            }
+        }
     }
 }

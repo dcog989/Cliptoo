@@ -214,7 +214,7 @@ export component ClipItem {
                             overflow: clip;
                             horizontal-alignment: left;
                             vertical-alignment: center;
-                            color: touch.has-hover && !root.is-selected ? Theme.row-hover-fg : span.is-highlight ? Theme.accent-primary : clip-data.is-bookmarked ? Theme.fg-bookmarked : root.is-selected ? Theme.fg-primary : root.body-color;
+                            color: touch.has-hover && !root.is-selected ? Theme.row-hover-fg : span.is-highlight ? Theme.match-highlight : clip-data.is-bookmarked ? Theme.fg-bookmarked : root.is-selected ? Theme.fg-primary : root.body-color;
                             font-weight: span.is-highlight ? 700 : 400;
                             font-size: Theme.clip-list-font-size;
                         }

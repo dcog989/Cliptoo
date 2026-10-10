@@ -12,7 +12,8 @@ use slint::{Color, ComponentHandle, SharedString};
 use std::sync::Mutex;
 
 use self::contrast::{
-    accent_sibling, bg_primary, contrast_safe_accent, relative_luminance, select_accent_fg,
+    accent_sibling, bg_primary, contrast_safe_accent, match_highlight, relative_luminance,
+    select_accent_fg,
 };
 
 mod contrast;
@@ -112,6 +113,9 @@ pub fn fill_accent(
     t.set_accent_primary(accent);
     t.set_border_accent(accent_sibling(accent_h, accent_c, border_accent_l, 0.40));
     t.set_bg_row_hover(raw_accent);
+    // FTS match spans: the accent's hue at a fixed strong chroma and a high
+    // contrast against the surface, so a match never reads as body text.
+    t.set_match_highlight(match_highlight(accent_h, bg_lum));
 }
 
 /// Apply pre-resolved theme tokens to any `Theme` global handle.
