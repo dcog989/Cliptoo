@@ -38,9 +38,11 @@ const MATCH_HIGHLIGHT_LC: f64 = 75.0;
 /// visibly chromatic match instead of one that reads as body text.
 const MATCH_HIGHLIGHT_CHROMA: f64 = 0.16;
 
-/// Seed OKLCH lightness for the highlight search. Mid-lightness keeps the
-/// strong fixed chroma inside the sRGB gamut for every hue; the search only
-/// moves off it when contrast against the surface requires it.
+/// Seed OKLCH lightness for the highlight search: mid-lightness holds
+/// [`MATCH_HIGHLIGHT_CHROMA`] inside the sRGB gamut for every hue. It survives
+/// only on a surface it already meets [`MATCH_HIGHLIGHT_LC`] against (the light
+/// one). Against a dark surface the contrast floor forces the search to
+/// lighten, and the gamut caps the chroma well below the requested value there.
 const MATCH_HIGHLIGHT_SEED_L: f64 = 0.5;
 
 const WHITE: (u8, u8, u8) = (0xFF, 0xFF, 0xFF);
