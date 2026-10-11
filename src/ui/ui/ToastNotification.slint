@@ -20,12 +20,14 @@ export component ToastNotification {
 
     callback dismissed;
 
-    // Resolve per-severity colours.
+    // Resolve per-severity colours. The info variant is a filled accent shape
+    // (like a toggle or badge), so it uses `accent-fill` — the picked color —
+    // rather than the text-grade `accent-primary`.
     property <color> bg-color:
-        severity == "error" ? Theme.error-base.mix(Theme.bg-primary, 0.15) : severity == "warn" ? Theme.warn-base.mix(Theme.bg-primary, 0.15) : Theme.accent-primary.mix(Theme.bg-primary, 0.25);
+        severity == "error" ? Theme.error-base.mix(Theme.bg-primary, 0.15) : severity == "warn" ? Theme.warn-base.mix(Theme.bg-primary, 0.15) : Theme.accent-fill.mix(Theme.bg-primary, 0.25);
 
     property <color> border-color:
-        severity == "error" ? Theme.error-base : severity == "warn" ? Theme.warn-base : Theme.accent-primary;
+        severity == "error" ? Theme.error-base : severity == "warn" ? Theme.warn-base : Theme.accent-fill;
 
     property <color> text-color:
         severity == "error" ? Theme.error-fg : severity == "warn" ? Theme.warn-fg : Theme.fg-primary;

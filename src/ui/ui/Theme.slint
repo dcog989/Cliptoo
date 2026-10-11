@@ -10,17 +10,19 @@ export global Theme {
     // with the border tint derived in OKLCH. Defaults are fallbacks used only
     // until Rust applies the real values.
     in property <color> accent-primary:    #7C6EE6;
+    // Filled accent shapes: toggle tracks, slider thumbs, pills, badges and
+    // hovered rows. Derived with a lower APCA floor than `accent-primary` so
+    // the picked color survives instead of being lightened into a pastel.
+    in property <color> accent-fill:       #7C6EE6;
     in property <color> border-accent:     #5A5A5A;
     // Foreground for FTS search-match spans. Calibrated from the accent's hue
     // but rendered at a fixed strong chroma and high contrast against the row
     // surface, so a match stands out from the (often achromatic) body text.
     in property <color> match-highlight:   #A78BFA;
-    // Foreground (black/white) that stays readable when placed on an
-    // `accent-primary` background; derived from the accent by APCA contrast.
+    // Foreground (black/white) that stays readable on an `accent-fill`
+    // background; derived from that same fill by APCA contrast. Used for text,
+    // icons and the toggle knob drawn on a filled accent shape.
     in property <color> accent-fg:         #ffffff;
-    // Foreground drawn on hovered rows, whose background is the exact
-    // (unadjusted) accent; chosen for contrast against that accent.
-    in property <color> row-hover-fg:      #ffffff;
 
     in property <color> bg-primary:        #181818;
     in property <color> bg-header:         #121212;

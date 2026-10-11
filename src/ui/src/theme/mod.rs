@@ -12,7 +12,7 @@ use slint::{Color, ComponentHandle, SharedString};
 use std::sync::Mutex;
 
 use self::contrast::{
-    accent_sibling, bg_primary, contrast_safe_accent, match_highlight, select_accent_fg,
+    FILL_MIN_LC, TEXT_MIN_LC, accent_sibling, bg_primary, contrast_safe_accent, match_highlight,
 };
 
 mod contrast;
@@ -86,31 +86,23 @@ pub fn fill_accent(
         ((r, g, b), srgb_bytes_to_oklch(r, g, b))
     };
 
-    // Buttons, pills and borders use a lightness-adjusted accent that keeps
-    // contrast with the surface; hovered rows keep the exact accent so the
-    // user sees the color they actually picked.
-    let (accent_is_dark, (accent_r, accent_g, accent_b)) =
-        contrast_safe_accent(accent_rgb, accent_l, accent_c, accent_h, bg);
-    let accent = Color::from_rgb_u8(accent_r, accent_g, accent_b);
-    let (raw_r, raw_g, raw_b) = accent_rgb;
-    let raw_accent = Color::from_rgb_u8(raw_r, raw_g, raw_b);
-    let raw_is_dark = select_accent_fg((raw_r, raw_g, raw_b));
-    // Content sitting on an accent background flips to this for contrast.
-    t.set_accent_fg(if accent_is_dark {
+    // Text grade for headings/links/focus rings, shape grade for fills.
+    let (_, (accent_r, accent_g, accent_b)) =
+        contrast_safe_accent(accent_rgb, accent_l, accent_c, accent_h, bg, TEXT_MIN_LC);
+    let (fill_is_dark, (fill_r, fill_g, fill_b)) =
+        contrast_safe_accent(accent_rgb, accent_l, accent_c, accent_h, bg, FILL_MIN_LC);
+    let fill = Color::from_rgb_u8(fill_r, fill_g, fill_b);
+    // Content sitting on a filled accent shape flips to this for contrast, so
+    // it is chosen against the exact color that shape is drawn with.
+    t.set_accent_fg(if fill_is_dark {
         Color::from_rgb_u8(0xFF, 0xFF, 0xFF)
     } else {
         Color::from_rgb_u8(0x00, 0x00, 0x00)
     });
-    // Hovered rows use the exact (unadjusted) accent as their background, so
-    // their foreground is chosen for contrast against that accent instead.
-    t.set_row_hover_fg(if raw_is_dark {
-        Color::from_rgb_u8(0xFF, 0xFF, 0xFF)
-    } else {
-        Color::from_rgb_u8(0x00, 0x00, 0x00)
-    });
-    t.set_accent_primary(accent);
+    t.set_accent_primary(Color::from_rgb_u8(accent_r, accent_g, accent_b));
+    t.set_accent_fill(fill);
     t.set_border_accent(accent_sibling(accent_h, accent_c, border_accent_l, 0.40));
-    t.set_bg_row_hover(raw_accent);
+    t.set_bg_row_hover(fill);
     // FTS match spans: the accent's hue at a fixed strong chroma and a high
     // contrast against the surface, so a match never reads as body text.
     t.set_match_highlight(match_highlight(accent_h, bg));
@@ -134,6 +126,7 @@ pub fn fill_theme(
         t.set_bg_row_alt(Color::from_rgb_u8(0x1C, 0x1C, 0x1C));
         t.set_bg_row_selected(Color::from_rgb_u8(0x28, 0x28, 0x28));
         t.set_bg_input(Color::from_rgb_u8(0x24, 0x24, 0x24));
+        t.set_bg_track(Color::from_rgb_u8(0x55, 0x55, 0x55));
         t.set_fg_primary(Color::from_rgb_u8(0xE4, 0xE4, 0xE4));
         t.set_fg_secondary(Color::from_rgb_u8(0xA1, 0xA1, 0xA1));
         t.set_fg_clip_list(Color::from_rgb_u8(0xB4, 0xB4, 0xB4));
@@ -163,6 +156,10 @@ pub fn fill_theme(
         t.set_bg_row_alt(Color::from_rgb_u8(0xEE, 0xEE, 0xEE));
         t.set_bg_row_selected(Color::from_rgb_u8(0xDD, 0xDD, 0xDD));
         t.set_bg_input(Color::from_rgb_u8(0xFF, 0xFF, 0xFF));
+        // Slider / toggle-off track. Must be set per mode: the `Theme.slint`
+        // default is the dark value and would otherwise render as a dark-grey
+        // pill on the light page.
+        t.set_bg_track(Color::from_rgb_u8(0xC4, 0xC4, 0xC4));
         t.set_fg_primary(Color::from_rgb_u8(0x1C, 0x1C, 0x1C));
         t.set_fg_secondary(Color::from_rgb_u8(0x55, 0x55, 0x55));
         t.set_fg_clip_list(Color::from_rgb_u8(0x55, 0x55, 0x55));

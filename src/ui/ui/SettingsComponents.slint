@@ -317,7 +317,7 @@ export component SliderRow {
                         width: 16px;
                         height: 16px;
                         border-radius: 8px;
-                        background: Theme.accent-primary;
+                        background: Theme.accent-fill;
                         y: (parent.height - 16px) / 2;
                         x: Math.max(0px, Math.min(parent.width - 16px, (root.value - root.min-val) * 1.0 / (root.max-val - root.min-val) * parent.width));
                     }
@@ -407,7 +407,7 @@ export component ToggleRow {
                 width: 44px;
                 height: 22px;
                 border-radius: 11px;
-                background: root.value ? Theme.accent-primary : Theme.bg-track;
+                background: root.value ? Theme.accent-fill : Theme.bg-track;
                 animate background { duration: Theme.anim-fast; }
                 Rectangle {
                     width: 18px;

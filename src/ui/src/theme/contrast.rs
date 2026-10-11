@@ -16,10 +16,13 @@ use slint::Color;
 const BG_PRIMARY_DARK: (u8, u8, u8) = (0x18, 0x18, 0x18);
 const BG_PRIMARY_LIGHT: (u8, u8, u8) = (0xF5, 0xF5, 0xF5);
 
-/// Minimum APCA Lc (magnitude) the accent must keep against its surface.
-/// Lc 60 is the APCA "any text / large or bold" floor and is the closest
-/// bridge to the WCAG 4.5:1 the theme previously targeted.
-const MIN_LC: f64 = 60.0;
+/// APCA floor for accent used as text or a thin stroke (APCA's "any text /
+/// large or bold" floor).
+pub(super) const TEXT_MIN_LC: f64 = 60.0;
+
+/// APCA floor for accent used as a filled shape. Lower because a shape only
+/// has to read as a shape — the text floor turns every fill into a pastel.
+pub(super) const FILL_MIN_LC: f64 = 30.0;
 
 /// Binary-search iterations for the OKLCH-lightness contrast adjustment.
 /// Precision is bounded by the lightness range (0–1) divided by 2^iters.
@@ -125,7 +128,7 @@ pub(super) fn accent_sibling(hue: f64, base_chroma: f64, l: f64, chroma_scale: f
 }
 
 /// Adjust the accent's OKLCH lightness (hue and chroma held fixed) so it keeps
-/// `MIN_LC` APCA contrast against the surface it is applied to. The accent is
+/// `min_lc` APCA contrast against the surface it is applied to. The accent is
 /// pushed away from the surface's luma — lightened on dark surfaces, darkened
 /// on light ones — so its hue and saturation survive.
 ///
@@ -136,9 +139,10 @@ pub(super) fn contrast_safe_accent(
     c: f64,
     h: f64,
     bg: (u8, u8, u8),
+    min_lc: f64,
 ) -> (bool, (u8, u8, u8)) {
     let base_y = apca_luma(rgb.0, rgb.1, rgb.2);
-    match contrast_safe_lightness(base_y, l, c, h, bg, MIN_LC) {
+    match contrast_safe_lightness(base_y, l, c, h, bg, min_lc) {
         None => (select_accent_fg(rgb), rgb),
         Some(adjusted_l) => {
             let [r, g, b] = oklch_to_srgb_bytes(adjusted_l, c, h);
@@ -232,8 +236,8 @@ pub(super) fn bg_primary(is_dark: bool) -> (u8, u8, u8) {
 #[cfg(test)]
 mod tests {
     use super::{
-        BLACK, MATCH_HIGHLIGHT_LC, MIN_LC, WHITE, apca_contrast, apca_luma, contrast_safe_accent,
-        match_highlight, select_accent_fg,
+        BLACK, FILL_MIN_LC, MATCH_HIGHLIGHT_LC, TEXT_MIN_LC, WHITE, apca_contrast, apca_luma,
+        contrast_safe_accent, match_highlight, select_accent_fg,
     };
     use cliptoo_core::color::srgb_bytes_to_oklch;
 
@@ -268,9 +272,9 @@ mod tests {
         assert!(select_accent_fg((0x80, 0x80, 0x80)));
     }
 
-    fn adjusted(rgb: (u8, u8, u8), bg: (u8, u8, u8)) -> (bool, (u8, u8, u8)) {
+    fn adjusted(rgb: (u8, u8, u8), bg: (u8, u8, u8), min_lc: f64) -> (bool, (u8, u8, u8)) {
         let (l, c, h) = srgb_bytes_to_oklch(rgb.0, rgb.1, rgb.2);
-        contrast_safe_accent(rgb, l, c, h, bg)
+        contrast_safe_accent(rgb, l, c, h, bg, min_lc)
     }
 
     #[test]
@@ -281,9 +285,9 @@ mod tests {
             (0xFF, 0xE6, 0x00),
             (0x80, 0x80, 0x80),
         ] {
-            let (_, out) = adjusted(rgb, DARK_BG);
+            let (_, out) = adjusted(rgb, DARK_BG, TEXT_MIN_LC);
             let lc = apca_contrast(out, DARK_BG).abs();
-            assert!(lc >= MIN_LC - 0.1, "rgb {rgb:?} on dark: Lc {lc}");
+            assert!(lc >= TEXT_MIN_LC - 0.1, "rgb {rgb:?} on dark: Lc {lc}");
         }
     }
 
@@ -295,20 +299,47 @@ mod tests {
             (0xFF, 0xE6, 0x00),
             (0x80, 0x80, 0x80),
         ] {
-            let (_, out) = adjusted(rgb, LIGHT_BG);
+            let (_, out) = adjusted(rgb, LIGHT_BG, TEXT_MIN_LC);
             let lc = apca_contrast(out, LIGHT_BG).abs();
-            assert!(lc >= MIN_LC - 0.1, "rgb {rgb:?} on light: Lc {lc}");
+            assert!(lc >= TEXT_MIN_LC - 0.1, "rgb {rgb:?} on light: Lc {lc}");
+        }
+    }
+
+    #[test]
+    fn fill_accent_meets_min_lc_on_both_surfaces() {
+        for bg in [DARK_BG, LIGHT_BG] {
+            for rgb in [
+                (0x7C, 0x6E, 0xE6),
+                (0x1A, 0x23, 0x7E),
+                (0xFF, 0xE6, 0x00),
+                (0x80, 0x80, 0x80),
+            ] {
+                let (_, out) = adjusted(rgb, bg, FILL_MIN_LC);
+                let lc = apca_contrast(out, bg).abs();
+                assert!(lc >= FILL_MIN_LC - 0.1, "rgb {rgb:?} on {bg:?}: Lc {lc}");
+            }
+        }
+    }
+
+    #[test]
+    fn fill_accent_keeps_the_picked_color() {
+        // The point of the lower fill floor: an accent that is already visible
+        // on the page must survive as a filled shape instead of being lightened
+        // into a pastel (which is what the text-grade floor did).
+        for rgb in [(0x7C, 0x6E, 0xE6), (0xDA, 0x44, 0x53), (0x1D, 0x99, 0xF3)] {
+            let (_, out) = adjusted(rgb, DARK_BG, FILL_MIN_LC);
+            assert_eq!(out, rgb, "fill accent shifted for {rgb:?}");
         }
     }
 
     #[test]
     fn dark_accent_lightens_and_light_accent_darkens() {
         // Navy is unreadable on the dark surface: it must lighten.
-        let (_, out) = adjusted((0x1A, 0x23, 0x7E), DARK_BG);
+        let (_, out) = adjusted((0x1A, 0x23, 0x7E), DARK_BG, TEXT_MIN_LC);
         assert!(apca_luma(out.0, out.1, out.2) > apca_luma(0x1A, 0x23, 0x7E));
 
         // Bright yellow is unreadable on the light surface: it must darken.
-        let (_, out) = adjusted((0xFF, 0xE6, 0x00), LIGHT_BG);
+        let (_, out) = adjusted((0xFF, 0xE6, 0x00), LIGHT_BG, TEXT_MIN_LC);
         assert!(apca_luma(out.0, out.1, out.2) < apca_luma(0xFF, 0xE6, 0x00));
     }
 
@@ -316,7 +347,7 @@ mod tests {
     fn hue_is_preserved_through_adjustment() {
         let rgb = (0x1A, 0x23, 0x7E);
         let (l, c, h) = srgb_bytes_to_oklch(rgb.0, rgb.1, rgb.2);
-        let (_, out) = contrast_safe_accent(rgb, l, c, h, DARK_BG);
+        let (_, out) = contrast_safe_accent(rgb, l, c, h, DARK_BG, TEXT_MIN_LC);
         let (_, _, out_h) = srgb_bytes_to_oklch(out.0, out.1, out.2);
         let delta = (out_h - h).abs().min(360.0 - (out_h - h).abs());
         assert!(delta < 5.0, "hue drifted {h} -> {out_h}");

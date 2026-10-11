@@ -45,7 +45,7 @@ export component FilterGrid {
                     // coding is on, tint the icon by its clip type; non-type
                     // keys ("all", "bookmarked", plain text) stay muted.
                     colorize: root.active-filter == key || cell-touch.has-hover
-                        ? Theme.row-hover-fg
+                        ? Theme.accent-fg
                         : (Theme.color-code-clip-types && ClipTypeMap.has-color-for(key)
                         ? ClipTypeMap.color-for(key)
                         : Theme.fg-muted);

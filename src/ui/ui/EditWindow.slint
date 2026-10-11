@@ -87,7 +87,7 @@ export component EditWindow inherits Window {
                     width: 28px;
                     height: 28px;
                     border-radius: 4px;
-                    background: root.editing ? Theme.accent-primary : Theme.bg-input;
+                    background: root.editing ? Theme.accent-fill : Theme.bg-input;
                     TouchArea {
                         clicked => {
                             root.toggle-mode();
@@ -233,7 +233,7 @@ export component EditWindow inherits Window {
                     width: 80px;
                     height: 30px;
                     border-radius: 6px;
-                    background: Theme.accent-primary;
+                    background: Theme.accent-fill;
                     Text {
                         text: @tr("Save");
                         color: Theme.accent-fg;
