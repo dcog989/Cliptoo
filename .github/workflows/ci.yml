@@ -23,7 +23,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             qt6-base-dev qt6-wayland libwayland-dev \
-            libxkbcommon-dev libfontconfig1-dev libdav1d-dev pkg-config
+            libxkbcommon-dev libfontconfig1-dev libdav1d-dev pkg-config \
+            clang mold
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -55,7 +56,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             qt6-base-dev qt6-wayland libwayland-dev \
-            libxkbcommon-dev libfontconfig1-dev libdav1d-dev pkg-config
+            libxkbcommon-dev libfontconfig1-dev libdav1d-dev pkg-config \
+            clang mold
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
