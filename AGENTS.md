@@ -4,11 +4,16 @@
 
 Cliptoo: native background clipboard manager for Wayland/KDE Plasma 6. Rust + SQLite (rusqlite) + Slint (Qt backend). Wayland-only (no X11 fallback); hotkeys via `org.freedesktop.portal.GlobalShortcuts`. Workspace dep versions in `Cargo.toml` — check before adding or using a crate.
 
-Key files: `src/core/` (cliptoo-core: parser, db, settings, logger), `src/ui/` (binary + OS integration), `src/ui/ui/*.slint`, `src/ui/src/main.rs`, `src/ui/src/hotkeys.rs`, `.docs/HLD.md`, `.docs/PORTING.md`, `.docs/Progress.md` (read first), `.docs/ToDo.md`, `packaging/PKGBUILD`, `lefthook.yml`.
+### Key files
+
+- `src/core/` — cliptoo-core: parser, db, settings, logger
+- `src/ui/` — binary + OS integration (`main.rs`, `hotkeys.rs`)
+- `src/ui/ui/*.slint`
+- `packaging/PKGBUILD`, `lefthook.yml`, `Makefile`
 
 ### Verification (critical)
 
-**Never run `cargo check/clippy/test/build/fmt` or `slint-viewer` unless the user explicitly asks.** The user tests their own changes; Lefthook hooks (fmt + clippy on `.rs`, `slint-lsp format -i` on `.slint`, pre-push `cargo test --workspace`) catch regressions. Reference only:
+**Never run `cargo check/clippy/test/build/fmt` or `slint-viewer` unless the user explicitly asks.** The user tests their own changes; Lefthook (fmt + `slint-lsp format -i` on staged files, biome on `website/`, pre-push `cargo test` + `clippy`) catches regressions. Reference only:
 
 ```sh
 cargo build --release -p cliptoo   # production build
@@ -20,34 +25,30 @@ cargo clippy --workspace --all-targets -- -D warnings
 
 ### Release (Cocogitto)
 
-- `make release` (`cog bump --auto`) — external Rust binary (`cargo install cocogitto` / `pacman -S cocogitto`); config in `cog.toml`, `tag_prefix = "v"`. Bumps version from conventional commits, syncs manifests via `scripts/sync_version.sh`, writes `CHANGELOG.md` (template `changelog.tpl`), commits/tags/pushes (post_bump_hooks). Manual: `make version V=1.2.3`.
-- Changelog preview: `make changelog` (`cog changelog`).
-- Commit-msg enforced by `lefthook.yml` via `cog verify` (Merge/Revert lines bypass).
+Cocogitto is an external binary (`cargo install cocogitto` / `pacman -S cocogitto`); config in `cog.toml` (`tag_prefix = "v"`).
+
+- `cog bump --auto` — bump from conventional commits, sync manifests (`scripts/sync_version.sh`), write `CHANGELOG.md`, commit, tag, push. `pre_bump_hooks` run tests + clippy first.
+- Manual version: `cog bump --version V=1.2.3`. Preview: `cog changelog`.
+- Commit messages verified by `cog verify` (Merge/Revert lines bypass).
 
 ### File System
 
 - Root: `/home/bubba/Projects/Cliptoo/`; all subdirs allowed, confirm anything outside root.
-- Read-only: `.env*`, `.git/`, `~/.cargo/registry/src/` (read freely for library source).
-- Disallowed: `.assets/`, `.docs/ToDo.md`, `.git/`, `node_modules/`, `.docs/archive/`.
+- Read-only: `.env*`, `.git/`, `~/.cargo/registry/src/` (library source).
+- Disallowed: `.assets/`, `.docs/ToDo.md`, `.docs/archive/`, `node_modules/`.
 - Confirm before: adding/removing deps, changes outside `src/`.
 
 ### Rules
 
-- **Style:** explicit types + named constants (no magic numbers); `cargo fmt` defaults; self-documenting names; comments only for WHY.
 - **Errors:** `anyhow::Result` at boundaries, `thiserror` enums in `src/core/`, `.context(...)` across module boundaries; never suppress errors.
-- **Logging:** `tracing::{info,warn,error,debug}` only (never `println!`/`dbg!`); init in `core/src/logger.rs`.
-- **No `unsafe`** except the Qt FFI shim `src/ui/src/drag.rs` (`#![allow(unsafe_code)]`); crate roots `#![deny(unsafe_code)]`.
-
-### Rust FFI
-
-Generic over `ComponentHandle` for child windows: `activate_window<C: slint::ComponentHandle>(ui: &C)`. Soundness invariants in `src/ui/src/drag.rs`.
+- **Logging:** `tracing::{info,warn,error,debug}` only (never `println!`/`dbg!`); init in `src/core/src/logger.rs`.
+- **Unsafe:** none except the Qt FFI shim `src/ui/src/drag.rs` (`#![allow(unsafe_code)]`); crate roots `#![deny(unsafe_code)]`.
 
 ### Slint (mandatory)
 
-1. Read `.docs/.slint-docs/slint-docs-flat/gotchas.md` → `language-and-layout.md` → `interop.md` before writing Slint; never guess syntax.
-2. Look up the widget/element in `INDEX.md` for properties and callbacks.
-3. Rust FFI: grep `interop.md` or fetch `https://docs.slint.dev/latest/docs/slint/<path>.md`.
-4. Slint 1.18: `WindowMoveArea`, `FlexboxLayout`, dynamic `z`, `spring` easing, model `push`/`remove`/`insert`, `string.starts-with`/`ends-with`/`replace-all` are available. `Flickable.viewport-*` is renamed to `content-*` (old names deprecated). Full changelog: `.docs/.slint-docs/slint.1.18.md`.
+1. Before writing Slint, read `.docs/.slint-docs/slint-docs-flat/gotchas.md` → `language-and-layout.md` → `interop.md`; never guess syntax. Widget/element properties + callbacks: `INDEX.md`.
+2. Rust FFI: grep `interop.md` or fetch `https://docs.slint.dev/latest/docs/slint/<path>.md`. Child windows use `activate_window<C: slint::ComponentHandle>(ui: &C)`; soundness invariants in `src/ui/src/drag.rs`.
+3. Slint 1.18: `WindowMoveArea`, `FlexboxLayout`, dynamic `z`, `spring` easing, model `push`/`remove`/`insert`, `string.starts-with`/`ends-with`/`replace-all` available. `Flickable.viewport-*` renamed to `content-*` (old names deprecated). Changelog: `.docs/.slint-docs/slint.1.18.md`.
 
 ---
 
