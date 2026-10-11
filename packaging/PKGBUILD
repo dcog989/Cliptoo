@@ -17,11 +17,14 @@ options=('!debug')
 # (xdg-desktop-portal-kde) transitively pulls the router (xdg-desktop-portal)
 # and is the appropriate dependency for this app's target environment.
 # See src/ui/src/hotkeys.rs and .docs/HLD.md §9.1.
+# dav1d is linked dynamically by the `dav1d` crate, which backs the
+# `image`/`avif-native` AVIF decoder (see src/core/src/image.rs).
 depends=(
     'qt6-base'
     'qt6-wayland'
     'wayland'
     'libxkbcommon'
+    'dav1d'
     'xdg-desktop-portal-kde'
     'kwindowsystem'
 )

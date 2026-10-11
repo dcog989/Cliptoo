@@ -21,7 +21,7 @@ csscolorparser = "0.9"
 dirs = "7"
 evdev = "0.13"
 futures = "0.3"
-image = { version = "0.25", default-features = false, features = ["avif", "bmp", "gif", "ico", "jpeg", "png", "tiff", "webp"] }
+image = { version = "0.25", default-features = false, features = ["avif-native", "bmp", "gif", "ico", "jpeg", "png", "tiff", "webp"] }
 jxl-oxide = "0.12"
 lru = "0.18"
 palette = { version = "0.7", default-features = false, features = ["std"] }

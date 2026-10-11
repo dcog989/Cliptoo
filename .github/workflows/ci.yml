@@ -18,12 +18,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Install system dependencies (Qt6 + Wayland)
+      - name: Install system dependencies (Qt6 + Wayland + dav1d)
         run: |
           sudo apt-get update
           sudo apt-get install -y \
             qt6-base-dev qt6-wayland libwayland-dev \
-            libxkbcommon-dev libfontconfig1-dev pkg-config
+            libxkbcommon-dev libfontconfig1-dev libdav1d-dev pkg-config
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -55,7 +55,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             qt6-base-dev qt6-wayland libwayland-dev \
-            libxkbcommon-dev libfontconfig1-dev pkg-config
+            libxkbcommon-dev libfontconfig1-dev libdav1d-dev pkg-config
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
