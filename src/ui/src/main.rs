@@ -42,10 +42,9 @@ async fn main() -> Result<()> {
     // reqwest is built with `rustls-no-provider`, so it reads the process-wide
     // provider rather than shipping one, and panics on the first
     // `Client::build()` if none is installed. Must run before any client is
-    // constructed.
-    rustls::crypto::ring::default_provider()
-        .install_default()
-        .expect("install rustls ring provider");
+    // constructed. A provider a dependency already installed is just as good,
+    // so the "already installed" error is ignored rather than fatal.
+    let _ = rustls::crypto::ring::default_provider().install_default();
 
     info!("Cliptoo starting");
 
