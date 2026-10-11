@@ -30,7 +30,7 @@ export component FilterGrid {
                 width: root.cell-size;
                 height: root.cell-size;
                 border-radius: 5px;
-                background: root.active-filter == key || cell-touch.has-hover ? Theme.bg-row-hover : transparent;
+                background: root.active-filter == key ? Theme.accent-fill : cell-touch.has-hover ? Theme.bg-row-hover : transparent;
 
                 animate background { duration: Theme.anim-fast; }
 
@@ -40,14 +40,17 @@ export component FilterGrid {
                     width: 24px;
                     height: 24px;
                     source: ClipTypeMap.icon-for(key);
-                    // Active/hover cells sit on the accent background, so keep
-                    // the contrast foreground there. Otherwise, when color
-                    // coding is on, tint the icon by its clip type; non-type
-                    // keys ("all", "bookmarked", plain text) stay muted.
-                    colorize: root.active-filter == key || cell-touch.has-hover
+                    // The active cell is a solid accent shape, so it takes the
+                    // contrast foreground. A hovered cell only gets the tinted
+                    // surface, which is too light for `fg-muted`, so its icon
+                    // lifts to `fg-clip-list`; when color coding is on the clip
+                    // type's tint stands in.
+                    colorize: root.active-filter == key
                         ? Theme.accent-fg
                         : (Theme.color-code-clip-types && ClipTypeMap.has-color-for(key)
                         ? ClipTypeMap.color-for(key)
+                        : cell-touch.has-hover
+                        ? Theme.fg-clip-list
                         : Theme.fg-muted);
                     animate colorize { duration: Theme.anim-fast; }
                 }

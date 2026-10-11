@@ -27,6 +27,10 @@ export global Theme {
     in property <color> bg-primary:        #181818;
     in property <color> bg-header:         #121212;
     in property <color> bg-row-alt:        #1C1C1C;
+    // Hovered-row surface: a low-chroma tint of the accent at a fixed lightness
+    // (filled from Rust). Body text keeps its normal foreground; content that
+    // is muted at rest lifts to `fg-clip-list`. Only solid `accent-fill`
+    // surfaces switch to `accent-fg`.
     in property <color> bg-row-hover:      #222222;
     in property <color> bg-row-selected:   #282828;
     in property <color> bg-input:          #242424;
@@ -66,9 +70,12 @@ export global Theme {
 
     // ── Status & control colors (static, not accent-derived) ───────────────
     in property <color> error-base:     #c0392b;  // deep red fill (destructive buttons)
-    in property <color> error-fg:       #e74c3c;  // bright red text (error toasts)
+    // Text on a status fill: white, which APCA picks over black for every
+    // error/warn fill (>= Lc 53). The same-hue red/amber used before sat at
+    // Lc ~10 — unreadable.
+    in property <color> error-fg:       #ffffff;
     in property <color> warn-base:      #e67e22;  // amber fill (warning toasts)
-    in property <color> warn-fg:        #f39c12;  // bright amber text (warning toasts)
+    in property <color> warn-fg:        #ffffff;
     in property <color> link-fg:        #4C9EFF;  // link blue, readable on any background
     in property <color> bg-track:       #555555;  // slider track / toggle-off background
 

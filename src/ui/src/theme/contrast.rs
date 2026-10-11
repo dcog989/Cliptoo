@@ -119,11 +119,11 @@ fn apca_contrast(text: (u8, u8, u8), bg: (u8, u8, u8)) -> f64 {
     output * 100.0
 }
 
-/// Derive an accent-tinted color at a fixed OKLCH lightness `l`, scaling the
-/// base accent's chroma by `chroma_scale`. Used for the subtle accent border,
-/// so a picked Neon stays vibrant and a picked Muted stays restrained.
-pub(super) fn accent_sibling(hue: f64, base_chroma: f64, l: f64, chroma_scale: f64) -> Color {
-    let [r, g, b] = oklch_to_srgb_bytes(l, base_chroma * chroma_scale, hue);
+/// The accent's hue at OKLCH lightness `l`, at the given chroma, so a picked
+/// Neon stays vibrant and a picked Muted stays restrained. Used for the accent
+/// border and the hovered-row surface.
+pub(super) fn accent_sibling(hue: f64, chroma: f64, l: f64) -> Color {
+    let [r, g, b] = oklch_to_srgb_bytes(l, chroma, hue);
     Color::from_rgb_u8(r, g, b)
 }
 

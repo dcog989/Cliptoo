@@ -29,6 +29,10 @@ const DEFAULT_ACCENT: (u8, u8, u8) = (0x7C, 0x6E, 0xE6);
 /// of rendering as opaque black halos.
 const SHADOW_ALPHA: u8 = 0x30;
 
+/// OKLCH chroma fraction of the accent kept by the accent border. Low so the
+/// border reads as a tint rather than a second block of the accent.
+const BORDER_CHROMA_SCALE: f64 = 0.40;
+
 /// Parse a `#RRGGBB` hex string (leading `#` optional) into `(r, g, b)`.
 /// Returns `DEFAULT_ACCENT` for malformed input.
 pub(crate) fn parse_accent_hex(hex: &str) -> (u8, u8, u8) {
@@ -71,6 +75,13 @@ pub fn fill_accent(
     system_accent: Option<(u8, u8, u8)>,
 ) {
     let border_accent_l = if is_dark { 0.54 } else { 0.40 };
+    // Hovered-row surface. The accent's own hue and chroma at a fixed OKLCH
+    // lightness well above the other row states (page 0.21 / alt 0.25 /
+    // selected 0.28): hover keeps the picked color instead of a washed-out
+    // tint, at a step (≈2:1) well under the 4:1 block the solid accent gave.
+    // Muted content lifts to `fg-clip-list` on hover; `fg-muted` only reaches
+    // 1.7:1 here.
+    let row_hover_l = if is_dark { 0.42 } else { 0.84 };
 
     // Surface the accent is applied on; the accent must keep a minimum
     // APCA contrast against it in both theme modes.
@@ -101,8 +112,12 @@ pub fn fill_accent(
     });
     t.set_accent_primary(Color::from_rgb_u8(accent_r, accent_g, accent_b));
     t.set_accent_fill(fill);
-    t.set_border_accent(accent_sibling(accent_h, accent_c, border_accent_l, 0.40));
-    t.set_bg_row_hover(fill);
+    t.set_border_accent(accent_sibling(
+        accent_h,
+        accent_c * BORDER_CHROMA_SCALE,
+        border_accent_l,
+    ));
+    t.set_bg_row_hover(accent_sibling(accent_h, accent_c, row_hover_l));
     // FTS match spans: the accent's hue at a fixed strong chroma and a high
     // contrast against the surface, so a match never reads as body text.
     t.set_match_highlight(match_highlight(accent_h, bg));
@@ -156,10 +171,10 @@ pub fn fill_theme(
         t.set_bg_row_alt(Color::from_rgb_u8(0xEE, 0xEE, 0xEE));
         t.set_bg_row_selected(Color::from_rgb_u8(0xDD, 0xDD, 0xDD));
         t.set_bg_input(Color::from_rgb_u8(0xFF, 0xFF, 0xFF));
-        // Slider / toggle-off track. Must be set per mode: the `Theme.slint`
-        // default is the dark value and would otherwise render as a dark-grey
-        // pill on the light page.
-        t.set_bg_track(Color::from_rgb_u8(0xC4, 0xC4, 0xC4));
+        // Slider / toggle-off track. Must be set per mode (the `Theme.slint`
+        // default is the dark value). #C4C4C4 only reached Lc 26 against the
+        // page; this holds Lc 54 and keeps the white knob at Lc 66.
+        t.set_bg_track(Color::from_rgb_u8(0x8E, 0x8E, 0x8E));
         t.set_fg_primary(Color::from_rgb_u8(0x1C, 0x1C, 0x1C));
         t.set_fg_secondary(Color::from_rgb_u8(0x55, 0x55, 0x55));
         t.set_fg_clip_list(Color::from_rgb_u8(0x55, 0x55, 0x55));
