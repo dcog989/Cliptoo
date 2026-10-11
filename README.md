@@ -187,4 +187,4 @@ Commits must use [Conventional Commits](https://www.conventionalcommits.org/) â€
 
 ## License
 
-[GNU General Public License v3](LICENSE).
+[GNU General Public License v3.0](LICENSE).

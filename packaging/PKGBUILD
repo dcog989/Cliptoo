@@ -9,7 +9,7 @@ pkgrel=1
 pkgdesc="Native clipboard manager for KDE Plasma 6 / Wayland"
 arch=('x86_64')
 url="https://github.com/dcog989/Cliptoo"
-license=('MIT')
+license=('GPL-3.0-only')
 options=('!debug')
 # Cliptoo targets Wayland / KDE Plasma 6. On Wayland, the XDG Desktop Portal
 # is the only sanctioned mechanism for client apps to register a global

@@ -19,7 +19,7 @@ clipboard data with a target memory footprint under 20 MB."""
 [package.metadata.generate-rpm]
 name = "cliptoo"
 description = "Native clipboard manager for KDE Plasma 6 / Wayland"
-license = "MIT"
+license = "GPL-3.0-only"
 assets = [
   { source = "target/release/cliptoo", dest = "/usr/bin/cliptoo", mode = "755" },
   { source = "packaging/cliptoo.desktop", dest = "/usr/share/applications/cliptoo.desktop", mode = "644" },

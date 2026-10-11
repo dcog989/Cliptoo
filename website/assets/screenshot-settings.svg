@@ -45,7 +45,7 @@
     <text x="92" y="312" font-size="13" fill="#A1A1A1">Data</text>
     <rect x="72" y="328" width="224" height="44" fill="none" />
     <text x="92" y="356" font-size="13" fill="#A1A1A1">About</text>
-    <text x="92" y="392" font-size="11" fill="#4a4a4a">cliptoo 2.10.0 · MIT</text>
+    <text x="92" y="392" font-size="11" fill="#4a4a4a">cliptoo 2.10.0 · GPL-3.0</text>
   </g>
 
   <!-- Content -->

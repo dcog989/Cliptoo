@@ -9,7 +9,7 @@ members = [
 version = "2.19.0"
 edition = "2024"
 repository = "https://github.com/dcog989/Cliptoo"
-license = "MIT"
+license = "GPL-3.0-only"
 
 [workspace.dependencies]
 anyhow = "1"
