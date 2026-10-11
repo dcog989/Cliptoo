@@ -303,3 +303,17 @@ async fn main() -> Result<()> {
     info!("Cliptoo exiting");
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    /// Guards the reqwest/rustls pairing: reqwest is built with
+    /// `rustls-no-provider`, so it panics in `Client::build()` unless a
+    /// provider was installed from the same rustls crate. If a dependency bump
+    /// puts the two on different rustls versions, this fails here instead of
+    /// crashing when a user pastes a URL.
+    #[test]
+    fn rustls_provider_installed_for_reqwest() {
+        let _ = rustls::crypto::ring::default_provider().install_default();
+        assert!(reqwest::Client::builder().build().is_ok());
+    }
+}

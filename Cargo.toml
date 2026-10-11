@@ -27,6 +27,11 @@ lru = "0.18"
 palette = { version = "0.7", default-features = false, features = ["std"] }
 pkg-config = "0.3"
 regex = "1"
+# `rustls-no-provider` selects no crypto backend, so reqwest reads the
+# process-wide provider, which src/ui/src/main.rs installs from the `rustls`
+# entry below. The two must resolve to one rustls version: a second copy
+# (from a reqwest bump to a new rustls major) puts the provider in the other
+# crate's global and panics in `Client::build()` at runtime.
 reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider"] }
 resvg = "0.48"
 rusqlite = { version = "0.40", features = ["backup", "bundled"] }
