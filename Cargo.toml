@@ -50,5 +50,10 @@ which = "8"
 wl-clipboard-rs = "0.9"
 zbus = { version = "5", default-features = false, features = ["tokio"] }
 
+[profile.release]
+# The release binary carries a 118k-entry symbol table and no debuginfo, so
+# stripping it only removes weight from the .deb/.rpm/AppImage.
+strip = "symbols"
+
 [profile.dev]
 debug = "limited"
