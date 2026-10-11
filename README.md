@@ -166,7 +166,8 @@ cargo run                                # build and run
 cargo test --workspace                   # tests
 cargo upgrade && cargo update --verbose  # update Cargo.lock and dependencies to latest with semver ranges
 
-cargo clean && rm -rf target/            # clean build artifacts
+cargo sweep --time 14
+cargo clean                              
 ```
 
 ### Release
