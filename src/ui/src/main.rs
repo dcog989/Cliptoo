@@ -40,10 +40,9 @@ async fn main() -> Result<()> {
     let _log_guard = cliptoo_core::logger::init(&dirs.logs_dir, settings.log_level_filter());
 
     // reqwest is built with `rustls-no-provider`, so it reads the process-wide
-    // provider rather than shipping one, and panics on the first
-    // `Client::build()` if none is installed. Must run before any client is
-    // constructed. A provider a dependency already installed is just as good,
-    // so the "already installed" error is ignored rather than fatal.
+    // provider and panics on the first `Client::build()` if none is installed.
+    // Must run before any client is constructed; an already-installed provider
+    // is fine.
     let _ = rustls::crypto::ring::default_provider().install_default();
 
     info!("Cliptoo starting");
@@ -305,11 +304,8 @@ async fn main() -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    /// Guards the reqwest/rustls pairing: reqwest is built with
-    /// `rustls-no-provider`, so it panics in `Client::build()` unless a
-    /// provider was installed from the same rustls crate. If a dependency bump
-    /// puts the two on different rustls versions, this fails here instead of
-    /// crashing when a user pastes a URL.
+    /// Fails if a bump ever puts reqwest and rustls on different versions:
+    /// reqwest's client then panics on the missing process provider.
     #[test]
     fn rustls_provider_installed_for_reqwest() {
         let _ = rustls::crypto::ring::default_provider().install_default();
