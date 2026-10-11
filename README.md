@@ -139,13 +139,14 @@ make install
 ### Prerequisites
 
 - **Rust toolchain** (stable): `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
-- **Qt 6, Wayland and dav1d dev headers:**
+- **Qt 6, Wayland and dav1d dev headers, plus the `clang` and `mold` linkers**
+  (the committed `.cargo/config.toml` links with `clang -fuse-ld=mold`):
 
 | Distro       | Command                                                                     |
 |--------------|-----------------------------------------------------------------------------|
-| Debian/Ubuntu| `sudo apt install qt6-base-dev qt6-wayland libwayland-dev libxkbcommon-dev libdav1d-dev pkg-config` |
-| Fedora       | `sudo dnf install qt6-qtbase-devel qt6-qtwayland libwayland-devel libxkbcommon-devel dav1d-devel pkgconfig` |
-| Arch         | `sudo pacman -S qt6-base qt6-wayland wayland wayland-protocols libxkbcommon dav1d pkgconf` |
+| Debian/Ubuntu| `sudo apt install qt6-base-dev qt6-wayland libwayland-dev libxkbcommon-dev libdav1d-dev pkg-config clang mold` |
+| Fedora       | `sudo dnf install qt6-qtbase-devel qt6-qtwayland libwayland-devel libxkbcommon-devel dav1d-devel clang mold pkgconfig` |
+| Arch         | `sudo pacman -S qt6-base qt6-wayland wayland wayland-protocols libxkbcommon dav1d clang mold pkgconf` |
 
 ### Build & Run
 
