@@ -17,6 +17,7 @@ use self::contrast::{
 
 mod contrast;
 mod detect;
+mod palette;
 
 pub use detect::{detect_system_accent, detect_system_dark};
 
@@ -150,19 +151,6 @@ pub fn fill_theme(
         t.set_fg_success(Color::from_rgb_u8(0x2E, 0xCC, 0x71));
         t.set_fg_warning(Color::from_rgb_u8(0xF3, 0x9C, 0x12));
         t.set_fg_bookmarked(Color::from_rgb_u8(0xE5, 0xB5, 0x67));
-        t.set_fg_type_video(Color::from_rgb_u8(0xC6, 0x70, 0x69));
-        t.set_fg_type_audio(Color::from_rgb_u8(0xE0, 0x98, 0x64));
-        t.set_fg_type_rich(Color::from_rgb_u8(0xEC, 0xC5, 0x73));
-        t.set_fg_type_archive(Color::from_rgb_u8(0x8A, 0x94, 0x3F));
-        t.set_fg_type_image(Color::from_rgb_u8(0x7D, 0xBD, 0x7F));
-        t.set_fg_type_path(Color::from_rgb_u8(0x28, 0xA2, 0x89));
-        t.set_fg_type_folder(Color::from_rgb_u8(0x73, 0xE2, 0xC7));
-        t.set_fg_type_code(Color::from_rgb_u8(0x3F, 0xBF, 0xCC));
-        t.set_fg_type_document(Color::from_rgb_u8(0x3B, 0x96, 0xC5));
-        t.set_fg_type_link(Color::from_rgb_u8(0x89, 0xA9, 0xF1));
-        t.set_fg_type_dev(Color::from_rgb_u8(0x91, 0x7E, 0xC8));
-        t.set_fg_type_color(Color::from_rgb_u8(0xCE, 0x92, 0xD1));
-        t.set_fg_type_data(Color::from_rgb_u8(0xFF, 0xAF, 0xCD));
         t.set_border_subtle(Color::from_rgb_u8(0x44, 0x44, 0x44));
         t.set_shadow(Color::from_argb_u8(SHADOW_ALPHA, 0x00, 0x00, 0x00));
     } else {
@@ -183,22 +171,32 @@ pub fn fill_theme(
         t.set_fg_success(Color::from_rgb_u8(0x27, 0xAE, 0x60));
         t.set_fg_warning(Color::from_rgb_u8(0xE6, 0x7E, 0x22));
         t.set_fg_bookmarked(Color::from_rgb_u8(0xB8, 0x86, 0x0B));
-        t.set_fg_type_video(Color::from_rgb_u8(0x66, 0x2F, 0x2C));
-        t.set_fg_type_audio(Color::from_rgb_u8(0x77, 0x48, 0x26));
-        t.set_fg_type_rich(Color::from_rgb_u8(0x7E, 0x65, 0x2E));
-        t.set_fg_type_archive(Color::from_rgb_u8(0x41, 0x47, 0x0A));
-        t.set_fg_type_image(Color::from_rgb_u8(0x37, 0x61, 0x39));
-        t.set_fg_type_path(Color::from_rgb_u8(0x00, 0x4E, 0x40));
-        t.set_fg_type_folder(Color::from_rgb_u8(0x2B, 0x78, 0x66));
-        t.set_fg_type_code(Color::from_rgb_u8(0x00, 0x61, 0x69));
-        t.set_fg_type_document(Color::from_rgb_u8(0x01, 0x48, 0x66));
-        t.set_fg_type_link(Color::from_rgb_u8(0x40, 0x54, 0x82));
-        t.set_fg_type_dev(Color::from_rgb_u8(0x46, 0x39, 0x68));
-        t.set_fg_type_color(Color::from_rgb_u8(0x6C, 0x45, 0x6E));
-        t.set_fg_type_data(Color::from_rgb_u8(0x8D, 0x55, 0x6B));
         t.set_border_subtle(Color::from_rgb_u8(0xD0, 0xD0, 0xD0));
         t.set_shadow(Color::from_argb_u8(SHADOW_ALPHA, 0x00, 0x00, 0x00));
     }
+
+    // Clip-type palette (`palette`): one hue/level table rendered per mode, so
+    // the dark and light hexes can never drift apart.
+    let type_color = |role: palette::TypeColor| {
+        let [r, g, b] = role.rgb(is_dark);
+        Color::from_rgb_u8(r, g, b)
+    };
+    t.set_fg_type_danger(type_color(palette::DANGER));
+    t.set_fg_type_video(type_color(palette::VIDEO));
+    t.set_fg_type_audio(type_color(palette::AUDIO));
+    t.set_fg_type_image(type_color(palette::IMAGE));
+    t.set_fg_type_archive(type_color(palette::ARCHIVE));
+    t.set_fg_type_path(type_color(palette::PATH));
+    t.set_fg_type_folder(type_color(palette::FOLDER));
+    t.set_fg_type_text_file(type_color(palette::TEXT_FILE));
+    t.set_fg_type_rich(type_color(palette::RICH));
+    t.set_fg_type_document(type_color(palette::DOCUMENT));
+    t.set_fg_type_link(type_color(palette::LINK));
+    t.set_fg_type_code(type_color(palette::CODE));
+    t.set_fg_type_dev(type_color(palette::DEV));
+    t.set_fg_type_color(type_color(palette::COLOR));
+    t.set_fg_type_data(type_color(palette::DATA));
+    t.set_fg_type_generic(type_color(palette::GENERIC));
 
     t.set_font_family(SharedString::from(&*settings.font_family));
     t.set_color_code_clip_types(settings.color_code_clip_types);

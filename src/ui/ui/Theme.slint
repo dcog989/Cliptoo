@@ -44,26 +44,29 @@ export global Theme {
     in property <color> fg-warning:        #F39C12;
     in property <color> fg-bookmarked:     #E5B567;
     // Per-clip-type body-text and filter-icon colours, used only when
-    // `color-code-clip-types` is on. Text clips keep `fg-clip-list`. Hues are
-    // spaced evenly around the OKLCH wheel (12 steps of 30°, anchored so links
-    // stay blue, images green, videos red, rich text cream). Each type sits on
-    // one of three OKLCH lightness levels (dark L 0.64/0.74/0.84) so adjacent
-    // hues never share one — roughly doubling the perceived separation versus a
-    // single lightness. These are the dark-mode values; light variants are
-    // filled from Rust in `theme::fill_theme`.
-    in property <color> fg-type-video:     #C67069;  //  25°  L 0.64  video / danger
-    in property <color> fg-type-audio:     #E09864;  //  55°  L 0.74  audio
-    in property <color> fg-type-rich:      #ECC573;  //  85°  L 0.84  rich text
-    in property <color> fg-type-archive:   #8A943F;  // 115°  L 0.64  archives
-    in property <color> fg-type-image:     #7DBD7F;  // 145°  L 0.74  images
-    in property <color> fg-type-path:      #28A289;  // 175°  L 0.64  file paths
-    in property <color> fg-type-folder:    #73E2C7;  // 175°  L 0.84  folders
-    in property <color> fg-type-code:      #3FBFCC;  // 205°  L 0.74  code
-    in property <color> fg-type-document:  #3B96C5;  // 235°  L 0.64  documents
-    in property <color> fg-type-link:      #89A9F1;  // 265°  L 0.74  links
-    in property <color> fg-type-dev:       #917EC8;  // 295°  L 0.64  dev / config
-    in property <color> fg-type-color:     #CE92D1;  // 325°  L 0.74  colour clips
-    in property <color> fg-type-data:      #FFAFCD;  // 355°  L 0.84  data / tabular
+    // `color-code-clip-types` is on. Plain text keeps `fg-clip-list`. Each type
+    // is one OKLCH hue in one of three shared lightness levels (dark
+    // L 0.64/0.74/0.84), so related types share a hue band: media (video →
+    // audio → image) warm, documents blue, code and dev/config violet. Rich
+    // text is a muted cream in both modes, not a family hue. `theme::palette`
+    // generates both modes; these dark defaults are fallbacks used only until
+    // Rust applies the real values.
+    in property <color> fg-type-danger:    #C6706A;  //  25°  danger
+    in property <color> fg-type-video:     #E09865;  //  55°  video
+    in property <color> fg-type-audio:     #EBC573;  //  85°  audio
+    in property <color> fg-type-image:     #A8B35E;  // 115°  images
+    in property <color> fg-type-archive:   #B8A990;  //  80°  archives (desaturated)
+    in property <color> fg-type-path:      #29A288;  // 175°  file paths
+    in property <color> fg-type-folder:    #74E2C6;  // 175°  folders
+    in property <color> fg-type-text-file: #67DEF2;  // 210°  text files
+    in property <color> fg-type-rich:      #F2D7B0;  //  77°  rich text (cream)
+    in property <color> fg-type-document:  #4494C8;  // 240°  documents
+    in property <color> fg-type-link:      #89A9F1;  // 265°  links
+    in property <color> fg-type-code:      #B59BE6;  // 300°  code
+    in property <color> fg-type-dev:       #A179BE;  // 310°  dev / config
+    in property <color> fg-type-color:     #D291CC;  // 330°  colour clips
+    in property <color> fg-type-data:      #FFB0CE;  // 355°  data / tabular
+    in property <color> fg-type-generic:   #7E8E9F;  // 250°  other files (desaturated)
 
     in property <color> border-subtle:     #444444;
     in property <color> shadow:            #00000030;
@@ -85,9 +88,9 @@ export global Theme {
     // setting drives clip-list-font-size below, not this.
     in property <length> font-size:        13px;
     in property <length> clip-list-font-size: 13px;
-    // When true, clip-list body text is tinted by clip type (URLs blue,
-    // images green, videos red, rich text cream, …). Text clips keep the base
-    // list colour. `ClipTypeMap.color-for` holds the mapping.
+    // When true, clip-list body text and filter-grid icons are tinted by clip
+    // type (media warm, documents blue, code violet, …). Plain text keeps the
+    // base list colour. `ClipTypeMap.color-for` holds the mapping.
     in property <bool> color-code-clip-types: false;
     in property <length> preview-font-size: 12px;
     // Max box (px) for the hover preview; drives the popup's width and height

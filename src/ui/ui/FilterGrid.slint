@@ -44,9 +44,12 @@ export component FilterGrid {
                     // contrast foreground. A hovered cell only gets the tinted
                     // surface, which is too light for `fg-muted`, so its icon
                     // lifts to `fg-clip-list`; when color coding is on the clip
-                    // type's tint stands in.
+                    // type's tint stands in. The bookmark cell always keeps the
+                    // bookmark colour, like the bookmark icon on a row.
                     colorize: root.active-filter == key
                         ? Theme.accent-fg
+                        : key == "bookmarked"
+                        ? Theme.fg-bookmarked
                         : (Theme.color-code-clip-types && ClipTypeMap.has-color-for(key)
                         ? ClipTypeMap.color-for(key)
                         : cell-touch.has-hover

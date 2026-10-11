@@ -3,9 +3,8 @@
 // tooltip label), and FilterGrid (filter popup grid).
 //
 // Adding a new ClipType requires one icon-for branch (+ label-for where it
-// appears in a filter/tooltip, + color-for and its has-color-for entry for
-// color coding). `filter-keys` lists which keys appear in the filter popup,
-// in display order.
+// appears in a filter/tooltip, + a color-for branch for colour coding).
+// `filter-keys` lists which keys appear in the filter popup, in display order.
 
 import { Theme } from "Theme.slint";
 
@@ -70,40 +69,27 @@ export global ClipTypeMap {
             || key == "link";
     }
 
-    // True when `key` is a clip type with its own colour — excludes plain text,
-    // generic file clips, and non-type filter keys like "all"/"bookmarked".
-    // Callers drawing on their own base colour (filter grid icons) use this to
-    // fall back instead of the list base colour.
+    // True when `key` has its own colour. Every clip type does except plain
+    // text; "all"/"bookmarked" are non-type filter keys that keep the caller's
+    // own base colour (filter grid icons fall back instead of the list colour).
     public pure function has-color-for(key: string) -> bool {
-        return key == "link"
-            || key == "file_image"
-            || key == "file_video"
-            || key == "file_danger"
-            || key == "file_audio"
-            || key == "rtf"
-            || key == "html"
-            || key == "code_snippet"
-            || key == "file_path"
-            || key == "folder"
-            || key == "color"
-            || key == "file_archive"
-            || key == "file_document"
-            || key == "file_dev"
-            || key == "file_data";
+        return key != "text" && key != "all" && key != "bookmarked";
     }
 
     // Body-text / icon colour per clip type, used when the "Color code clip
     // types" setting is on. Each type maps to its own theme token; the tokens
-    // are an OKLCH palette with evenly spaced hues and alternating lightness
-    // (see Theme.slint / theme::fill_theme).
-    // Text-ish clips (text, file_text, file_generic) and unknown keys stay the
-    // base list colour, so plain text never changes.
+    // are an OKLCH palette grouped by hue family, so related types share a
+    // band (see Theme.slint / theme::palette).
+    // Plain text and unknown keys stay the base list colour, so plain text
+    // never changes.
     public pure function color-for(key: string) -> color {
         if key == "link" { return Theme.fg-type-link; }
         if key == "file_image" { return Theme.fg-type-image; }
-        if key == "file_video" || key == "file_danger" { return Theme.fg-type-video; }
+        if key == "file_video" { return Theme.fg-type-video; }
+        if key == "file_danger" { return Theme.fg-type-danger; }
         if key == "file_audio" { return Theme.fg-type-audio; }
         if key == "rtf" || key == "html" { return Theme.fg-type-rich; }
+        if key == "file_text" { return Theme.fg-type-text-file; }
         if key == "code_snippet" { return Theme.fg-type-code; }
         if key == "file_path" { return Theme.fg-type-path; }
         if key == "folder" { return Theme.fg-type-folder; }
@@ -112,6 +98,7 @@ export global ClipTypeMap {
         if key == "file_document" { return Theme.fg-type-document; }
         if key == "file_dev" { return Theme.fg-type-dev; }
         if key == "file_data" { return Theme.fg-type-data; }
+        if key == "file" || key == "file_generic" { return Theme.fg-type-generic; }
         return Theme.fg-clip-list;
     }
 

@@ -90,7 +90,7 @@ fn clamp_black(y: f64) -> f64 {
 /// background); negative is reverse polarity (light text on a dark one). It is
 /// the magnitude that rates legibility; `0.0` means the pair is below the
 /// algorithm's usable floor.
-fn apca_contrast(text: (u8, u8, u8), bg: (u8, u8, u8)) -> f64 {
+pub(super) fn apca_contrast(text: (u8, u8, u8), bg: (u8, u8, u8)) -> f64 {
     let txt_y = clamp_black(apca_luma(text.0, text.1, text.2));
     let bg_y = clamp_black(apca_luma(bg.0, bg.1, bg.2));
 
