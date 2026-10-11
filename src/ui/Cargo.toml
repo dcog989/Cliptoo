@@ -44,6 +44,7 @@ image.workspace = true
 lru.workspace = true
 regex.workspace = true
 reqwest.workspace = true
+rustls.workspace = true
 sha2.workspace = true
 slint.workspace = true
 tokio.workspace = true
