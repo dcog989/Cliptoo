@@ -167,8 +167,8 @@ cargo run                                # build and run
 cargo test --workspace                   # tests
 cargo upgrade && cargo update --verbose  # update Cargo.lock and dependencies to latest with semver ranges
 
-cargo sweep --time 14
-cargo clean                              
+cargo sweep --time 14                    # delete artifacts unused for 14 days (needs cargo-sweep)
+cargo clean                              # delete the whole target/ directory
 ```
 
 ### Release
