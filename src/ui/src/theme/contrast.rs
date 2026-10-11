@@ -244,6 +244,13 @@ mod tests {
     const DARK_BG: (u8, u8, u8) = (0x18, 0x18, 0x18);
     const LIGHT_BG: (u8, u8, u8) = (0xF5, 0xF5, 0xF5);
 
+    /// Chroma floor asserted for the highlight. Lower than
+    /// [`MATCH_HIGHLIGHT_CHROMA`] because the sRGB gamut, not the requested
+    /// chroma, is the binding constraint once [`MATCH_HIGHLIGHT_LC`] forces a
+    /// light colour: hue 285 on [`DARK_BG`] lands at L* 0.852, where the gamut
+    /// tops out at 0.076 — and the highlight reaches exactly that.
+    const MIN_MATCH_HIGHLIGHT_CHROMA: f64 = 0.07;
+
     #[test]
     fn apca_reference_values() {
         // Published APCA-W3 (0.98G-4g) test pairs from the Myndex reference.
@@ -364,7 +371,10 @@ mod tests {
         for bg in [DARK_BG, LIGHT_BG] {
             let (r, g, b) = bytes(match_highlight(285.0, bg));
             let (_, out_c, _) = srgb_bytes_to_oklch(r, g, b);
-            assert!(out_c >= 0.08, "highlight chroma too low on {bg:?}: {out_c}");
+            assert!(
+                out_c >= MIN_MATCH_HIGHLIGHT_CHROMA,
+                "highlight chroma too low on {bg:?}: {out_c}"
+            );
         }
     }
 
