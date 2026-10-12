@@ -3,6 +3,48 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v2.20.0 - 2026-10-12
+
+#### Features
+
+- (3a08e24) group clip-type colours by hue family, colour text/other files, fix bookmark icon - dcog989
+
+- (3bf03f5) give search-match highlight strong chroma and contrast - dcog989
+
+- (14aad73) color code clip list text and filter icons by clip type - dcog989
+
+#### Bug Fixes
+
+- (83a6c3c) ignore an already-installed rustls provider instead of aborting - dcog989
+
+- (f4527a5) install clang and mold for the committed cargo linker config - dcog989
+
+- (8e3730a) swap rustls to the ring provider and install it at startup - dcog989
+
+- (2b12f6e) hover the row with the accent's own hue and chroma - dcog989
+
+- (5c98783) split accent into text and fill grades, fix status contrast - dcog989
+
+- (29d65ca) move db to data dir and logs to state dir, honour XDG_CONFIG_HOME - dcog989
+
+- (0959f40) dismiss context-menu preview when search field gains focus - dcog989
+
+#### Performance Improvements
+
+- (b5770c3) cap FTS highlight content size to fix slow broad searches - dcog989
+
+#### Refactoring
+
+- (ea7983f) split accent into text and fill grades - dcog989
+
+- (56f3eea) demote per-clip ingestion logs from info to debug - dcog989
+
+- (59ed7cb) measure theme contrast with APCA-W3 instead of WCAG 2.x - dcog989
+
+- (488e115) remove search/filter from the settings window - dcog989
+
+- - -
+
 ## v2.19.0 - 2026-10-09
 
 #### Features
