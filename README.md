@@ -163,7 +163,7 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo fetch && cargo outdated -w         # check for updates above semver range
 cargo fmt --check                        # formatting check
 cargo fmt                                # format all files
-cargo run                                # build and run
+cargo run                                # debug build and run
 cargo test --workspace                   # tests
 cargo upgrade && cargo update --verbose  # update Cargo.lock and dependencies to latest with semver ranges
 

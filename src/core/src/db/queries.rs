@@ -286,16 +286,39 @@ const BROWSE_PROJECTION: &str = "Id, PreviewContent, ContentHash, ClipType, Sour
         IsBookmarked, WasTrimmed, HasLeadingWhitespace, SizeInBytes, PasteCount, Tags, NULL,
         IsMultiline, IsDeadhead";
 
+/// Clips whose `Content` exceeds this many bytes are returned without an inline
+/// highlight. FTS5 `snippet()` reads the row's full `Content`, and a handful of
+/// multi-MB pasted HTML clips made broad prefix searches take seconds (the
+/// snippet is computed for every matched row before the ORDER BY/LIMIT trims
+/// them). Skipping the highlight for oversized clips keeps ordinary searches
+/// fast; those clips still appear, just unhighlighted.
+const MAX_SNIPPET_CONTENT_BYTES: i64 = 16 * 1024;
+
 /// FTS-mode projection — `c.`-prefixed (JOIN against `clips`) with the
 /// highlight snippet in the match-context column.
-fn fts_projection(fts_col: i32, tokens: i32) -> String {
+///
+/// `cap_by_size` bounds the snippet to clips under [`MAX_SNIPPET_CONTENT_BYTES`]
+/// (set for the `Content` column, whose values can be multi-MB). The `Tags`
+/// column holds short labels, so it is never capped.
+fn fts_projection(fts_col: i32, tokens: i32, cap_by_size: bool) -> String {
+    let snippet = format!(
+        "snippet(clips_fts, {fts_col}, '{hl_open}', '{hl_close}', '…', {tokens})",
+        hl_open = FTS_HL_OPEN,
+        hl_close = FTS_HL_CLOSE,
+    );
+    let snippet = if cap_by_size {
+        format!(
+            "CASE WHEN length(c.Content) <= {MAX_SNIPPET_CONTENT_BYTES} \
+             THEN {snippet} ELSE NULL END"
+        )
+    } else {
+        snippet
+    };
     format!(
         "c.Id, c.PreviewContent, c.ContentHash, c.ClipType, c.SourceApp, c.Timestamp,
          c.IsBookmarked, c.WasTrimmed, c.HasLeadingWhitespace, c.SizeInBytes, c.PasteCount, c.Tags,
-         snippet(clips_fts, {fts_col}, '{hl_open}', '{hl_close}', '…', {tokens}),
-         c.IsMultiline, c.IsDeadhead",
-        hl_open = FTS_HL_OPEN,
-        hl_close = FTS_HL_CLOSE,
+         {snippet},
+         c.IsMultiline, c.IsDeadhead"
     )
 }
 
@@ -361,7 +384,7 @@ pub fn search_clips(
              WHERE clips_fts MATCH ? {filter_sql}
              ORDER BY {rank_order}
              LIMIT ? OFFSET ?",
-            projection = fts_projection(1, TAG_SNIPPET_TOKENS),
+            projection = fts_projection(1, TAG_SNIPPET_TOKENS, false),
             filter_sql = ft.sql(),
             rank_order = rank_order(),
         );
@@ -381,7 +404,7 @@ pub fn search_clips(
          WHERE clips_fts MATCH ? {filter_sql}
          ORDER BY {rank_order}
          LIMIT ? OFFSET ?",
-        projection = fts_projection(0, CONTENT_SNIPPET_TOKENS),
+        projection = fts_projection(0, CONTENT_SNIPPET_TOKENS, true),
         filter_sql = ft.sql(),
         rank_order = rank_order(),
     );

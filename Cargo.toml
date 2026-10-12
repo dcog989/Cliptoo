@@ -60,3 +60,10 @@ strip = "symbols"
 
 [profile.dev]
 debug = "limited"
+
+# The `bundled` SQLite is compiled by the `cc` crate using the profile's opt
+# level. At the dev default (0) FTS5 prefix queries are several times slower,
+# which makes search feel broken in a debug build. Optimise SQLite only; the
+# rest of the dev profile stays unoptimised for fast rebuilds.
+[profile.dev.package."libsqlite3-sys"]
+opt-level = 3
