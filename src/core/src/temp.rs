@@ -7,7 +7,7 @@
 //! (`src/ui/src/source_app.rs`) also stages its script through [`runtime_dir`].
 
 use anyhow::{Context, Result};
-use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use tokio::io::AsyncWriteExt;
 use uuid::Uuid;
