@@ -53,11 +53,6 @@ which = "8"
 wl-clipboard-rs = "0.9"
 zbus = { version = "5", default-features = false, features = ["tokio"] }
 
-[profile.release]
-# No debuginfo either way; the 118k-entry symbol table only adds package weight.
-# Release panic traces are address-only once stripped.
-strip = "symbols"
-
 [profile.dev]
 debug = "limited"
 
@@ -67,3 +62,8 @@ debug = "limited"
 # rest of the dev profile stays unoptimised for fast rebuilds.
 [profile.dev.package."libsqlite3-sys"]
 opt-level = 3
+
+[profile.release]
+# No debuginfo either way; the 118k-entry symbol table only adds package weight.
+# Release panic traces are address-only once stripped.
+strip = "symbols"

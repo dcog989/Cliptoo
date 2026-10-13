@@ -108,7 +108,9 @@ async fn install_tracker(cache: &ActiveWindowCache) -> anyhow::Result<()> {
     // KWin rejects a second script under the same name, and a previous
     // instance may have left its resident script loaded (crash/kill), so
     // unload first and let the failure fall through.
-    let script_path = std::env::temp_dir().join(format!("{SCRIPT_NAME}.js"));
+    let script_path = cliptoo_core::temp::ensure_runtime_dir()
+        .await?
+        .join(format!("{SCRIPT_NAME}.js"));
 
     let _ = tokio::time::timeout(
         SCRIPT_TIMEOUT,

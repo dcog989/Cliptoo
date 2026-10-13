@@ -1,7 +1,6 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
-use uuid::Uuid;
 
 const SETTINGS_VERSION: u32 = 1;
 
@@ -140,8 +139,8 @@ impl Settings {
     }
 
     /// Load settings from the given path, falling back to defaults on error.
-    /// Corrupted files are renamed to a uniquely-named .bak before returning
-    /// defaults, and the defaults are persisted in the file's place.
+    /// Corrupted files are renamed to a `.bak` before returning defaults, and
+    /// the defaults are persisted in the file's place.
     pub fn load(path: &Path) -> Self {
         if !path.exists() {
             let defaults = Self::default();
@@ -168,16 +167,14 @@ impl Settings {
         match serde_json::from_str::<Self>(&raw) {
             Ok(s) => s,
             Err(e) => {
-                // Rename the corrupt file to a uniquely-named backup. A UUID
-                // suffix (not a timestamp) guarantees two corruptions in the
-                // same second can never silently overwrite an earlier backup.
+                // Move the corrupt file aside under a single, fixed name. The
+                // backup is a debugging aid, not history: one per corruption
+                // would accumulate in the config dir forever.
                 tracing::warn!("settings: parse error in {:?}: {e}; renaming to .bak", path);
-                let bak_name = format!(
-                    "{}.bak.{}",
-                    path.file_name().unwrap_or_default().to_string_lossy(),
-                    Uuid::new_v4()
-                );
-                let bak = path.with_file_name(bak_name);
+                let bak = path.with_file_name(format!(
+                    "{}.bak",
+                    path.file_name().unwrap_or_default().to_string_lossy()
+                ));
                 let _ = std::fs::rename(path, &bak);
                 // Persist defaults in the file's place so a crash now still
                 // leaves a valid settings file instead of none.
@@ -188,12 +185,16 @@ impl Settings {
         }
     }
 
-    /// Atomically write settings: write to .tmp then rename over live file.
+    /// Atomically write settings: write to .tmp then rename over live file. A
+    /// failed rename removes the .tmp, so the config dir keeps no debris.
     pub fn save(&self, path: &Path) -> Result<()> {
         let json = serde_json::to_string_pretty(self)?;
         let tmp = path.with_extension("tmp");
         std::fs::write(&tmp, &json)?;
-        std::fs::rename(&tmp, path)?;
+        if let Err(e) = std::fs::rename(&tmp, path) {
+            let _ = std::fs::remove_file(&tmp);
+            return Err(e.into());
+        }
         Ok(())
     }
 }
@@ -260,9 +261,9 @@ mod tests {
         assert!((s.accent_value - 0.95).abs() < f64::EPSILON);
     }
 
-    /// A corrupt settings file is moved to a `.bak.*` backup (uniquely named,
-    /// so a second corruption in the same second never overwrites it) and
-    /// defaults are persisted in its place.
+    /// A corrupt settings file is moved to `settings.json.bak` and defaults are
+    /// persisted in its place. A second corruption overwrites that one backup,
+    /// so the config dir cannot fill with stale copies.
     #[test]
     fn corrupt_settings_are_backed_up_and_defaults_persisted() {
         let dir =
@@ -275,13 +276,20 @@ mod tests {
         assert_eq!(s.hotkey, "Ctrl+Alt+Q");
 
         // The corrupt file was moved aside, and defaults written back.
+        assert!(dir.join("cliptoo.json.bak").is_file());
+
+        // Corrupting the (now valid) file again replaces the backup rather than
+        // adding another one.
+        std::fs::write(&path, "{ still not json ").unwrap();
+        let _ = Settings::load(&path);
+
         let backups: Vec<String> = std::fs::read_dir(&dir)
             .unwrap()
             .filter_map(|e| e.ok())
             .map(|e| e.file_name().to_string_lossy().to_string())
-            .filter(|n| n.starts_with("cliptoo.json.bak."))
+            .filter(|n| n.contains(".bak"))
             .collect();
-        assert_eq!(backups.len(), 1);
+        assert_eq!(backups, ["cliptoo.json.bak"]);
 
         let persisted = Settings::load(&path);
         assert_eq!(persisted.hotkey, "Ctrl+Alt+Q");
