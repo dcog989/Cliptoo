@@ -56,25 +56,25 @@ Cocogitto is an external binary (`cargo install cocogitto` / `pacman -S cocogitt
 
 ### Code Changes
 
+- For non-trivial work, propose an approach and confirm before implementing.
 - Keep modifications minimal and scoped; prefer incremental improvements over rewrites. Ask before architectural changes.
 - Use explicit types and named constants (no magic numbers).
 - Return explicit error types; do not suppress exceptions.
 - Follow standard repository linting and formatting configs.
 - Decompose files over 400 lines if they mix concerns.
-- Self-documenting code via clear naming. Use comments only for complex workarounds or issues that need noting — why, not what.
+- Use clear naming over comments; reserve comments for complex workarounds or non-obvious issues — why, not what.
 - Never run git mutations (commit, push, reset, rebase, amend) unless explicitly instructed.
 - Do not create documentation files unless explicitly requested.
 
 ### Verification
 
-- Do not run test, lint, clippy, biome, format, or type-check commands. The user builds, tests, and lints manually.
-- Exception to above: run them for major refactors, or when the user explicitly asks.
+- Do not run test, lint, format, or type-check commands; the user builds, tests, and lints manually.
+- Run them only when the user explicitly asks.
 
-### Dev Environment
+### Author Environment
 
 - CachyOS, KDE Plasma 6, Wayland, Btrfs.
 - fish shell, Ghostty terminal, Fresh TUI editor, yay package manager, bun npm manager, Firefox, and Zed code editor.
-- All software is up to date as of today.
 
 ### Testing
 
@@ -84,7 +84,8 @@ Cocogitto is an external binary (`cargo install cocogitto` / `pacman -S cocogitt
 
 - Logic fully implemented.
 - Existing docs updated if public interfaces changed.
-- On completion of an update or fix, print a concise conventional commit message in a fenced code block.
+- When required by the `Verification` rules, run the corresponding `Workflow` command.
+- On completion of an update or fix, print a conventional commit message in a fenced code block. Add a body only when the "why" isn't obvious. Do not wrap lines.
 
 ### Communication Style
 
@@ -96,4 +97,3 @@ Cocogitto is an external binary (`cargo install cocogitto` / `pacman -S cocogitt
 - Never editorialise your answer. No "to be honest", "honestly", hedging, disclaimers, or meta-commentary — just answer.
 - Never end with "want me to…?" or a list of options unless a real decision is needed. If nothing is needed, end.
 - When asked "is there an issue?", answer "No." or state the issue. Do not explain the mechanism unless asked.
-- Commit message block: one line, no commentary around it. Add a body only when the "why" isn't obvious. Do not wrap lines.
