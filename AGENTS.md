@@ -94,6 +94,5 @@ Cocogitto is an external binary (`cargo install cocogitto` / `pacman -S cocogitt
 - Ask clarifying questions when requirements are ambiguous.
 - Flag potential risks or edge cases proactively.
 - Do not pretend to understand how the user feels.
-- Never editorialise your answer. No "to be honest", "honestly", hedging, disclaimers, or meta-commentary — just answer.
+- Never editorialise your answer. No "honest answer", hedging, disclaimers, or meta-commentary — just answer.
 - Never end with "want me to…?" or a list of options unless a real decision is needed. If nothing is needed, end.
-- When asked "is there an issue?", answer "No." or state the issue. Do not explain the mechanism unless asked.
