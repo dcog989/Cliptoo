@@ -3,6 +3,22 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v2.21.0 - 2026-10-15
+
+#### Features
+
+- (c978e06) show dimmed logo + "No Results" overlay when the clip list is empty - dcog989
+
+#### Bug Fixes
+
+- (f7bf29b) build the uinput keyboard at startup so the first paste isn't dropped - dcog989
+
+- (d2f505d) drop unused OpenOptionsExt import in temp - dcog989
+
+- (3dc3743) stage temp files under $XDG_RUNTIME_DIR and stop settings debris - dcog989
+
+- - -
+
 ## v2.20.0 - 2026-10-12
 
 #### Features

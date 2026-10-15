@@ -832,7 +832,7 @@ dependencies = [
 
 [[package]]
 name = "cliptoo"
-version = "2.20.0"
+version = "2.21.0"
 dependencies = [
  "anyhow",
  "ashpd",
@@ -866,7 +866,7 @@ dependencies = [
 
 [[package]]
 name = "cliptoo-core"
-version = "2.20.0"
+version = "2.21.0"
 dependencies = [
  "anyhow",
  "chrono",
