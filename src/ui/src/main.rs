@@ -47,6 +47,11 @@ async fn main() -> Result<()> {
 
     info!("Cliptoo starting");
 
+    // Build the Ctrl+V virtual keyboard now rather than on the first paste:
+    // evdev drops events for a device the compositor has not opened yet, which
+    // made the first paste of a session fail silently. See paste.rs.
+    paste::init_virtual_keyboard();
+
     if settings.start_with_system {
         if let Err(e) = autostart::ensure_autostart() {
             tracing::warn!("autostart: failed to create desktop file: {e}");

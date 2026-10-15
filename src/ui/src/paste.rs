@@ -204,12 +204,32 @@ const KEY_STRESS_DELAY: Duration = Duration::from_millis(10);
 const PRESSED: i32 = 1;
 const RELEASED: i32 = 0;
 
-/// Lazily-created, persistent uinput device — built once on the first paste
-/// and reused for every subsequent one. Previously a new `VirtualDevice` was
-/// created and destroyed on every paste, paying the 50ms compositor hotplug
-/// settle delay each time and causing KWin to see an input device appear and
-/// disappear on every single paste.
+/// Persistent uinput device, built once at startup and reused for every paste.
+/// Previously a new `VirtualDevice` was created and destroyed on every paste,
+/// paying the 50ms compositor hotplug settle delay each time and causing KWin
+/// to see an input device appear and disappear on every single paste.
 static VIRTUAL_KEYBOARD: Mutex<Option<VirtualDevice>> = Mutex::new(None);
+
+/// Build the virtual keyboard before the first paste.
+///
+/// evdev buffers a device's events only for clients that already have the node
+/// open, so a keyboard built inside the first paste races the compositor: until
+/// libinput has opened the new node (udev settle plus the compositor's own
+/// adoption, both of which lag under load) the injected Ctrl+V is dropped and
+/// that paste fails silently — the next one succeeds, on the now-warm device.
+/// Building it at startup leaves it adopted long before any paste can happen.
+/// Failure is non-fatal: the paste path still builds it on demand.
+pub fn init_virtual_keyboard() {
+    let mut guard = VIRTUAL_KEYBOARD
+        .lock()
+        .expect("virtual keyboard mutex poisoned");
+    if guard.is_none() {
+        match create_virtual_keyboard() {
+            Ok(device) => *guard = Some(device),
+            Err(e) => tracing::warn!("uinput keyboard not ready ({e:#}); retrying on first paste"),
+        }
+    }
+}
 
 fn create_virtual_keyboard() -> Result<VirtualDevice> {
     let device = VirtualDevice::builder()
@@ -225,8 +245,8 @@ fn create_virtual_keyboard() -> Result<VirtualDevice> {
         .context("create uinput keyboard device")?;
 
     // Let the compositor hotplug the new input device before emitting, so the
-    // first keystroke is not dropped during device setup. Paid once, at
-    // first-paste time, since the device is now created lazily and reused.
+    // first keystroke is not dropped during device setup. Paid once, when the
+    // device is built (at startup), since it is then reused for every paste.
     std::thread::sleep(VIRTUAL_DEVICE_SETTLE);
 
     Ok(device)
