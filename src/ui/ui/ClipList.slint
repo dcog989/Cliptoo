@@ -119,6 +119,30 @@ export component ClipList {
         }
     }
 
+    // Empty state (no clips, or a search/filter that matched nothing): dimmed
+    // logo and label centred over the otherwise blank list area.
+    if root.clips.length == 0: VerticalLayout {
+        width: 100%;
+        height: 100%;
+        alignment: center;
+        cross-axis-alignment: center;
+        spacing: 16px;
+        opacity: 0.35;
+
+        Image {
+            source: @image-url("../assets/cliptoo.svg");
+            width: 96px;
+            height: 96px;
+        }
+
+        Text {
+            text: "No Results";
+            color: Theme.fg-primary;
+            font-size: 32px;
+            horizontal-alignment: center;
+        }
+    }
+
     scrollbar := ScrollBar {
         x: root.width - root.scrollbar-width;
         y: 0px;
