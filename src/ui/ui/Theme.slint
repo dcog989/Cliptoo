@@ -77,6 +77,10 @@ export global Theme {
     // error/warn fill (>= Lc 53). The same-hue red/amber used before sat at
     // Lc ~10 — unreadable.
     in property <color> error-fg:       #ffffff;
+    // Border for a destructive row's hover fill. White in dark mode so the
+    // filled row reads as a distinct shape; a darker red on light surfaces.
+    // Set per mode in `theme::fill_theme` (this default is the dark value).
+    in property <color> error-border:   #ffffff;
     in property <color> warn-base:      #e67e22;  // amber fill (warning toasts)
     in property <color> warn-fg:        #ffffff;
     in property <color> link-fg:        #4C9EFF;  // link blue, readable on any background

@@ -32,8 +32,15 @@ export component MenuRow {
         visible: !root.is-separator;
         border-radius: 5px;
         border-width: 1px;
-        border-color: touch.has-hover || touch.pressed ? Theme.accent-primary : transparent;
-        background: touch.pressed ? Theme.bg-row-selected : touch.has-hover ? Theme.bg-row-hover : transparent;
+        // A destructive row (Delete) swaps the accent hover for a red fill,
+        // a darker red border and white content.
+        property <bool> danger-hot: root.is-danger && (touch.has-hover || touch.pressed);
+        border-color: touch.has-hover || touch.pressed
+            ? (root.is-danger ? Theme.error-border : Theme.accent-primary)
+            : transparent;
+        background: danger-hot
+            ? Theme.error-base
+            : touch.pressed ? Theme.bg-row-selected : touch.has-hover ? Theme.bg-row-hover : transparent;
 
         HorizontalLayout {
             padding-left: 12px;
@@ -46,12 +53,16 @@ export component MenuRow {
                 width: 16px;
                 height: 16px;
                 source: root.icon;
-                colorize: root.is-danger ? Theme.fg-danger : Theme.fg-secondary;
+                colorize: root.is-danger
+                    ? (content.danger-hot ? Theme.error-fg : Theme.fg-danger)
+                    : Theme.fg-secondary;
             }
 
             Text {
                 text: root.label;
-                color: root.is-danger ? Theme.fg-danger : Theme.fg-primary;
+                color: root.is-danger
+                    ? (content.danger-hot ? Theme.error-fg : Theme.fg-danger)
+                    : Theme.fg-primary;
                 font-size: Theme.font-size;
                 vertical-alignment: center;
                 horizontal-stretch: root.has-arrow ? 1 : 0;
