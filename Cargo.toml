@@ -51,7 +51,11 @@ wayland-protocols = { version = "0.32", features = ["client", "staging"] }
 wayland-protocols-wlr = { version = "0.3", features = ["client"] }
 which = "8"
 wl-clipboard-rs = "0.9"
-zbus = { version = "6", default-features = false, features = ["tokio"] }
+# Pinned to 5: ashpd (latest 0.13.13) still depends on zbus 5, and
+# hotkeys.rs shares one Connection with `GlobalShortcuts::with_connection`
+# (the portal Register call must be the first call on that connection), so a
+# second zbus major in the graph cannot compile. Bump both together.
+zbus = { version = "5", default-features = false, features = ["tokio"] }
 
 [profile.dev]
 debug = "limited"
