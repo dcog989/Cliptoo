@@ -110,7 +110,7 @@ export component SettingsPage inherits ScrollView {
 
         ToggleRow {
             label: @tr("Paste as plain text");
-            tooltip-text: @tr("Strip formatting when pasting text from Cliptoo");
+            tooltip-text: @tr("Strip formatting when pasting text, and paste file paths as text instead of attaching the file");
             value <=> root.s-paste-as-plain-text;
             committed(v) => {
                 root.setting-changed("paste_as_plain_text", v ? "true" : "false");

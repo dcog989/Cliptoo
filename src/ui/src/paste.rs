@@ -92,8 +92,12 @@ pub fn register_suppression(suppression: &PasteSuppressionSet, content: &str, cl
 }
 
 /// Write a clip's payload to the regular Wayland clipboard without pasting it.
-/// `offer_rich` controls whether an RTF/HTML clip advertises the raw `text/rtf`
-/// or `text/html` MIME type in addition to the stripped `text/plain` fallback.
+/// `offer_rich` controls whether a rich or file clip advertises its non-text
+/// rendition in addition to the `text/plain` fallback: the raw `text/rtf` /
+/// `text/html` for an RTF/HTML clip, or `text/uri-list` for a file clip. When
+/// false only `text/plain` is offered, so the clip pastes as text — a file clip
+/// pastes its path instead of being turned into a file attachment by targets
+/// that prefer `text/uri-list` (e.g. opencode, Zed).
 pub async fn write_content_to_clipboard(
     content: &str,
     clip_type: &str,
@@ -129,14 +133,16 @@ pub async fn write_content_to_clipboard(
     tokio::task::spawn_blocking(move || -> Result<()> {
         let mut opts = Options::new();
         opts.clipboard(ClipboardType::Regular).seat(Seat::All);
-        if is_file_clip {
+        if is_file_clip && offer_rich {
             // File write: the decoded paths as text/plain plus a text/uri-list
-            // rendition. The plain-text source is listed first on purpose:
-            // wl-clipboard-rs uses the first text/* source to populate the
-            // generic text aliases (text/plain;charset=utf-8, UTF8_STRING, …).
-            // With the uri-list first, those aliases carry `file://` URLs, and
-            // apps that request the modern text/plain;charset=utf-8 type (e.g.
-            // Zed) get a URI instead of the path.
+            // rendition. A plain paste (`offer_rich == false`) takes the
+            // single-source branch below instead, offering the path as text
+            // only. Plain text is listed first on purpose: wl-clipboard-rs uses
+            // the first text/* source to populate the generic text aliases
+            // (text/plain;charset=utf-8, UTF8_STRING, …). With the uri-list
+            // first, those aliases carry `file://` URLs, and apps that request
+            // the modern text/plain;charset=utf-8 type (e.g. Zed) get a URI
+            // instead of the path.
             let uri_list = build_uri_list(&data);
             opts.copy_multi(vec![
                 MimeSource {

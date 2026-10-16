@@ -31,9 +31,12 @@ export component ContextMenu {
 
     // True when the clip type supports text transformations.
     property <bool> is-text-type: ClipTypeMap.is-text-type(root.clip-type);
-    // True for rich-text (RTF/HTML) clips — the only types where choosing
-    // between a rich and a plain paste is meaningful.
+    // True for rich-text (RTF/HTML) clips, which can paste either as raw markup
+    // or as stripped plain text.
     property <bool> is-rich-type: root.clip-type == "rtf" || root.clip-type == "html";
+    // True for clips with a non-text paste rendition: a rich paste for RTF/HTML
+    // markup, or a file paste (`text/uri-list`) for on-disk file/folder clips.
+    property <bool> has-paste-plain: root.is-rich-type || ClipTypeMap.is-file-type(root.clip-type);
 
     // Intrinsic content size, used by ContextMenuHost to size the popup. The
     // height is computed from the fixed row/separator counts because Slint
@@ -44,13 +47,15 @@ export component ContextMenu {
 
     pure function main-menu-height() -> length {
         // Preview, Edit, Delete, 4×Move, Bookmark = 8 rows, plus the
-        // conditional Format (text) and Paste Rich/Plain (rich) rows.
-        // Separators: the two unconditional, plus one for the rich block.
+        // conditional Format (text), Paste Rich (rich) and Paste Plain
+        // (rich or file) rows.
+        // Separators: the two unconditional, plus one for the paste block.
         let rows = 8
             + (root.is-text-type ? 1 : 0)
-            + (root.is-rich-type ? 2 : 0);
+            + (root.is-rich-type ? 1 : 0)
+            + (root.has-paste-plain ? 1 : 0);
         let seps = 2
-            + (root.is-rich-type ? 1 : 0);
+            + (root.has-paste-plain ? 1 : 0);
         return rows * 32px + seps * 9px + 8px;
     }
 
@@ -85,7 +90,7 @@ export component ContextMenu {
                 }
             }
 
-            if root.is-rich-type: MenuRow {
+            if root.has-paste-plain: MenuRow {
                 is-separator: true;
             }
             if root.is-rich-type: MenuRow {
@@ -95,7 +100,7 @@ export component ContextMenu {
                     root.paste-as("rich");
                 }
             }
-            if root.is-rich-type: MenuRow {
+            if root.has-paste-plain: MenuRow {
                 label: @tr("Paste as Plain Text");
                 icon: @image-url("icons/text.svg");
                 clicked => {

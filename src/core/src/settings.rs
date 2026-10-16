@@ -61,6 +61,8 @@ pub struct Settings {
     // Behaviour
     pub hover_preview_delay: u32,
     pub hover_image_preview_size: u32,
+    // When true, rich clips paste as stripped text and file clips paste as
+    // their path text instead of offering `text/rtf`/`text/html`/`text/uri-list`.
     pub paste_as_plain_text: bool,
     // When true, pasting a clip bumps it to the top of the list.
     #[serde(default = "default_paste_moves_clip_to_top")]

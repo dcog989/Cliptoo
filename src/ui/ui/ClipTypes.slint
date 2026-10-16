@@ -69,6 +69,23 @@ export global ClipTypeMap {
             || key == "link";
     }
 
+    // True when `key` references an on-disk file/folder (ingested from a file
+    // copy's text/uri-list). Mirrors `ClipType::is_file_clip()`; file_path is
+    // excluded because a path copied as text already pastes as text.
+    public pure function is-file-type(key: string) -> bool {
+        return key == "file_image"
+            || key == "file_video"
+            || key == "file_audio"
+            || key == "file_archive"
+            || key == "file_document"
+            || key == "file_dev"
+            || key == "file_danger"
+            || key == "file_data"
+            || key == "file_text"
+            || key == "file_generic"
+            || key == "folder";
+    }
+
     // True when `key` has its own colour. Every clip type does except plain
     // text; "all"/"bookmarked" are non-type filter keys that keep the caller's
     // own base colour (filter grid icons fall back instead of the list colour).

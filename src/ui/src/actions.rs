@@ -507,8 +507,10 @@ pub fn setup_clip_actions(
     }
 
     // ── Paste as rich/plain (per-clip override from the context menu) ─────
-    // Only RTF clips expose this pair; the choice bypasses the global
-    // "paste as plain text" toggle for this one paste.
+    // RTF/HTML clips expose the rich/plain pair; file clips expose only
+    // "plain", which pastes the path as text instead of offering
+    // `text/uri-list`. The choice bypasses the global "paste as plain text"
+    // toggle for this one paste.
     {
         let pas_db = db.clone();
         let pas_ui = ui.as_weak();
