@@ -152,9 +152,6 @@ pub fn fill_theme(
         t.set_fg_warning(Color::from_rgb_u8(0xF3, 0x9C, 0x12));
         t.set_fg_bookmarked(Color::from_rgb_u8(0xE5, 0xB5, 0x67));
         t.set_border_subtle(Color::from_rgb_u8(0x44, 0x44, 0x44));
-        // White, so a filled destructive hover stands out against the dark
-        // red `error-base` fill.
-        t.set_error_border(Color::from_rgb_u8(0xFF, 0xFF, 0xFF));
         t.set_shadow(Color::from_argb_u8(SHADOW_ALPHA, 0x00, 0x00, 0x00));
     } else {
         t.set_bg_primary(Color::from_rgb_u8(bg_r, bg_g, bg_b));
@@ -175,9 +172,6 @@ pub fn fill_theme(
         t.set_fg_warning(Color::from_rgb_u8(0xE6, 0x7E, 0x22));
         t.set_fg_bookmarked(Color::from_rgb_u8(0xB8, 0x86, 0x0B));
         t.set_border_subtle(Color::from_rgb_u8(0xD0, 0xD0, 0xD0));
-        // A darker red than `error-base`: white would vanish on the light
-        // red fill's edge here.
-        t.set_error_border(Color::from_rgb_u8(0x90, 0x2B, 0x20));
         t.set_shadow(Color::from_argb_u8(SHADOW_ALPHA, 0x00, 0x00, 0x00));
     }
 

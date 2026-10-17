@@ -77,14 +77,17 @@ export global Theme {
     // error/warn fill (>= Lc 53). The same-hue red/amber used before sat at
     // Lc ~10 — unreadable.
     in property <color> error-fg:       #ffffff;
-    // Border for a destructive row's hover fill. White in dark mode so the
-    // filled row reads as a distinct shape; a darker red on light surfaces.
-    // Set per mode in `theme::fill_theme` (this default is the dark value).
-    in property <color> error-border:   #ffffff;
     in property <color> warn-base:      #e67e22;  // amber fill (warning toasts)
     in property <color> warn-fg:        #ffffff;
     in property <color> link-fg:        #4C9EFF;  // link blue, readable on any background
     in property <color> bg-track:       #555555;  // slider track / toggle-off background
+
+    // Destructive menu row (Delete): red label at rest; on hover/press a red
+    // fill with a pale outline and pale content. Fixed in both theme modes.
+    in property <color> danger-row-fg:          #e24b39;
+    in property <color> danger-row-active-bg:   #9c2a1e;
+    // Shared by the hover fill's border and its content.
+    in property <color> danger-row-active-fg:   #fdd9d3;
 
     // ── Typography ────────────────────────────────────────────────────────────
     in property <string> font-family:      "Inter";
