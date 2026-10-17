@@ -10,6 +10,13 @@ on:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
+  # mold links the Slint/Qt binary several times faster than GNU ld. Both clang
+  # and mold are required for any source build; only the final Rust link is
+  # affected, since the `cc` crate keeps its own compiler for the Qt/C++ shims.
+  # Set here instead of in a committed .cargo/config.toml so that the flags are
+  # defined in exactly one place per build.
+  CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER: clang
+  CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS: -C link-arg=-fuse-ld=mold
 
 permissions:
   contents: read

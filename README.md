@@ -140,7 +140,9 @@ make install
 
 - **Rust toolchain** (stable): `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
 - **Qt 6, Wayland and dav1d dev headers, plus the `clang` and `mold` linkers**
-  (the committed `.cargo/config.toml` links with `clang -fuse-ld=mold`):
+  (CI installs them and selects them with `CARGO_TARGET_*` env vars; for local
+  builds put `linker = "clang"` and `rustflags = ["-C", "link-arg=-fuse-ld=mold"]`
+  under `[target.x86_64-unknown-linux-gnu]` in `~/.cargo/config.toml`):
 
 | Distro       | Command                                                                     |
 |--------------|-----------------------------------------------------------------------------|

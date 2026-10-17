@@ -1,7 +1,0 @@
-# mold links the Slint/Qt binary several times faster than GNU ld.
-# Both clang and mold are required for any source build; CI installs them.
-# Only the final Rust link is affected; the `cc` crate keeps its own compiler
-# for the Qt/C++ shims.
-[target.x86_64-unknown-linux-gnu]
-linker = "clang"
-rustflags = ["-C", "link-arg=-fuse-ld=mold"]
