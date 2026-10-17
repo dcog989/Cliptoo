@@ -144,9 +144,10 @@ impl ContentProcessor {
     /// True when `s` looks like an HTML fragment/document. Document-level
     /// markers (`<?xml` prologues, doctypes, comments such as Chrome's
     /// `<!--StartFragment-->`, `<html>`/`<head>`/`<body>`) match directly;
-    /// otherwise a matching open+close tag pair is required so plain text with
-    /// a stray `<` (e.g. "2 < 3", "<not a tag>") never counts. A leading BOM is
-    /// tolerated, matching `is_rtf`.
+    /// otherwise the content must *open* with a tag and carry a matching
+    /// open+close pair, so plain text with a stray `<` (e.g. "2 < 3",
+    /// "<not a tag>") never counts. A leading BOM is tolerated, matching
+    /// `is_rtf`.
     fn is_html(s: &str) -> bool {
         let body = s.strip_prefix('\u{feff}').unwrap_or(s).trim_start();
         // SVG is markup-shaped but not HTML. Left to the HTML branch, it would
@@ -162,6 +163,13 @@ impl ContentProcessor {
             || body.starts_with("<!--")
         {
             return true;
+        }
+        // A real HTML rendition always opens with a tag (`<div>`, `<span>`,
+        // `<meta …>`, `<!--StartFragment-->`). Plain text that merely *contains*
+        // tag pairs — markdown, prose quoting tags, pasted HTML source — must
+        // stay text; the tag scan below would otherwise claim it.
+        if !body.starts_with('<') {
+            return false;
         }
         let bytes = body.as_bytes();
         let opens = bytes
@@ -476,6 +484,17 @@ mod tests {
             let c = ContentProcessor::process(s, false).unwrap();
             assert_eq!(c.clip_type, ClipType::Html, "for {s}");
         }
+    }
+
+    #[test]
+    fn text_containing_tag_pairs_is_not_html() {
+        // Markdown/prose that merely *quotes* HTML tags (a pasted bug report
+        // with a fenced HTML snippet) is not an HTML rendition: only content
+        // that opens with a tag is markup.
+        let md = "## Report\n\n```html\n<!doctype html>\n<html><head><style>body{}</style></head></html>\n```\n\n<div>still prose</div>";
+        let c = ContentProcessor::process(md, false).unwrap();
+        assert_eq!(c.clip_type, ClipType::Text);
+        assert_eq!(c.content, md);
     }
 
     #[test]
