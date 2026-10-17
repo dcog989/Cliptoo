@@ -39,7 +39,6 @@ export global Theme {
     in property <color> fg-secondary:      #A1A1A1;
     in property <color> fg-clip-list:      #B4B4B4;
     in property <color> fg-muted:          #636363;
-    in property <color> fg-danger:         #E74C3C;
     in property <color> fg-success:        #2ECC71;
     in property <color> fg-warning:        #F39C12;
     in property <color> fg-bookmarked:     #E5B567;
@@ -72,22 +71,18 @@ export global Theme {
     in property <color> shadow:            #00000030;
 
     // ── Status & control colors (static, not accent-derived) ───────────────
-    in property <color> error-base:     #c0392b;  // deep red fill (destructive buttons)
-    // Text on a status fill: white, which APCA picks over black for every
-    // error/warn fill (>= Lc 53). The same-hue red/amber used before sat at
-    // Lc ~10 — unreadable.
-    in property <color> error-fg:       #ffffff;
     in property <color> warn-base:      #e67e22;  // amber fill (warning toasts)
+    // White is the APCA pick over black for every warn fill (>= Lc 53).
     in property <color> warn-fg:        #ffffff;
     in property <color> link-fg:        #4C9EFF;  // link blue, readable on any background
     in property <color> bg-track:       #555555;  // slider track / toggle-off background
 
-    // Destructive menu row (Delete): red label at rest; on hover/press a red
-    // fill with a pale outline and pale content. Fixed in both theme modes.
-    in property <color> danger-row-fg:          #e24b39;
-    in property <color> danger-row-active-bg:   #9c2a1e;
-    // Shared by the hover fill's border and its content.
-    in property <color> danger-row-active-fg:   #fdd9d3;
+    // Destructive/error palette, identical in both theme modes and never mixed
+    // with the page background. Every danger element uses these three: the
+    // Delete menu row, destructive buttons, and the error toast.
+    in property <color> danger-fg:      #e24b39;  // red foreground / accent
+    in property <color> danger-bg:      #9c2a1e;  // filled destructive surface
+    in property <color> danger-on-bg:   #fdd9d3;  // content on a danger fill
 
     // ── Typography ────────────────────────────────────────────────────────────
     in property <string> font-family:      "Inter";

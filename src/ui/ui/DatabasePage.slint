@@ -104,10 +104,10 @@ export component DatabasePage inherits ScrollView {
                 col: Math.mod(idx, 4);
                 height: 30px;
                 border-radius: 6px;
-                background: action.key == "clear-history" ? Theme.error-base.mix(Theme.bg-primary, 0.15) : Theme.bg-input;
+                background: action.key == "clear-history" ? Theme.danger-bg : Theme.bg-input;
                 Text {
                     text: action.label;
-                    color: action.key == "clear-history" ? Theme.error-fg : Theme.fg-primary;
+                    color: action.key == "clear-history" ? Theme.danger-on-bg : Theme.fg-primary;
                     horizontal-alignment: center;
                     vertical-alignment: center;
                     font-size: Theme.font-size;

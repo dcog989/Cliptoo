@@ -36,10 +36,10 @@ export component MenuRow {
         // a pale outline and pale content.
         property <bool> danger-hot: root.is-danger && (touch.has-hover || touch.pressed);
         border-color: touch.has-hover || touch.pressed
-            ? (root.is-danger ? Theme.danger-row-active-fg : Theme.accent-primary)
+            ? (root.is-danger ? Theme.danger-on-bg : Theme.accent-primary)
             : transparent;
         background: danger-hot
-            ? Theme.danger-row-active-bg
+            ? Theme.danger-bg
             : touch.pressed ? Theme.bg-row-selected : touch.has-hover ? Theme.bg-row-hover : transparent;
 
         HorizontalLayout {
@@ -54,14 +54,14 @@ export component MenuRow {
                 height: 16px;
                 source: root.icon;
                 colorize: root.is-danger
-                    ? (content.danger-hot ? Theme.danger-row-active-fg : Theme.danger-row-fg)
+                    ? (content.danger-hot ? Theme.danger-on-bg : Theme.danger-fg)
                     : Theme.fg-secondary;
             }
 
             Text {
                 text: root.label;
                 color: root.is-danger
-                    ? (content.danger-hot ? Theme.danger-row-active-fg : Theme.danger-row-fg)
+                    ? (content.danger-hot ? Theme.danger-on-bg : Theme.danger-fg)
                     : Theme.fg-primary;
                 font-size: Theme.font-size;
                 vertical-alignment: center;
