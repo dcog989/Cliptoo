@@ -66,11 +66,6 @@ Cocogitto is an external binary (`cargo install cocogitto` / `pacman -S cocogitt
 - Never run git mutations (commit, push, reset, rebase, amend) unless explicitly instructed.
 - Do not create documentation files unless explicitly requested.
 
-### Verification
-
-- Do not run test, lint, format, or type-check commands; the user builds, tests, and lints manually.
-- Run them only when the user explicitly asks.
-
 ### Author Environment
 
 - CachyOS, KDE Plasma 6, Wayland, Btrfs.
@@ -85,14 +80,16 @@ Cocogitto is an external binary (`cargo install cocogitto` / `pacman -S cocogitt
 - Logic fully implemented.
 - Existing docs updated if public interfaces changed.
 - When required by the `Verification` rules, run the corresponding `Workflow` command.
-- On completion of an update or fix, print a conventional commit message in a fenced code block. Add a body only when the "why" isn't obvious. Do not wrap lines.
+
+### Commit Messages
+
+- On completion of an update or fix, print a conventional commit message in a fenced code block.
+- Add a body only when the "why" isn't obvious.
+- Do not wrap lines. One physical line per paragraph however long it gets. Never hard-wrap the subject or the body.
 
 ### Communication Style
 
-- Provide concise, actionable responses.
-- Answer in the fewest words that fully answer. No preamble, no restating the request, no summary of what you just did, no tables unless asked for.
-- Ask clarifying questions when requirements are ambiguous.
-- Flag potential risks or edge cases proactively.
-- Do not pretend to understand how the user feels.
-- Never editorialise your answer. No "honest answer", hedging, disclaimers, or meta-commentary — just answer.
-- Never end with "want me to…?" or a list of options unless a real decision is needed. If nothing is needed, end.
+- Fixes and instructions: numbered steps, one action each, exact command/path/code. No prose paragraphs or recap.
+- Questions and explanations: direct prose, only the reasoning needed. No tables unless asked.
+- No preamble, restating, hedging, disclaimers, meta-commentary, emotional framing, or closing offers; end when done unless a real decision is needed.
+- Ask when requirements are ambiguous; put risks and edge cases in one final line.
