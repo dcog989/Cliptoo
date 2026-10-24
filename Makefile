@@ -2,7 +2,10 @@ BINARY  := target/release/cliptoo
 DESKTOP := packaging/cliptoo.desktop
 PKGDIR  := .pkg
 
-.PHONY: all build package install uninstall clean
+VERSION := $(shell sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml)
+PO      := src/ui/lang/en/LC_MESSAGES/cliptoo.po
+
+.PHONY: all build package install uninstall clean translations
 
 all: build
 
@@ -29,3 +32,12 @@ uninstall:
 
 clean:
 	cargo clean -p cliptoo
+
+# Refresh $(PO) from the @tr() calls. msgctxt must be the enclosing
+# component/global name: that is the key Slint looks up, and a stale one
+# silently falls back to English. -j keeps existing msgstr and needs the file
+# to exist, so deleting the catalog first gives a clean sweep of dead entries.
+translations:
+	command -v slint-tr-extractor >/dev/null || cargo install slint-tr-extractor
+	slint-tr-extractor $(if $(wildcard $(PO)),-j,) -d cliptoo --package-name cliptoo \
+		--package-version $(VERSION) -o $(PO) src/ui/ui/*.slint
