@@ -3,6 +3,28 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v2.22.0 - 2026-10-24
+
+#### Features
+
+- (ee7b83c) colour the About tagline with the logo gold - dcog989
+
+- (865d66e) use one fixed danger palette across destructive elements - dcog989
+
+- (81a122f) tune the destructive context-menu row palette - dcog989
+
+- (27cad5b) destructive context-menu row hovers as a red fill with white content - dcog989
+
+- (5dd89cf) add a separator above Delete in the clip context menu - dcog989
+
+#### Bug Fixes
+
+- (a2c46f9) require a leading tag before classifying content as HTML - dcog989
+
+- (4982318) let a plain-text paste flatten file clips too - dcog989
+
+- - -
+
 ## v2.21.0 - 2026-10-15
 
 #### Features
