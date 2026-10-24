@@ -528,8 +528,8 @@ msgstr "Max clips"
 
 #: src/ui/ui/SettingsWindow.slint:456
 msgctxt "SettingsWindow"
-msgid "Maximum number of clips kept in history"
-msgstr "Maximum number of clips kept in history"
+msgid "Maximum number of non-bookmarked clips kept in history"
+msgstr "Maximum number of non-bookmarked clips kept in history"
 
 #: src/ui/ui/SettingsWindow.slint:467
 msgctxt "SettingsWindow"

@@ -35,7 +35,7 @@ export component DatabasePage inherits ScrollView {
 
         IntRow {
             label: @tr("Max clips");
-            tooltip-text: @tr("Maximum number of clips kept in history");
+            tooltip-text: @tr("Maximum number of non-bookmarked clips kept in history");
             value <=> root.s-max-clips;
             min-val: 100;
             max-val: 100000;
