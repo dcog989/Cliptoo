@@ -144,9 +144,14 @@ export component MainClipArea inherits Rectangle {
             // ── Text input — only handled when LineEdit is NOT focused ──
             if (!toolbar.search-focused) {
                 // ── Selection actions ──
+                if (e.modifiers.control && e.text.to-lowercase() == "a") {
+                    clip-list.select-all();
+                    return accept;
+                }
                 // Held Delete would remove one clip per repeat, so it is
                 // restricted to discrete presses.
                 if (e.text == Key.Delete && !e.repeat && root.has-selection()) {
+                    clip-list.collapse-selection();
                     root.delete-clip(root.clips[root.selected-index].id);
                     return accept;
                 }

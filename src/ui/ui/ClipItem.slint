@@ -20,7 +20,7 @@ export component ClipItem {
     in property <int> quick-paste-slots: 9;
     in property <bool> is-searching:       false;
 
-    callback activated;
+    callback activated(bool, bool);  // ctrl, shift held on the click
     callback right-clicked(float, float);
     callback hovered(float, float);  // mouse-x, mouse-y in logical px relative to this row
     callback hover-entered;  // pointer entered this row; the list moves its selection here
@@ -29,6 +29,10 @@ export component ClipItem {
     // True after the preview timer fires; reset when the cursor leaves the row.
     // Prevents the Timer from re-firing every 300 ms while the hover continues.
     property <bool> preview-triggered: false;
+
+    // Modifiers captured on mouse-down; `clicked` carries no event argument.
+    property <bool> click-ctrl: false;
+    property <bool> click-shift: false;
 
     // `changed` only accepts a bare property name, not an element property path.
     property <bool> hovering: touch.has-hover;
@@ -268,11 +272,16 @@ export component ClipItem {
         // Interaction
         touch := TouchArea {
             clicked => {
-                root.activated();
+                root.activated(root.click-ctrl, root.click-shift);
             }
             pointer-event(e) => {
-                if e.button == PointerEventButton.right && e.kind == PointerEventKind.down {
-                    root.right-clicked(self.mouse-x / 1px, self.mouse-y / 1px);
+                if e.kind == PointerEventKind.down {
+                    if e.button == PointerEventButton.right {
+                        root.right-clicked(self.mouse-x / 1px, self.mouse-y / 1px);
+                    } else if e.button == PointerEventButton.left {
+                        root.click-ctrl = e.modifiers.control;
+                        root.click-shift = e.modifiers.shift;
+                    }
                 }
             }
             mouse-cursor: pointer;

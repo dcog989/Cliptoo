@@ -3,6 +3,11 @@
 // selected-index is in-out so the key handler can mutate it directly without Rust
 // roundtrips. Rust resets it to 0 when search/filter results change.
 //
+// Multi-select (Ctrl+click, Shift+click range, Ctrl+A) is owned here: the
+// selection is the row range [sel-lo, sel-hi], minus the ids in sel-removed,
+// plus the ids in sel-added. An empty range (sel-hi < 0) means plain single
+// selection, tracked by selected-index alone.
+//
 // Keyboard navigation is driven entirely by the parent (AppWindow) via the
 // public nav-* functions below. ClipList holds no FocusScope of its own.
 
@@ -18,6 +23,14 @@ export component ClipList {
     in property <int> quick-paste-slots: 9;
     in property <bool> is-searching: false;
     in-out property <int> selected-index: 0;
+    // Multi-select state. Ids are kept as ",<id>," tokens in a string: Slint
+    // arrays can't be resized from here, and replace-all gives the per-row
+    // membership test the highlight needs.
+    private property <int> sel-anchor: -1;
+    private property <int> sel-lo: -1;
+    private property <int> sel-hi: -1;
+    private property <string> sel-added: "";
+    private property <string> sel-removed: "";
     // Window-absolute Y of the top of this list component. Set from AppWindow
     // so the hovered callback can produce a window-absolute popup-y coordinate.
     in property <float> list-offset-y: 0.0;
@@ -26,6 +39,100 @@ export component ClipList {
     callback item-right-clicked(int, float, float, bool, string);
     callback request-preview(int, float, float);  // id, x, y in logical px
     callback dismiss-preview;
+
+    // A new model (search, filter, ingest) drops the multi-selection; Rust
+    // re-points selected-index right after.
+    changed clips => {
+        root.reset-selection();
+    }
+
+    pure function id-token(id: int) -> string {
+        return ",\{id},";
+    }
+
+    pure function has-id(ids: string, id: int) -> bool {
+        return ids.replace-all(root.id-token(id), "") != ids;
+    }
+
+    pure function in-range(idx: int) -> bool {
+        return root.sel-hi >= 0 && idx >= root.sel-lo && idx <= root.sel-hi;
+    }
+
+    pure function row-selected(id: int, idx: int) -> bool {
+        return root.has-id(root.sel-added, id) || (root.in-range(idx) && !root.has-id(root.sel-removed, id));
+    }
+
+    function reset-selection() {
+        root.sel-anchor = -1;
+        root.sel-lo = -1;
+        root.sel-hi = -1;
+        root.sel-added = "";
+        root.sel-removed = "";
+    }
+
+    // Collapses the selection to one cursor row (nav, hover, plain click).
+    function set-cursor(idx: int) {
+        root.selected-index = idx;
+        root.sel-anchor = idx;
+        root.sel-lo = -1;
+        root.sel-hi = -1;
+        root.sel-added = "";
+        root.sel-removed = "";
+    }
+
+    function toggle-row(idx: int) {
+        let id = root.clips[idx].id;
+        if (root.row-selected(id, idx)) {
+            if (root.in-range(idx)) {
+                root.sel-removed += root.id-token(id);
+            } else {
+                root.sel-added = root.sel-added.replace-all(root.id-token(id), "");
+            }
+        } else if (root.in-range(idx)) {
+            root.sel-removed = root.sel-removed.replace-all(root.id-token(id), "");
+        } else {
+            root.sel-added += root.id-token(id);
+        }
+    }
+
+    public function select-all() {
+        if (root.clips.length > 0) {
+            root.sel-anchor = root.selected-index;
+            root.sel-lo = 0;
+            root.sel-hi = root.clips.length - 1;
+            root.sel-added = "";
+            root.sel-removed = "";
+        }
+    }
+
+    // Row-index endpoints go stale when rows are removed in place, so actions
+    // that mutate the list call this first.
+    public function collapse-selection() {
+        root.set-cursor(root.selected-index);
+    }
+
+    function click-row(idx: int, ctrl: bool, shift: bool) {
+        if (shift) {
+            let anchor = root.sel-anchor >= 0 ? root.sel-anchor : root.selected-index;
+            root.sel-anchor = anchor;
+            root.sel-lo = min(anchor, idx);
+            root.sel-hi = max(anchor, idx);
+            root.sel-added = "";
+            root.sel-removed = "";
+            root.selected-index = idx;
+        } else if (ctrl) {
+            if (root.sel-hi < 0) {
+                root.sel-lo = root.selected-index;
+                root.sel-hi = root.selected-index;
+            }
+            root.sel-anchor = idx;
+            root.toggle-row(idx);
+            root.selected-index = idx;
+        } else {
+            root.set-cursor(idx);
+            root.item-activated(root.clips[idx].id);
+        }
+    }
 
     public function ensure-visible() {
         let top = root.selected-index * Theme.row-height;
@@ -39,28 +146,28 @@ export component ClipList {
 
     public function nav-up() {
         if (root.clips.length > 0) {
-            root.selected-index = max(0, root.selected-index - 1);
+            root.set-cursor(max(0, root.selected-index - 1));
             root.ensure-visible();
         }
     }
 
     public function nav-down() {
         if (root.clips.length > 0) {
-            root.selected-index = min(root.clips.length - 1, root.selected-index + 1);
+            root.set-cursor(min(root.clips.length - 1, root.selected-index + 1));
             root.ensure-visible();
         }
     }
 
     public function nav-home() {
         if (root.clips.length > 0) {
-            root.selected-index = 0;
+            root.set-cursor(0);
         }
         list-view.content-y = 0px;
     }
 
     public function nav-end() {
         if (root.clips.length > 0) {
-            root.selected-index = root.clips.length - 1;
+            root.set-cursor(root.clips.length - 1);
             // Scroll so the last row's *bottom* is at the viewport bottom.
             list-view.content-y = -(root.clips.length * Theme.row-height - list-view.visible-height);
         }
@@ -68,14 +175,14 @@ export component ClipList {
 
     public function nav-page-up() {
         if (root.clips.length > 0) {
-            root.selected-index = max(0, root.selected-index - root.page-rows);
+            root.set-cursor(max(0, root.selected-index - root.page-rows));
             root.ensure-visible();
         }
     }
 
     public function nav-page-down() {
         if (root.clips.length > 0) {
-            root.selected-index = min(root.clips.length - 1, root.selected-index + root.page-rows);
+            root.set-cursor(min(root.clips.length - 1, root.selected-index + root.page-rows));
             root.ensure-visible();
         }
     }
@@ -97,15 +204,15 @@ export component ClipList {
         vertical-scrollbar-policy: ScrollBarPolicy.always-off;
         for clip[idx] in root.clips: ClipItem {
             clip-data: clip;
-            is-selected: idx == root.selected-index;
+            is-selected: root.sel-hi < 0 ? idx == root.selected-index : root.row-selected(clip.id, idx);
             row-index: idx;
             is-alt-row: mod(idx, 2) == 1;
             quick-paste-active: root.quick-paste-active;
             quick-paste-slots: root.quick-paste-slots;
             is-searching: root.is-searching;
 
-            activated => {
-                root.item-activated(clip.id);
+            activated(ctrl, shift) => {
+                root.click-row(idx, ctrl, shift);
             }
             right-clicked(x, y) => {
                 root.item-right-clicked(clip.id, x, idx * Theme.row-height / 1px + list-view.content-y / 1px + y + root.list-offset-y, clip.is-bookmarked, clip.clip-type);
@@ -113,9 +220,13 @@ export component ClipList {
             hovered(mx, my) => {
                 root.request-preview(clip.id, mx, idx * Theme.row-height / 1px + list-view.content-y / 1px + my + root.list-offset-y);
             }
-            // Hover moves the selection so only one row is highlighted, like a menu.
+            // Hover moves the single-selection cursor, like a menu. A
+            // multi-selection stays put under the pointer, and the shift-click
+            // anchor stays on the last clicked row, not the last hovered one.
             hover-entered => {
-                root.selected-index = idx;
+                if (root.sel-hi < 0) {
+                    root.selected-index = idx;
+                }
             }
             hover-exited => {
                 root.dismiss-preview();
