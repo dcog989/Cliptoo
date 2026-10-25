@@ -26,6 +26,13 @@ export component Toolbar {
     in-out property <string> search-text: "";
     callback search-changed(string);
     callback accepted();
+    // Up/Down/PageUp/PageDown pressed in the search field. TextInput consumes
+    // those keys for cursor movement, so the field forwards them to the clip
+    // list itself. Home/End stay with the caret.
+    callback search-nav-up();
+    callback search-nav-down();
+    callback search-nav-page-up();
+    callback search-nav-page-down();
     // Emitted when the search field gains or loses focus. Lets the host dismiss
     // a manually-invoked (context-menu) preview when the user clicks into
     // search — clicking the field is a blur of the clip list.
@@ -167,6 +174,23 @@ export component Toolbar {
                     }
                     accepted => {
                         root.accepted();
+                    }
+                    key-pressed(event) => {
+                        if (event.text == Key.UpArrow) {
+                            root.search-nav-up();
+                            accept
+                        } else if (event.text == Key.DownArrow) {
+                            root.search-nav-down();
+                            accept
+                        } else if (event.text == Key.PageUp) {
+                            root.search-nav-page-up();
+                            accept
+                        } else if (event.text == Key.PageDown) {
+                            root.search-nav-page-down();
+                            accept
+                        } else {
+                            reject
+                        }
                     }
                 }
 

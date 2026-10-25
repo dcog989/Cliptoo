@@ -80,7 +80,9 @@ export component MainClipArea inherits Rectangle {
                 root.quick-paste-active = true;
             }
 
-            // ── Navigation — always intercepted regardless of search state ──
+            // ── Navigation ──
+            // Reached when the clip list has focus; the search field forwards
+            // Up/Down itself because TextInput consumes them for the cursor.
             if (e.text == Key.UpArrow) {
                 clip-list.nav-up();
                 return accept;
@@ -281,6 +283,18 @@ export component MainClipArea inherits Rectangle {
                 }
                 accepted() => {
                     clip-list.activate();
+                }
+                search-nav-up() => {
+                    clip-list.nav-up();
+                }
+                search-nav-down() => {
+                    clip-list.nav-down();
+                }
+                search-nav-page-up() => {
+                    clip-list.nav-page-up();
+                }
+                search-nav-page-down() => {
+                    clip-list.nav-page-down();
                 }
                 filter-changed(f) => {
                     root.filter-changed(f);
