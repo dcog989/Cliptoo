@@ -113,6 +113,10 @@ export component ClipList {
             hovered(mx, my) => {
                 root.request-preview(clip.id, mx, idx * Theme.row-height / 1px + list-view.content-y / 1px + my + root.list-offset-y);
             }
+            // Hover moves the selection so only one row is highlighted, like a menu.
+            hover-entered => {
+                root.selected-index = idx;
+            }
             hover-exited => {
                 root.dismiss-preview();
             }

@@ -23,13 +23,22 @@ export component ClipItem {
     callback activated;
     callback right-clicked(float, float);
     callback hovered(float, float);  // mouse-x, mouse-y in logical px relative to this row
+    callback hover-entered;  // pointer entered this row; the list moves its selection here
     callback hover-exited;
 
     // True after the preview timer fires; reset when the cursor leaves the row.
     // Prevents the Timer from re-firing every 300 ms while the hover continues.
     property <bool> preview-triggered: false;
 
-    // Base body-text colour, before the hover/bookmark overrides below. When
+    // `changed` only accepts a bare property name, not an element property path.
+    property <bool> hovering: touch.has-hover;
+    changed hovering => {
+        if (root.hovering) {
+            root.hover-entered();
+        }
+    }
+
+    // Base body-text colour, before the deadhead/match overrides below. When
     // clip-type color coding is on, every type except plain text uses its type
     // colour; plain text keeps the list base colour.
     private property <color> body-color:
@@ -39,10 +48,11 @@ export component ClipItem {
 
     Rectangle {
         // Selected rows get the accent-tinted selection surface plus a dim
-        // accent border; the hover surface is too bright for at-rest icons.
+        // accent border. Hover moves the selection (see ClipList), so the
+        // pointer never adds a second highlight of its own.
         border-width: is-selected ? 1px : 0px;
         border-color: Theme.border-accent;
-        background: touch.has-hover ? Theme.bg-row-hover : is-selected ? Theme.bg-row-selected : is-alt-row ? Theme.bg-row-alt : Theme.bg-primary;
+        background: is-selected ? Theme.bg-row-selected : is-alt-row ? Theme.bg-row-alt : Theme.bg-primary;
         height: 100%;
         width: 100%;
 
@@ -120,7 +130,7 @@ export component ClipItem {
                         // Generic link icon fallback (shown when no favicon cached)
                         if clip-data.clip-type == "link" && clip-data.favicon-image.width == 0: Image {
                             source: @image-url("icons/link.svg");
-                            colorize: touch.has-hover ? Theme.fg-primary : Theme.fg-muted;
+                            colorize: Theme.fg-muted;
                             width: 100%;
                             height: 100%;
                         }
@@ -145,7 +155,7 @@ export component ClipItem {
                         // unknown/future ClipTypes degrade to the file icon there.
                         if clip-data.clip-type != "color" && clip-data.clip-type != "file_image" && clip-data.clip-type != "link" && clip-data.thumbnail-image.width == 0: Image {
                             source: ClipTypeMap.icon-for(clip-data.clip-type);
-                            colorize: touch.has-hover ? Theme.fg-primary : Theme.fg-muted;
+                            colorize: Theme.fg-muted;
                             width: 100%;
                             height: 100%;
                         }
@@ -165,7 +175,7 @@ export component ClipItem {
                     width: 18px;
                     height: 18px;
                     source: @image-url("icons/space.svg");
-                    colorize: touch.has-hover ? Theme.fg-primary : Theme.fg-muted;
+                    colorize: Theme.fg-muted;
                 }
 
                 // Plain text (not searching, or no match-context available)
@@ -179,7 +189,7 @@ export component ClipItem {
                     overflow: elide;
                     horizontal-alignment: left;
                     vertical-alignment: center;
-                    color: touch.has-hover ? Theme.fg-primary : clip-data.is-deadhead ? Theme.fg-muted : root.body-color;
+                    color: clip-data.is-deadhead ? Theme.fg-muted : root.body-color;
                     font-size: Theme.clip-list-font-size;
                 }
 
@@ -189,7 +199,7 @@ export component ClipItem {
                     width: parent.width - self.x - (clip-data.is-bookmarked ? 22px : 0px);
                     y: (parent.height / 2) - 0.5px;
                     height: 1px;
-                    background: touch.has-hover ? Theme.fg-primary : Theme.fg-muted;
+                    background: Theme.fg-muted;
                     opacity: 0.6;
                 }
 
@@ -218,7 +228,7 @@ export component ClipItem {
                             overflow: clip;
                             horizontal-alignment: left;
                             vertical-alignment: center;
-                            color: touch.has-hover ? Theme.fg-primary : span.is-highlight ? Theme.match-highlight : root.body-color;
+                            color: span.is-highlight ? Theme.match-highlight : root.body-color;
                             font-weight: span.is-highlight ? 700 : 400;
                             font-size: Theme.clip-list-font-size;
                         }
@@ -245,7 +255,7 @@ export component ClipItem {
                 opacity: clip-data.is-multiline ? 1.0 : 0.0;
                 Image {
                     source: @image-url("icons/text-wrap.svg");
-                    colorize: touch.has-hover ? Theme.fg-primary : Theme.fg-muted;
+                    colorize: Theme.fg-muted;
                     x: 4px;
                     y: (parent.height - 18px) / 2;
                     width: 18px;
