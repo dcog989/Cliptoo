@@ -92,7 +92,6 @@ pub const PRAGMA_WAL: &str = "PRAGMA journal_mode = WAL;";
 /// Per-connection and not stored in the file, so it must be set on every open
 /// (unlike `journal_mode`, which is persistent).
 pub const PRAGMA_SYNCHRONOUS_NORMAL: &str = "PRAGMA synchronous = NORMAL;";
-pub const PRAGMA_FOREIGN_KEYS: &str = "PRAGMA foreign_keys = ON;";
 /// Keeps `sqlite_stat1` current so the planner's index choices are based on the
 /// real row distribution as the history grows, instead of the defaults it
 /// assumes with no stats at all. Cheap: it only runs `ANALYZE` on tables whose
