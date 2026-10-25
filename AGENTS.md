@@ -2,26 +2,57 @@
 
 ## Project Specifics
 
-Cliptoo: native background clipboard manager for Wayland/KDE Plasma 6. Rust + SQLite (rusqlite) + Slint (Qt backend). Wayland-only (no X11 fallback); hotkeys via `org.freedesktop.portal.GlobalShortcuts`. Workspace dep versions in `Cargo.toml` — check before adding or using a crate.
+- Name: Cliptoo
+- Description: native background clipboard manager for Wayland / KDE Plasma 6.
+- Tech: Rust 2024 workspace — `cliptoo-core` (lib) + `cliptoo` (bin). SQLite/FTS5 (`rusqlite`, bundled), Slint 1.18 (Qt backend), Tokio, `wl-clipboard-rs` capture, `enigo` paste, `zbus` / `ashpd` for tray and portal hotkeys (`org.freedesktop.portal.GlobalShortcuts`).
 
 ### Key files
 
-- `src/core/` — cliptoo-core: parser, db, settings, logger
-- `src/ui/` — binary + OS integration (`main.rs`, `hotkeys.rs`)
-- `src/ui/ui/*.slint`
-- `packaging/PKGBUILD`, `lefthook.yml`, `Makefile`
+- `src/core/src/` — cliptoo-core: `content/` parser + classifier, `db/` (schema, queries, pool), `settings.rs`, `logger.rs`, `maintenance/`, `color/`, `export.rs`, `transform.rs`.
+- `src/ui/src/` — binary and OS integration: `main.rs` (wiring), `hotkeys.rs` (portal), `drag.rs` (only `unsafe`), `clipboard/`, `settings/`, `theme/`.
+- `src/ui/ui/*.slint` — windows and components; Rust types come from `build.rs` (`include_modules!`).
+- `src/ui/lang/en/LC_MESSAGES/cliptoo.po` — translations; regenerate with `make translations`.
+- `src/core/tests/` — integration tests (temp dirs, no fixtures).
+- `packaging/PKGBUILD`, `Makefile`, `lefthook.yml`, `cog.toml`, `scripts/sync_version.sh`.
 
-### Verification (critical)
+### Workflow
 
-**Never run `cargo check/clippy/test/build/fmt` or `slint-viewer` unless the user explicitly asks.** The user tests their own changes; Lefthook (fmt + `slint-lsp format -i` on staged files, biome on `website/`, pre-push `cargo test` + `clippy`) catches regressions. Reference only:
+- Install: `make install` (runs sudo; confirm first)
+- Dev: `cargo run -p cliptoo`
+- Test: `cargo test --workspace`
+- Lint: `cargo clippy --workspace --all-targets -- -D warnings`
+- Format: `cargo fmt --all` and `slint-lsp format -i src/ui/ui/*.slint`
+- Build: `cargo build --release -p cliptoo`; package: `make package`
 
-```sh
-cargo build --release -p cliptoo   # production build
-cargo check                        # fast type-check
-cargo test --workspace
-cargo fmt --all -- --check
-cargo clippy --workspace --all-targets -- -D warnings
-```
+### Common Patterns
+
+- New Slint callback or property: declare it in the `.slint` file, register the handler in a `setup_*()` fn under `src/ui/src/`, call that fn from `main.rs`. Inside handlers use `ui.as_weak()`; Slint properties are UI-thread only.
+- DB access: `Arc<DbPool>` + `db.with(|conn| ...)`; add queries to `src/core/src/db/queries.rs`, migrations to `schema.rs`.
+- Shared state: `Settings` is `Rc<RefCell<Settings>>` on the UI thread. Background tasks get `Arc<Mutex<_>>`, `tokio::sync::watch`, or `mpsc` channels — never the Slint handle's properties.
+- Multi-window: each Slint window has its own `Theme` global; register it via `theme::register_*_theme_filler` so live theme changes reach it.
+- Strings: wrap user-facing text in `@tr()`; `msgctxt` must match the enclosing component or global name.
+
+### Gotchas
+
+- `#![deny(unsafe_code)]` in both crates; the sole exception is `src/ui/src/drag.rs` (Qt FFI).
+- `reqwest` uses `rustls-no-provider`: `main.rs` installs the ring provider before any client is built.
+- `zbus` is pinned to 5 to match `ashpd`; bump both together.
+
+### Tools
+
+- File tools (glob, grep, read, write, edit, shell) are called directly, never as `tools.*` inside execute. execute exposes only `browser.*`, `opencode.*`, and search results.
+
+### File System Access
+
+- Allowed: repository root and all contained files; `/tmp/opencode/*`.
+- Read-Only: `.env*`, `.git/`, `.docs/`.
+- Disallowed: everything else unless the user grants permission.
+- Require confirmation: dependency changes, `sudo` / install / package commands, any operation outside the repo.
+- Do not delete files or make destructive changes without confirmation.
+
+### Verification
+
+- Do not run test, lint, format, or type-check commands unless the user explicitly asks.
 
 ### Release (Cocogitto)
 
@@ -30,19 +61,6 @@ Cocogitto is an external binary (`cargo install cocogitto` / `pacman -S cocogitt
 - `cog bump --auto` — bump from conventional commits, sync manifests (`scripts/sync_version.sh`), write `CHANGELOG.md`, commit, tag, push. `pre_bump_hooks` run tests + clippy first.
 - Manual version: `cog bump --version V=1.2.3`. Preview: `cog changelog`.
 - Commit messages verified by `cog verify` (Merge/Revert lines bypass).
-
-### File System
-
-- Root: `/home/bubba/Projects/Cliptoo/`; all subdirs allowed, confirm anything outside root.
-- Read-only: `.env*`, `.git/`, `~/.cargo/registry/src/` (library source).
-- Disallowed: `.assets/`, `.docs/ToDo.md`, `.docs/archive/`, `node_modules/`.
-- Confirm before: adding/removing deps, changes outside `src/`.
-
-### Rules
-
-- **Errors:** `anyhow::Result` at boundaries, `thiserror` enums in `src/core/`, `.context(...)` across module boundaries; never suppress errors.
-- **Logging:** `tracing::{info,warn,error,debug}` only (never `println!`/`dbg!`); init in `src/core/src/logger.rs`.
-- **Unsafe:** none except the Qt FFI shim `src/ui/src/drag.rs` (`#![allow(unsafe_code)]`); crate roots `#![deny(unsafe_code)]`.
 
 ### Slint (mandatory)
 
