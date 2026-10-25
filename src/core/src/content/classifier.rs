@@ -30,15 +30,16 @@ pub struct ClassifiedContent {
 /// Classification order (first match wins):
 ///   1. Whitespace trim detection
 ///   2. Empty / whitespace-only  → discard (returns None)
-///   3. RTF detection             → ClipType::Rtf
-///   4. HTML detection            → ClipType::Html
-///   5. URL detection             → ClipType::Link
-///   6. Color detection           → ClipType::Color
-///   7. Path detection:
+///   3. Rich text whose stripped plain text is a color → ClipType::Color
+///   4. RTF detection             → ClipType::Rtf
+///   5. HTML detection            → ClipType::Html
+///   6. URL detection             → ClipType::Link
+///   7. Color detection           → ClipType::Color
+///   8. Path detection:
 ///      copied file → ClipType::Folder | file_*
 ///      plain text  → ClipType::FilePath
-///   8. Code heuristic            → ClipType::CodeSnippet
-///   9. Fallback                  → ClipType::Text
+///   9. Code heuristic            → ClipType::CodeSnippet
+///  10. Fallback                  → ClipType::Text
 pub struct ContentProcessor;
 
 impl ContentProcessor {
@@ -59,12 +60,31 @@ impl ContentProcessor {
             return None;
         }
 
+        // A rich rendition whose text is only a color (a swatch copied from a
+        // palette) is a Color clip: the markup carries no information of its
+        // own. Strip once here so the preview below can reuse the plain text.
+        let rich_kind = if Self::is_rtf(&content) {
+            Some(ClipType::Rtf)
+        } else if Self::is_html(&content) {
+            Some(ClipType::Html)
+        } else {
+            None
+        };
+        let rich_plain = rich_kind.as_ref().map(|kind| match kind {
+            ClipType::Rtf => crate::content::strip_rtf(&content),
+            _ => crate::content::strip_html(&content),
+        });
+        let rich_color = rich_plain
+            .as_deref()
+            .map(str::trim)
+            .filter(|plain| crate::color::ColorParser::is_color(plain));
+
         // classify_path returns the decoded filesystem path alongside the type
         // so we don't have to decode/strip a second time below.
-        let (clip_type, content) = if Self::is_rtf(&content) {
-            (ClipType::Rtf, content)
-        } else if Self::is_html(&content) {
-            (ClipType::Html, content)
+        let (clip_type, content) = if let Some(color) = rich_color {
+            (ClipType::Color, color.to_string())
+        } else if let Some(kind) = rich_kind {
+            (kind, content)
         } else if Self::is_url(&content) {
             (ClipType::Link, content)
         } else if crate::color::ColorParser::is_color(&content) {
@@ -96,12 +116,11 @@ impl ContentProcessor {
         let is_multiline = content.contains('\n');
         // RTF and HTML clips preview as their stripped plain text; everything
         // else as-is.
-        let preview_content = if clip_type == ClipType::Rtf {
-            crate::content::preview::build_preview(&crate::content::strip_rtf(&content))
-        } else if clip_type == ClipType::Html {
-            crate::content::preview::build_preview(&crate::content::strip_html(&content))
-        } else {
-            crate::content::preview::build_preview(&content)
+        let preview_content = match clip_type {
+            ClipType::Rtf | ClipType::Html => {
+                crate::content::preview::build_preview(rich_plain.as_deref().unwrap_or_default())
+            }
+            _ => crate::content::preview::build_preview(&content),
         };
         let content_hash = crate::content::hash::sha256_hex(&content);
 
@@ -460,6 +479,21 @@ mod tests {
         let c = ContentProcessor::process("\u{feff}{\\rtf1\\ansi hello}", false).unwrap();
         assert_eq!(c.clip_type, ClipType::Rtf);
         assert_eq!(c.preview_content, "hello");
+    }
+
+    #[test]
+    fn color_in_rich_text_is_color() {
+        // A swatch copied as rich text: the markup adds nothing, so the color
+        // wins and the clip stores the plain color text.
+        for (raw, color) in [
+            ("<span style=\"color:#ff0000\">#ff0000</span>", "#ff0000"),
+            (r"{\rtf1\ansi #00ff00}", "#00ff00"),
+        ] {
+            let c = ContentProcessor::process(raw, false).unwrap();
+            assert_eq!(c.clip_type, ClipType::Color, "for {raw}");
+            assert_eq!(c.content, color, "for {raw}");
+            assert_eq!(c.preview_content, color, "for {raw}");
+        }
     }
 
     #[test]
