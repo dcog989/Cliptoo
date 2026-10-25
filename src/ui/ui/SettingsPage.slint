@@ -10,6 +10,7 @@ import {
     DropRow,
     ToggleRow,
     SliderRow,
+    StepperButton,
     SectionHeader,
 } from "SettingsComponents.slint";
 import { ScrollView } from "std-widgets.slint";
@@ -45,6 +46,8 @@ export component SettingsPage inherits ScrollView {
     // Tooltip text for inline controls (Tooltip.text is styled-text, so @tr is
     // bound here and interpolated through @markdown at the use site).
     private property <string> tip-open-log: @tr("Open the most recent log file in your default viewer");
+    private property <string> tip-log-level: @tr("Verbosity of messages written to the log file");
+    private property <[string]> log-levels: ["Debug", "Info", "Warn", "Error"];
     private property <string> tip-accent-picker: @tr("Pick a custom accent color");
     private property <string> tip-font-family: @tr("Font family used for the clip list. Click to pick a font");
 
@@ -126,26 +129,57 @@ export component SettingsPage inherits ScrollView {
             }
         }
 
-        DropRow {
-            label: @tr("Log level");
-            tooltip-text: @tr("Verbosity of messages written to the log file");
-            index <=> root.s-log-level-idx;
-            options: ["Debug", "Info", "Warn", "Error"];
-            committed(v) => {
-                root.setting-changed("logging_level", v);
-            }
-        }
-
         HorizontalLayout {
             spacing: 12px;
             alignment: start;
             height: 32px;
             Text {
                 width: 180px;
-                text: @tr("Log file");
+                text: @tr("Log level");
                 color: Theme.fg-primary;
                 font-size: Theme.font-size;
                 vertical-alignment: center;
+            }
+
+            Rectangle {
+                height: 28px;
+                border-radius: 5px;
+                border-width: 1px;
+                border-color: Theme.border-accent;
+                background: Theme.bg-input;
+
+                Tooltip {
+                    text: @markdown("\{root.tip-log-level}");
+                }
+
+                HorizontalLayout {
+                    padding-left: 4px;
+                    padding-right: 4px;
+                    spacing: 4px;
+                    cross-axis-alignment: center;
+                    StepperButton {
+                        text: "‹";
+                        clicked => {
+                            root.s-log-level-idx = root.s-log-level-idx == 0 ? root.log-levels.length - 1 : root.s-log-level-idx - 1;
+                            root.setting-changed("logging_level", root.log-levels[root.s-log-level-idx]);
+                        }
+                    }
+
+                    Text {
+                        text: root.log-levels[root.s-log-level-idx];
+                        color: Theme.fg-primary;
+                        font-size: Theme.font-size;
+                        horizontal-alignment: center;
+                    }
+
+                    StepperButton {
+                        text: "›";
+                        clicked => {
+                            root.s-log-level-idx = Math.mod(root.s-log-level-idx + 1, root.log-levels.length);
+                            root.setting-changed("logging_level", root.log-levels[root.s-log-level-idx]);
+                        }
+                    }
+                }
             }
 
             Text {

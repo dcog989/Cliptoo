@@ -561,11 +561,6 @@ msgctxt "SettingsPage"
 msgid "Verbosity of messages written to the log file"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:145
-msgctxt "SettingsPage"
-msgid "Log file"
-msgstr ""
-
 #: src/ui/ui/SettingsPage.slint:152
 msgctxt "SettingsPage"
 msgid "Open latest log"
