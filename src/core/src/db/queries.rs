@@ -304,6 +304,11 @@ const BROWSE_PROJECTION: &str = "Id, PreviewContent, ContentHash, ClipType, Sour
 /// snippet is computed for every matched row before the ORDER BY/LIMIT trims
 /// them). Skipping the highlight for oversized clips keeps ordinary searches
 /// fast; those clips still appear, just unhighlighted.
+///
+/// The predicate reads the stored `SizeInBytes` instead of `length(c.Content)`:
+/// measuring the text would load the very value this cap exists to avoid.
+/// `SizeInBytes` is the byte length of `Content` for every type except
+/// `file_image`, which stores the image's size (see `fts_projection`).
 const MAX_SNIPPET_CONTENT_BYTES: i64 = 16 * 1024;
 
 /// FTS-mode projection — `c.`-prefixed (JOIN against `clips`) with the
@@ -311,7 +316,9 @@ const MAX_SNIPPET_CONTENT_BYTES: i64 = 16 * 1024;
 ///
 /// `cap_by_size` bounds the snippet to clips under [`MAX_SNIPPET_CONTENT_BYTES`]
 /// (set for the `Content` column, whose values can be multi-MB). The `Tags`
-/// column holds short labels, so it is never capped.
+/// column holds short labels, so it is never capped. `file_image` is exempt:
+/// its `SizeInBytes` is the image's byte count, not the length of the short
+/// internal path held in `Content`, and that path is what the FTS index matches.
 fn fts_projection(fts_col: i32, tokens: i32, cap_by_size: bool) -> String {
     let snippet = format!(
         "snippet(clips_fts, {fts_col}, '{hl_open}', '{hl_close}', '…', {tokens})",
@@ -320,7 +327,8 @@ fn fts_projection(fts_col: i32, tokens: i32, cap_by_size: bool) -> String {
     );
     let snippet = if cap_by_size {
         format!(
-            "CASE WHEN length(c.Content) <= {MAX_SNIPPET_CONTENT_BYTES} \
+            "CASE WHEN c.ClipType = 'file_image' \
+                  OR c.SizeInBytes <= {MAX_SNIPPET_CONTENT_BYTES} \
              THEN {snippet} ELSE NULL END"
         )
     } else {
