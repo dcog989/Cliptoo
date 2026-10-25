@@ -515,12 +515,29 @@ pub fn setup_clip_actions(
         let pas_db = db.clone();
         let pas_ui = ui.as_weak();
         let pas_sup = suppression.clone();
+        let pas_settings = settings.clone();
+        let pas_td = thumbnails_dir.clone();
+        let pas_fd = favicons_dir.clone();
+        let pas_pfx = tag_prefix.clone();
         ui.on_paste_as(move |id: i32, mode: slint::SharedString| {
             let db = pas_db.clone();
             let ui = pas_ui.clone();
             let sup = pas_sup.clone();
+            let td = pas_td.clone();
+            let fd = pas_fd.clone();
+            let pfx = pas_pfx.clone();
+            // Same bookkeeping as a normal paste: count it, and reorder the
+            // list when the "paste moves clip to top" setting is on.
+            let moves_top = pas_settings.borrow().paste_moves_clip_to_top;
+            let (query, filter) = helpers::current_view_state(&ui);
             let paste_plain = mode == "plain";
             tokio::spawn(async move {
+                if moves_top {
+                    let _ = db
+                        .with(|conn| cliptoo_core::db::queries::record_paste(conn, id as i64))
+                        .await;
+                    helpers::refresh_clips(&db, &ui, &td, &fd, &query, &filter, Some(&pfx)).await;
+                }
                 let result = db
                     .with(|conn| {
                         cliptoo_core::db::queries::get_clip_type_and_content(conn, id as i64)
