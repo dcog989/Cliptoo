@@ -79,11 +79,11 @@ fn has_browse_index(path: &std::path::Path) -> bool {
 fn fts_secure_delete(path: &std::path::Path) -> bool {
     let conn = rusqlite::Connection::open(path).unwrap();
     conn.query_row(
-        "SELECT v FROM clips_fts_config WHERE k = 'secure-delete'",
+        "SELECT CAST(v AS INTEGER) FROM clips_fts_config WHERE k = 'secure-delete'",
         [],
-        |row| row.get::<_, String>(0),
+        |row| row.get::<_, i64>(0),
     )
-    .map(|v| v == "1")
+    .map(|v| v == 1)
     .unwrap_or(false)
 }
 
