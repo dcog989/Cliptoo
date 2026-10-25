@@ -255,6 +255,37 @@ pub fn setup_clip_actions(
         });
     }
 
+    // ── Copy clip to the clipboard without pasting (Ctrl+C) ─────────────
+    {
+        let copy_db = db.clone();
+        let copy_sup = suppression.clone();
+        let copy_settings = settings.clone();
+        ui.on_copy_clip(move |id: i32| {
+            let db = copy_db.clone();
+            let sup = copy_sup.clone();
+            // Same rich/plain choice a paste would make, read per activation so
+            // a settings change applies without a restart.
+            let offer_rich = !copy_settings.borrow().paste_as_plain_text;
+            tokio::spawn(async move {
+                let result = db
+                    .with(|conn| {
+                        cliptoo_core::db::queries::get_clip_type_and_content(conn, id as i64)
+                    })
+                    .await;
+                if let Ok((content, clip_type, _hash)) = result {
+                    // Keep the clipboard listener from re-ingesting our write.
+                    crate::paste::register_suppression(&sup, &content, &clip_type);
+                    if let Err(e) =
+                        crate::paste::write_content_to_clipboard(&content, &clip_type, offer_rich)
+                            .await
+                    {
+                        tracing::error!("Copy error: {e}");
+                    }
+                }
+            });
+        });
+    }
+
     // ── Move to bottom ───────────────────────────────────────────────────
     {
         let mtb_db = db.clone();

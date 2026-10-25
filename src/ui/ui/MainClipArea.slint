@@ -52,6 +52,9 @@ export component MainClipArea inherits Rectangle {
     callback search-word-backspace();
     callback filter-changed(string);
     callback item-activated(int);
+    callback delete-clip(int);         // Delete key: remove the selected clip
+    callback copy-clip(int);           // Ctrl+C: copy without pasting
+    callback edit-clip(int);           // Ctrl+E: open the editor
     callback request-preview(int, float, float);  // id, x, y
     callback dismiss-preview();
     callback close-window();           // ESC pressed
@@ -69,6 +72,12 @@ export component MainClipArea inherits Rectangle {
     // Scrolls the clip list back to the top and selects the first row.
     public function reset-scroll() {
         clip-list.nav-home();
+    }
+
+    // True when selected-index points at a row. The key handler indexes clips[]
+    // with it, so an empty or stale list must not reach the lookup.
+    function has-selection() -> bool {
+        return root.selected-index >= 0 && root.selected-index < root.clips.length;
     }
 
     focus-scope := FocusScope {
@@ -134,6 +143,23 @@ export component MainClipArea inherits Rectangle {
 
             // ── Text input — only handled when LineEdit is NOT focused ──
             if (!toolbar.search-focused) {
+                // ── Selection actions ──
+                // Held Delete would remove one clip per repeat, so it is
+                // restricted to discrete presses.
+                if (e.text == Key.Delete && !e.repeat && root.has-selection()) {
+                    root.delete-clip(root.clips[root.selected-index].id);
+                    return accept;
+                }
+                if (e.modifiers.control && root.has-selection()) {
+                    if (e.text.to-lowercase() == "c") {
+                        root.copy-clip(root.clips[root.selected-index].id);
+                        return accept;
+                    }
+                    if (e.text.to-lowercase() == "e") {
+                        root.edit-clip(root.clips[root.selected-index].id);
+                        return accept;
+                    }
+                }
                 if (e.text == Key.Return) {
                     clip-list.activate();
                     return accept;
