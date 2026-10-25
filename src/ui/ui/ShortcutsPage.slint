@@ -1,0 +1,156 @@
+// ShortcutsPage.slint — Settings > Shortcuts page: the editable global
+// hotkeys (moved here from General) above a read-only cheat sheet of the
+// main-window key bindings. Keep the cheat sheet in sync with the key-pressed
+// handler in MainClipArea.slint.
+
+import { Theme } from "Theme.slint";
+import { DropRow, HotkeyRow, SectionHeader } from "SettingsComponents.slint";
+import { ScrollView } from "std-widgets.slint";
+
+// One cheat-sheet line: key cap look on the left, action on the right.
+component ShortcutRow {
+    in property <string> keys;
+    in property <string> action;
+
+    min-height: 26px;
+    HorizontalLayout {
+        spacing: 12px;
+        Text {
+            width: 170px;
+            text: root.keys;
+            color: Theme.accent-primary;
+            font-size: Theme.font-size;
+            font-weight: 700;
+            vertical-alignment: center;
+            overflow: elide;
+        }
+
+        Text {
+            text: root.action;
+            color: Theme.fg-primary;
+            font-size: Theme.font-size;
+            vertical-alignment: center;
+            wrap: word-wrap;
+        }
+    }
+}
+
+export component ShortcutsPage inherits ScrollView {
+    in-out property <string> s-hotkey: "Ctrl+Alt+Q";
+    in-out property <int> s-quick-paste-mod-idx: 0;  // Right Alt/Left Alt/Control
+
+    callback setting-changed(string, string);
+
+    // Right Alt is AltGr, which reaches the app as the Alt modifier.
+    private property <string> quick-paste-keys: ((root.s-quick-paste-mod-idx == 2) ? "Ctrl" : "Alt") + "+1…9";
+
+    vertical-scrollbar-policy: ScrollBarPolicy.as-needed;
+
+    out property <length> content-preferred-height: content-layout.preferred-height;
+
+    content-layout := VerticalLayout {
+        padding-left: 16px;
+        padding-right: 16px;
+        padding-top: 8px;
+        padding-bottom: 24px;
+        spacing: 6px;
+        // Pinned to their minimum sizes, like SettingsPage: the ScrollView gives
+        // this layout the full visible height, and stretch would spread it into
+        // every row.
+        alignment: start;
+
+        SectionHeader {
+            text: @tr("Global");
+            top-margin: 0px;
+        }
+
+        HotkeyRow {
+            label: @tr("Launch hotkey");
+            tooltip-text: @tr("Global hotkey to toggle the Cliptoo window");
+            value <=> root.s-hotkey;
+            committed(v) => {
+                root.setting-changed("hotkey", v);
+            }
+        }
+
+        DropRow {
+            label: @tr("Quick-paste modifier");
+            tooltip-text: @tr("Modifier key to hold for the quick-paste number overlay");
+            index <=> root.s-quick-paste-mod-idx;
+            options: ["Right Alt", "Left Alt", "Control"];
+            committed(v) => {
+                root.setting-changed("quick_paste_modifier", v);
+            }
+        }
+
+        // ── Clip list ────────────────────────────────────────────────────
+        SectionHeader {
+            text: @tr("Clip List");
+        }
+
+        ShortcutRow {
+            keys: "↑ / ↓";
+            action: @tr("Move the selection");
+        }
+
+        ShortcutRow {
+            keys: "Home / End";
+            action: @tr("Jump to the first / last clip");
+        }
+
+        ShortcutRow {
+            keys: "PgUp / PgDn";
+            action: @tr("Move one page");
+        }
+
+        ShortcutRow {
+            keys: "Enter";
+            action: @tr("Paste the selected clip");
+        }
+
+        ShortcutRow {
+            keys: "Delete";
+            action: @tr("Delete the selected clip");
+        }
+
+        ShortcutRow {
+            keys: "Ctrl+C";
+            action: @tr("Copy the selected clip without pasting");
+        }
+
+        ShortcutRow {
+            keys: "Ctrl+E";
+            action: @tr("Edit the selected clip");
+        }
+
+        ShortcutRow {
+            keys: root.quick-paste-keys;
+            action: @tr("Quick-paste that clip");
+        }
+
+        // ── Search ───────────────────────────────────────────────────────
+        SectionHeader {
+            text: @tr("Search");
+        }
+
+        ShortcutRow {
+            keys: @tr("Typing");
+            action: @tr("Search — no need to click the field first");
+        }
+
+        ShortcutRow {
+            keys: "Backspace";
+            action: @tr("Delete the last search character");
+        }
+
+        ShortcutRow {
+            keys: "Ctrl+Backspace";
+            action: @tr("Delete the last search word");
+        }
+
+        ShortcutRow {
+            keys: "Esc";
+            action: @tr("Clear the search, then close the window");
+        }
+    }
+}

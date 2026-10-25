@@ -1,18 +1,22 @@
 // SettingsHeader.slint — Top bar of the settings window.
-// Page title ("Settings" or, on the database page, Back + "Database"), plus the
-// Database icon that toggles between the two pages.
+// Page title ("Settings"; "Shortcuts" or "Database" on a sub-page, preceded by
+// a Back button), plus the shortcut and Database icons that switch pages.
 
 import { Theme } from "Theme.slint";
 
 export component SettingsHeader {
     in-out property <bool> on-database-page: false;
+    in-out property <bool> on-shortcuts-page: false;
 
     callback database-page-shown();
 
     // Tooltip text for the header icons (Tooltip.text is styled-text, so @tr
     // is bound here and interpolated through @markdown at the use site).
     private property <string> tip-database: @tr("Database: retention, maintenance, and statistics");
+    private property <string> tip-shortcuts: @tr("Shortcuts: hotkeys and keyboard shortcuts");
     private property <string> tip-back: @tr("Back to settings");
+    private property <bool> on-sub-page: root.on-database-page || root.on-shortcuts-page;
+    private property <string> sub-page-title: root.on-database-page ? @tr("Database") : @tr("Shortcuts");
 
     height: 48px;
 
@@ -25,9 +29,9 @@ export component SettingsHeader {
             padding-bottom: 8px;
             spacing: 8px;
 
-            // Page title. On the settings page it is just "Settings"; the
-            // database page adds a Back button before its "Database" title.
-            if !root.on-database-page: Text {
+            // Page title. On the settings page it is just "Settings"; a sub-page
+            // adds a Back button before its own title.
+            if !root.on-sub-page: Text {
                 text: @tr("Settings");
                 color: Theme.fg-primary;
                 font-size: Theme.font-size + 1px;
@@ -35,7 +39,7 @@ export component SettingsHeader {
                 vertical-alignment: center;
                 horizontal-stretch: 1;
             }
-            if root.on-database-page: HorizontalLayout {
+            if root.on-sub-page: HorizontalLayout {
                 horizontal-stretch: 1;
                 spacing: 8px;
                 cross-axis-alignment: center;
@@ -59,6 +63,7 @@ export component SettingsHeader {
                         mouse-cursor: pointer;
                         clicked => {
                             root.on-database-page = false;
+                            root.on-shortcuts-page = false;
                         }
                     }
 
@@ -68,11 +73,42 @@ export component SettingsHeader {
                 }
 
                 Text {
-                    text: @tr("Database");
+                    text: root.sub-page-title;
                     color: Theme.fg-primary;
                     font-size: Theme.font-size + 1px;
                     font-weight: 700;
                     vertical-alignment: center;
+                }
+            }
+
+            // Shortcuts icon — opens the Shortcuts page, closes it again when
+            // already there. Mutually exclusive with the Database page.
+            Rectangle {
+                width: 32px;
+                height: 32px;
+                border-radius: 8px;
+                background: root.on-shortcuts-page ? Theme.accent-fill : Theme.bg-input;
+                Image {
+                    source: @image-url("icons/keyboard.svg");
+                    colorize: root.on-shortcuts-page ? Theme.accent-fg : Theme.fg-secondary;
+                    width: 20px;
+                    height: 20px;
+                    x: 6px;
+                    y: 6px;
+                }
+
+                TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => {
+                        root.on-shortcuts-page = !root.on-shortcuts-page;
+                        if root.on-shortcuts-page {
+                            root.on-database-page = false;
+                        }
+                    }
+                }
+
+                Tooltip {
+                    text: @markdown("\{root.tip-shortcuts}");
                 }
             }
 
@@ -97,6 +133,7 @@ export component SettingsHeader {
                     clicked => {
                         root.on-database-page = !root.on-database-page;
                         if root.on-database-page {
+                            root.on-shortcuts-page = false;
                             root.database-page-shown();
                         }
                     }

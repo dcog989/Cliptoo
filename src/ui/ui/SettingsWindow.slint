@@ -6,6 +6,7 @@
 import { Theme } from "Theme.slint";
 import { SettingsHeader } from "SettingsHeader.slint";
 import { SettingsPage } from "SettingsPage.slint";
+import { ShortcutsPage } from "ShortcutsPage.slint";
 import { DatabasePage } from "DatabasePage.slint";
 import { ToastNotification } from "ToastNotification.slint";
 
@@ -15,7 +16,7 @@ export component SettingsWindow inherits Window {
     // (settings_window_width/height) and restored here on open.
     in-out property <length> stored-width: 560px;
     in-out property <length> stored-height: 540px;
-    in-out property <length> settings-content-height: settings-page.content-preferred-height;
+    in-out property <length> settings-content-height: Math.max(settings-page.content-preferred-height, shortcuts-page.content-preferred-height);
     in-out property <length> desired-height: Math.max(root.min-height, Math.max(root.stored-height, 48px + root.settings-content-height + 20px));
     preferred-width: root.stored-width;
     preferred-height: root.desired-height;
@@ -25,6 +26,7 @@ export component SettingsWindow inherits Window {
     default-font-size: Theme.font-size;
 
     in-out property <bool> on-database-page:   false;
+    in-out property <bool> on-shortcuts-page:  false;
     in-out property <bool> toast-visible:   false;
     in-out property <string> toast-message:   "";
     in-out property <string> toast-severity:  "info";
@@ -93,35 +95,34 @@ export component SettingsWindow inherits Window {
             padding: 0;
             spacing: 0;
 
-            // ── Header: page title + Database navigation ─────────────────────
+            // ── Header: page title + page navigation ─────────────────────────
             header := SettingsHeader {
                 on-database-page <=> root.on-database-page;
+                on-shortcuts-page <=> root.on-shortcuts-page;
                 database-page-shown() => {
                     root.database-page-shown();
                 }
             }
 
-            // ── Content: settings page / database page overlay ───────────────
+            // ── Content: settings / shortcuts / database page overlay ─────────
             Rectangle {
                 width: 100%;
                 vertical-stretch: 1;
                 clip: true;
 
-                // Settings page — grouped option list. The two pages overlay
+                // Settings page — grouped option list. The three pages overlay
                 // each other (absolute x/y) so they never stack; only one is
-                // visible at a time, but both stay instantiated so state
+                // visible at a time, but all stay instantiated so state
                 // survives page switches.
                 settings-page := SettingsPage {
                     x: 0px;
                     y: 0px;
                     width: 100%;
                     height: 100%;
-                    visible: !root.on-database-page;
+                    visible: !root.on-database-page && !root.on-shortcuts-page;
 
-                    s-hotkey <=> root.s-hotkey;
                     s-start-with-system <=> root.s-start-with-system;
                     s-always-close-to-tray <=> root.s-always-close-to-tray;
-                    s-quick-paste-mod-idx <=> root.s-quick-paste-mod-idx;
                     s-log-level-idx <=> root.s-log-level-idx;
                     s-theme-idx <=> root.s-theme-idx;
                     s-accent-color <=> root.s-accent-color;
@@ -152,6 +153,22 @@ export component SettingsWindow inherits Window {
                     }
                     open-log() => {
                         root.open-log();
+                    }
+                }
+
+                // Shortcuts page — editable global hotkeys and the cheat sheet.
+                shortcuts-page := ShortcutsPage {
+                    x: 0px;
+                    y: 0px;
+                    width: 100%;
+                    height: 100%;
+                    visible: root.on-shortcuts-page;
+
+                    s-hotkey <=> root.s-hotkey;
+                    s-quick-paste-mod-idx <=> root.s-quick-paste-mod-idx;
+
+                    setting-changed(k, v) => {
+                        root.setting-changed(k, v);
                     }
                 }
 

@@ -4,7 +4,6 @@
 import { Theme } from "Theme.slint";
 import {
     TextRow,
-    HotkeyRow,
     IntRow,
     FloatRow,
     DropRow,
@@ -17,10 +16,8 @@ import { ScrollView } from "std-widgets.slint";
 
 export component SettingsPage inherits ScrollView {
     // ── Row values ────────────────────────────────────────────────────────────
-    in-out property <string> s-hotkey:               "Ctrl+Alt+Q";
     in-out property <bool> s-start-with-system:    true;
     in-out property <bool> s-always-close-to-tray: true;
-    in-out property <int> s-quick-paste-mod-idx: 0;  // Right Alt/Left Alt/Control
     in-out property <int> s-log-level-idx:        1;  // Debug/Info/Warn/Error
     in-out property <int> s-theme-idx:            0;  // System/Light/Dark
     in-out property <color> s-accent-color:       #7C6EE6;
@@ -74,15 +71,6 @@ export component SettingsPage inherits ScrollView {
             top-margin: 0px;
         }
 
-        HotkeyRow {
-            label: @tr("Launch hotkey");
-            tooltip-text: @tr("Global hotkey to toggle the Cliptoo window");
-            value <=> root.s-hotkey;
-            committed(v) => {
-                root.setting-changed("hotkey", v);
-            }
-        }
-
         ToggleRow {
             label: @tr("Start with system");
             tooltip-text: @tr("Launch Cliptoo automatically when you log in");
@@ -98,16 +86,6 @@ export component SettingsPage inherits ScrollView {
             value <=> root.s-always-close-to-tray;
             committed(v) => {
                 root.setting-changed("always_close_to_tray", v ? "true" : "false");
-            }
-        }
-
-        DropRow {
-            label: @tr("Quick-paste modifier");
-            tooltip-text: @tr("Modifier key to hold for the quick-paste number overlay");
-            index <=> root.s-quick-paste-mod-idx;
-            options: ["Right Alt", "Left Alt", "Control"];
-            committed(v) => {
-                root.setting-changed("quick_paste_modifier", v);
             }
         }
 

@@ -157,9 +157,10 @@ fn setup_menu_open(settings_win: &crate::SettingsWindow, main_ui: &crate::AppWin
                 // cleared when the settings window closes.
                 ui.set_settings_open(true);
             }
-            // Always reopen on the settings page (not the Database page),
-            // regardless of where the user left off.
+            // Always reopen on the settings page (not a sub-page), regardless
+            // of where the user left off.
             win.set_on_database_page(false);
+            win.set_on_shortcuts_page(false);
             // preferred-height is shrunk by the WM decorations on Wayland, so
             // size the window explicitly to open at the computed content size.
             win.window().set_size(slint::LogicalSize {
