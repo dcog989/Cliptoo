@@ -14,6 +14,12 @@ use std::path::Path;
 /// keystroke hot path instead of reusing them.
 const STATEMENT_CACHE_CAPACITY: usize = 128;
 
+/// How long a statement waits for a competing connection's lock before failing
+/// with `SQLITE_BUSY`. A second Cliptoo instance or a `sqlite3` CLI on the same
+/// file can hold the write lock; without this the losing clipboard capture is
+/// dropped instantly instead of waiting out the other writer's transaction.
+const BUSY_TIMEOUT_MS: u64 = 5000;
+
 pub struct DbPool {
     // Single connection guarded by a tokio mutex; sufficient for a desktop clipboard daemon.
     // tokio::sync::Mutex is Send+Sync when T: Send (rusqlite::Connection is Send but not Sync).
@@ -24,6 +30,9 @@ impl DbPool {
     pub fn open(path: &Path) -> Result<Self> {
         let conn = Connection::open(path)?;
         conn.set_prepared_statement_cache_capacity(STATEMENT_CACHE_CAPACITY);
+
+        // Set before the journal-mode pragma, which itself needs a write lock.
+        conn.busy_timeout(std::time::Duration::from_millis(BUSY_TIMEOUT_MS))?;
 
         // PRAGMAs must run outside any transaction.
         conn.execute_batch(schema::PRAGMA_WAL)?;
