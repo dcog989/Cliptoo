@@ -146,3 +146,37 @@ async fn insert_or_bump_refreshes_stale_metadata() {
 
     clean_up(&dir);
 }
+
+/// The DDL leaves `Content`/`PreviewContent` nullable even though every writer
+/// supplies a value, so a hand-edited row must not fail the whole list query.
+#[tokio::test]
+async fn null_content_still_lists() {
+    let (dir, db) = temp_db("null_content").await;
+    db.with(|conn| {
+        Ok(conn.execute(
+            "INSERT INTO clips (Content, PreviewContent, ContentHash, ClipType, Timestamp)
+             VALUES (NULL, NULL, 'hash-null', 'text', '2020-01-01T00:00:00')",
+            [],
+        )?)
+    })
+    .await
+    .unwrap();
+
+    let (preview, id) = db
+        .with(|conn| {
+            let clips = cliptoo_core::db::queries::search_clips(conn, "", "all", 10, 0, None)?;
+            assert_eq!(clips.len(), 1);
+            Ok((clips[0].preview_content.clone(), clips[0].id))
+        })
+        .await
+        .unwrap();
+    assert_eq!(preview, "");
+
+    let content = db
+        .with(|conn| cliptoo_core::db::queries::get_clip_content(conn, id))
+        .await
+        .unwrap();
+    assert_eq!(content, "");
+
+    clean_up(&dir);
+}

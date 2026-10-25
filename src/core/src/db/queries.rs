@@ -158,7 +158,9 @@ fn clip_type_filter(filter: &str) -> FilterClause {
 fn row_to_clipdata(row: &rusqlite::Row) -> rusqlite::Result<ClipData> {
     Ok(ClipData {
         id: row.get(0)?,
-        preview_content: row.get(1)?,
+        // The DDL allows NULL here even though every writer supplies a value;
+        // tolerate it so one hand-edited row cannot blank the whole list.
+        preview_content: row.get::<_, Option<String>>(1)?.unwrap_or_default(),
         content_hash: row.get(2)?,
         clip_type: crate::db::models::ClipType::parse(&row.get::<_, String>(3)?),
         source_app: row.get(4)?,
@@ -432,19 +434,25 @@ pub fn search_clips(
 }
 
 pub fn get_clip_content(conn: &Connection, id: i64) -> Result<String> {
-    let content: String = conn.query_row(
+    let content: Option<String> = conn.query_row(
         "SELECT Content FROM clips WHERE Id = ?1",
         params![id],
         |row| row.get(0),
     )?;
-    Ok(content)
+    Ok(content.unwrap_or_default())
 }
 
 pub fn get_clip_type_and_content(conn: &Connection, id: i64) -> Result<(String, String, String)> {
     let row: (String, String, String) = conn.query_row(
         "SELECT Content, ClipType, ContentHash FROM clips WHERE Id = ?1",
         params![id],
-        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        |row| {
+            Ok((
+                row.get::<_, Option<String>>(0)?.unwrap_or_default(),
+                row.get(1)?,
+                row.get(2)?,
+            ))
+        },
     )?;
     Ok(row)
 }
