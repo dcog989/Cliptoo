@@ -80,6 +80,11 @@ pub const PRAGMA_WAL: &str = "PRAGMA journal_mode = WAL;";
 /// (unlike `journal_mode`, which is persistent).
 pub const PRAGMA_SYNCHRONOUS_NORMAL: &str = "PRAGMA synchronous = NORMAL;";
 pub const PRAGMA_FOREIGN_KEYS: &str = "PRAGMA foreign_keys = ON;";
+/// Keeps `sqlite_stat1` current so the planner's index choices are based on the
+/// real row distribution as the history grows, instead of the defaults it
+/// assumes with no stats at all. Cheap: it only runs `ANALYZE` on tables whose
+/// statistics have gone stale, and is a no-op otherwise.
+pub const PRAGMA_OPTIMIZE: &str = "PRAGMA optimize;";
 // NOTE: WAL mode.
 // `PRAGMA journal_mode = WAL` is a no-op if another process already has the
 // database open in a different mode; SQLite will silently keep the existing

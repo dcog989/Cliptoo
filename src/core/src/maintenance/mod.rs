@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tracing::{info, warn};
 
-use crate::db::DbPool;
+use crate::db::{DbPool, schema};
 use crate::stats;
 use crate::time::utc_now_iso;
 
@@ -41,8 +41,14 @@ pub async fn run_scheduled(
     let marked_deadhead = mark_deadheads(db).await?;
     let pruned_cache = prune_cache(db, thumbnails_dir, favicons_dir).await?;
 
-    db.with(|conn| stats::set_stat(conn, stats::KEY_LAST_CLEANUP, &utc_now_iso()))
-        .await?;
+    // Same lock acquisition for the cleanup stamp and `PRAGMA optimize`; the
+    // optimize runs last so the stats reflect the post-retention row counts.
+    db.with(|conn| {
+        stats::set_stat(conn, stats::KEY_LAST_CLEANUP, &utc_now_iso())?;
+        conn.execute_batch(schema::PRAGMA_OPTIMIZE)?;
+        Ok(())
+    })
+    .await?;
 
     info!(
         "maintenance: retention={deleted_retention} deadhead_marked={marked_deadhead} cache_pruned={pruned_cache}"
