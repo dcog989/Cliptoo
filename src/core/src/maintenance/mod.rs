@@ -28,9 +28,14 @@ pub use retention::{RetentionConfig, clear_history, retention};
 
 /// Compact the database file in place. Retention deletes leave pages on the
 /// freelist, which keeps the file at its high-water mark; `VACUUM` rewrites it
-/// and hands that space back to the filesystem.
+/// and hands that space back to the filesystem. The rewrite lands in the WAL,
+/// so it is truncated afterwards or the sidecar keeps the old database size.
 pub fn compact(conn: &Connection) -> Result<()> {
-    conn.execute_batch(schema::VACUUM)?;
+    conn.execute_batch(&format!(
+        "{}\n{}",
+        schema::VACUUM,
+        schema::WAL_CHECKPOINT_TRUNCATE
+    ))?;
     Ok(())
 }
 

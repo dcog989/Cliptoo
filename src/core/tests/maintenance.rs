@@ -526,6 +526,13 @@ async fn compact_reclaims_freelist_and_keeps_clips_searchable() {
 
     db.with(maintenance::compact).await.unwrap();
 
+    // VACUUM writes the rewrite into the WAL; compact must truncate it, or the
+    // file keeps its pre-compaction size on disk.
+    let mut wal_path = dir.as_os_str().to_owned();
+    wal_path.push("-wal");
+    let wal_len = std::fs::metadata(&wal_path).map_or(0, |m| m.len());
+    assert_eq!(wal_len, 0, "compaction truncates the WAL");
+
     let (freelist_after, clips, indexed): (i64, i64, i64) = db
         .with(|conn| {
             let freelist: i64 = conn.query_row("PRAGMA freelist_count", [], |row| row.get(0))?;

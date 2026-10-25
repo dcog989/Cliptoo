@@ -117,6 +117,12 @@ pub const PRAGMA_OPTIMIZE: &str = "PRAGMA optimize;";
 /// an exclusive lock, and no open transaction.
 pub const VACUUM: &str = "VACUUM;";
 
+/// `VACUUM` writes the rebuilt database into the WAL, so the sidecar ends up the
+/// size of the whole file; the automatic checkpoint only resets it for reuse
+/// and never truncates. This hands the space back and must run right after
+/// `VACUUM`, outside a transaction.
+pub const WAL_CHECKPOINT_TRUNCATE: &str = "PRAGMA wal_checkpoint(TRUNCATE);";
+
 pub const CREATE_INDEX_CLIPS_TS: &str =
     "CREATE INDEX IF NOT EXISTS idx_clips_ts ON clips(IsBookmarked, Timestamp DESC);";
 
