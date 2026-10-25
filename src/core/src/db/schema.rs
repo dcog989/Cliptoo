@@ -70,6 +70,19 @@ CREATE TRIGGER IF NOT EXISTS clips_fts_update AFTER UPDATE OF Content, Tags ON c
 END;
 ";
 
+/// FTS5 special command: errors if the `clips_fts` shadow tables disagree with
+/// `clips`. Run by the scheduled maintenance pass, since a write that bypassed
+/// the triggers above cannot be detected any other way.
+///
+/// `rank=1` is required: for an *external content* table the plain form only
+/// checks the index against itself, not against the content table.
+pub const FTS_INTEGRITY_CHECK: &str =
+    "INSERT INTO clips_fts(clips_fts, rank) VALUES('integrity-check', 1);";
+
+/// FTS5 special command: merges the segment b-trees that repeated deletes leave
+/// behind, keeping search fast and the index compact. Cheap when already merged.
+pub const FTS_OPTIMIZE: &str = "INSERT INTO clips_fts(clips_fts) VALUES('optimize');";
+
 pub const PRAGMA_WAL: &str = "PRAGMA journal_mode = WAL;";
 /// WAL + `NORMAL` never corrupts the database; it only risks losing the most
 /// recent transactions if the machine loses power before the next checkpoint,
@@ -246,13 +259,13 @@ fn legacy_version(conn: &Connection) -> Result<u32> {
 // `MIGRATIONS`, so the coupled change lands in one transaction gated by
 // `user_version`.
 //
-// NOTE: FTS divergence risk.
+// FTS divergence risk.
 // Because `clips_fts` is an *external content* table, any write to `clips`
 // that bypasses the three triggers above (e.g. a direct `UPDATE clips SET
 // Content = ...` outside of the trigger columns, or a bulk import) will leave
 // the FTS index stale without any error.  To detect divergence early, the
-// scheduled maintenance pass in `maintenance.rs` should run:
-//   INSERT INTO clips_fts(clips_fts) VALUES('integrity-check');
-// which returns an error string if the FTS shadow tables are inconsistent with
-// `clips`.  A full rebuild (slow but safe) is:
+// scheduled maintenance pass runs [`FTS_INTEGRITY_CHECK`], which returns an
+// error if the FTS shadow tables are inconsistent with `clips`; it logs rather
+// than rebuilding, so a bypassing writer stays visible instead of being masked.
+// A full manual rebuild (slow but safe) is:
 //   INSERT INTO clips_fts(clips_fts) VALUES('rebuild');

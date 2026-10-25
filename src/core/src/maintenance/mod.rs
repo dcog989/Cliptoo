@@ -29,6 +29,7 @@ pub use retention::{RetentionConfig, clear_history, retention};
 ///   1. Retention (count + age)
 ///   2. Deadhead (missing file paths)
 ///   3. Cache pruning (orphaned thumbnail/favicon files)
+///   4. Index housekeeping (planner stats, FTS integrity-check + optimize)
 ///
 /// Updates `LastCleanupTimestamp` on completion.
 pub async fn run_scheduled(
@@ -41,11 +42,17 @@ pub async fn run_scheduled(
     let marked_deadhead = mark_deadheads(db).await?;
     let pruned_cache = prune_cache(db, thumbnails_dir, favicons_dir).await?;
 
-    // Same lock acquisition for the cleanup stamp and `PRAGMA optimize`; the
-    // optimize runs last so the stats reflect the post-retention row counts.
+    // Same lock acquisition for the cleanup stamp and the index housekeeping.
+    // `integrity-check` runs first so it inspects the index the pass left
+    // behind, not the freshly merged one. It only logs: a divergence means some
+    // write bypassed the FTS triggers, and silently rebuilding would hide that.
     db.with(|conn| {
         stats::set_stat(conn, stats::KEY_LAST_CLEANUP, &utc_now_iso())?;
+        if let Err(e) = conn.execute_batch(schema::FTS_INTEGRITY_CHECK) {
+            warn!("maintenance: clips_fts integrity-check failed: {e}");
+        }
         conn.execute_batch(schema::PRAGMA_OPTIMIZE)?;
+        conn.execute_batch(schema::FTS_OPTIMIZE)?;
         Ok(())
     })
     .await?;
