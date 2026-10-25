@@ -1,8 +1,6 @@
 # Cliptoo
 
-Advanced Linux clipboard manager. Use your clip history as a library of things.
-
-Built with Rust / Slint / SQLite, providing small footprint and very fast performance.
+Advanced Linux clipboard manager. Use your clip history as a library of things. Rust, Slint, and SQLite = small footprint and fast performance.
 
 ![assets/screen-1.WebP](assets/screen-1.webp)
 
@@ -12,67 +10,64 @@ Built with Rust / Slint / SQLite, providing small footprint and very fast perfor
 
 ### Performance
 
-- **Persistent History:** SQLite FTS5 full-text fuzzy search.
+- **Persistent History:** SQLite FTS5 search with prefix matching.
 - **Fast Search:** Real-time filtering with match highlighting.
-- **Virtualized Scrolling:** instant O(1) visible-row rendering regardless of list size.
-- **Paste Suppression:** SHA-256 hashing prevents duplicates.
+- **Virtualized Scrolling:** only visible rows are rendered.
+- **Deduplication:** SHA-256 hashing skips repeat copies.
 
 ### Clipboard & Paste
 
-- **Clipboard Capture:** Everything you copy is stored, categorised, ready for searching, pasting, previewing.
-- **Paste Emulation:** Select clip → Enter → content pasted via `enigo`.
-- **Global Hotkeys:** System-wide shortcuts via XDG Portal `GlobalShortcuts`.
-- **Quick Paste Overlay:** Just hit the number pad to select and paste.
+- **Capture:** text, rich text, HTML, images, and file paths.
+- **Paste:** Enter pastes via an `evdev` virtual keyboard; optional plain-text mode.
+- **Global Hotkey:** toggle the window via the XDG `GlobalShortcuts` portal (default `Ctrl+Alt+Q`).
+- **Quick Paste:** hold Right Alt and press `1`–`9`.
 
-### Content Intelligence
+### Content
 
-- **Content-Aware Filtering:** Filter by text, links, images, colors, bookmarks, etc.
-- **Image Previews:** Hover thumbnails to preview PNG, JPEG, WebP, AVIF, GIF, JXL, SVG.
-- **Color Swatches:** `#hex`, `rgb()`, `hsl()`, `oklch()`, `okhsl()` - with transparency.
-- **Code Highlighting:** Syntax-highlighted editor via `syntect`.
-- **URL Metadata:** Auto-fetches page titles and favicons.
-- **File Info:** Size, modification date, type classification.
+- **Filters:** text, links, images, colors, bookmarks.
+- **Images:** hover previews for PNG, JPEG, GIF, WebP, AVIF, JXL, SVG, ICO, BMP, and TIFF.
+- **Colors:** `#hex`, `rgb()`, `hsl()`, `hwb()`, `lab()`/`lch()`, `oklab()`/`oklch()`/`okhsl()`, with transparency.
+- **URLs and Files:** fetched titles and favicons; file size, mtime, and type.
+- **Tags:** `##`-prefixed search.
+- **Code:** monospace view toggle for code clips.
 
 ### Organization & Tools
 
-- **Bookmarks:** Make clips permanent, avoid auto-cleanup.
-- **Text Transformations:** E.g. `upper`, `lower`, `camel`, `kebab`, `strip whitespace`, etc.
-- **"Send To":** Send clips to external programs, text diff tool integration.
+- **Bookmarks:** exempt from auto-cleanup.
+- **Reordering:** move clips up/down or to the top/bottom.
+- **Transforms:** `upper`, `lower`, `camel`, `kebab`, `snake`, `trim`, `timestamp`, and more.
+- **Send To / Compare:** open clips in an external app or a diff tool.
 
 ### Storage & Maintenance
 
-- **Auto-Cleanup:** Prune by age and / or count.
-- **Clear Caches:** Reclaim disk space for thumbnails and metadata.
-- **Deadhead:** Remove clips referencing deleted files.
-- **Reclassify:** Re-run content classification on stored clips.
-- **Export/Import:** Portable JSON backup and restore.
-- **DB Statistics:** Total clips, paste count, database size.
+- **Cleanup:** prune by age and/or count, clear caches, remove dead file clips, reclassify.
+- **Backup:** JSON export/import, full history or bookmarks only.
+- **Statistics:** DB size, clip count, copy/paste counts.
 
 ### Customisation
 
-- **Theming:** Light/Dark/System, custom accent color.
-- **Typography:** Font family, size, row padding.
+- Light/Dark/System theme, accent color, fonts, row padding, hover-preview delay and size.
 
 ### System Integration
 
-- **System Tray:** Close to tray.
+- **Tray and autostart.**
+- **App blacklist:** ignore selected applications.
 
 ## Tech Stack
 
-| Component           | Technology                                |
-|---------------------|-------------------------------------------|
-| Language            | Rust (edition 2024)                       |
-| UI Framework        | Slint 1.17 (Qt 6 backend)                 |
-| Window System       | Wayland (wlr-data-control, KDE Plasma 6)  |
-| Database            | SQLite + FTS5 (`rusqlite`)                |
-| Async Runtime       | Tokio                                     |
-| Image Processing    | `image`, `resvg`, `jxl-oxide`             |
-| Syntax Highlighting | `syntect`                                 |
-| Colour Science      | `palette` (Oklab / Oklch / Okhsl)         |
-| D-Bus / Portals     | `zbus`                                    |
-| System Tray         | D-Bus StatusNotifierItem via `zbus`       |
-| Input Emulation     | `enigo`                                   |
-| HTTP Client         | `reqwest` (rustls)                        |
+| Component           | Technology                                       |
+|---------------------|--------------------------------------------------|
+| Language            | Rust (edition 2024)                              |
+| UI Framework        | Slint (Qt 6 backend)                             |
+| Wayland             | `wl-clipboard-rs`, `wayland-client`, wlr/ext data-control |
+| Database            | SQLite + FTS5 (`rusqlite`)                       |
+| Async Runtime       | Tokio                                            |
+| Image Processing    | `image`, `resvg` (SVG), `jxl-oxide` (JXL)        |
+| Colour Science      | `palette` (Oklab / Oklch / Okhsl)                |
+| D-Bus / Portals     | `zbus`, `ashpd` (portal hotkeys)                 |
+| System Tray         | Slint `SystemTrayIcon`                           |
+| Input Emulation     | `evdev` virtual keyboard                         |
+| HTTP Client         | `reqwest` (rustls)                               |
 
 ### LLM Use
 
@@ -82,55 +77,33 @@ Large Language Models (LLMs) were used to assist with code generation, refactori
 
 ## Installation
 
-Cliptoo runs on **Wayland** (KDE Plasma 6). Keep `xdg-desktop-portal-kde` installed so global shortcuts work.
+Cliptoo runs on **Wayland** only (KDE Plasma 6); X11 sessions are not supported. Keep `xdg-desktop-portal-kde` installed so global shortcuts work.
 
-Prebuilt AppImage, `.deb`, `.rpm`, and `.pkg.tar.zst` bundles are on the [releases page](https://github.com/dcog989/Cliptoo/releases).
+Prebuilt bundles are on the [releases page](https://github.com/dcog989/Cliptoo/releases).
 
 ### AppImage
-
-Download `cliptoo-<version>-x86_64.AppImage` from the [releases page](https://github.com/dcog989/Cliptoo/releases), then:
 
 ```sh
 chmod +x cliptoo-*-x86_64.AppImage
 ./cliptoo-*-x86_64.AppImage
 ```
 
-To add it to your application menu and file associations, use [AppImageLauncher](https://github.com/TheAssassin/AppImageLauncher) or [GearLever](https://github.com/mijorus/gearlever).
+Use [AppImageLauncher](https://github.com/TheAssassin/AppImageLauncher) or [GearLever](https://github.com/mijorus/gearlever) to add it to the menu.
 
-### Debian / Ubuntu
+### Packages
 
-```sh
-sudo apt install ./cliptoo_*_amd64.deb
-```
+| Distro        | Install                                              |
+|---------------|------------------------------------------------------|
+| Debian/Ubuntu | `sudo apt install ./cliptoo_*_amd64.deb`             |
+| Fedora/RHEL   | `sudo dnf install ./cliptoo-*.x86_64.rpm`            |
+| Arch          | `sudo pacman -U cliptoo-*.pkg.tar.zst`               |
 
-### Fedora / RHEL
-
-```sh
-sudo dnf install ./cliptoo-*.x86_64.rpm
-```
-
-### Arch Linux
-
-Install a prebuilt package from the [releases page](https://github.com/dcog989/Cliptoo/releases):
-
-```sh
-sudo pacman -U cliptoo-*.pkg.tar.zst
-```
-
-Or build and package the local release binary:
-
-```sh
-make package
-sudo pacman -U .pkg/cliptoo-*.pkg.tar.zst
-```
+Local Arch build: `make package && sudo pacman -U .pkg/cliptoo-*.pkg.tar.zst`.
 
 ### From source
 
-See [Prerequisites](#prerequisites).
-
-```sh
-make install
-```
+See [Prerequisites](#prerequisites). `make install` installs to `/usr/local`; `make uninstall` removes it.
+Data lives in `~/.local/share/Cliptoo/` (DB, images), config in `~/.config/Cliptoo/`, cache in `~/.cache/Cliptoo/`, logs in `~/.local/state/Cliptoo/Logs/`.
 
 ---
 
@@ -138,17 +111,17 @@ make install
 
 ### Prerequisites
 
-- **Rust toolchain** (stable): `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
-- **Qt 6, Wayland and dav1d dev headers, plus the `clang` and `mold` linkers**
+- **Rust toolchain** (stable, edition 2024): `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
+- **Qt 6, Wayland, dav1d, and fontconfig dev headers, plus the `clang` and `mold` linkers**
   (CI installs them and selects them with `CARGO_TARGET_*` env vars; for local
   builds put `linker = "clang"` and `rustflags = ["-C", "link-arg=-fuse-ld=mold"]`
   under `[target.x86_64-unknown-linux-gnu]` in `~/.cargo/config.toml`):
 
 | Distro       | Command                                                                     |
 |--------------|-----------------------------------------------------------------------------|
-| Debian/Ubuntu| `sudo apt install qt6-base-dev qt6-wayland libwayland-dev libxkbcommon-dev libdav1d-dev pkg-config clang mold` |
-| Fedora       | `sudo dnf install qt6-qtbase-devel qt6-qtwayland libwayland-devel libxkbcommon-devel dav1d-devel clang mold pkgconfig` |
-| Arch         | `sudo pacman -S qt6-base qt6-wayland wayland wayland-protocols libxkbcommon dav1d clang mold pkgconf` |
+| Debian/Ubuntu| `sudo apt install qt6-base-dev qt6-wayland libwayland-dev libxkbcommon-dev libfontconfig1-dev libdav1d-dev pkg-config clang mold` |
+| Fedora       | `sudo dnf install qt6-qtbase-devel qt6-qtwayland libwayland-devel libxkbcommon-devel fontconfig-devel dav1d-devel clang mold pkgconfig` |
+| Arch         | `sudo pacman -S qt6-base qt6-wayland wayland wayland-protocols libxkbcommon fontconfig dav1d clang mold pkgconf` |
 
 ### Build & Run
 
@@ -157,20 +130,20 @@ git clone https://github.com/dcog989/cliptoo.git && cd cliptoo
 ```
 
 ```sh
-cargo install cargo-outdated             # initialize outdated tool
+cargo install cargo-edit cargo-outdated cargo-sweep   # optional
 
-cargo build                              # debug build
-cargo check                              # type-check only
+cargo run                              # debug build and run
+cargo test --workspace
 cargo clippy --workspace --all-targets -- -D warnings
-cargo fetch && cargo outdated -w         # check for updates above semver range
-cargo fmt --check                        # formatting check
-cargo fmt                                # format all files
-cargo run                                # debug build and run
-cargo test --workspace                   # tests
-cargo upgrade && cargo update --verbose  # update Cargo.lock and dependencies to latest with semver ranges
+cargo fmt --all -- --check
+cargo fmt --all                        # apply formatting
+slint-lsp format -i src/ui/ui/*.slint
+make translations                      # rebuild PO catalogs from @tr()
 
-cargo sweep --time 14                    # delete artifacts unused for 14 days (needs cargo-sweep)
-cargo clean                              # delete the whole target/ directory
+cargo outdated -w
+cargo upgrade && cargo update --verbose
+cargo sweep --time 14
+cargo clean
 ```
 
 ### Release
@@ -179,8 +152,8 @@ Releases use [Cocogitto](https://cocogitto.io/) (`cargo install cocogitto` / `su
 
 ```sh
 cog bump --auto               # bump version, sync manifests, write `CHANGELOG.md`, commit, tag, push
-cog bump --version V=1.23.4   # Manual version
-cog changelog                 # Changelog preview
+cog bump --version 1.23.4     # manual version
+cog changelog                 # changelog preview
 ```
 
 Commits must use [Conventional Commits](https://www.conventionalcommits.org/) — enforced on commit via `cog verify`.

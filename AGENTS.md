@@ -18,7 +18,7 @@
 ### Workflow
 
 - Install: `make install` (runs sudo; confirm first)
-- Dev: `cargo run -p cliptoo`
+- Dev: `cargo run`
 - Test: `cargo test --workspace`
 - Lint: `cargo clippy --workspace --all-targets -- -D warnings`
 - Format: `cargo fmt --all` and `slint-lsp format -i src/ui/ui/*.slint`
@@ -59,7 +59,7 @@
 Cocogitto is an external binary (`cargo install cocogitto` / `pacman -S cocogitto`); config in `cog.toml` (`tag_prefix = "v"`).
 
 - `cog bump --auto` — bump from conventional commits, sync manifests (`scripts/sync_version.sh`), write `CHANGELOG.md`, commit, tag, push. `pre_bump_hooks` run tests + clippy first.
-- Manual version: `cog bump --version V=1.2.3`. Preview: `cog changelog`.
+- Manual version: `cog bump --version 1.2.3`. Preview: `cog changelog`.
 - Commit messages verified by `cog verify` (Merge/Revert lines bypass).
 
 ### Slint (mandatory)
