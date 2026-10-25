@@ -31,8 +31,12 @@ export global Theme {
     // (filled from Rust). Body text keeps its normal foreground; content that
     // is muted at rest lifts to `fg-clip-list`. Only solid `accent-fill`
     // surfaces switch to `accent-fg`.
-    in property <color> bg-row-hover:      #222222;
-    in property <color> bg-row-selected:   #282828;
+    in property <color> bg-row-hover:      #49408B;
+    // Selected-row surface: the accent hue one step darker than `bg-row-hover`,
+    // so muted at-rest icons/text stay legible on it (filled from Rust). Both
+    // row tints keep the accent's C/L ratio, so the darker surface is not
+    // relatively more colorful.
+    in property <color> bg-row-selected:   #30295F;
     in property <color> bg-input:          #242424;
 
     in property <color> fg-primary:        #E4E4E4;

@@ -76,13 +76,15 @@ pub fn fill_accent(
     system_accent: Option<(u8, u8, u8)>,
 ) {
     let border_accent_l = if is_dark { 0.54 } else { 0.40 };
-    // Hovered-row surface. The accent's own hue and chroma at a fixed OKLCH
-    // lightness well above the other row states (page 0.21 / alt 0.25 /
-    // selected 0.28): hover keeps the picked color instead of a washed-out
-    // tint, at a step (≈2:1) well under the 4:1 block the solid accent gave.
-    // Muted content lifts to `fg-clip-list` on hover; `fg-muted` only reaches
-    // 1.7:1 here.
+    // Hovered-row surface. The accent's hue at a fixed OKLCH lightness well
+    // above the other row states (page 0.21 / alt 0.25 / selected 0.32), at a
+    // step (≈2:1) well under the 4:1 block the solid accent gave. Muted
+    // content lifts to `fg-clip-list` on hover; `fg-muted` only reaches 1.7:1
+    // here.
     let row_hover_l = if is_dark { 0.42 } else { 0.84 };
+    // Selected-row surface: the same accent hue, one step darker than the hover
+    // tint so at-rest muted icons/text stay legible on it.
+    let row_selected_l = if is_dark { 0.32 } else { 0.88 };
 
     // Surface the accent is applied on; the accent must keep a minimum
     // APCA contrast against it in both theme modes.
@@ -118,7 +120,25 @@ pub fn fill_accent(
         accent_c * BORDER_CHROMA_SCALE,
         border_accent_l,
     ));
-    t.set_bg_row_hover(accent_sibling(accent_h, accent_c, row_hover_l));
+    // Row tints keep the accent's C/L ratio: OKLCH chroma is absolute, so the
+    // picked chroma at a lower lightness would read as more colorful.
+    let tint_chroma = |l: f64| {
+        if accent_l > 0.0 {
+            accent_c * l / accent_l
+        } else {
+            accent_c
+        }
+    };
+    t.set_bg_row_hover(accent_sibling(
+        accent_h,
+        tint_chroma(row_hover_l),
+        row_hover_l,
+    ));
+    t.set_bg_row_selected(accent_sibling(
+        accent_h,
+        tint_chroma(row_selected_l),
+        row_selected_l,
+    ));
     // FTS match spans: the accent's hue at a fixed strong chroma and a high
     // contrast against the surface, so a match never reads as body text.
     t.set_match_highlight(match_highlight(accent_h, bg));
@@ -140,7 +160,6 @@ pub fn fill_theme(
         t.set_bg_primary(Color::from_rgb_u8(bg_r, bg_g, bg_b));
         t.set_bg_header(Color::from_rgb_u8(0x12, 0x12, 0x12));
         t.set_bg_row_alt(Color::from_rgb_u8(0x1C, 0x1C, 0x1C));
-        t.set_bg_row_selected(Color::from_rgb_u8(0x28, 0x28, 0x28));
         t.set_bg_input(Color::from_rgb_u8(0x24, 0x24, 0x24));
         t.set_bg_track(Color::from_rgb_u8(0x55, 0x55, 0x55));
         t.set_fg_primary(Color::from_rgb_u8(0xE4, 0xE4, 0xE4));
@@ -156,7 +175,6 @@ pub fn fill_theme(
         t.set_bg_primary(Color::from_rgb_u8(bg_r, bg_g, bg_b));
         t.set_bg_header(Color::from_rgb_u8(0xE8, 0xE8, 0xE8));
         t.set_bg_row_alt(Color::from_rgb_u8(0xEE, 0xEE, 0xEE));
-        t.set_bg_row_selected(Color::from_rgb_u8(0xDD, 0xDD, 0xDD));
         t.set_bg_input(Color::from_rgb_u8(0xFF, 0xFF, 0xFF));
         // Slider / toggle-off track. Must be set per mode (the `Theme.slint`
         // default is the dark value). #C4C4C4 only reached Lc 26 against the

@@ -38,6 +38,10 @@ export component ClipItem {
     height: Theme.row-height;
 
     Rectangle {
+        // Selected rows get the accent-tinted selection surface plus a dim
+        // accent border; the hover surface is too bright for at-rest icons.
+        border-width: is-selected ? 1px : 0px;
+        border-color: Theme.border-accent;
         background: touch.has-hover ? Theme.bg-row-hover : is-selected ? Theme.bg-row-selected : is-alt-row ? Theme.bg-row-alt : Theme.bg-primary;
         height: 100%;
         width: 100%;

@@ -26,6 +26,16 @@ pub async fn detect_system_dark() -> Option<bool> {
     }
 }
 
+/// Whether the session is KDE Plasma, where `kdeglobals` holds the user's
+/// picked accent while the portal reports the derived palette highlight.
+fn on_kde() -> bool {
+    std::env::var("XDG_CURRENT_DESKTOP").is_ok_and(|desktops| {
+        desktops
+            .split(':')
+            .any(|name| name.eq_ignore_ascii_case("KDE"))
+    })
+}
+
 /// Try to read the KDE Plasma 6 accent color from `$XDG_CONFIG_HOME/kdeglobals`.
 /// Plasma 6 writes the user's chosen accent color as `AccentColor=r,g,b,a`
 /// under `[General]` in this file.
@@ -57,10 +67,18 @@ fn read_kdeglobals_accent() -> Option<(u8, u8, u8)> {
     None
 }
 
-/// Detect the system accent color, trying xdg-desktop-portal first,
-/// then falling back to `$XDG_CONFIG_HOME/kdeglobals` on KDE Plasma 6.
+/// Detect the system accent color. On KDE Plasma the portal's
+/// `accent-color` is `QPalette::highlight()` — the accent blended toward the
+/// window background — so the stored `AccentColor` is read first there.
+/// Elsewhere the XDG portal is authoritative, with `kdeglobals` as a last
+/// resort when the portal call fails.
 /// Returns `(r, g, b)` in 0–255, or `None` if undetectable.
 pub async fn detect_system_accent() -> Option<(u8, u8, u8)> {
+    if on_kde()
+        && let Some(rgb) = read_kdeglobals_accent()
+    {
+        return Some(rgb);
+    }
     // Try the portal (org.freedesktop.appearance.accent-color)
     if let Ok(conn) = crate::dbus::session().await
         && let Ok(msg) = conn
