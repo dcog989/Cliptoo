@@ -54,3 +54,95 @@ async fn update_clip_metadata_refreshes_size_and_multiline() {
 
     clean_up(&dir);
 }
+
+/// Re-copying an existing clip refreshes the metadata derived from current disk
+/// state instead of keeping the first copy's values, and clears a stale
+/// deadhead flag — the caller just classified the content again, so the path
+/// exists. Paired with the timestamp bump that brings the row to the top.
+#[tokio::test]
+async fn insert_or_bump_refreshes_stale_metadata() {
+    let (dir, db) = temp_db("bump_refresh").await;
+
+    db.with(|conn| {
+        cliptoo_core::db::queries::insert_or_bump(
+            conn,
+            "/tmp/photo.png",
+            "old preview",
+            "hash-bump",
+            "file_generic",
+            Some("first-app"),
+            false,
+            false,
+            false,
+            42,
+            false,
+        )
+    })
+    .await
+    .unwrap();
+
+    let id: i64 = db
+        .with(|conn| {
+            conn.query_row(
+                "SELECT Id FROM clips WHERE ContentHash = 'hash-bump'",
+                [],
+                |row| row.get(0),
+            )
+        })
+        .await
+        .unwrap();
+
+    // A previous deadhead pass flagged the row while the path was missing.
+    db.with(|conn| conn.execute("UPDATE clips SET IsDeadhead = 1 WHERE Id = ?1", [id]))
+        .await
+        .unwrap();
+
+    let inserted = db
+        .with(|conn| {
+            cliptoo_core::db::queries::insert_or_bump(
+                conn,
+                "/tmp/photo.png",
+                "new preview",
+                "hash-bump",
+                "file_image",
+                Some("second-app"),
+                false,
+                false,
+                true,
+                4096,
+                true,
+            )
+        })
+        .await
+        .unwrap();
+    assert!(!inserted, "same hash must bump, not insert");
+
+    let (clip, is_file_uri) = db
+        .with(|conn| {
+            let clip = cliptoo_core::db::queries::search_clips(conn, "", "all", 10, 0, None)?
+                .into_iter()
+                .next()
+                .expect("bumped row is still listed");
+            let is_file_uri: i32 = conn.query_row(
+                "SELECT IsFileUri FROM clips WHERE Id = ?1",
+                [clip.id],
+                |row| row.get(0),
+            )?;
+            Ok((clip, is_file_uri))
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(
+        clip.clip_type,
+        cliptoo_core::db::models::ClipType::FileImage
+    );
+    assert_eq!(clip.preview_content, "new preview");
+    assert_eq!(clip.size_in_bytes, 4096);
+    assert!(clip.is_multiline);
+    assert!(!clip.is_deadhead);
+    assert_eq!(clip.source_app.as_deref(), Some("second-app"));
+    assert_eq!(is_file_uri, 1);
+
+    clean_up(&dir);
+}

@@ -217,7 +217,11 @@ fn run_search(
 }
 
 /// Insert a new clip or, if `ContentHash` already exists, bump its `Timestamp`
-/// to now (bringing it to the top of the list).
+/// to now (bringing it to the top of the list) and refresh the metadata that
+/// depends on current disk state (`ClipType`, `PreviewContent`, `SizeInBytes`,
+/// `IsMultiline`, `IsFileUri`, `SourceApp`) rather than the copy that created
+/// the row. `IsDeadhead` is cleared because the caller just re-copied the
+/// content, and its insert-time classifier already re-checked the path.
 ///
 /// Returns `true` if a new row was inserted, `false` if an existing row was
 /// bumped.  Both statements run inside the caller's `db.with(|conn| ...)` lock,
@@ -258,7 +262,15 @@ pub fn insert_or_bump(
              (Content, PreviewContent, ContentHash, ClipType, SourceApp, Timestamp,
               WasTrimmed, HasLeadingWhitespace, IsMultiline, SizeInBytes, IsFileUri)
          VALUES (?1, ?2, ?3, ?4, ?5, ?11, ?6, ?7, ?8, ?9, ?10)
-         ON CONFLICT(ContentHash) DO UPDATE SET Timestamp = ?11",
+         ON CONFLICT(ContentHash) DO UPDATE SET
+             Timestamp = ?11,
+             PreviewContent = ?2,
+             ClipType = ?4,
+             SourceApp = ?5,
+             IsMultiline = ?8,
+             SizeInBytes = ?9,
+             IsFileUri = ?10,
+             IsDeadhead = 0",
         params![
             content,
             preview_content,
