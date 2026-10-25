@@ -83,17 +83,17 @@ async fn insert_or_bump_refreshes_stale_metadata() {
 
     let id: i64 = db
         .with(|conn| {
-            conn.query_row(
+            Ok(conn.query_row(
                 "SELECT Id FROM clips WHERE ContentHash = 'hash-bump'",
                 [],
                 |row| row.get(0),
-            )
+            )?)
         })
         .await
         .unwrap();
 
     // A previous deadhead pass flagged the row while the path was missing.
-    db.with(|conn| conn.execute("UPDATE clips SET IsDeadhead = 1 WHERE Id = ?1", [id]))
+    db.with(|conn| Ok(conn.execute("UPDATE clips SET IsDeadhead = 1 WHERE Id = ?1", [id])?))
         .await
         .unwrap();
 
