@@ -69,6 +69,9 @@ async fn main() -> Result<()> {
     // App-wide: scroll by the wheel's angleDelta instead of Wayland's tiny
     // pixelDelta, which otherwise makes one notch scroll only a few pixels.
     drag::normalize_wheel_delta();
+    // App-wide: complete a click whose press the compositor consumed while
+    // activating the inactive window, so the first click registers.
+    drag::repair_activation_clicks();
 
     ui.set_clips(std::rc::Rc::new(VecModel::<ClipData>::from(vec![])).into());
     let (is_dark, system_accent) = theme::apply_theme(&ui, &settings).await;

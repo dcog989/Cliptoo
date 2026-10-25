@@ -21,6 +21,7 @@ unsafe extern "C" {
     fn cliptoo_make_tooltip_window(child: *mut std::ffi::c_void, parent: *mut std::ffi::c_void);
     fn cliptoo_app_has_focus() -> bool;
     fn cliptoo_normalize_wheel_delta();
+    fn cliptoo_repair_activation_clicks();
 }
 
 /// Raise and activate the window so the first click on a freshly-shown window
@@ -70,4 +71,12 @@ pub fn app_has_focus() -> bool {
 /// thread after the backend has created `qApp`; call once at startup.
 pub fn normalize_wheel_delta() {
     unsafe { cliptoo_normalize_wheel_delta() }
+}
+
+/// Install an application-wide Qt event filter that completes a click whose
+/// press the compositor consumed while activating an inactive window (see
+/// cliptoo_repair_activation_clicks in drag_qt.cpp). Must run on the Qt GUI
+/// thread after the backend has created `qApp`; call once at startup.
+pub fn repair_activation_clicks() {
+    unsafe { cliptoo_repair_activation_clicks() }
 }

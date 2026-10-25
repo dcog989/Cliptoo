@@ -1,8 +1,10 @@
 #include <QApplication>
 #include <QCoreApplication>
 #include <QEvent>
+#include <QMouseEvent>
 #include <QObject>
 #include <QPointingDevice>
+#include <QSet>
 #include <QWheelEvent>
 #include <QWidget>
 
@@ -75,6 +77,59 @@ protected:
     }
 };
 
+// A click that activates an inactive window can reach the app as a release
+// with no press: the compositor consumes the press for its activation action,
+// and Slint's Qt backend then drops the orphan release (its `isMouseButtonDown`
+// guard). Replaying the missing press completes the pair, so the widget under
+// the cursor handles the click instead of that click only focusing the window.
+// Inert for every click that arrives whole.
+class ActivationClickFilter : public QObject {
+public:
+    explicit ActivationClickFilter(QObject* parent) : QObject(parent) {}
+
+protected:
+    bool eventFilter(QObject* receiver, QEvent* event) override {
+        switch (event->type()) {
+        case QEvent::MouseButtonPress:
+        case QEvent::MouseButtonDblClick:
+            if (!replaying) {
+                pressed.insert(receiver);
+            }
+            break;
+        case QEvent::MouseButtonRelease: {
+            auto* release = static_cast<QMouseEvent*>(event);
+            // Only a real left-button release whose press never arrived.
+            if (release->button() != Qt::LeftButton
+                || release->source() != Qt::MouseEventNotSynthesized
+                || pressed.remove(receiver)) {
+                break;
+            }
+            replaying = true;
+            QMouseEvent press(QEvent::MouseButtonPress, release->position(),
+                              release->globalPosition(), Qt::LeftButton,
+                              Qt::LeftButton, release->modifiers(),
+                              release->pointingDevice());
+            QCoreApplication::sendEvent(receiver, &press);
+            replaying = false;
+            break;
+        }
+        case QEvent::WindowDeactivate:
+        case QEvent::UngrabMouse:
+            // A press with no release leaves a stale entry that would make the
+            // next orphan release look paired, so drop all of them here.
+            pressed.clear();
+            break;
+        default:
+            break;
+        }
+        return false;
+    }
+
+private:
+    QSet<QObject*> pressed;
+    bool replaying = false;
+};
+
 } // namespace
 
 // Install the wheel-delta filter for the whole application. Called once from
@@ -83,5 +138,13 @@ protected:
 extern "C" void cliptoo_normalize_wheel_delta() {
     if (qApp != nullptr) {
         qApp->installEventFilter(new WheelDeltaFilter(qApp));
+    }
+}
+
+// Install the activation-click repair for the whole application. See
+// drag.rs repair_activation_clicks and the filter's comment above.
+extern "C" void cliptoo_repair_activation_clicks() {
+    if (qApp != nullptr) {
+        qApp->installEventFilter(new ActivationClickFilter(qApp));
     }
 }
