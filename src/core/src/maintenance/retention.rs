@@ -55,10 +55,9 @@ pub fn retention(conn: &Connection, cfg: &RetentionConfig) -> Result<u64> {
     // Bottom-pinned clips are exempt here too — they sort last, so they would
     // otherwise always be the first cut once the count cap is reached.
     //
-    // NOTE: `Id NOT IN (SELECT Id … LIMIT ?1)` re-evaluates the subquery per
-    // outer row, so it degrades toward O(n²) once n ≫ max_clips. Fine for a
-    // desktop daemon with bounded history; a LEFT JOIN / anti-join rewrite is
-    // the fix if scale ever demands it.
+    // The `IN (SELECT …)` list is uncorrelated, so SQLite evaluates it once and
+    // probes it through a Bloom filter (visible in `EXPLAIN QUERY PLAN`) rather
+    // than re-running it per candidate row.
     if cfg.max_clips > 0 {
         let n = conn.execute(
             &format!(
