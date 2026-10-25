@@ -24,6 +24,7 @@ export component ContextMenuHost {
     callback preview-requested(int, float, float);  // id, x, y in logical px
     callback edit-clip(int);
     callback transform-clip(int, string);
+    callback paste-clip(int);              // default paste for plain text clips
     callback paste-as(int, string);  // id, mode ("rich" | "plain")
     callback toggle-bookmark(int, bool);  // id, current is-bookmarked
     callback move-to-top(int);
@@ -133,6 +134,10 @@ export component ContextMenuHost {
                 }
                 edit => {
                     root.edit-clip(root.ctx-clip-id);
+                    main-popup.close();
+                }
+                paste() => {
+                    root.paste-clip(root.ctx-clip-id);
                     main-popup.close();
                 }
                 paste-as(mode) => {

@@ -19,6 +19,7 @@ export component ContextMenu {
 
     callback preview();
     callback edit();
+    callback paste();               // default paste for plain text clips
     callback paste-as(string);      // "rich" | "plain"
     callback delete();
     callback toggle-bookmark(int, bool);  // id, current is-bookmarked
@@ -34,9 +35,15 @@ export component ContextMenu {
     // True for rich-text (RTF/HTML) clips, which can paste either as raw markup
     // or as stripped plain text.
     property <bool> is-rich-type: root.clip-type == "rtf" || root.clip-type == "html";
-    // True for clips with a non-text paste rendition: a rich paste for RTF/HTML
-    // markup, or a file paste (`text/uri-list`) for on-disk file/folder clips.
-    property <bool> has-paste-plain: root.is-rich-type || ClipTypeMap.is-file-type(root.clip-type);
+    // True for clips with a file paste rendition (`text/uri-list`).
+    property <bool> is-file-type: ClipTypeMap.is-file-type(root.clip-type);
+    // Plain text clips get an explicit plain paste row. Colour clips paste as
+    // text too but are not in is-text-type, which also gates the Format menu.
+    property <bool> show-paste: (root.is-text-type || root.clip-type == "color") && !root.is-rich-type;
+    // Rich clips offer both renditions; file clips only the text path.
+    property <bool> show-rich-paste: root.is-rich-type;
+    property <bool> show-plain-paste: root.is-rich-type || root.is-file-type;
+    property <bool> has-paste-block: root.show-paste || root.show-rich-paste || root.show-plain-paste;
 
     // Intrinsic content size, used by ContextMenuHost to size the popup. The
     // height is computed from the fixed row/separator counts because Slint
@@ -47,16 +54,17 @@ export component ContextMenu {
 
     pure function main-menu-height() -> length {
         // Preview, Edit, Delete, 4×Move, Bookmark = 8 rows, plus the
-        // conditional Format (text), Paste Rich (rich) and Paste Plain
-        // (rich or file) rows.
+        // conditional Format (text) and paste rows.
         // Separators: the three unconditional (above Delete, above Move to
         // Top, above Bookmark), plus one for the paste block.
+        let paste_rows = (root.show-paste ? 1 : 0)
+            + (root.show-rich-paste ? 1 : 0)
+            + (root.show-plain-paste ? 1 : 0);
         let rows = 8
             + (root.is-text-type ? 1 : 0)
-            + (root.is-rich-type ? 1 : 0)
-            + (root.has-paste-plain ? 1 : 0);
+            + paste_rows;
         let seps = 3
-            + (root.has-paste-plain ? 1 : 0);
+            + (root.has-paste-block ? 1 : 0);
         return rows * 32px + seps * 9px + 8px;
     }
 
@@ -91,24 +99,30 @@ export component ContextMenu {
                 }
             }
 
-            if root.has-paste-plain: MenuRow {
+            if root.has-paste-block: MenuRow {
                 is-separator: true;
             }
-            if root.is-rich-type: MenuRow {
+            if root.show-paste: MenuRow {
+                label: @tr("Paste as Plain Text");
+                icon: @image-url("icons/text.svg");
+                clicked => {
+                    root.paste();
+                }
+            }
+            if root.show-rich-paste: MenuRow {
                 label: @tr("Paste as Rich Text");
                 icon: @image-url("icons/text-initial.svg");
                 clicked => {
                     root.paste-as("rich");
                 }
             }
-            if root.has-paste-plain: MenuRow {
+            if root.show-plain-paste: MenuRow {
                 label: @tr("Paste as Plain Text");
                 icon: @image-url("icons/text.svg");
                 clicked => {
                     root.paste-as("plain");
                 }
             }
-
             if root.is-text-type: MenuRow {
                 label: @tr("Format");
                 icon: @image-url("icons/pencil-line.svg");

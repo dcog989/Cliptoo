@@ -244,6 +244,9 @@ export component AppWindow inherits Window {
         edit-clip(id) => {
             root.edit-clip(id);
         }
+        paste-clip(id) => {
+            root.item-activated(id);
+        }
         paste-as(id, mode) => {
             root.paste-as(id, mode);
         }
