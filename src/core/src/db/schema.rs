@@ -83,6 +83,13 @@ pub const FTS_INTEGRITY_CHECK: &str =
 /// behind, keeping search fast and the index compact. Cheap when already merged.
 pub const FTS_OPTIMIZE: &str = "INSERT INTO clips_fts(clips_fts) VALUES('optimize');";
 
+/// FTS5 setting (3.42+): overwrite deleted text in the index instead of leaving
+/// it in free space inside `clips_fts_data`. For a clipboard manager holding
+/// passwords and tokens, a deleted clip must not stay readable in the file.
+/// Persistent in `clips_fts_config`, so it only has to be set once.
+pub const FTS_SECURE_DELETE: &str =
+    "INSERT INTO clips_fts(clips_fts, rank) VALUES('secure-delete', 1);";
+
 pub const PRAGMA_WAL: &str = "PRAGMA journal_mode = WAL;";
 /// WAL + `NORMAL` never corrupts the database; it only risks losing the most
 /// recent transactions if the machine loses power before the next checkpoint,
@@ -131,9 +138,14 @@ pub const MIGRATE_ADD_IS_DEADHEAD: &str =
 pub const MIGRATE_ADD_IS_FILE_URI: &str =
     "ALTER TABLE clips ADD COLUMN IsFileUri INTEGER NOT NULL DEFAULT 0";
 
+/// v5 migration: turn on FTS5 `secure-delete` for databases that predate it.
+/// [`FTS_SECURE_DELETE`] is persistent state rather than a schema change, but
+/// it is still stamped under `user_version` so it runs exactly once.
+pub const MIGRATE_FTS_SECURE_DELETE: &str = FTS_SECURE_DELETE;
+
 /// Current schema version. Bump when the schema changes and append a matching
 /// entry to `MIGRATIONS`; never edit or reorder a migration that has shipped.
-pub const SCHEMA_VERSION: u32 = 4;
+pub const SCHEMA_VERSION: u32 = 5;
 
 /// Ordered schema migrations. Each entry raises the schema to `target_version`
 /// and runs exactly once, inside its own transaction that also stamps
@@ -143,6 +155,7 @@ const MIGRATIONS: &[(u32, &str)] = &[
     (2, MIGRATE_ADD_IS_DEADHEAD),
     (3, MIGRATE_ADD_IS_FILE_URI),
     (4, CREATE_INDEX_CLIPS_TS_ALL),
+    (5, MIGRATE_FTS_SECURE_DELETE),
 ];
 
 /// Bring `conn` up to [`SCHEMA_VERSION`]. No-ops when already current.
@@ -189,9 +202,10 @@ pub fn migrate(conn: &Connection) -> Result<()> {
 fn apply_baseline(conn: &Connection) -> Result<()> {
     let tx = conn.unchecked_transaction()?;
     tx.execute_batch(&format!(
-        "{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}",
+        "{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}",
         CREATE_CLIPS,
         CREATE_CLIPS_FTS,
+        FTS_SECURE_DELETE,
         CREATE_STATS,
         SEED_STATS,
         TRIGGER_FTS_INSERT,

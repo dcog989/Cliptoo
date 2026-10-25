@@ -4,8 +4,9 @@
 
 use cliptoo_core::db::DbPool;
 
-/// The v1 `clips` table: the original shipped schema, before `IsDeadhead`
-/// (v2) and `IsFileUri` (v3) existed.
+/// The v1 schema: the original shipped `clips` table (before `IsDeadhead` (v2)
+/// and `IsFileUri` (v3) existed) plus its FTS index, which v1 always created
+/// and the v5 migration writes to.
 const V1_CREATE_CLIPS: &str = "
 CREATE TABLE clips (
     Id                    INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -22,6 +23,12 @@ CREATE TABLE clips (
     SizeInBytes           INTEGER NOT NULL DEFAULT 0,
     PasteCount            INTEGER NOT NULL DEFAULT 0,
     Tags                  TEXT
+);
+CREATE VIRTUAL TABLE clips_fts USING fts5(
+    Content,
+    Tags,
+    content='clips',
+    content_rowid='Id'
 );
 ";
 
@@ -69,6 +76,17 @@ fn has_browse_index(path: &std::path::Path) -> bool {
         .any(|n| n == "idx_clips_ts_all")
 }
 
+fn fts_secure_delete(path: &std::path::Path) -> bool {
+    let conn = rusqlite::Connection::open(path).unwrap();
+    conn.query_row(
+        "SELECT v FROM clips_fts_config WHERE k = 'secure-delete'",
+        [],
+        |row| row.get::<_, String>(0),
+    )
+    .map(|v| v == "1")
+    .unwrap_or(false)
+}
+
 /// A brand-new database is created at the current schema version: the migrated
 /// columns are present, the browse-path index exists, and it is stamped.
 /// Reopening it is a no-op.
@@ -82,6 +100,7 @@ fn fresh_database_gets_baseline_at_current_version() {
     assert!(cols.contains(&"IsDeadhead".to_string()));
     assert!(cols.contains(&"IsFileUri".to_string()));
     assert!(has_browse_index(&p), "v4 browse-path index in baseline");
+    assert!(fts_secure_delete(&p), "v5 secure-delete in baseline");
     assert_eq!(
         user_version(&p),
         cliptoo_core::db::schema::SCHEMA_VERSION as i64
@@ -128,6 +147,7 @@ fn migrates_legacy_v1_database() {
         "v3 migration applied"
     );
     assert!(has_browse_index(&p), "v4 migration applied");
+    assert!(fts_secure_delete(&p), "v5 migration applied");
     assert_eq!(
         user_version(&p),
         cliptoo_core::db::schema::SCHEMA_VERSION as i64
