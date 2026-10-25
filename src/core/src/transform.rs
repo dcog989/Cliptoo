@@ -71,9 +71,14 @@ pub fn transform(content: &str, key: &str) -> String {
         // ("parseXMLResponse_v2" → "Parse xml response v2").
         "deslug" => capitalize_first(&machine_words(content).join(" ")),
 
-        // Normalise to single newlines, collapse 3+ to \n\n.
+        // Normalise: strip a UTF-8 BOM, LF line endings, collapse 3+ newlines
+        // to \n\n, trim the clip's outer whitespace.
         "lf1" => {
-            let normalised = content.replace("\r\n", "\n").replace('\r', "\n");
+            let normalised = content
+                .strip_prefix('\u{feff}')
+                .unwrap_or(content)
+                .replace("\r\n", "\n")
+                .replace('\r', "\n");
             // Collapse runs of 3+ newlines to \n\n.
             let mut out = String::with_capacity(normalised.len());
             let mut nl_run = 0usize;
@@ -88,7 +93,7 @@ pub fn transform(content: &str, key: &str) -> String {
                     out.push(ch);
                 }
             }
-            out
+            out.trim().to_string()
         }
 
         // Normalise then ensure all paragraph breaks become \n\n.
@@ -275,6 +280,11 @@ mod tests {
     #[test]
     fn lf1_collapses_triple_newlines() {
         assert_eq!(transform("a\n\n\nb", "lf1"), "a\n\nb");
+    }
+
+    #[test]
+    fn lf1_strips_bom_and_outer_whitespace() {
+        assert_eq!(transform("\u{feff}  a\r\nb  \n", "lf1"), "a\nb");
     }
 
     #[test]
