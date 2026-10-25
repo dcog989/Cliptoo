@@ -3,6 +3,76 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v2.23.0 - 2026-10-25
+
+#### Features
+
+- (33e7f26) unify settings rows on shared components and add accent hover states - dcog989
+
+- (e3a7504) add multi-select to the clip list - dcog989
+
+- (ce6e801) add a Shortcuts page with hotkey inputs and a keyboard cheat sheet - dcog989
+
+- (ca2e22a) add Delete, Ctrl+C and Ctrl+E selection shortcuts - dcog989
+
+- (1a58e3a) add a Compact Database maintenance action - dcog989
+
+- (d8ea28c) enable FTS5 secure-delete in v5 migration - dcog989
+
+- (8074cf6) move clip-list selection on hover so only one row is highlighted - dcog989
+
+- (5e12db1) forward PageUp/PageDown to the clip list from the search field - dcog989
+
+- (7090724) arrow-key navigation and Enter activation - dcog989
+
+- (a7d6f7e) strip BOM and outer whitespace in the LF normalise - dcog989
+
+#### Bug Fixes
+
+- (adad250) read the FTS secure-delete flag as an integer - dcog989
+
+- (f99a330) re-map the window on the shortcut so it always comes back focused - dcog989
+
+- (0bd5e97) complete clicks whose press the compositor ate on window activation - dcog989
+
+- (ed135f4) truncate the WAL after VACUUM in compact - dcog989
+
+- (a46dbb6) coerce rusqlite results into anyhow in clip_metadata test - dcog989
+
+- (676e347) tolerate NULL Content/PreviewContent on read - dcog989
+
+- (dca6fe2) check and optimize the FTS index in the maintenance pass - dcog989
+
+- (07c95f9) wait for a competing connection's lock instead of failing instantly - dcog989
+
+- (b5a87e2) refresh clip metadata when a duplicate copy bumps a row - dcog989
+
+- (f0cc581) classify color-only rich text as a color clip - dcog989
+
+- (b3d0a8b) highlight the selected clip row with the accent - dcog989
+
+- (376dc16) keep file and folder clips file clips when saving an edit - dcog989
+
+- (7e1bf0d) record and reorder on paste-as from the context menu - dcog989
+
+- (857be64) apply text field edits as you type and size the menu for Send To - dcog989
+
+- (6f0abe7) offer a paste row for every pasteable clip type - dcog989
+
+#### Performance Improvements
+
+- (1965bc4) cap FTS snippets by stored SizeInBytes, not length(Content) - dcog989
+
+- (b59c6f6) run PRAGMA optimize after each maintenance pass - dcog989
+
+- (0c2024f) use synchronous=NORMAL on the WAL connection - dcog989
+
+#### Refactoring
+
+- (bdc2791) put open-log link beside the log level selector - dcog989
+
+- - -
+
 ## v2.22.0 - 2026-10-24
 
 #### Features
