@@ -2,6 +2,10 @@ use slint::ComponentHandle;
 use std::path::Path;
 use std::time::Duration;
 
+/// Gap between unmapping and re-mapping in [`summon_window`], so the
+/// compositor processes the unmap and treats the window as newly mapped.
+const SUMMON_REMAP_DELAY: Duration = Duration::from_millis(50);
+
 /// Hide the main window. Also clears `window-visible`, which stops the
 /// blur-detection poll (AppWindow.slint `focus-poll` is gated on it).
 pub fn hide_window(ui: &crate::AppWindow) {
@@ -42,6 +46,35 @@ pub fn show_window(ui: &crate::AppWindow) -> Result<(), slint::PlatformError> {
         ui.invoke_reset_scroll();
     }
     result
+}
+
+/// Minimize for a paste that must not close to the tray: the target app takes
+/// the keyboard focus, the window stays in the taskbar, and the hotkey brings
+/// it back. Keeps the search text, selection and scroll position.
+pub fn minimize_for_paste(ui: &crate::AppWindow) {
+    crate::preview::hide_preview();
+    crate::drag::minimize_window(ui);
+}
+
+/// Bring the window on screen and focused, from any state — hidden, minimized,
+/// or already visible. Re-maps it rather than un-minimizing: the compositor
+/// grants activation to a freshly mapped window but ignores it for one that is
+/// merely un-iconified (verified from the Qt Wayland log: every re-map comes
+/// back `WindowActive`).
+pub fn summon_window(ui: &crate::AppWindow) {
+    if ComponentHandle::window(ui).is_visible() {
+        ui.set_window_visible(false);
+        crate::preview::hide_preview();
+        let _ = ComponentHandle::hide(ui);
+    }
+    // Qt coalesces a hide and a show in the same callback into a no-op, so the
+    // compositor has to see the unmap before the surface is mapped again.
+    let weak = ui.as_weak();
+    slint::Timer::single_shot(SUMMON_REMAP_DELAY, move || {
+        if let Some(ui) = weak.upgrade() {
+            let _ = show_window(&ui);
+        }
+    });
 }
 
 /// Toggle the main window's visibility: hide when visible, show when hidden.

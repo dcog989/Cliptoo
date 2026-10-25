@@ -423,7 +423,10 @@ pub async fn run_hotkey_loop(
             move |shortcut_id: String| {
                 if shortcut_id == TOGGLE_ID {
                     let _ = weak.upgrade_in_event_loop(move |ui| {
-                        crate::window::toggle_window(&ui);
+                        // Re-map instead of toggling: a minimized window's
+                        // state cannot be trusted, and the shortcut must always
+                        // bring the window back focused.
+                        crate::window::summon_window(&ui);
                     });
                 }
             }

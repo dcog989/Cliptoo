@@ -359,19 +359,28 @@ pub fn setup_clip_actions(
         let transform_db = db.clone();
         let transform_ui = ui.as_weak();
         let transform_sup = suppression.clone();
+        let transform_settings = settings.clone();
         ui.on_transform_clip(move |id: i32, key: slint::SharedString| {
             let db = transform_db.clone();
             let ui = transform_ui.clone();
             let sup = transform_sup.clone();
             let key = key.to_string();
+            let keep_open = !transform_settings.borrow().always_close_to_tray;
             tokio::spawn(async move {
                 let content = db
                     .with(|conn| cliptoo_core::db::queries::get_clip_content(conn, id as i64))
                     .await;
                 if let Ok(content) = content {
                     let transformed = cliptoo_core::transform::transform(&content, &key);
-                    if let Err(e) =
-                        crate::paste::paste_content(&transformed, "text", &sup, &ui, false).await
+                    if let Err(e) = crate::paste::paste_content(
+                        &transformed,
+                        "text",
+                        &sup,
+                        &ui,
+                        false,
+                        keep_open,
+                    )
+                    .await
                     {
                         tracing::error!("Transform paste error (key={key}): {e}");
                     }
@@ -478,6 +487,7 @@ pub fn setup_clip_actions(
             // activation so a setting change applies without a restart.
             let moves_top = settings.borrow().paste_moves_clip_to_top;
             let paste_plain = settings.borrow().paste_as_plain_text;
+            let keep_open = !settings.borrow().always_close_to_tray;
             let (query, filter) = helpers::current_view_state(&ui);
             let pfx = paste_pfx.clone();
             tokio::spawn(async move {
@@ -496,9 +506,15 @@ pub fn setup_clip_actions(
                     })
                     .await;
                 if let Ok((content, clip_type, _hash)) = result
-                    && let Err(e) =
-                        crate::paste::paste_content(&content, &clip_type, &sup, &ui, paste_plain)
-                            .await
+                    && let Err(e) = crate::paste::paste_content(
+                        &content,
+                        &clip_type,
+                        &sup,
+                        &ui,
+                        paste_plain,
+                        keep_open,
+                    )
+                    .await
                 {
                     tracing::error!("Paste error: {e}");
                 }
@@ -529,6 +545,7 @@ pub fn setup_clip_actions(
             // Same bookkeeping as a normal paste: count it, and reorder the
             // list when the "paste moves clip to top" setting is on.
             let moves_top = pas_settings.borrow().paste_moves_clip_to_top;
+            let keep_open = !pas_settings.borrow().always_close_to_tray;
             let (query, filter) = helpers::current_view_state(&ui);
             let paste_plain = mode == "plain";
             tokio::spawn(async move {
@@ -544,9 +561,15 @@ pub fn setup_clip_actions(
                     })
                     .await;
                 if let Ok((content, clip_type, _hash)) = result
-                    && let Err(e) =
-                        crate::paste::paste_content(&content, &clip_type, &sup, &ui, paste_plain)
-                            .await
+                    && let Err(e) = crate::paste::paste_content(
+                        &content,
+                        &clip_type,
+                        &sup,
+                        &ui,
+                        paste_plain,
+                        keep_open,
+                    )
+                    .await
                 {
                     tracing::error!("Paste-as ({paste_plain}) error: {e}");
                 }

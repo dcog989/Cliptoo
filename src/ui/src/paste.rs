@@ -55,6 +55,7 @@ pub async fn paste_content(
     suppression: &PasteSuppressionSet,
     window: &slint::Weak<crate::AppWindow>,
     paste_as_plain_text: bool,
+    keep_window_open: bool,
 ) -> Result<()> {
     register_suppression(suppression, content, clip_type);
 
@@ -62,7 +63,14 @@ pub async fn paste_content(
 
     let (tx, rx) = tokio::sync::oneshot::channel::<()>();
     let _ = window.upgrade_in_event_loop(move |ui| {
-        crate::window::hide_window(&ui);
+        // Focus has to leave the window before the injected Ctrl+V, or the
+        // paste lands in Cliptoo. Close-to-tray hides; otherwise minimize, so
+        // the window stays reachable and the hotkey re-maps it.
+        if keep_window_open {
+            crate::window::minimize_for_paste(&ui);
+        } else {
+            crate::window::hide_window(&ui);
+        }
         let _ = tx.send(());
     });
     rx.await.ok();

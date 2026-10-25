@@ -17,6 +17,14 @@ extern "C" void cliptoo_activate_window(void* widget_ptr) {
     widget->activateWindow();
 }
 
+// Minimize for a paste that must not close to the tray: minimizing yields the
+// keyboard focus to the target app while the window stays in the taskbar.
+// Done on the widget because Slint's window properties are applied a frame
+// later, and a minimized window produces no frames.
+extern "C" void cliptoo_minimize_window(void* widget_ptr) {
+    static_cast<QWidget*>(widget_ptr)->showMinimized();
+}
+
 // Turn a top-level widget into a focus-less, input-transparent tooltip window
 // anchored to `parent_ptr`, so the hover preview can extend beyond the main
 // window without stealing OS focus (which would close the main window to the

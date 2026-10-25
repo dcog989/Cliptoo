@@ -18,6 +18,7 @@ use i_slint_backend_qt::QtWidgetAccessor;
 //   immediately.
 unsafe extern "C" {
     fn cliptoo_activate_window(widget: *mut std::ffi::c_void);
+    fn cliptoo_minimize_window(widget: *mut std::ffi::c_void);
     fn cliptoo_make_tooltip_window(child: *mut std::ffi::c_void, parent: *mut std::ffi::c_void);
     fn cliptoo_app_has_focus() -> bool;
     fn cliptoo_normalize_wheel_delta();
@@ -33,6 +34,17 @@ pub fn activate_window<C: slint::ComponentHandle>(ui: &C) {
     if let Some(ptr) = win.qt_widget_ptr() {
         unsafe {
             cliptoo_activate_window(ptr.as_ptr() as *mut std::ffi::c_void);
+        }
+    }
+}
+
+/// Minimize the window on the QWidget (see cliptoo_minimize_window in
+/// drag_qt.cpp). Used by a paste that must not close to the tray.
+pub fn minimize_window<C: slint::ComponentHandle>(ui: &C) {
+    let win = slint::ComponentHandle::window(ui);
+    if let Some(ptr) = win.qt_widget_ptr() {
+        unsafe {
+            cliptoo_minimize_window(ptr.as_ptr() as *mut std::ffi::c_void);
         }
     }
 }
