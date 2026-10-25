@@ -1,15 +1,33 @@
 import { Theme } from "Theme.slint";
 
-// Label + optional tooltip + content box shared by every settings row.
-// Rows inject their control into the content box via @children. The box
-// stretches (`fill`) or hugs its content, and can drop its border (`bordered`).
-component SettingsRow {
+// Bordered surface shared by settings inputs and buttons: neutral at rest,
+// accent-outlined while hovered or `hot` (a child input holds focus). The
+// hover TouchArea precedes @children, so a child control that swallows pointer
+// events must feed its own hover into `hot`.
+export component FieldBox inherits Rectangle {
+    in property <bool> hot: false;
+    in property <bool> bordered: true;
+
+    height: 28px;
+    border-radius: 5px;
+    border-width: root.bordered ? 1px : 0px;
+    border-color: root.hot || field-touch.has-hover ? Theme.accent-primary : Theme.border-accent;
+    background: Theme.bg-input;
+    animate border-color { duration: Theme.anim-fast; }
+
+    field-touch := TouchArea { }
+
+    @children
+}
+
+// Row scaffolding shared by every settings row: fixed-width label column +
+// the caller's cells, normally a single `FieldBox`. `fill` lets the field take
+// the row's remaining width; otherwise cells keep their preferred size, so a
+// row can also place a trailing action after the field.
+export component SettingsRow {
     in property <string> label;
     in property <string> tooltip-text;
     in property <bool> fill: false;
-    in property <bool> bordered: true;
-    in property <color> border-color: Theme.border-accent;
-    in property <length> min-content-width: 0px;
 
     height: 32px;
     // Fill the host row's width: as a child of a non-layout component root
@@ -19,9 +37,9 @@ component SettingsRow {
 
     HorizontalLayout {
         spacing: 12px;
-        // Stretch alignment lets a `fill` content box consume the remaining
-        // row width (via horizontal-stretch); `start` pins non-fill boxes to
-        // their preferred size. A single fixed alignment can't serve both.
+        // Stretch alignment lets a `fill` field consume the remaining row
+        // width (via horizontal-stretch); `start` pins hugging cells to their
+        // preferred size. A single fixed alignment can't serve both.
         alignment: root.fill ? LayoutAlignment.stretch : LayoutAlignment.start;
 
         Text {
@@ -32,16 +50,7 @@ component SettingsRow {
             vertical-alignment: center;
         }
 
-        Rectangle {
-            horizontal-stretch: root.fill ? 1 : 0;
-            min-width: root.min-content-width;
-            height: 28px;
-            border-radius: 5px;
-            border-width: root.bordered ? 1px : 0px;
-            border-color: root.border-color;
-            background: Theme.bg-input;
-            @children
-        }
+        @children
     }
 
     if root.tooltip-text != "": Tooltip {
@@ -72,18 +81,30 @@ export component SectionHeader {
 export component StepperButton inherits Rectangle {
     in property <string> text;
     in property <string> tooltip-text;
+    // Optical nudge for glyphs whose ink sits below the line's optical center
+    // (guillemets ‹ ›); the math +/− glyphs need none.
+    in property <length> glyph-offset: 0px;
     callback clicked;
     callback pressed-changed(bool);
+    out property <bool> hovered: touch.has-hover;
 
     min-width: 24px;
-    HorizontalLayout {
-        cross-axis-alignment: center;
-        Text {
-            text: root.text;
-            color: Theme.fg-primary;
-            font-size: 22px;
-            horizontal-alignment: center;
-        }
+    // Fill the field's interior (28px field, minus 1px border top and bottom)
+    // so the hover fill never covers the field outline.
+    height: 26px;
+    border-radius: 4px;
+    background: touch.has-hover ? Theme.bg-row-hover : transparent;
+    animate background { duration: Theme.anim-fast; }
+
+    Text {
+        text: root.text;
+        color: Theme.fg-primary;
+        font-size: 22px;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        width: parent.width;
+        height: parent.height;
+        y: root.glyph-offset;
     }
 
     touch := TouchArea {
@@ -115,19 +136,30 @@ export component TextRow {
         label: root.label;
         tooltip-text: root.tooltip-text;
         fill: true;
-        min-content-width: 300px;
-        HorizontalLayout {
-            padding-left: 8px;
-            padding-right: 8px;
-            ti := TextInput {
-                text <=> root.value;
-                color: Theme.fg-primary;
-                font-size: Theme.font-size;
-                vertical-alignment: center;
-                // Commit as the text changes: hiding the window does not drop
-                // focus back to the page, so a blur-only commit lost edits.
-                edited => {
-                    root.committed(root.value);
+
+        FieldBox {
+            horizontal-stretch: 1;
+            min-width: 300px;
+            hot: ti.has-focus || input-touch.has-hover;
+
+            // The TextInput consumes pointer moves, so a sibling hover area
+            // never sees them. An enclosing TouchArea does: its filter runs
+            // before the child takes the event.
+            input-touch := TouchArea {
+                HorizontalLayout {
+                    padding-left: 8px;
+                    padding-right: 8px;
+                    ti := TextInput {
+                        text <=> root.value;
+                        color: Theme.fg-primary;
+                        font-size: Theme.font-size;
+                        vertical-alignment: center;
+                        // Commit as the text changes: hiding the window does not drop
+                        // focus back to the page, so a blur-only commit lost edits.
+                        edited => {
+                            root.committed(root.value);
+                        }
+                    }
                 }
             }
         }
@@ -145,46 +177,85 @@ export component HotkeyRow {
     SettingsRow {
         label: root.label;
         tooltip-text: root.tooltip-text;
-        fill: false;
-        border-color: ti.has-focus ? Theme.accent-primary : Theme.border-accent;
-        HorizontalLayout {
-            padding-left: 8px;
-            padding-right: 8px;
-            ti := TextInput {
-                text <=> root.display-text;
-                color: Theme.fg-primary;
-                font-size: Theme.font-size;
-                vertical-alignment: center;
-                key-pressed(event) => {
-                    if (event.text == Key.Escape) {
-                        ti.clear-focus();
-                        accept
-                    } else if (event.text >= "\u{0010}" && event.text <= "\u{0018}") {
-                        // A bare modifier key. Slint encodes Shift/Control/
-                        // Alt/Meta/CapsLock as U+0010..U+0018 (see Slint's
-                        // key_codes table); committing here would capture a
-                        // modifier with no key (and `clean_hotkey_text`'s
-                        // control-char mapping would turn it into a phantom
-                        // letter). Wait for the actual key instead.
-                        reject
-                    } else {
-                        root.value = (event.modifiers.control ? "Ctrl+" : "")
-                            + (event.modifiers.alt ? "Alt+" : "")
-                            + (event.modifiers.shift ? "Shift+" : "")
-                            + (event.modifiers.meta ? "Meta+" : "")
-                            + event.text;
-                        root.captured = true;
-                        root.committed(root.value);
-                        accept
+
+        FieldBox {
+            hot: ti.has-focus || hotkey-touch.has-hover;
+
+            HorizontalLayout {
+                padding-left: 8px;
+                padding-right: 8px;
+                ti := TextInput {
+                    text <=> root.display-text;
+                    color: Theme.fg-primary;
+                    font-size: Theme.font-size;
+                    vertical-alignment: center;
+                    key-pressed(event) => {
+                        if (event.text == Key.Escape) {
+                            ti.clear-focus();
+                            accept
+                        } else if (event.text >= "\u{0010}" && event.text <= "\u{0018}") {
+                            // A bare modifier key. Slint encodes Shift/Control/
+                            // Alt/Meta/CapsLock as U+0010..U+0018 (see Slint's
+                            // key_codes table); committing here would capture a
+                            // modifier with no key (and `clean_hotkey_text`'s
+                            // control-char mapping would turn it into a phantom
+                            // letter). Wait for the actual key instead.
+                            reject
+                        } else {
+                            root.value = (event.modifiers.control ? "Ctrl+" : "")
+                                + (event.modifiers.alt ? "Alt+" : "")
+                                + (event.modifiers.shift ? "Shift+" : "")
+                                + (event.modifiers.meta ? "Meta+" : "")
+                                + event.text;
+                            root.captured = true;
+                            root.committed(root.value);
+                            accept
+                        }
                     }
                 }
             }
+
+            hotkey-touch := TouchArea {
+                clicked => {
+                    root.captured = false;
+                    ti.focus();
+                }
+            }
+        }
+    }
+}
+
+// Shared body of the −/+ and ‹/› rows: two steppers around a value cell.
+export component StepperRowBody {
+    in property <string> leading-glyph: "−";
+    in property <string> trailing-glyph: "+";
+    in property <length> glyph-offset: 0px;
+    callback step-back();
+    callback step-forward();
+
+    out property <bool> prev-hover: prev.hovered;
+    out property <bool> next-hover: next.hovered;
+
+    HorizontalLayout {
+        padding-left: 1px;
+        padding-right: 1px;
+        spacing: 4px;
+        cross-axis-alignment: center;
+        prev := StepperButton {
+            text: root.leading-glyph;
+            glyph-offset: root.glyph-offset;
+            clicked => {
+                root.step-back();
+            }
         }
 
-        TouchArea {
+        @children
+
+        next := StepperButton {
+            text: root.trailing-glyph;
+            glyph-offset: root.glyph-offset;
             clicked => {
-                root.captured = false;
-                ti.focus();
+                root.step-forward();
             }
         }
     }
@@ -203,30 +274,24 @@ export component IntRow {
     SettingsRow {
         label: root.label;
         tooltip-text: root.tooltip-text;
-        HorizontalLayout {
-            padding-left: 4px;
-            padding-right: 4px;
-            spacing: 4px;
-            cross-axis-alignment: center;
-            StepperButton {
-                text: "−";
-                clicked => {
+
+        FieldBox {
+            hot: int-body.prev-hover || int-body.next-hover;
+
+            int-body := StepperRowBody {
+                step-back() => {
                     root.value = Math.max(root.min-val, root.value - root.step);
                     root.committed(root.value);
                 }
-            }
-
-            Text {
-                text: "\{root.value}\{root.unit}";
-                color: Theme.fg-primary;
-                font-size: Theme.font-size;
-            }
-
-            StepperButton {
-                text: "+";
-                clicked => {
+                step-forward() => {
                     root.value = Math.min(root.max-val, root.value + root.step);
                     root.committed(root.value);
+                }
+
+                Text {
+                    text: "\{root.value}\{root.unit}";
+                    color: Theme.fg-primary;
+                    font-size: Theme.font-size;
                 }
             }
         }
@@ -246,30 +311,24 @@ export component FloatRow {
     SettingsRow {
         label: root.label;
         tooltip-text: root.tooltip-text;
-        HorizontalLayout {
-            padding-left: 4px;
-            padding-right: 4px;
-            spacing: 4px;
-            cross-axis-alignment: center;
-            StepperButton {
-                text: "−";
-                clicked => {
+
+        FieldBox {
+            hot: float-body.prev-hover || float-body.next-hover;
+
+            float-body := StepperRowBody {
+                step-back() => {
                     root.value-hundredths = Math.max(root.min-hundredths, root.value-hundredths - root.step-hundredths);
                     root.committed(root.value-hundredths / 100.0);
                 }
-            }
-
-            Text {
-                text: "\{root.value-hundredths / 100}\{root.unit}";
-                color: Theme.fg-primary;
-                font-size: Theme.font-size;
-            }
-
-            StepperButton {
-                text: "+";
-                clicked => {
+                step-forward() => {
                     root.value-hundredths = Math.min(root.max-hundredths, root.value-hundredths + root.step-hundredths);
                     root.committed(root.value-hundredths / 100.0);
+                }
+
+                Text {
+                    text: "\{root.value-hundredths / 100}\{root.unit}";
+                    color: Theme.fg-primary;
+                    font-size: Theme.font-size;
                 }
             }
         }
@@ -300,49 +359,55 @@ export component SliderRow {
         label: root.label;
         tooltip-text: root.tooltip-text;
         fill: true;
-        HorizontalLayout {
-            cross-axis-alignment: center;
-            padding-left: 12px;
-            padding-right: 8px;
-            spacing: 8px;
-            track := Rectangle {
-                horizontal-stretch: 1;
-                min-width: root.track-min-width;
-                height: 28px;
 
-                Rectangle {
-                    height: 6px;
-                    border-radius: 3px;
-                    background: Theme.bg-track;
-                    y: (parent.height - 6px) / 2;
+        FieldBox {
+            horizontal-stretch: 1;
+            hot: slider-touch.has-hover;
+
+            HorizontalLayout {
+                cross-axis-alignment: center;
+                padding-left: 12px;
+                padding-right: 8px;
+                spacing: 8px;
+                track := Rectangle {
+                    horizontal-stretch: 1;
+                    min-width: root.track-min-width;
+                    height: 28px;
+
                     Rectangle {
-                        width: 16px;
-                        height: 16px;
-                        border-radius: 8px;
-                        background: Theme.accent-fill;
-                        y: (parent.height - 16px) / 2;
-                        x: Math.max(0px, Math.min(parent.width - 16px, (root.value - root.min-val) * 1.0 / (root.max-val - root.min-val) * parent.width));
-                    }
-                }
-
-                touch := TouchArea {
-                    pointer-event(e) => {
-                        if (e.kind == PointerEventKind.down || (e.kind == PointerEventKind.move && self.pressed)) {
-                            let span = root.max-val - root.min-val;
-                            let frac = touch.mouse-x / track.width;
-                            let raw = root.min-val + Math.round(Math.min(1.0, Math.max(0.0, frac)) * span);
-                            root.value = Math.min(root.max-val, Math.max(root.min-val, Math.round(raw / root.step) * root.step));
-                            root.committed(root.value);
+                        height: 6px;
+                        border-radius: 3px;
+                        background: Theme.bg-track;
+                        y: (parent.height - 6px) / 2;
+                        Rectangle {
+                            width: 16px;
+                            height: 16px;
+                            border-radius: 8px;
+                            background: Theme.accent-fill;
+                            y: (parent.height - 16px) / 2;
+                            x: Math.max(0px, Math.min(parent.width - 16px, (root.value - root.min-val) * 1.0 / (root.max-val - root.min-val) * parent.width));
                         }
                     }
-                    mouse-cursor: pointer;
-                }
-            }
 
-            Text {
-                text: root.zero-is-off && root.value == 0 ? @tr("Off") : "\{root.value}\{root.unit}";
-                color: Theme.fg-primary;
-                font-size: Theme.font-size;
+                    slider-touch := TouchArea {
+                        pointer-event(e) => {
+                            if (e.kind == PointerEventKind.down || (e.kind == PointerEventKind.move && self.pressed)) {
+                                let span = root.max-val - root.min-val;
+                                let frac = slider-touch.mouse-x / track.width;
+                                let raw = root.min-val + Math.round(Math.min(1.0, Math.max(0.0, frac)) * span);
+                                root.value = Math.min(root.max-val, Math.max(root.min-val, Math.round(raw / root.step) * root.step));
+                                root.committed(root.value);
+                            }
+                        }
+                        mouse-cursor: pointer;
+                    }
+                }
+
+                Text {
+                    text: root.zero-is-off && root.value == 0 ? @tr("Off") : "\{root.value}\{root.unit}";
+                    color: Theme.fg-primary;
+                    font-size: Theme.font-size;
+                }
             }
         }
     }
@@ -358,33 +423,28 @@ export component DropRow {
     SettingsRow {
         label: root.label;
         tooltip-text: root.tooltip-text;
-        HorizontalLayout {
-            padding-left: 4px;
-            padding-right: 4px;
-            spacing: 4px;
-            cross-axis-alignment: center;
-            StepperButton {
-                text: "‹";
-                clicked => {
+
+        FieldBox {
+            hot: drop-body.prev-hover || drop-body.next-hover;
+
+            drop-body := StepperRowBody {
+                leading-glyph: "‹";
+                trailing-glyph: "›";
+                glyph-offset: -2px;
+                step-back() => {
                     root.index = root.index == 0 ? root.options.length - 1 : root.index - 1;
                     root.committed(root.options[root.index]);
                 }
-            }
+                step-forward() => {
+                    root.index = Math.mod(root.index + 1, root.options.length);
+                    root.committed(root.options[root.index]);
+                }
 
-            swatch-area := Rectangle {
                 Text {
                     text: root.options[root.index];
                     color: Theme.fg-primary;
                     font-size: Theme.font-size;
                     horizontal-alignment: center;
-                }
-            }
-
-            StepperButton {
-                text: "›";
-                clicked => {
-                    root.index = Math.mod(root.index + 1, root.options.length);
-                    root.committed(root.options[root.index]);
                 }
             }
         }
@@ -401,30 +461,35 @@ export component ToggleRow {
         label: root.label;
         tooltip-text: root.tooltip-text;
         fill: true;
-        bordered: false;
-        HorizontalLayout {
-            cross-axis-alignment: center;
-            padding-left: 4px;
-            Rectangle {
-                width: 44px;
-                height: 22px;
-                border-radius: 11px;
-                background: root.value ? Theme.accent-fill : Theme.bg-track;
-                animate background { duration: Theme.anim-fast; }
-                Rectangle {
-                    width: 18px;
-                    height: 18px;
-                    border-radius: 9px;
-                    background: root.value ? Theme.accent-fg : white;
-                    x: root.value ? 24px : 2px;
-                    animate x { duration: Theme.anim-fast; }
-                }
 
-                TouchArea {
-                    mouse-cursor: pointer;
-                    clicked => {
-                        root.value = !root.value;
-                        root.committed(root.value);
+        FieldBox {
+            horizontal-stretch: 1;
+            bordered: false;
+
+            HorizontalLayout {
+                cross-axis-alignment: center;
+                padding-left: 4px;
+                Rectangle {
+                    width: 44px;
+                    height: 22px;
+                    border-radius: 11px;
+                    background: root.value ? Theme.accent-fill : Theme.bg-track;
+                    animate background { duration: Theme.anim-fast; }
+                    Rectangle {
+                        width: 18px;
+                        height: 18px;
+                        border-radius: 9px;
+                        background: root.value ? Theme.accent-fg : white;
+                        x: root.value ? 24px : 2px;
+                        animate x { duration: Theme.anim-fast; }
+                    }
+
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            root.value = !root.value;
+                            root.committed(root.value);
+                        }
                     }
                 }
             }

@@ -49,7 +49,11 @@ export component SettingsHeader {
                     width: 32px;
                     height: 32px;
                     border-radius: 8px;
-                    background: Theme.bg-input;
+                    background: back-touch.has-hover ? Theme.bg-row-hover : Theme.bg-input;
+                    border-width: 1px;
+                    border-color: back-touch.has-hover ? Theme.accent-primary : transparent;
+                    animate background { duration: Theme.anim-fast; }
+                    animate border-color { duration: Theme.anim-fast; }
                     Image {
                         source: @image-url("icons/arrow-left.svg");
                         colorize: Theme.fg-secondary;
@@ -59,7 +63,7 @@ export component SettingsHeader {
                         y: (parent.height - 18px) / 2;
                     }
 
-                    TouchArea {
+                    back-touch := TouchArea {
                         mouse-cursor: pointer;
                         clicked => {
                             root.on-database-page = false;
@@ -87,7 +91,12 @@ export component SettingsHeader {
                 width: 32px;
                 height: 32px;
                 border-radius: 8px;
-                background: root.on-shortcuts-page ? Theme.accent-fill : Theme.bg-input;
+                property <bool> hot: shortcuts-touch.has-hover && !root.on-shortcuts-page;
+                background: root.on-shortcuts-page ? Theme.accent-fill : hot ? Theme.bg-row-hover : Theme.bg-input;
+                border-width: 1px;
+                border-color: hot ? Theme.accent-primary : transparent;
+                animate background { duration: Theme.anim-fast; }
+                animate border-color { duration: Theme.anim-fast; }
                 Image {
                     source: @image-url("icons/keyboard.svg");
                     colorize: root.on-shortcuts-page ? Theme.accent-fg : Theme.fg-secondary;
@@ -97,7 +106,7 @@ export component SettingsHeader {
                     y: 6px;
                 }
 
-                TouchArea {
+                shortcuts-touch := TouchArea {
                     mouse-cursor: pointer;
                     clicked => {
                         root.on-shortcuts-page = !root.on-shortcuts-page;
@@ -118,7 +127,12 @@ export component SettingsHeader {
                 width: 32px;
                 height: 32px;
                 border-radius: 8px;
-                background: root.on-database-page ? Theme.accent-fill : Theme.bg-input;
+                property <bool> hot: database-touch.has-hover && !root.on-database-page;
+                background: root.on-database-page ? Theme.accent-fill : hot ? Theme.bg-row-hover : Theme.bg-input;
+                border-width: 1px;
+                border-color: hot ? Theme.accent-primary : transparent;
+                animate background { duration: Theme.anim-fast; }
+                animate border-color { duration: Theme.anim-fast; }
                 Image {
                     source: @image-url("icons/database.svg");
                     colorize: root.on-database-page ? Theme.accent-fg : Theme.fg-secondary;
@@ -128,7 +142,7 @@ export component SettingsHeader {
                     y: 6px;
                 }
 
-                TouchArea {
+                database-touch := TouchArea {
                     mouse-cursor: pointer;
                     clicked => {
                         root.on-database-page = !root.on-database-page;

@@ -109,16 +109,32 @@ export component DatabasePage inherits ScrollView {
                 col: Math.mod(idx, 4);
                 height: 30px;
                 border-radius: 6px;
-                background: action.key == "clear-history" ? Theme.danger-bg : Theme.bg-input;
+                // Hover lift matches MenuRow: an accent-tinted surface with an
+                // accent outline; the destructive action keeps its danger fill
+                // and takes the pale danger outline instead.
+                property <bool> hot: action-touch.has-hover;
+                property <bool> danger: action.key == "clear-history";
+                border-width: 1px;
+                border-color: hot
+                    ? (danger ? Theme.danger-on-bg : Theme.accent-primary)
+                    : transparent;
+                background: danger
+                    ? Theme.danger-bg
+                    : hot
+                    ? Theme.bg-row-hover
+                    : Theme.bg-input;
+                animate background { duration: Theme.anim-fast; }
+                animate border-color { duration: Theme.anim-fast; }
+
                 Text {
                     text: action.label;
-                    color: action.key == "clear-history" ? Theme.danger-on-bg : Theme.fg-primary;
+                    color: danger ? Theme.danger-on-bg : Theme.fg-primary;
                     horizontal-alignment: center;
                     vertical-alignment: center;
                     font-size: Theme.font-size;
                 }
 
-                TouchArea {
+                action-touch := TouchArea {
                     Tooltip {
                         text: @markdown("\{action.tip}");
                     }
