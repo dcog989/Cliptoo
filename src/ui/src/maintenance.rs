@@ -114,11 +114,13 @@ pub fn setup_manual_maintenance(
     let maint_ui = ui.as_weak();
     let maint_win = settings_win.as_weak();
     let maint_td2 = dirs.thumbnails_dir.clone();
+    let maint_db_path = dirs.db_path.clone();
     ui.on_maintenance_action(move |key: slint::SharedString| {
         let db = maint_db.clone();
         let td = maint_td.clone();
         let fd = maint_fd.clone();
         let td2 = maint_td2.clone();
+        let db_path = maint_db_path.clone();
         let settings = maint_settings.clone();
         let ui = maint_ui.clone();
         let settings_win = maint_win.clone();
@@ -164,6 +166,17 @@ pub fn setup_manual_maintenance(
                         } else {
                             format!("Reclassified {n} clips")
                         }))
+                    }
+                    "compact" => {
+                        let before = crate::stats_ui::db_size_on_disk(&db_path);
+                        db.with(cliptoo_core::maintenance::compact).await?;
+                        let after = crate::stats_ui::db_size_on_disk(&db_path);
+                        crate::stats_ui::refresh(settings_win.clone(), db.clone(), db_path.clone());
+                        Ok(Some(format!(
+                            "Database compacted: {} → {}",
+                            crate::stats_ui::format_size(before),
+                            crate::stats_ui::format_size(after)
+                        )))
                     }
                     "export" => match pick_path(true).await? {
                         Some(path) => {
@@ -220,7 +233,7 @@ pub fn setup_manual_maintenance(
             }
 
             if !cancelled {
-                let need_refresh = key != "import";
+                let need_refresh = key != "import" && key != "compact";
                 if need_refresh {
                     crate::helpers::refresh_clips(&db, &ui, &td2, &fd, "", "", None).await;
                 }

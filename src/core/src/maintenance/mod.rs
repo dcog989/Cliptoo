@@ -5,6 +5,7 @@
 //! by the UI via `on_maintenance_action`.
 
 use anyhow::Result;
+use rusqlite::Connection;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tracing::{info, warn};
@@ -24,6 +25,14 @@ pub use reclassify::reclassify_all;
 pub use retention::{RetentionConfig, clear_history, retention};
 
 // ── Public API ────────────────────────────────────────────────────────────────
+
+/// Compact the database file in place. Retention deletes leave pages on the
+/// freelist, which keeps the file at its high-water mark; `VACUUM` rewrites it
+/// and hands that space back to the filesystem.
+pub fn compact(conn: &Connection) -> Result<()> {
+    conn.execute_batch(schema::VACUUM)?;
+    Ok(())
+}
 
 /// Run the full scheduled maintenance cycle:
 ///   1. Retention (count + age)

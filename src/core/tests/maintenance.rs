@@ -489,3 +489,59 @@ async fn prune_cache_tolerates_multibyte_content_hash() {
     let _ = std::fs::remove_dir_all(&thumbs);
     let _ = std::fs::remove_dir_all(&favicons);
 }
+
+/// `compact` must hand the pages freed by a bulk delete back to the filesystem
+/// without touching the surviving rows or their FTS entries.
+#[tokio::test]
+async fn compact_reclaims_freelist_and_keeps_clips_searchable() {
+    let dir = std::env::temp_dir().join(format!("cliptoo_compact_{}", std::process::id()));
+    clean_up(&dir);
+    let db = DbPool::open(&dir).unwrap();
+
+    // Wide rows so the deletes leave a freelist worth reclaiming.
+    for i in 0..200 {
+        common::insert_clip(
+            &db,
+            &format!("compactible clip {i} {}", "x".repeat(400)),
+            &format!("compact_hash_{i}"),
+            "text",
+        )
+        .await;
+    }
+    db.with(|conn| {
+        conn.execute_batch("DELETE FROM clips WHERE Id > 5")?;
+        Ok(())
+    })
+    .await
+    .unwrap();
+
+    let freelist_before: i64 = db
+        .with(|conn| {
+            let n: i64 = conn.query_row("PRAGMA freelist_count", [], |row| row.get(0))?;
+            Ok(n)
+        })
+        .await
+        .unwrap();
+    assert!(freelist_before > 0, "bulk delete leaves freed pages behind");
+
+    db.with(maintenance::compact).await.unwrap();
+
+    let (freelist_after, clips, indexed): (i64, i64, i64) = db
+        .with(|conn| {
+            let freelist: i64 = conn.query_row("PRAGMA freelist_count", [], |row| row.get(0))?;
+            let clips: i64 = conn.query_row("SELECT COUNT(*) FROM clips", [], |row| row.get(0))?;
+            let indexed: i64 = conn.query_row(
+                "SELECT COUNT(*) FROM clips_fts WHERE clips_fts MATCH 'compactible'",
+                [],
+                |row| row.get(0),
+            )?;
+            Ok((freelist, clips, indexed))
+        })
+        .await
+        .unwrap();
+    assert_eq!(freelist_after, 0, "VACUUM returns the freelist");
+    assert_eq!(clips, 5, "surviving rows are kept");
+    assert_eq!(indexed, 5, "the FTS index survives the rewrite");
+
+    clean_up(&dir);
+}

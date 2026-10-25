@@ -85,6 +85,11 @@ export component DatabasePage inherits ScrollView {
                     tip: @tr("Re-run content detection on every clip")
                 },
                 {
+                    key: "compact",
+                    label: @tr("Compact Database"),
+                    tip: @tr("Rebuild the database file to reclaim space freed by deleted clips")
+                },
+                {
                     key: "export",
                     label: @tr("Export All Clips"),
                     tip: @tr("Save all clips to a JSON file")

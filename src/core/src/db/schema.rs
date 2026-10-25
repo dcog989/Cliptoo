@@ -111,6 +111,12 @@ pub const PRAGMA_OPTIMIZE: &str = "PRAGMA optimize;";
 // single-process desktop daemon that is fine, but any external debug tool
 // opening the database will suppress WAL on that launch.
 
+/// Rebuilds the file in place: every live row is rewritten into fresh pages, so
+/// the freelist left behind by retention deletes returns to the filesystem and
+/// the b-trees end up packed. Needs free space about the size of the database,
+/// an exclusive lock, and no open transaction.
+pub const VACUUM: &str = "VACUUM;";
+
 pub const CREATE_INDEX_CLIPS_TS: &str =
     "CREATE INDEX IF NOT EXISTS idx_clips_ts ON clips(IsBookmarked, Timestamp DESC);";
 
