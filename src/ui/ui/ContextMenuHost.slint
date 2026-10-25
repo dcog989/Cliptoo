@@ -110,6 +110,18 @@ export component ContextMenuHost {
                     root.close-all();
                     return accept;
                 }
+                if (e.text == Key.UpArrow) {
+                    ctx-menu.move-selection(-1);
+                    return accept;
+                }
+                if (e.text == Key.DownArrow) {
+                    ctx-menu.move-selection(1);
+                    return accept;
+                }
+                if (e.text == Key.Return) {
+                    ctx-menu.activate-selected();
+                    return accept;
+                }
                 reject
             }
 
@@ -179,11 +191,14 @@ export component ContextMenuHost {
 
         // One-shot per show: armed by the show functions, fires ~1ms after the
         // popup opens to give the key-handling scope focus, then disarms.
+        // Resets the keyboard highlight too: open-at cannot touch properties
+        // inside a PopupWindow, so the reset happens here, inside it.
         main-focus-timer := Timer {
             interval: 1ms;
             running: root.focus-armed;
             triggered() => {
                 main-esc-scope.focus();
+                ctx-menu.selected = -1;
                 root.focus-armed = false;
             }
         }

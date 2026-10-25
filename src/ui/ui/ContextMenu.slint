@@ -45,30 +45,83 @@ export component ContextMenu {
     property <bool> show-plain-paste: root.is-rich-type || root.is-file-type;
     property <bool> has-paste-block: root.show-paste || root.show-rich-paste || root.show-plain-paste;
 
-    // Intrinsic content size, used by ContextMenuHost to size the popup. The
-    // height is computed from the fixed row/separator counts because Slint
-    // resolves the preferred size of conditional rows to 0; rows are 32px,
-    // separators 9px, vertical padding 4px × 2.
+    // Keyboard selection: index of the highlighted row, -1 until the first
+    // arrow key. Separators are not counted; row-count is the actionable count.
+    in-out property <int> selected: -1;
+    property <int> paste-count: (root.show-paste ? 1 : 0)
+        + (root.show-rich-paste ? 1 : 0)
+        + (root.show-plain-paste ? 1 : 0);
+    property <int> send-to-row: root.send-to-apps.length > 0 ? 1 : 0;
+    property <int> row-count: 8 + root.paste-count + (root.is-text-type ? 1 : 0) + root.send-to-row;
+
+    // Row indices, in menu order. Conditional rows share an index with the row
+    // that follows them when hidden, so activation always guards on the same
+    // boolean that decided the row was rendered.
+    property <int> idx-paste: 2;
+    property <int> idx-rich: 2 + (root.show-paste ? 1 : 0);
+    property <int> idx-plain: root.idx-rich + (root.show-rich-paste ? 1 : 0);
+    property <int> idx-format: 2 + root.paste-count;
+    property <int> idx-delete: root.idx-format + (root.is-text-type ? 1 : 0);
+    property <int> idx-bookmark: root.row-count - 1 - root.send-to-row;
+
+    // Wrap around so Down at the last row lands on the first.
+    public function move-selection(delta: int) {
+        let next = root.selected + delta;
+        if (next < 0) {
+            root.selected = root.row-count - 1;
+        } else if (next >= root.row-count) {
+            root.selected = 0;
+        } else {
+            root.selected = next;
+        }
+    }
+
+    // Enter: run the highlighted row's action.
+    public function activate-selected() {
+        let i = root.selected;
+        if (i == 0) {
+            root.preview();
+        } else if (i == 1) {
+            root.edit();
+        } else if (root.show-paste && i == root.idx-paste) {
+            root.paste();
+        } else if (root.show-rich-paste && i == root.idx-rich) {
+            root.paste-as("rich");
+        } else if (root.show-plain-paste && i == root.idx-plain) {
+            root.paste-as("plain");
+        } else if (root.is-text-type && i == root.idx-format) {
+            root.format-open();
+        } else if (i == root.idx-delete) {
+            root.delete();
+        } else if (i == root.idx-delete + 1) {
+            root.move-to-top();
+        } else if (i == root.idx-delete + 2) {
+            root.move-to-bottom();
+        } else if (i == root.idx-delete + 3) {
+            root.move-up-one();
+        } else if (i == root.idx-delete + 4) {
+            root.move-down-one();
+        } else if (i == root.idx-bookmark) {
+            root.toggle-bookmark(root.clip-id, root.clip-is-bookmarked);
+        } else if (root.send-to-row == 1 && i == root.idx-bookmark + 1) {
+            root.send-to-open();
+        }
+    }
+
+    // Intrinsic content size, used by ContextMenuHost to size the popup.
     out property <length> menu-width: menu-root.preferred-width;
     out property <length> menu-height: root.main-menu-height();
 
     pure function main-menu-height() -> length {
-        // Preview, Edit, Delete, 4×Move, Bookmark = 8 rows, plus the
-        // conditional Format (text), paste and Send To rows.
+        // Row and separator counts are computed rather than measured because
+        // Slint resolves the preferred size of conditional rows to 0; rows are
+        // 32px, separators 9px, vertical padding 4px × 2.
         // Separators: the three unconditional (above Delete, above Move to
         // Top, above Bookmark), plus one each for the paste block and Send To.
-        let paste_rows = (root.show-paste ? 1 : 0)
-            + (root.show-rich-paste ? 1 : 0)
-            + (root.show-plain-paste ? 1 : 0);
-        let send_to_rows = root.send-to-apps.length > 0 ? 1 : 0;
-        let rows = 8
-            + (root.is-text-type ? 1 : 0)
-            + paste_rows
-            + send_to_rows;
         let seps = 3
             + (root.has-paste-block ? 1 : 0)
-            + send_to_rows;
-        return rows * 32px + seps * 9px + 8px;
+            + root.send-to-row;
+        return root.row-count * 32px + seps * 9px + 8px;
     }
 
     menu-root := Rectangle {
@@ -89,6 +142,11 @@ export component ContextMenu {
             MenuRow {
                 label: @tr("Preview");
                 icon: @image-url("icons/eye.svg");
+                selected: root.selected == 0;
+                hover-highlight: false;
+                hovered => {
+                    root.selected = 0;
+                }
                 clicked => {
                     root.preview();
                 }
@@ -97,6 +155,11 @@ export component ContextMenu {
             MenuRow {
                 label: @tr("Edit");
                 icon: @image-url("icons/pencil.svg");
+                selected: root.selected == 1;
+                hover-highlight: false;
+                hovered => {
+                    root.selected = 1;
+                }
                 clicked => {
                     root.edit();
                 }
@@ -108,6 +171,11 @@ export component ContextMenu {
             if root.show-paste: MenuRow {
                 label: @tr("Paste as Plain Text");
                 icon: @image-url("icons/text.svg");
+                selected: root.selected == root.idx-paste;
+                hover-highlight: false;
+                hovered => {
+                    root.selected = root.idx-paste;
+                }
                 clicked => {
                     root.paste();
                 }
@@ -115,6 +183,11 @@ export component ContextMenu {
             if root.show-rich-paste: MenuRow {
                 label: @tr("Paste as Rich Text");
                 icon: @image-url("icons/text-initial.svg");
+                selected: root.selected == root.idx-rich;
+                hover-highlight: false;
+                hovered => {
+                    root.selected = root.idx-rich;
+                }
                 clicked => {
                     root.paste-as("rich");
                 }
@@ -122,6 +195,11 @@ export component ContextMenu {
             if root.show-plain-paste: MenuRow {
                 label: @tr("Paste as Plain Text");
                 icon: @image-url("icons/text.svg");
+                selected: root.selected == root.idx-plain;
+                hover-highlight: false;
+                hovered => {
+                    root.selected = root.idx-plain;
+                }
                 clicked => {
                     root.paste-as("plain");
                 }
@@ -130,6 +208,11 @@ export component ContextMenu {
                 label: @tr("Format");
                 icon: @image-url("icons/pencil-line.svg");
                 has-arrow: true;
+                selected: root.selected == root.idx-format;
+                hover-highlight: false;
+                hovered => {
+                    root.selected = root.idx-format;
+                }
                 clicked => {
                     root.format-open();
                 }
@@ -142,6 +225,11 @@ export component ContextMenu {
                 label: @tr("Delete");
                 icon: @image-url("icons/trash-2.svg");
                 is-danger: true;
+                selected: root.selected == root.idx-delete;
+                hover-highlight: false;
+                hovered => {
+                    root.selected = root.idx-delete;
+                }
                 clicked => {
                     root.delete();
                 }
@@ -154,6 +242,11 @@ export component ContextMenu {
             MenuRow {
                 label: @tr("Move to Top");
                 icon: @image-url("icons/arrow-up-to-line.svg");
+                selected: root.selected == root.idx-delete + 1;
+                hover-highlight: false;
+                hovered => {
+                    root.selected = root.idx-delete + 1;
+                }
                 clicked => {
                     root.move-to-top();
                 }
@@ -162,6 +255,11 @@ export component ContextMenu {
             MenuRow {
                 label: @tr("Move to Bottom");
                 icon: @image-url("icons/arrow-down-to-line.svg");
+                selected: root.selected == root.idx-delete + 2;
+                hover-highlight: false;
+                hovered => {
+                    root.selected = root.idx-delete + 2;
+                }
                 clicked => {
                     root.move-to-bottom();
                 }
@@ -170,6 +268,11 @@ export component ContextMenu {
             MenuRow {
                 label: @tr("Move Up One");
                 icon: @image-url("icons/chevron-up.svg");
+                selected: root.selected == root.idx-delete + 3;
+                hover-highlight: false;
+                hovered => {
+                    root.selected = root.idx-delete + 3;
+                }
                 clicked => {
                     root.move-up-one();
                 }
@@ -178,6 +281,11 @@ export component ContextMenu {
             MenuRow {
                 label: @tr("Move Down One");
                 icon: @image-url("icons/chevron-down.svg");
+                selected: root.selected == root.idx-delete + 4;
+                hover-highlight: false;
+                hovered => {
+                    root.selected = root.idx-delete + 4;
+                }
                 clicked => {
                     root.move-down-one();
                 }
@@ -190,6 +298,11 @@ export component ContextMenu {
             MenuRow {
                 label: root.clip-is-bookmarked ? @tr("Remove Bookmark") : @tr("Bookmark");
                 icon: root.clip-is-bookmarked ? @image-url("icons/bookmark-x.svg") : @image-url("icons/bookmark-plus.svg");
+                selected: root.selected == root.idx-bookmark;
+                hover-highlight: false;
+                hovered => {
+                    root.selected = root.idx-bookmark;
+                }
                 clicked => {
                     root.toggle-bookmark(root.clip-id, root.clip-is-bookmarked);
                 }
@@ -202,6 +315,11 @@ export component ContextMenu {
                 label: @tr("Send To");
                 icon: @image-url("icons/send.svg");
                 has-arrow: true;
+                selected: root.selected == root.idx-bookmark + 1;
+                hover-highlight: false;
+                hovered => {
+                    root.selected = root.idx-bookmark + 1;
+                }
                 clicked => {
                     root.send-to-open();
                 }

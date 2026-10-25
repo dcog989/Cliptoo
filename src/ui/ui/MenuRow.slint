@@ -10,6 +10,14 @@ export component MenuRow {
     in property <string> sublabel: "";
     in property <bool> is-danger: false;
     in property <bool> has-arrow: false;
+    // Keyboard selection highlight, driven by the owning menu.
+    in property <bool> selected: false;
+    // Whether pointer hover lights the row. Menus that move `selected` from
+    // hover turn this off, so only one row is ever highlighted.
+    in property <bool> hover-highlight: true;
+    // Raised when the pointer starts hovering this row, so a menu can move its
+    // keyboard highlight to follow the mouse.
+    callback hovered();
     // "…" submenu affordance, sits at the row's right edge.
     in property <length> arrow-size: Theme.font-size + 2px;
     in property <bool> is-separator: false;
@@ -17,6 +25,14 @@ export component MenuRow {
     callback clicked;
 
     height: root.is-separator ? 9px : root.row-height;
+
+    // `changed` only accepts a bare property name, not an element property path.
+    property <bool> hovering: touch.has-hover;
+    changed hovering => {
+        if (root.hovering) {
+            root.hovered();
+        }
+    }
 
     // Separator line; only visible for separator rows. Always instantiated so
     // the row keeps a content-based preferred size (if-conditional children
@@ -34,13 +50,18 @@ export component MenuRow {
         border-width: 1px;
         // A destructive row (Delete) swaps the accent hover for a red fill,
         // a pale outline and pale content.
-        property <bool> danger-hot: root.is-danger && (touch.has-hover || touch.pressed);
-        border-color: touch.has-hover || touch.pressed
+        property <bool> hot: root.selected || (touch.has-hover && root.hover-highlight);
+        property <bool> danger-hot: root.is-danger && (touch.pressed || hot);
+        border-color: touch.pressed || hot
             ? (root.is-danger ? Theme.danger-on-bg : Theme.accent-primary)
             : transparent;
         background: danger-hot
             ? Theme.danger-bg
-            : touch.pressed ? Theme.bg-row-selected : touch.has-hover ? Theme.bg-row-hover : transparent;
+            : touch.pressed
+            ? Theme.bg-row-selected
+            : hot
+            ? Theme.bg-row-hover
+            : transparent;
 
         HorizontalLayout {
             padding-left: 12px;

@@ -9,6 +9,34 @@ export component HamburgerMenu {
     callback menu-about();
     callback menu-close-to-tray();
 
+    // Keyboard selection: index of the highlighted row, -1 until the first
+    // arrow key.
+    in-out property <int> selected: -1;
+    property <int> row-count: 3;
+
+    // Wrap around so Down at the last row lands on the first.
+    public function move-selection(delta: int) {
+        let next = root.selected + delta;
+        if (next < 0) {
+            root.selected = root.row-count - 1;
+        } else if (next >= root.row-count) {
+            root.selected = 0;
+        } else {
+            root.selected = next;
+        }
+    }
+
+    // Enter: run the highlighted row's action.
+    public function activate-selected() {
+        if (root.selected == 0) {
+            root.menu-about();
+        } else if (root.selected == 1) {
+            root.menu-settings();
+        } else if (root.selected == 2) {
+            root.menu-close-to-tray();
+        }
+    }
+
     // Intrinsic popup height, used by AppWindow to place the popup just
     // above the hamburger button.
     out property <length> menu-height: menu-root.height;
@@ -30,6 +58,11 @@ export component HamburgerMenu {
                 label: @tr("About");
                 icon: @image-url("icons/info.svg");
                 row-height: 36px;
+                selected: root.selected == 0;
+                hover-highlight: false;
+                hovered => {
+                    root.selected = 0;
+                }
                 clicked => {
                     root.menu-about();
                 }
@@ -39,6 +72,11 @@ export component HamburgerMenu {
                 label: @tr("Settings");
                 icon: @image-url("icons/settings.svg");
                 row-height: 36px;
+                selected: root.selected == 1;
+                hover-highlight: false;
+                hovered => {
+                    root.selected = 1;
+                }
                 clicked => {
                     root.menu-settings();
                 }
@@ -48,6 +86,11 @@ export component HamburgerMenu {
                 label: @tr("Close to Tray");
                 icon: @image-url("icons/minimize-2.svg");
                 row-height: 36px;
+                selected: root.selected == 2;
+                hover-highlight: false;
+                hovered => {
+                    root.selected = 2;
+                }
                 clicked => {
                     root.menu-close-to-tray();
                 }

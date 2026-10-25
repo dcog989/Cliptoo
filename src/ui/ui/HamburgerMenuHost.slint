@@ -61,6 +61,18 @@ export component HamburgerMenuHost {
                     root.close-all();
                     return accept;
                 }
+                if (e.text == Key.UpArrow) {
+                    hamburger.move-selection(-1);
+                    return accept;
+                }
+                if (e.text == Key.DownArrow) {
+                    hamburger.move-selection(1);
+                    return accept;
+                }
+                if (e.text == Key.Return) {
+                    hamburger.activate-selected();
+                    return accept;
+                }
                 reject
             }
 
@@ -91,6 +103,7 @@ export component HamburgerMenuHost {
             running: root.focus-armed;
             triggered() => {
                 esc-scope.focus();
+                hamburger.selected = -1;
                 root.focus-armed = false;
             }
         }
