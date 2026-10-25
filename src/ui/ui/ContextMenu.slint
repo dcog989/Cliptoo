@@ -54,17 +54,20 @@ export component ContextMenu {
 
     pure function main-menu-height() -> length {
         // Preview, Edit, Delete, 4×Move, Bookmark = 8 rows, plus the
-        // conditional Format (text) and paste rows.
+        // conditional Format (text), paste and Send To rows.
         // Separators: the three unconditional (above Delete, above Move to
-        // Top, above Bookmark), plus one for the paste block.
+        // Top, above Bookmark), plus one each for the paste block and Send To.
         let paste_rows = (root.show-paste ? 1 : 0)
             + (root.show-rich-paste ? 1 : 0)
             + (root.show-plain-paste ? 1 : 0);
+        let send_to_rows = root.send-to-apps.length > 0 ? 1 : 0;
         let rows = 8
             + (root.is-text-type ? 1 : 0)
-            + paste_rows;
+            + paste_rows
+            + send_to_rows;
         let seps = 3
-            + (root.has-paste-block ? 1 : 0);
+            + (root.has-paste-block ? 1 : 0)
+            + send_to_rows;
         return rows * 32px + seps * 9px + 8px;
     }
 

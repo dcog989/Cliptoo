@@ -124,7 +124,9 @@ export component TextRow {
                 color: Theme.fg-primary;
                 font-size: Theme.font-size;
                 vertical-alignment: center;
-                accepted => {
+                // Commit as the text changes: hiding the window does not drop
+                // focus back to the page, so a blur-only commit lost edits.
+                edited => {
                     root.committed(root.value);
                 }
             }
