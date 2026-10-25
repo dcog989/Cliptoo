@@ -36,6 +36,7 @@ impl DbPool {
 
         // PRAGMAs must run outside any transaction.
         conn.execute_batch(schema::PRAGMA_WAL)?;
+        conn.execute_batch(schema::PRAGMA_SYNCHRONOUS_NORMAL)?;
         conn.execute_batch(schema::PRAGMA_FOREIGN_KEYS)?;
 
         // Versioned schema + migrations (see `schema::migrate`); no-ops when

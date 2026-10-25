@@ -71,6 +71,14 @@ END;
 ";
 
 pub const PRAGMA_WAL: &str = "PRAGMA journal_mode = WAL;";
+/// WAL + `NORMAL` never corrupts the database; it only risks losing the most
+/// recent transactions if the machine loses power before the next checkpoint,
+/// instead of fsyncing on every commit. A clipboard write is not worth an
+/// fsync; the alternative is one disk flush per copied clip.
+///
+/// Per-connection and not stored in the file, so it must be set on every open
+/// (unlike `journal_mode`, which is persistent).
+pub const PRAGMA_SYNCHRONOUS_NORMAL: &str = "PRAGMA synchronous = NORMAL;";
 pub const PRAGMA_FOREIGN_KEYS: &str = "PRAGMA foreign_keys = ON;";
 // NOTE: WAL mode.
 // `PRAGMA journal_mode = WAL` is a no-op if another process already has the
