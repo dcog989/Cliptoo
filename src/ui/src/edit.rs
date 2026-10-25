@@ -172,9 +172,16 @@ pub fn setup_edit_window(
                         } else {
                             let normalized =
                                 cliptoo_core::content::normalize_line_endings(&content);
+                            // Keep file and folder clips file clips: their payload
+                            // is still paths, and classifying it as text alone
+                            // would demote them to file_path and drop the
+                            // text/uri-list paste rendition.
+                            let was_file_clip =
+                                cliptoo_core::db::models::ClipType::parse(&clip_type)
+                                    .is_file_clip();
                             let classified = cliptoo_core::content::ContentProcessor::process(
                                 &normalized,
-                                false,
+                                was_file_clip,
                             )
                             .context("content is empty")?;
                             db.with(|conn| {
