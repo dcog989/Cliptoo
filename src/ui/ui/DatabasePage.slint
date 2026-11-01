@@ -6,7 +6,7 @@ import { IntRow, SectionHeader } from "SettingsComponents.slint";
 import { ScrollView } from "std-widgets.slint";
 
 export component DatabasePage inherits ScrollView {
-    in-out property <int> s-max-clips:            10000;
+    in-out property <int> s-max-clips:            1000;
     in-out property <int> s-max-age-days:         90;
     // Read-only statistics, refreshed from Rust each time this page opens.
     in property <string> s-total-clips: "";
@@ -35,10 +35,10 @@ export component DatabasePage inherits ScrollView {
 
         IntRow {
             label: @tr("Max clips");
-            tooltip-text: @tr("Maximum number of non-bookmarked clips kept in history");
+            tooltip-text: @tr("Maximum number of non-bookmarked clips kept in history (up to 1000, the list limit)");
             value <=> root.s-max-clips;
             min-val: 100;
-            max-val: 100000;
+            max-val: 1000;
             step: 100;
             committed(v) => {
                 root.setting-changed("max_clips", "\{v}");
