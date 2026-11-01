@@ -367,7 +367,7 @@ pub fn search_clips(
         };
 
     // ── Browse (no query text) ────────────────────────────────────────────────
-    if effective_query.is_empty() && !is_tag_search {
+    if effective_query.trim().is_empty() && !is_tag_search {
         let sql = format!(
             "SELECT {projection}
              FROM clips c
@@ -506,7 +506,8 @@ pub fn update_clip_content(
 ) -> Result<()> {
     conn.execute(
         "UPDATE clips SET Content = ?1, PreviewContent = ?2, ContentHash = ?3, ClipType = ?4,
-         WasTrimmed = ?5, HasLeadingWhitespace = ?6, IsMultiline = ?7, SizeInBytes = ?8
+         WasTrimmed = ?5, HasLeadingWhitespace = ?6, IsMultiline = ?7, SizeInBytes = ?8,
+         IsDeadhead = 0
          WHERE Id = ?9",
         params![
             content,
@@ -554,17 +555,24 @@ pub fn count_clips(conn: &Connection) -> Result<i64> {
     Ok(n)
 }
 
-/// Atomically timestamps the clip to the top and increments its paste count.
-/// Also bumps the global paste counter. Use instead of calling `bump_to_top`
-/// separately.
-pub fn record_paste(conn: &Connection, id: i64) -> Result<()> {
+/// Atomically counts a paste and, when `move_to_top`, timestamps the clip to
+/// the top. Also bumps the global paste counter. Always counts, whatever the
+/// reorder setting says — only the reorder is optional.
+pub fn record_paste(conn: &Connection, id: i64, move_to_top: bool) -> Result<()> {
     // Single transaction: a crash between the clip's PasteCount bump and the
     // global counter would otherwise desync the two stats.
     let tx = conn.unchecked_transaction()?;
-    tx.execute(
-        "UPDATE clips SET Timestamp = ?1, PasteCount = PasteCount + 1 WHERE Id = ?2",
-        params![next_timestamp(), id],
-    )?;
+    if move_to_top {
+        tx.execute(
+            "UPDATE clips SET Timestamp = ?1, PasteCount = PasteCount + 1 WHERE Id = ?2",
+            params![next_timestamp(), id],
+        )?;
+    } else {
+        tx.execute(
+            "UPDATE clips SET PasteCount = PasteCount + 1 WHERE Id = ?1",
+            params![id],
+        )?;
+    }
     crate::stats::increment_stat(&tx, crate::stats::KEY_PASTE_COUNT)?;
     tx.commit()?;
     Ok(())
@@ -583,18 +591,30 @@ pub fn bump_to_bottom(conn: &Connection, id: i64) -> Result<()> {
 }
 
 pub fn move_up_one(conn: &Connection, id: i64) -> Result<()> {
+    move_one(conn, id, true)
+}
+
+pub fn move_down_one(conn: &Connection, id: i64) -> Result<()> {
+    move_one(conn, id, false)
+}
+
+/// Swap `id`'s timestamp with its immediate neighbour's, up or down the list.
+fn move_one(conn: &Connection, id: i64, up: bool) -> Result<()> {
     let current_ts: String = conn.query_row(
         "SELECT Timestamp FROM clips WHERE Id = ?1",
         params![id],
         |row| row.get(0),
     )?;
 
-    let above = conn
+    let (cmp, order) = if up { (">", "ASC") } else { ("<", "DESC") };
+    let neighbour = conn
         .query_row(
-            "SELECT Id, Timestamp FROM clips
-             WHERE (Timestamp, Id) > (?1, ?2)
-             ORDER BY Timestamp ASC, Id ASC
-             LIMIT 1",
+            &format!(
+                "SELECT Id, Timestamp FROM clips
+                 WHERE (Timestamp, Id) {cmp} (?1, ?2)
+                 ORDER BY Timestamp {order}, Id {order}
+                 LIMIT 1"
+            ),
             params![&current_ts, id],
             |row| Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?)),
         )
@@ -604,50 +624,15 @@ pub fn move_up_one(conn: &Connection, id: i64) -> Result<()> {
     // the pair of writes would otherwise leave both rows holding the same
     // timestamp. The reads above run under the caller's connection lock, so
     // no write can interleave between them and this transaction.
-    if let Some((above_id, above_ts)) = above {
+    if let Some((neighbour_id, neighbour_ts)) = neighbour {
         let tx = conn.unchecked_transaction()?;
         tx.execute(
             "UPDATE clips SET Timestamp = ?1 WHERE Id = ?2",
-            params![&above_ts, id],
+            params![&neighbour_ts, id],
         )?;
         tx.execute(
             "UPDATE clips SET Timestamp = ?1 WHERE Id = ?2",
-            params![&current_ts, above_id],
-        )?;
-        tx.commit()?;
-    }
-    Ok(())
-}
-
-pub fn move_down_one(conn: &Connection, id: i64) -> Result<()> {
-    let current_ts: String = conn.query_row(
-        "SELECT Timestamp FROM clips WHERE Id = ?1",
-        params![id],
-        |row| row.get(0),
-    )?;
-
-    let below = conn
-        .query_row(
-            "SELECT Id, Timestamp FROM clips
-             WHERE (Timestamp, Id) < (?1, ?2)
-             ORDER BY Timestamp DESC, Id DESC
-             LIMIT 1",
-            params![&current_ts, id],
-            |row| Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?)),
-        )
-        .optional()?;
-
-    // Same atomicity argument as `move_up_one`: both writes land in a single
-    // transaction so an interrupted swap cannot leave duplicated timestamps.
-    if let Some((below_id, below_ts)) = below {
-        let tx = conn.unchecked_transaction()?;
-        tx.execute(
-            "UPDATE clips SET Timestamp = ?1 WHERE Id = ?2",
-            params![&below_ts, id],
-        )?;
-        tx.execute(
-            "UPDATE clips SET Timestamp = ?1 WHERE Id = ?2",
-            params![&current_ts, below_id],
+            params![&current_ts, neighbour_id],
         )?;
         tx.commit()?;
     }

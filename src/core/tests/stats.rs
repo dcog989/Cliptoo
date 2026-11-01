@@ -37,10 +37,10 @@ async fn record_paste_bumps_global_paste_counter() {
         .await
         .unwrap()[0]
         .id;
-    db.with(|conn| queries::record_paste(conn, id))
+    db.with(|conn| queries::record_paste(conn, id, true))
         .await
         .unwrap();
-    db.with(|conn| queries::record_paste(conn, id))
+    db.with(|conn| queries::record_paste(conn, id, true))
         .await
         .unwrap();
 
@@ -62,6 +62,41 @@ async fn record_paste_bumps_global_paste_counter() {
         .await
         .unwrap();
     assert_eq!(count, 2);
+
+    // The reorder is optional; the count is not. `move_to_top = false` must
+    // still count the paste without touching Timestamp.
+    let ts_before: String = db
+        .with(|conn| {
+            Ok(
+                conn.query_row("SELECT Timestamp FROM clips WHERE Id = ?1", [id], |row| {
+                    row.get(0)
+                })?,
+            )
+        })
+        .await
+        .unwrap();
+    db.with(|conn| queries::record_paste(conn, id, false))
+        .await
+        .unwrap();
+    let pastes = db
+        .with(|conn| stats::get_stat(conn, stats::KEY_PASTE_COUNT))
+        .await
+        .unwrap();
+    assert_eq!(pastes.unwrap(), "3");
+    let ts_after: String = db
+        .with(|conn| {
+            Ok(
+                conn.query_row("SELECT Timestamp FROM clips WHERE Id = ?1", [id], |row| {
+                    row.get(0)
+                })?,
+            )
+        })
+        .await
+        .unwrap();
+    assert_eq!(
+        ts_after, ts_before,
+        "count-only paste leaves the order alone"
+    );
 
     let _ = std::fs::remove_file(&dir);
     let _ = std::fs::remove_file(dir.with_extension("wal"));

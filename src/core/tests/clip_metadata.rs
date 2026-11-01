@@ -55,6 +55,53 @@ async fn update_clip_metadata_refreshes_size_and_multiline() {
     clean_up(&dir);
 }
 
+/// Editing a clip's content clears a stale deadhead flag. Deadhead detection
+/// only collects file-type clips, so a row edited into a text clip would
+/// otherwise keep the strikethrough forever.
+#[tokio::test]
+async fn update_clip_content_clears_deadhead_flag() {
+    let (dir, db) = temp_db("content_clears_deadhead").await;
+    common::insert_clip(&db, "/tmp/gone.png", "hash-dead", "file_generic").await;
+    let id: i64 = db
+        .with(|conn| Ok(conn.query_row("SELECT Id FROM clips LIMIT 1", [], |row| row.get(0))?))
+        .await
+        .unwrap();
+    db.with(|conn| Ok(conn.execute("UPDATE clips SET IsDeadhead = 1 WHERE Id = ?1", [id])?))
+        .await
+        .unwrap();
+
+    db.with(|conn| {
+        cliptoo_core::db::queries::update_clip_content(
+            conn,
+            id,
+            "a note",
+            "a note",
+            "hash-note",
+            "text",
+            false,
+            false,
+            false,
+            6,
+        )
+    })
+    .await
+    .unwrap();
+
+    let dead: i32 = db
+        .with(|conn| {
+            Ok(
+                conn.query_row("SELECT IsDeadhead FROM clips WHERE Id = ?1", [id], |row| {
+                    row.get(0)
+                })?,
+            )
+        })
+        .await
+        .unwrap();
+    assert_eq!(dead, 0, "the stale deadhead flag is cleared on edit");
+
+    clean_up(&dir);
+}
+
 /// Re-copying an existing clip refreshes the metadata derived from current disk
 /// state instead of keeping the first copy's values, and clears a stale
 /// deadhead flag — the caller just classified the content again, so the path

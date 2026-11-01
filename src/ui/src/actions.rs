@@ -522,13 +522,14 @@ pub fn setup_clip_actions(
             let (query, filter) = helpers::current_view_state(&ui);
             let pfx = paste_pfx.clone();
             tokio::spawn(async move {
-                // Bump the clip to the top (and count the paste) only when the
-                // "paste moves clip to top" setting is enabled, then refresh so
-                // the reorder is visible in the list.
+                // Count the paste always; bump it to the top and refresh only
+                // when the setting allows the reorder.
+                let _ = db
+                    .with(|conn| {
+                        cliptoo_core::db::queries::record_paste(conn, id as i64, moves_top)
+                    })
+                    .await;
                 if moves_top {
-                    let _ = db
-                        .with(|conn| cliptoo_core::db::queries::record_paste(conn, id as i64))
-                        .await;
                     helpers::refresh_clips(&db, &ui, &td, &fd, &query, &filter, Some(&pfx)).await;
                 }
                 let result = db
@@ -573,17 +574,19 @@ pub fn setup_clip_actions(
             let td = pas_td.clone();
             let fd = pas_fd.clone();
             let pfx = pas_pfx.clone();
-            // Same bookkeeping as a normal paste: count it, and reorder the
-            // list when the "paste moves clip to top" setting is on.
+            // Same bookkeeping as a normal paste: always count it, and reorder
+            // the list when the "paste moves clip to top" setting is on.
             let moves_top = pas_settings.borrow().paste_moves_clip_to_top;
             let keep_open = !pas_settings.borrow().always_close_to_tray;
             let (query, filter) = helpers::current_view_state(&ui);
             let paste_plain = mode == "plain";
             tokio::spawn(async move {
+                let _ = db
+                    .with(|conn| {
+                        cliptoo_core::db::queries::record_paste(conn, id as i64, moves_top)
+                    })
+                    .await;
                 if moves_top {
-                    let _ = db
-                        .with(|conn| cliptoo_core::db::queries::record_paste(conn, id as i64))
-                        .await;
                     helpers::refresh_clips(&db, &ui, &td, &fd, &query, &filter, Some(&pfx)).await;
                 }
                 let result = db
