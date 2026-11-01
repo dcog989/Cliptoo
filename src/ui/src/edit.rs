@@ -168,9 +168,7 @@ pub fn setup_edit_window(
                         // the path view, and Save must not recreate it with the
                         // path text as its contents.
                         let write_back = file_snapshot.is_some()
-                            && (clip_type == "file_text"
-                                || cliptoo_core::db::models::ClipType::parse(&clip_type)
-                                    .is_text_file());
+                            && cliptoo_core::db::models::ClipType::parse(&clip_type).is_text_file();
                         if write_back {
                             let (file_mtime, file_size) =
                                 file_snapshot.expect("write_back requires a snapshot");
@@ -303,7 +301,13 @@ fn write_text_file(path: &str, contents: &str) -> std::io::Result<()> {
     let dir = path.parent().unwrap_or_else(|| Path::new("."));
     let tmp = dir.join(format!(".{name}.cliptoo-{}.tmp", std::process::id()));
 
-    if let Err(e) = std::fs::write(&tmp, contents) {
+    let written = std::fs::File::create(&tmp).and_then(|mut file| {
+        std::io::Write::write_all(&mut file, contents.as_bytes())?;
+        // Flush the data before the rename: otherwise a power cut can leave
+        // the new name pointing at a zero-length file.
+        file.sync_all()
+    });
+    if let Err(e) = written {
         let _ = std::fs::remove_file(&tmp);
         return Err(e);
     }

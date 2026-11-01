@@ -52,43 +52,74 @@ const SVG_RENDER_SIZE: u32 = 1024;
 // ── Decode ────────────────────────────────────────────────────────────────────
 
 fn decode_image(data: &[u8]) -> Result<image::DynamicImage> {
-    image::load_from_memory(data).or_else(|_| {
-        // SVG rasterization via resvg/usvg/tiny-skia
-        if let Ok((rgba, w, h)) = icon::rasterize_svg(data, SVG_RENDER_SIZE)
-            && let Some(img) = image::RgbaImage::from_raw(w, h, rgba)
-        {
-            return Ok(image::DynamicImage::ImageRgba8(img));
-        }
-        // JXL via jxl-oxide
-        let jxl = jxl_oxide::JxlImage::builder()
-            .read(std::io::Cursor::new(data))
-            .map_err(|e| anyhow::anyhow!("jxl-oxide decode: {e}"))?;
-        let render = jxl
-            .render_frame(0)
-            .map_err(|e| anyhow::anyhow!("jxl render: {e}"))?;
-        let fb = render.image_all_channels();
-        let w = fb.width() as u32;
-        let h = fb.height() as u32;
-        let c = fb.channels();
-        let raw: Vec<u8> = fb
-            .buf()
-            .iter()
-            .map(|&v| (v.clamp(0.0, 1.0) * 255.0).round() as u8)
-            .collect();
-        let rgba = match c {
-            0..=2 => return Err(anyhow::anyhow!("unsupported JXL channel count {c}")),
-            3 => {
-                let mut buf = Vec::with_capacity((w * h * 4) as usize);
-                for ch in raw.chunks(3) {
-                    buf.extend_from_slice(&[ch[0], ch[1], ch[2], 255]);
-                }
-                image::RgbaImage::from_raw(w, h, buf).context("jxl rgba")?
+    if let Some(img) = decode_raster(data) {
+        return Ok(img);
+    }
+    decode_vector_or_jxl(data)
+}
+
+/// Largest image side accepted from a clipboard, file or download. A payload
+/// under the byte cap can still declare gigapixel dimensions, so these limits
+/// are what actually protects the process.
+const MAX_DECODE_DIM: u32 = 16_384;
+/// Largest decoded buffer accepted, in bytes (a 16k x 4k RGBA frame fits).
+const MAX_DECODE_ALLOC: u64 = 256 * 1024 * 1024;
+
+fn decode_limits() -> image::Limits {
+    let mut limits = image::Limits::default();
+    limits.max_image_width = Some(MAX_DECODE_DIM);
+    limits.max_image_height = Some(MAX_DECODE_DIM);
+    limits.max_alloc = Some(MAX_DECODE_ALLOC);
+    limits
+}
+
+/// Decode a raster image (PNG/JPEG/WebP/...) under the limits above. Returns
+/// `None` for an undecodable image or one over them, so a decompression bomb
+/// cannot allocate its declared dimensions.
+pub fn decode_raster(data: &[u8]) -> Option<image::DynamicImage> {
+    let mut reader = image::ImageReader::new(std::io::Cursor::new(data))
+        .with_guessed_format()
+        .ok()?;
+    reader.limits(decode_limits());
+    reader.decode().ok()
+}
+
+fn decode_vector_or_jxl(data: &[u8]) -> Result<image::DynamicImage> {
+    // SVG rasterization via resvg/usvg/tiny-skia
+    if let Ok((rgba, w, h)) = icon::rasterize_svg(data, SVG_RENDER_SIZE)
+        && let Some(img) = image::RgbaImage::from_raw(w, h, rgba)
+    {
+        return Ok(image::DynamicImage::ImageRgba8(img));
+    }
+    // JXL via jxl-oxide
+    let jxl = jxl_oxide::JxlImage::builder()
+        .read(std::io::Cursor::new(data))
+        .map_err(|e| anyhow::anyhow!("jxl-oxide decode: {e}"))?;
+    let render = jxl
+        .render_frame(0)
+        .map_err(|e| anyhow::anyhow!("jxl render: {e}"))?;
+    let fb = render.image_all_channels();
+    let w = fb.width() as u32;
+    let h = fb.height() as u32;
+    let c = fb.channels();
+    let raw: Vec<u8> = fb
+        .buf()
+        .iter()
+        .map(|&v| (v.clamp(0.0, 1.0) * 255.0).round() as u8)
+        .collect();
+    let rgba = match c {
+        0..=2 => return Err(anyhow::anyhow!("unsupported JXL channel count {c}")),
+        3 => {
+            let mut buf = Vec::with_capacity((w * h * 4) as usize);
+            for ch in raw.chunks(3) {
+                buf.extend_from_slice(&[ch[0], ch[1], ch[2], 255]);
             }
-            4 => image::RgbaImage::from_raw(w, h, raw).context("jxl rgba")?,
-            _ => return Err(anyhow::anyhow!("unsupported JXL channel count {c}")),
-        };
-        Ok(image::DynamicImage::ImageRgba8(rgba))
-    })
+            image::RgbaImage::from_raw(w, h, buf).context("jxl rgba")?
+        }
+        4 => image::RgbaImage::from_raw(w, h, raw).context("jxl rgba")?,
+        _ => return Err(anyhow::anyhow!("unsupported JXL channel count {c}")),
+    };
+    Ok(image::DynamicImage::ImageRgba8(rgba))
 }
 
 fn resize_to(img: image::DynamicImage, max_dim: u32) -> image::DynamicImage {
@@ -314,6 +345,19 @@ mod tests {
             .write_to(&mut out, image::ImageFormat::Png)
             .unwrap();
         out.into_inner()
+    }
+
+    #[test]
+    fn decode_limits_reject_oversized_images() {
+        // Garbage decodes to nothing rather than panicking.
+        assert!(decode_raster(b"not an image").is_none());
+        let png = png_bytes(2, 2);
+        assert!(decode_raster(&png).is_some());
+        // The guards that stop a decompression bomb must stay in place.
+        let limits = decode_limits();
+        assert_eq!(limits.max_image_width, Some(MAX_DECODE_DIM));
+        assert_eq!(limits.max_image_height, Some(MAX_DECODE_DIM));
+        assert_eq!(limits.max_alloc, Some(MAX_DECODE_ALLOC));
     }
 
     #[test]
