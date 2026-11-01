@@ -246,6 +246,12 @@ pub async fn run_listener(
                     // dedups instead of ingesting an accessory rendition as a
                     // new clip. Drop any watcher snapshot from startup so it
                     // can't be attributed to the first genuine copy.
+                    //
+                    // A non-text payload also covers the whole selection: the
+                    // image probe only runs on a changed MIME set, so a later
+                    // stale read would skip it and store its accessory
+                    // text/plain (the image's URL or alt text) as a new clip.
+                    non_text_ingested |= baseline_covers_selection(&payload);
                     pending_source_app = None;
                     last_mime_types = None;
                     debug!("clipboard: baseline read; seeding change detection");
@@ -681,4 +687,39 @@ const SVG_CURRENT_COLOR_FALLBACK: &str = "#888888";
 fn svg_thumbnail_source(svg: &str) -> Vec<u8> {
     svg.replace("currentColor", SVG_CURRENT_COLOR_FALLBACK)
         .into_bytes()
+}
+
+/// Whether a payload found during the startup baseline covers the whole
+/// selection, so no other rendition of it may be stored later.
+///
+/// A text payload is stopped by its own hash seed on the next read. A non-text
+/// payload (uri-list, image) is not always re-probed on a stale read, so it
+/// must mark the generation as covered or its accessory `text/plain` is stored
+/// as a separate clip.
+fn baseline_covers_selection(payload: &ClipboardPayload) -> bool {
+    !matches!(payload, ClipboardPayload::Text { .. })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn baseline_marks_non_text_selections_as_covered() {
+        assert!(!baseline_covers_selection(&ClipboardPayload::Text {
+            hash: String::new(),
+            content: String::new(),
+            sup_hash: 0,
+        }));
+        assert!(baseline_covers_selection(&ClipboardPayload::FileUri {
+            content: String::new(),
+            sup_hash: 0,
+        }));
+        assert!(baseline_covers_selection(&ClipboardPayload::Image {
+            hash: String::new(),
+            data: Vec::new(),
+            sup_hash: 0,
+            mime: String::new(),
+        }));
+    }
 }
