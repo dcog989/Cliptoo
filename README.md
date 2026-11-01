@@ -3,6 +3,10 @@
 Advanced Linux clipboard manager. Use your clip history as a library of things. Rust, Slint, and SQLite = small footprint and fast performance.
 
 ![screen-1](assets/screen-1.webp)
+![screen-2](assets/screen-2.webp)
+![screen-3](assets/screen-3.webp)
+![screen-4](assets/screen-4.webp)
+![screen-5](assets/screen-5.webp)
 
 ---
 
