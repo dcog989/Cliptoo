@@ -143,14 +143,59 @@ async fn move_to_bottom_puts_the_clip_last_regardless_of_id() {
     pin(2).await;
     assert_eq!(browse_order(&db).await, vec![3, 1, 2]);
 
-    // Move the pin on 1 onto 3, then pin 1 again: no duplicate timestamp, so
-    // the following move still works.
-    move_up(&db, 1).await;
-    assert_eq!(browse_order(&db).await, vec![1, 3, 2]);
-    pin(1).await;
+    // Move within the pinned group, then pin again: no duplicate timestamp, so
+    // the following move still reorders.
+    move_up(&db, 2).await;
     assert_eq!(browse_order(&db).await, vec![3, 2, 1]);
-    move_up(&db, 1).await;
+    pin(2).await;
     assert_eq!(browse_order(&db).await, vec![3, 1, 2]);
+    move_up(&db, 2).await;
+    assert_eq!(browse_order(&db).await, vec![3, 2, 1]);
+
+    clean_up(&dir);
+}
+
+/// A pinned clip must not trade its bottom-pin sentinel (the retention keep
+/// signal) with an ordinary neighbour. Moves across the boundary are refused
+/// and change nothing; the pinned row keeps `IsPinned`.
+#[tokio::test]
+async fn moves_across_the_pinned_boundary_are_refused() {
+    let (dir, db) = temp_db("pinboundary").await;
+
+    common::insert_clip(&db, "alpha", "hash_alpha", "text").await;
+    common::insert_clip(&db, "beta", "hash_beta", "text").await;
+    common::insert_clip(&db, "gamma", "hash_gamma", "text").await;
+
+    db.with(|conn| cliptoo_core::db::queries::bump_to_bottom(conn, 1))
+        .await
+        .unwrap();
+    assert_eq!(browse_order(&db).await, vec![3, 2, 1]);
+
+    // Pinned clip up past the boundary.
+    let blocked = db
+        .with(|conn| cliptoo_core::db::queries::move_up_one(conn, 1))
+        .await;
+    assert!(blocked.is_err(), "must not move the sentinel onto clip 2");
+    assert_eq!(browse_order(&db).await, vec![3, 2, 1]);
+
+    // Unpinned clip down past the boundary.
+    let blocked = db
+        .with(|conn| cliptoo_core::db::queries::move_down_one(conn, 2))
+        .await;
+    assert!(blocked.is_err(), "must not move clip 2 below the pin");
+    assert_eq!(browse_order(&db).await, vec![3, 2, 1]);
+
+    let pinned: i64 = db
+        .with(|conn| {
+            Ok(
+                conn.query_row("SELECT IsPinned FROM clips WHERE Id = 1", [], |row| {
+                    row.get(0)
+                })?,
+            )
+        })
+        .await
+        .unwrap();
+    assert_eq!(pinned, 1, "the keep signal travels with the clip");
 
     clean_up(&dir);
 }

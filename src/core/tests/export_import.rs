@@ -173,6 +173,23 @@ async fn export_import_roundtrip() {
     insert_text(&db1, "hello world", "text").await;
     insert_text(&db1, "https://example.com", "link").await;
 
+    // Pin the link clip so the round-trip has to restore `IsPinned` from the
+    // sentinel timestamp (the JSON carries no flag).
+    let link_hash = cliptoo_core::content::hash::sha256_hex("https://example.com");
+    let link_id: i64 = db1
+        .with(|conn| {
+            Ok(conn.query_row(
+                "SELECT Id FROM clips WHERE ContentHash = ?1",
+                [&link_hash],
+                |row| row.get(0),
+            )?)
+        })
+        .await
+        .unwrap();
+    db1.with(|conn| cliptoo_core::db::queries::bump_to_bottom(conn, link_id))
+        .await
+        .unwrap();
+
     let out = dir.with_extension("json");
     let n = cliptoo_core::export::export_to_file(&db1, &out)
         .await
@@ -184,6 +201,18 @@ async fn export_import_roundtrip() {
         .await
         .unwrap();
     assert_eq!(inserted, 2);
+
+    let pinned: i64 = db2
+        .with(|conn| {
+            Ok(conn.query_row(
+                "SELECT IsPinned FROM clips WHERE ContentHash = ?1",
+                [&link_hash],
+                |row| row.get(0),
+            )?)
+        })
+        .await
+        .unwrap();
+    assert_eq!(pinned, 1, "import restores the bottom pin");
 
     let _ = std::fs::remove_file(&out);
     let _ = std::fs::remove_file(&dir);

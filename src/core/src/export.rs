@@ -34,7 +34,7 @@ use serde::{Deserialize, Serialize};
 use tracing::{info, warn};
 
 use crate::db::models::ClipType;
-use crate::db::queries::{EPOCH_TS_PREFIX, TIMESTAMP_FORMAT, next_timestamp};
+use crate::db::queries::{EPOCH_TS_PREFIX, TIMESTAMP_FORMAT, is_pin_timestamp, next_timestamp};
 
 // ── Shared row type ───────────────────────────────────────────────────────────
 
@@ -285,8 +285,9 @@ impl ImportState<'_, '_> {
                 "INSERT INTO clips (
                 Content, PreviewContent, ContentHash, ClipType, SourceApp,
                 Timestamp, IsBookmarked, WasTrimmed, HasLeadingWhitespace,
-                IsMultiline, SizeInBytes, PasteCount, Tags, IsFileUri, IsDeadhead
-             ) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15)",
+                IsMultiline, SizeInBytes, PasteCount, Tags, IsFileUri, IsDeadhead,
+                IsPinned
+             ) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16)",
                 params![
                     row.content,
                     row.preview_content,
@@ -303,6 +304,9 @@ impl ImportState<'_, '_> {
                     row.tags,
                     row.is_file_uri as i32,
                     row.is_deadhead as i32,
+                    // The backup carries the pin sentinel timestamp but no
+                    // flag, so the pin is restored from the timestamp shape.
+                    is_pin_timestamp(&timestamp) as i32,
                 ],
             )
             .with_context(|| format!("insert imported clip hash={}", row.content_hash))?;

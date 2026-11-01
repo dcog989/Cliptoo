@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS clips (
     HasLeadingWhitespace  INTEGER NOT NULL DEFAULT 0,
     IsMultiline           INTEGER NOT NULL DEFAULT 0,
     IsDeadhead            INTEGER NOT NULL DEFAULT 0,
+    IsPinned              INTEGER NOT NULL DEFAULT 0,
     IsFileUri             INTEGER NOT NULL DEFAULT 0,
     SizeInBytes           INTEGER NOT NULL DEFAULT 0,
     PasteCount            INTEGER NOT NULL DEFAULT 0,
@@ -159,9 +160,22 @@ pub const MIGRATE_ADD_IS_FILE_URI: &str =
 /// it is still stamped under `user_version` so it runs exactly once.
 pub const MIGRATE_FTS_SECURE_DELETE: &str = FTS_SECURE_DELETE;
 
+/// v6 migration: add the `IsPinned` column. Before it, "move to bottom" was
+/// encoded only in the `Timestamp` sentinel, and reordering two clips swaps
+/// their timestamps — which moved the keep signal onto the other clip. The
+/// column makes the exemption travel with the clip. Existing sentinel rows are
+/// backfilled so previously pinned clips keep surviving retention. The literal
+/// values are frozen here on purpose: a shipped migration must never change.
+pub const MIGRATE_ADD_IS_PINNED: &str = "
+ALTER TABLE clips ADD COLUMN IsPinned INTEGER NOT NULL DEFAULT 0;
+UPDATE clips SET IsPinned = 1
+ WHERE Timestamp = '1970-01-01 00:00:00'
+    OR (Timestamp LIKE '1970-01-01 00:00:00.%' AND length(Timestamp) = 35);
+";
+
 /// Current schema version. Bump when the schema changes and append a matching
 /// entry to `MIGRATIONS`; never edit or reorder a migration that has shipped.
-pub const SCHEMA_VERSION: u32 = 5;
+pub const SCHEMA_VERSION: u32 = 6;
 
 /// Ordered schema migrations. Each entry raises the schema to `target_version`
 /// and runs exactly once, inside its own transaction that also stamps
@@ -172,6 +186,7 @@ const MIGRATIONS: &[(u32, &str)] = &[
     (3, MIGRATE_ADD_IS_FILE_URI),
     (4, CREATE_INDEX_CLIPS_TS_ALL),
     (5, MIGRATE_FTS_SECURE_DELETE),
+    (6, MIGRATE_ADD_IS_PINNED),
 ];
 
 /// Bring `conn` up to [`SCHEMA_VERSION`]. No-ops when already current.

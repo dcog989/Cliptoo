@@ -25,9 +25,9 @@ pub const FTS_HL_CLOSE: &str = "\u{2}";
 ///
 /// A pinned clip's `Timestamp` is a sentinel, not a real time, so any age or
 /// count retention cutoff would otherwise treat it as ancient and sweep it.
-/// Scheduled retention therefore exempts these clips (see
-/// `maintenance::bottom_pinned_predicate`), treating a manual "move to bottom"
-/// like a bookmark — a deliberate keep signal.
+/// The keep signal is the `IsPinned` column (`bump_to_bottom` sets it, and
+/// retention exempts those rows), so the sentinel only controls list order —
+/// reordering swaps timestamps and must not move the keep signal.
 pub(crate) const EPOCH_TS_PREFIX: &str = "1970-01-01 00:00:00";
 /// Zero-padded width of the pin counter appended to `EPOCH_TS_PREFIX`.
 /// Fixed width keeps the padded values sortable as text.
@@ -36,6 +36,20 @@ pub(crate) const EPOCH_TS_SUFFIX_WIDTH: usize = 15;
 /// lowest existing suffix minus one, so it sorts last and never reuses a value
 /// (two rows with the same `Timestamp` make `move_one`'s swap a no-op).
 const FIRST_PIN_SUFFIX: i64 = 999_999_999_999_999;
+
+/// True when `s` is a bottom-pin sentinel: the plain epoch prefix (legacy
+/// format) or the prefix plus a 15-digit pin counter. Import uses this to
+/// restore `IsPinned`, since the JSON backup does not carry the flag.
+pub fn is_pin_timestamp(s: &str) -> bool {
+    if s == EPOCH_TS_PREFIX {
+        return true;
+    }
+    s.strip_prefix(EPOCH_TS_PREFIX)
+        .and_then(|rest| rest.strip_prefix('.'))
+        .is_some_and(|digits| {
+            digits.len() == EPOCH_TS_SUFFIX_WIDTH && digits.bytes().all(|b| b.is_ascii_digit())
+        })
+}
 
 /// Last reserved write timestamp, microseconds since the Unix epoch.
 /// Writes are serialised on the single connection, but the guard still
@@ -220,8 +234,9 @@ fn run_search(
 /// to now (bringing it to the top of the list) and refresh the metadata that
 /// depends on current disk state (`ClipType`, `PreviewContent`, `SizeInBytes`,
 /// `IsMultiline`, `IsFileUri`, `SourceApp`) rather than the copy that created
-/// the row. `IsDeadhead` is cleared because the caller just re-copied the
-/// content, and its insert-time classifier already re-checked the path.
+/// the row. `IsDeadhead` and `IsPinned` are cleared because the caller just
+/// re-copied the content: it is back at the top, and its insert-time classifier
+/// already re-checked the path.
 ///
 /// One exception: a path copied as plain text never downgrades an existing
 /// file/folder row to `file_path` — see the guard below.
@@ -322,7 +337,8 @@ pub fn insert_or_bump_at(
              IsMultiline = ?8,
              SizeInBytes = ?9,
              IsFileUri = ?10,
-             IsDeadhead = 0",
+             IsDeadhead = 0,
+             IsPinned = 0",
         params![
             content,
             preview_content,
@@ -607,7 +623,7 @@ pub fn update_clip_metadata(
 
 pub fn bump_to_top(conn: &Connection, id: i64) -> Result<()> {
     conn.execute(
-        "UPDATE clips SET Timestamp = ?1 WHERE Id = ?2",
+        "UPDATE clips SET Timestamp = ?1, IsPinned = 0 WHERE Id = ?2",
         params![next_timestamp(), id],
     )?;
     Ok(())
@@ -628,7 +644,7 @@ pub fn record_paste(conn: &Connection, id: i64, move_to_top: bool) -> Result<()>
     let tx = conn.unchecked_transaction()?;
     if move_to_top {
         tx.execute(
-            "UPDATE clips SET Timestamp = ?1, PasteCount = PasteCount + 1 WHERE Id = ?2",
+            "UPDATE clips SET Timestamp = ?1, IsPinned = 0, PasteCount = PasteCount + 1 WHERE Id = ?2",
             params![next_timestamp(), id],
         )?;
     } else {
@@ -666,7 +682,7 @@ pub fn bump_to_bottom(conn: &Connection, id: i64) -> Result<()> {
         width = EPOCH_TS_SUFFIX_WIDTH
     );
     conn.execute(
-        "UPDATE clips SET Timestamp = ?1 WHERE Id = ?2",
+        "UPDATE clips SET Timestamp = ?1, IsPinned = 1 WHERE Id = ?2",
         params![ts, id],
     )?;
     Ok(())
@@ -681,24 +697,37 @@ pub fn move_down_one(conn: &Connection, id: i64) -> Result<()> {
 }
 
 /// Swap `id`'s timestamp with its immediate neighbour's, up or down the list.
+///
+/// A pinned clip must never trade its bottom-pin sentinel timestamp with an
+/// unpinned neighbour: the sentinel means "ancient" to age retention, so the
+/// neighbour would be swept, and the pinned clip would lose its place. Moves
+/// across the pinned boundary are refused (`Err`) instead — the UI then
+/// refreshes rather than showing a move that did not happen. Reordering within
+/// the pinned group (or within the normal group) still works.
 fn move_one(conn: &Connection, id: i64, up: bool) -> Result<()> {
-    let current_ts: String = conn.query_row(
-        "SELECT Timestamp FROM clips WHERE Id = ?1",
+    let (current_ts, current_pinned): (String, bool) = conn.query_row(
+        "SELECT Timestamp, IsPinned FROM clips WHERE Id = ?1",
         params![id],
-        |row| row.get(0),
+        |row| Ok((row.get(0)?, row.get::<_, i32>(1)? != 0)),
     )?;
 
     let (cmp, order) = if up { (">", "ASC") } else { ("<", "DESC") };
     let neighbour = conn
         .query_row(
             &format!(
-                "SELECT Id, Timestamp FROM clips
+                "SELECT Id, Timestamp, IsPinned FROM clips
                  WHERE (Timestamp, Id) {cmp} (?1, ?2)
                  ORDER BY Timestamp {order}, Id {order}
                  LIMIT 1"
             ),
             params![&current_ts, id],
-            |row| Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?)),
+            |row| {
+                Ok((
+                    row.get::<_, i64>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, i32>(2)? != 0,
+                ))
+            },
         )
         .optional()?;
 
@@ -706,7 +735,10 @@ fn move_one(conn: &Connection, id: i64, up: bool) -> Result<()> {
     // the pair of writes would otherwise leave both rows holding the same
     // timestamp. The reads above run under the caller's connection lock, so
     // no write can interleave between them and this transaction.
-    if let Some((neighbour_id, neighbour_ts)) = neighbour {
+    if let Some((neighbour_id, neighbour_ts, neighbour_pinned)) = neighbour {
+        if neighbour_pinned != current_pinned {
+            anyhow::bail!("refusing to move a clip across the pinned group");
+        }
         let tx = conn.unchecked_transaction()?;
         tx.execute(
             "UPDATE clips SET Timestamp = ?1 WHERE Id = ?2",

@@ -213,8 +213,8 @@ async fn retention_spares_bottom_pinned_clips() {
 }
 
 /// Bottom pins written before the distinct-timestamp change (plain
-/// `1970-01-01 00:00:00`, no Id suffix) must also be exempt — the predicate
-/// matches by timestamp prefix, not by the newer sentinel format.
+/// `1970-01-01 00:00:00`, no Id suffix) must also be exempt — the v6 migration
+/// backfills those rows into `IsPinned`, which is what retention now tests.
 #[tokio::test]
 async fn retention_spares_legacy_plain_epoch_bottom_pins() {
     let dir = std::env::temp_dir().join(format!("cliptoo_retpinlegacy_{}", std::process::id()));
@@ -222,10 +222,11 @@ async fn retention_spares_legacy_plain_epoch_bottom_pins() {
     let db = DbPool::open(&dir).unwrap();
 
     common::insert_clip(&db, "one", "hash_one", "text").await;
-    // Simulate a pre-fix bottom pin: plain epoch timestamp, no Id suffix.
+    // Simulate a pre-v6 bottom pin as the migration leaves it: plain epoch
+    // timestamp plus the backfilled flag.
     db.with(|conn| {
         conn.execute(
-            "UPDATE clips SET Timestamp = '1970-01-01 00:00:00' WHERE Id = 1",
+            "UPDATE clips SET Timestamp = '1970-01-01 00:00:00', IsPinned = 1 WHERE Id = 1",
             [],
         )?;
         Ok(())

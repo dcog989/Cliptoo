@@ -99,6 +99,10 @@ fn fresh_database_gets_baseline_at_current_version() {
     let cols = columns_of(&p, "clips");
     assert!(cols.contains(&"IsDeadhead".to_string()));
     assert!(cols.contains(&"IsFileUri".to_string()));
+    assert!(
+        cols.contains(&"IsPinned".to_string()),
+        "v6 pin column in baseline"
+    );
     assert!(has_browse_index(&p), "v4 browse-path index in baseline");
     assert!(fts_secure_delete(&p), "v5 secure-delete in baseline");
     assert_eq!(
@@ -146,6 +150,10 @@ fn migrates_legacy_v1_database() {
         cols.contains(&"IsFileUri".to_string()),
         "v3 migration applied"
     );
+    assert!(
+        cols.contains(&"IsPinned".to_string()),
+        "v6 migration applied"
+    );
     assert!(has_browse_index(&p), "v4 migration applied");
     assert!(fts_secure_delete(&p), "v5 migration applied");
     assert_eq!(
@@ -183,6 +191,59 @@ fn migrates_legacy_v2_database() {
     let cols = columns_of(&p, "clips");
     assert!(cols.contains(&"IsDeadhead".to_string()));
     assert!(cols.contains(&"IsFileUri".to_string()));
+    assert_eq!(
+        user_version(&p),
+        cliptoo_core::db::schema::SCHEMA_VERSION as i64
+    );
+
+    cleanup(&p);
+}
+
+/// A v5 database's bottom-pin sentinel timestamps are backfilled into
+/// `IsPinned`, so pins recorded before the column existed still survive
+/// retention.
+#[test]
+fn migrates_v5_sentinel_pins_into_is_pinned() {
+    let p = db_path("cliptoo_mig_v5pin");
+    {
+        let conn = rusqlite::Connection::open(&p).unwrap();
+        conn.execute_batch(V1_CREATE_CLIPS).unwrap();
+        conn.execute_batch(
+            "ALTER TABLE clips ADD COLUMN IsDeadhead INTEGER NOT NULL DEFAULT 0;
+             ALTER TABLE clips ADD COLUMN IsFileUri INTEGER NOT NULL DEFAULT 0;",
+        )
+        .unwrap();
+        conn.execute_batch(
+            "INSERT INTO clips (Content, ContentHash, ClipType, Timestamp) VALUES
+                ('pinned', 'pin1', 'text', '1970-01-01 00:00:00.999999999999990'),
+                ('legacy pin', 'pin2', 'text', '1970-01-01 00:00:00'),
+                ('normal', 'n1', 'text', '2026-01-01 00:00:00.000000');",
+        )
+        .unwrap();
+        conn.pragma_update(None, "user_version", 5).unwrap();
+    }
+
+    let db = DbPool::open(&p).unwrap();
+    drop(db);
+
+    let conn = rusqlite::Connection::open(&p).unwrap();
+    let mut stmt = conn
+        .prepare("SELECT ContentHash, IsPinned FROM clips ORDER BY Id")
+        .unwrap();
+    let pinned: Vec<(String, i64)> = stmt
+        .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
+        .unwrap()
+        .collect::<std::result::Result<_, _>>()
+        .unwrap();
+    assert_eq!(
+        pinned,
+        vec![
+            ("pin1".to_string(), 1),
+            ("pin2".to_string(), 1),
+            ("n1".to_string(), 0),
+        ],
+        "only sentinel timestamps are backfilled as pins"
+    );
     assert_eq!(
         user_version(&p),
         cliptoo_core::db::schema::SCHEMA_VERSION as i64
