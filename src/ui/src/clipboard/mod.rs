@@ -31,7 +31,6 @@ pub fn spawn_listener(
     suppression: Arc<PasteSuppressionSet>,
     blacklist_state: Arc<std::sync::Mutex<Vec<String>>>,
     preview_max_dim: Arc<std::sync::atomic::AtomicU32>,
-    active_filter_state: Arc<std::sync::Mutex<String>>,
     selection_rx: mpsc::Receiver<Option<String>>,
     active_window: ActiveWindowCache,
 ) -> tokio::task::JoinHandle<()> {
@@ -45,7 +44,6 @@ pub fn spawn_listener(
             suppression,
             blacklist_state,
             preview_max_dim,
-            active_filter_state,
             selection_rx,
             active_window,
         )
@@ -74,17 +72,60 @@ enum ClipboardPayload {
     },
 }
 
-/// Test whether `source_app` (the active window's resource id) is excluded.
+/// Test whether a clip from `source_app` (the active window's resource id)
+/// must be excluded.
 ///
 /// A blacklist entry matches the full app id or its resource name — the last
 /// dot- or dash-separated component (e.g. "konsole" for "org.kde.konsole",
 /// "chrome" for "google-chrome"). Matching is case-insensitive. A plain
 /// `ends_with` would over-match unrelated ids that merely share a suffix.
+///
+/// Fails closed: when a blacklist is configured but the source app is unknown
+/// (tracker down, window without a resource class), the clip is excluded.
+/// Silently capturing a "blacklisted" app's copy is the worse failure.
 fn is_blacklisted(source_app: Option<&str>, blacklist: &[String]) -> bool {
-    source_app.is_some_and(|app| {
-        let resource_name = app.rsplit(['.', '-']).next().unwrap_or(app);
-        blacklist
-            .iter()
-            .any(|b| app.eq_ignore_ascii_case(b) || resource_name.eq_ignore_ascii_case(b))
-    })
+    if blacklist.is_empty() {
+        return false;
+    }
+    let Some(app) = source_app else {
+        return true;
+    };
+    let resource_name = app.rsplit(['.', '-']).next().unwrap_or(app);
+    blacklist
+        .iter()
+        .any(|b| app.eq_ignore_ascii_case(b) || resource_name.eq_ignore_ascii_case(b))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_blacklisted;
+
+    fn list(entries: &[&str]) -> Vec<String> {
+        entries.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn matches_the_full_id_and_its_resource_name() {
+        let blacklist = list(&["org.kde.konsole", "chrome"]);
+        assert!(is_blacklisted(Some("org.kde.konsole"), &blacklist));
+        assert!(is_blacklisted(Some("google-chrome"), &blacklist));
+        assert!(is_blacklisted(Some("CHROME"), &blacklist));
+    }
+
+    #[test]
+    fn does_not_match_a_suffix_of_the_resource_name() {
+        let blacklist = list(&["konsole", "chrome"]);
+        assert!(!is_blacklisted(Some("org.kde.konsole-x"), &blacklist));
+        assert!(!is_blacklisted(Some("org.example.chromebook"), &blacklist));
+    }
+
+    #[test]
+    fn empty_blacklist_captures_unknown_sources() {
+        assert!(!is_blacklisted(None, &[]));
+    }
+
+    #[test]
+    fn configured_blacklist_excludes_an_unknown_source() {
+        assert!(is_blacklisted(None, &list(&["konsole"])));
+    }
 }

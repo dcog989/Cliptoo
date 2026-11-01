@@ -1,6 +1,25 @@
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::Duration;
 
 use slint::ComponentHandle;
+
+/// Quiet period before a keystroke turns into a query. Each change arms a
+/// one-shot timer; only the newest generation runs, so a fast typist issues one
+/// query instead of one per character.
+const SEARCH_DEBOUNCE: Duration = Duration::from_millis(120);
+
+/// Remove the last word and any whitespace before it, mirroring what
+/// Ctrl+Backspace does in Slint's own text input. Separated so it can be
+/// tested without the window.
+fn without_last_word(text: &str) -> String {
+    let trimmed = text.trim_end();
+    let cut = unicode_segmentation::UnicodeSegmentation::unicode_word_indices(trimmed)
+        .map(|(offset, _)| offset)
+        .next_back()
+        .unwrap_or(0);
+    trimmed[..cut].trim_end().to_string()
+}
 
 /// Parse an FTS5 match-context string with `[HL]...[/HL]` sentinels
 /// into a sequence of `MatchSpan` structs for inline highlighting.
@@ -62,6 +81,7 @@ pub fn setup_search(
     let search_td = dirs.thumbnails_dir.clone();
     let search_fd = dirs.favicons_dir.clone();
     let tag_prefix = tag_prefix.to_string();
+    let search_generation = Arc::new(AtomicU64::new(0));
     ui.on_search_changed(move |query| {
         let db = search_db.clone();
         let ui = search_ui.clone();
@@ -79,17 +99,26 @@ pub fn setup_search(
             })
             .unwrap_or_default();
         let pfx = tag_prefix.clone();
-        tokio::spawn(async move {
-            crate::helpers::refresh_clips(
-                &db,
-                &ui,
-                &td,
-                &fd,
-                query.as_str(),
-                &current_filter,
-                Some(&pfx),
-            )
-            .await;
+        let query = query.to_string();
+        // A newer keystroke invalidates this timer's work.
+        let generation = search_generation.fetch_add(1, Ordering::Relaxed) + 1;
+        let generation_cell = search_generation.clone();
+        slint::Timer::single_shot(SEARCH_DEBOUNCE, move || {
+            if generation_cell.load(Ordering::Relaxed) != generation {
+                return;
+            }
+            tokio::spawn(async move {
+                crate::helpers::refresh_clips(
+                    &db,
+                    &ui,
+                    &td,
+                    &fd,
+                    &query,
+                    &current_filter,
+                    Some(&pfx),
+                )
+                .await;
+            });
         });
     });
 
@@ -118,17 +147,7 @@ pub fn setup_search(
         let _ = ui.upgrade_in_event_loop(move |ui| {
             let text = ui.get_search_text();
             if !text.is_empty() {
-                let mut word_offset = 0;
-                for (offset, _) in
-                    unicode_segmentation::UnicodeSegmentation::unicode_word_indices(text.as_str())
-                {
-                    if offset <= text.len() {
-                        word_offset = offset;
-                    } else {
-                        break;
-                    }
-                }
-                let new_text: String = text[..word_offset].to_string();
+                let new_text = without_last_word(text.as_str());
                 ui.set_search_text(new_text.clone().into());
                 ui.invoke_search_changed(new_text.into());
             }
@@ -140,18 +159,12 @@ pub fn setup_filter(
     ui: &crate::AppWindow,
     db: &Arc<cliptoo_core::db::DbPool>,
     dirs: &crate::app_dirs::AppDirs,
-    active_filter_state: &Arc<std::sync::Mutex<String>>,
 ) {
     let filter_db = db.clone();
     let filter_ui = ui.as_weak();
     let filter_td = dirs.thumbnails_dir.clone();
     let filter_fd = dirs.favicons_dir.clone();
-    let filter_state = active_filter_state.clone();
     ui.on_filter_changed(move |filter| {
-        // Keep the mirror in sync so background tasks (the clipboard listener)
-        // can refresh with the active filter, even though Slint properties are
-        // only readable on the UI thread.
-        *filter_state.lock().unwrap() = filter.to_string();
         let db = filter_db.clone();
         let ui = filter_ui.clone();
         let td = filter_td.clone();
@@ -170,7 +183,7 @@ pub fn setup_filter(
 
 #[cfg(test)]
 mod tests {
-    use super::parse_match_spans;
+    use super::{parse_match_spans, without_last_word};
     use slint::Model;
 
     fn spans_to_strings(model: &slint::ModelRc<crate::MatchSpan>) -> Vec<(String, bool)> {
@@ -212,5 +225,14 @@ mod tests {
                 (" baz".to_string(), false),
             ]
         );
+    }
+
+    #[test]
+    fn word_backspace_drops_the_word_and_its_leading_space() {
+        assert_eq!(without_last_word("foo bar"), "foo");
+        assert_eq!(without_last_word("foo bar   "), "foo");
+        assert_eq!(without_last_word("word"), "");
+        assert_eq!(without_last_word("   "), "");
+        assert_eq!(without_last_word("foo bär"), "foo");
     }
 }

@@ -17,7 +17,7 @@ use crate::source_app::ActiveWindowCache;
 use super::ClipboardPayload;
 use super::is_blacklisted;
 use super::reader::poll_clipboard;
-use crate::helpers::refresh_clips;
+use crate::helpers::refresh_clips_live;
 
 /// Read the current blacklist from shared state and test `source_app` against
 /// it. The settings UI swaps the list on change, so edits take effect on the
@@ -63,7 +63,6 @@ pub async fn run_listener(
     suppression: Arc<PasteSuppressionSet>,
     blacklist_state: Arc<std::sync::Mutex<Vec<String>>>,
     preview_max_dim: Arc<std::sync::atomic::AtomicU32>,
-    active_filter_state: Arc<std::sync::Mutex<String>>,
     mut selection_rx: mpsc::Receiver<Option<String>>,
     active_window: ActiveWindowCache,
 ) -> Result<()> {
@@ -365,7 +364,6 @@ pub async fn run_listener(
                                 debug!("existing clip updated: {} — text", &hash[..12]);
                             }
 
-                            let filter = active_filter_state.lock().unwrap().clone();
                             if is_svg {
                                 // Rasterise + write the thumbnail before the
                                 // refresh so the list isn't rebuilt (and the
@@ -390,19 +388,10 @@ pub async fn run_listener(
                                         }
                                     });
                                     let _ = store.await;
-                                    refresh_clips(&db2, &ui2, &td2, &fd2, "", &filter, None).await;
+                                    refresh_clips_live(&db2, &ui2, &td2, &fd2, None);
                                 }));
                             } else {
-                                refresh_clips(
-                                    &db,
-                                    &ui,
-                                    &thumbnails_dir,
-                                    &favicons_dir,
-                                    "",
-                                    &filter,
-                                    None,
-                                )
-                                .await;
+                                refresh_clips_live(&db, &ui, &thumbnails_dir, &favicons_dir, None);
                             }
                         }
                     }
@@ -461,7 +450,6 @@ pub async fn run_listener(
                             }
                         };
 
-                        let filter = active_filter_state.lock().unwrap().clone();
                         let clip_type = c.clip_type.as_str();
                         if inserted {
                             debug!("new file-uri clip: {} — {clip_type}", &c.content_hash[..12]);
@@ -500,19 +488,10 @@ pub async fn run_listener(
                                     }
                                 });
                                 let _ = store.await;
-                                refresh_clips(&db2, &ui2, &td2, &fd2, "", &filter, None).await;
+                                refresh_clips_live(&db2, &ui2, &td2, &fd2, None);
                             }));
                         } else {
-                            refresh_clips(
-                                &db,
-                                &ui,
-                                &thumbnails_dir,
-                                &favicons_dir,
-                                "",
-                                &filter,
-                                None,
-                            )
-                            .await;
+                            refresh_clips_live(&db, &ui, &thumbnails_dir, &favicons_dir, None);
                         }
                     }
                     ClipboardPayload::Image {
@@ -546,7 +525,6 @@ pub async fn run_listener(
                         let ui2 = ui.clone();
                         let td2 = thumbnails_dir.clone();
                         let fd2 = favicons_dir.clone();
-                        let filter2 = active_filter_state.lock().unwrap().clone();
                         let max_dim = preview_max_dim.clone();
                         // The full-res PNG is what the row's Content references,
                         // so it must exist on disk before the row is recorded; a
@@ -612,7 +590,7 @@ pub async fn run_listener(
                             } else {
                                 debug!("existing image clip updated: {}", &hash[..12]);
                             }
-                            refresh_clips(&db2, &ui2, &td2, &fd2, "", &filter2, None).await;
+                            refresh_clips_live(&db2, &ui2, &td2, &fd2, None);
                         }));
                     }
                 }

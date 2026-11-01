@@ -2,7 +2,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use cliptoo_core::db::queries::SEARCH_RESULT_LIMIT;
-use slint::Model;
+use slint::{ComponentHandle, Model};
 
 const PAGE_TITLE_FETCH_TIMEOUT_SECS: u64 = 5;
 
@@ -46,6 +46,31 @@ pub fn current_view_state(ui: &slint::Weak<crate::AppWindow>) -> (String, String
     )
 }
 
+/// Re-query using the view (query/filter) the window shows right now. The live
+/// Slint properties are read in an event-loop callback, so a background ingest
+/// can never apply results for a view the user has already left.
+pub fn refresh_clips_live(
+    db: &Arc<cliptoo_core::db::DbPool>,
+    ui: &slint::Weak<crate::AppWindow>,
+    td: &Path,
+    fd: &Path,
+    tag_prefix: Option<&str>,
+) {
+    let db = db.clone();
+    let td = td.to_path_buf();
+    let fd = fd.to_path_buf();
+    let prefix = tag_prefix.map(str::to_string);
+    let weak = ui.clone();
+    let _ = weak.upgrade_in_event_loop(move |ui| {
+        let query = ui.get_search_text().to_string();
+        let filter = ui.get_active_filter().to_string();
+        let ui = ui.as_weak();
+        tokio::spawn(async move {
+            refresh_clips(&db, &ui, &td, &fd, &query, &filter, prefix.as_deref()).await;
+        });
+    });
+}
+
 /// Query the DB for clips and replace the UI model.
 pub async fn refresh_clips(
     db: &Arc<cliptoo_core::db::DbPool>,
@@ -72,7 +97,14 @@ pub async fn refresh_clips(
         let db2 = db.clone();
         let td = td.to_path_buf();
         let fd = fd.to_path_buf();
+        // Snapshot the view so a result built for a query/filter the user has
+        // since left is dropped instead of overwriting the newer list.
+        let query = query.to_string();
+        let filter = filter.to_string();
         let _ = ui.upgrade_in_event_loop(move |ui| {
+            if ui.get_search_text().as_str() != query || ui.get_active_filter().as_str() != filter {
+                return;
+            }
             // Capture the currently selected clip so a background refresh
             // (e.g. a new clipboard ingest) doesn't yank the user's selection
             // and scroll position. If the clip is still in the new model it

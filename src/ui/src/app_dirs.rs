@@ -17,6 +17,7 @@ pub struct AppDirs {
     pub images_dir: PathBuf,
     pub thumbnails_dir: PathBuf,
     pub favicons_dir: PathBuf,
+    pub lock_path: PathBuf,
 }
 
 impl AppDirs {
@@ -41,6 +42,11 @@ impl AppDirs {
         let data_dir = data_home.join("Cliptoo");
         let db_path = data_dir.join("clips.db");
         let images_dir = data_dir.join("images");
+        // Single-instance lock. XDG_RUNTIME_DIR is per-user and cleared at
+        // logout; the cache dir is only a fallback when it is unset.
+        let lock_path = dirs::runtime_dir()
+            .unwrap_or_else(|| cache_home.clone())
+            .join("cliptoo.lock");
 
         // Cache — thumbnails and favicons are derived and rebuilt on demand.
         let cache_dir = cache_home.join("Cliptoo");
@@ -104,6 +110,7 @@ impl AppDirs {
             images_dir,
             thumbnails_dir,
             favicons_dir,
+            lock_path,
         })
     }
 }

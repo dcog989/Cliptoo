@@ -15,6 +15,15 @@ const IMAGE_MIME_TYPES: &[&str] = &[
     "image/gif",
 ];
 
+/// Largest text (or rich-text) payload accepted from the clipboard. Anything
+/// larger is ignored: reading it, normalising it and classifying it would hold
+/// several copies in memory, and any app can write the clipboard without focus.
+const MAX_TEXT_BYTES: usize = 16 * 1024 * 1024;
+/// Largest `text/uri-list` payload. A list of paths never needs more.
+const MAX_URI_LIST_BYTES: usize = 1024 * 1024;
+/// Largest image payload accepted. Decoding also allocates width×height×4.
+const MAX_IMAGE_BYTES: usize = 64 * 1024 * 1024;
+
 /// Outcome of probing one clipboard rendition.
 enum Probe {
     /// Not on the clipboard (or empty, or the read raced a change).
@@ -42,7 +51,7 @@ async fn try_text_payload(
     .await
     .map_err(|e| anyhow::anyhow!("spawn_blocking: {e}"))?;
 
-    let (mut reader, _mime) = match result {
+    let (reader, _mime) = match result {
         Ok(r) => r,
         Err(wl_clipboard_rs::paste::Error::NoSeats)
         | Err(wl_clipboard_rs::paste::Error::ClipboardEmpty)
@@ -50,8 +59,15 @@ async fn try_text_payload(
         Err(e) => return Err(e.into()),
     };
 
-    let mut raw = String::new();
-    reader.read_to_string(&mut raw)?;
+    // Read one byte past the cap so an oversized payload is detectable, then
+    // decode lossily: cutting the stream can split a UTF-8 character.
+    let mut raw_bytes = Vec::new();
+    reader
+        .take((MAX_TEXT_BYTES + 1) as u64)
+        .read_to_end(&mut raw_bytes)?;
+    let oversized = raw_bytes.len() > MAX_TEXT_BYTES;
+    let raw = String::from_utf8(raw_bytes)
+        .unwrap_or_else(|e| String::from_utf8_lossy(e.as_bytes()).into_owned());
 
     let normalized = normalize_line_endings(&raw);
     let (hash, sup_hash) = cliptoo_core::content::hash::sha256_hex_and_prefix(&normalized);
@@ -60,6 +76,11 @@ async fn try_text_payload(
         return Ok(Probe::Unchanged);
     }
     *last_hash = Some(hash.clone());
+
+    if oversized {
+        tracing::warn!("clipboard: text payload over {MAX_TEXT_BYTES} bytes ignored");
+        return Ok(Probe::Unchanged);
+    }
 
     if normalized.trim().is_empty() {
         return Ok(Probe::Absent);
@@ -107,7 +128,7 @@ async fn try_file_uri_list(last_hash: &mut Option<String>) -> Result<Probe> {
     .await
     .map_err(|e| anyhow::anyhow!("spawn_blocking: {e}"))?;
 
-    let (mut reader, _mime) = match result {
+    let (reader, _mime) = match result {
         Ok(r) => r,
         Err(wl_clipboard_rs::paste::Error::NoSeats)
         | Err(wl_clipboard_rs::paste::Error::ClipboardEmpty)
@@ -115,8 +136,12 @@ async fn try_file_uri_list(last_hash: &mut Option<String>) -> Result<Probe> {
         Err(e) => return Err(e.into()),
     };
 
-    let mut raw = String::new();
-    reader.read_to_string(&mut raw)?;
+    let mut raw_bytes = Vec::new();
+    reader
+        .take((MAX_URI_LIST_BYTES + 1) as u64)
+        .read_to_end(&mut raw_bytes)?;
+    let oversized = raw_bytes.len() > MAX_URI_LIST_BYTES;
+    let raw = String::from_utf8_lossy(&raw_bytes);
 
     let content = raw
         .lines()
@@ -134,7 +159,12 @@ async fn try_file_uri_list(last_hash: &mut Option<String>) -> Result<Probe> {
     if last_hash.as_deref() == Some(&hash) {
         return Ok(Probe::Unchanged);
     }
-    *last_hash = Some(hash.clone());
+    *last_hash = Some(hash);
+
+    if oversized {
+        tracing::warn!("clipboard: uri-list over {MAX_URI_LIST_BYTES} bytes ignored");
+        return Ok(Probe::Unchanged);
+    }
 
     Ok(Probe::Found(ClipboardPayload::FileUri {
         content,
@@ -154,7 +184,7 @@ async fn try_image(last_hash: &mut Option<String>) -> Result<Probe> {
         .await
         .map_err(|e| anyhow::anyhow!("spawn_blocking: {e}"))?;
 
-        let (mut reader, _mime) = match result {
+        let (reader, _mime) = match result {
             Ok(r) => r,
             Err(wl_clipboard_rs::paste::Error::NoSeats)
             | Err(wl_clipboard_rs::paste::Error::ClipboardEmpty)
@@ -163,7 +193,10 @@ async fn try_image(last_hash: &mut Option<String>) -> Result<Probe> {
         };
 
         let mut data = Vec::new();
-        reader.read_to_end(&mut data)?;
+        reader
+            .take((MAX_IMAGE_BYTES + 1) as u64)
+            .read_to_end(&mut data)?;
+        let oversized = data.len() > MAX_IMAGE_BYTES;
 
         if data.is_empty() {
             continue;
@@ -185,6 +218,11 @@ async fn try_image(last_hash: &mut Option<String>) -> Result<Probe> {
             return Ok(Probe::Unchanged);
         }
         *last_hash = Some(hash.clone());
+
+        if oversized {
+            tracing::warn!("clipboard: image payload over {MAX_IMAGE_BYTES} bytes ignored");
+            return Ok(Probe::Unchanged);
+        }
 
         return Ok(Probe::Found(ClipboardPayload::Image {
             hash,

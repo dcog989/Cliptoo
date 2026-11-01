@@ -18,6 +18,7 @@ mod edit;
 mod favicon;
 mod helpers;
 mod hotkeys;
+mod instance;
 mod maintenance;
 mod paste;
 mod positioning;
@@ -46,6 +47,18 @@ async fn main() -> Result<()> {
     let _ = rustls::crypto::ring::default_provider().install_default();
 
     info!("Cliptoo starting");
+
+    // A second instance would fight the first over the fixed-name KWin tracker
+    // script and register a duplicate global shortcut, so only the first runs.
+    // A lock file that cannot be created must not stop the app from starting.
+    match instance::acquire(&dirs.lock_path) {
+        Ok(true) => {}
+        Ok(false) => {
+            info!("another Cliptoo instance is already running; exiting");
+            return Ok(());
+        }
+        Err(e) => tracing::warn!("single-instance lock unavailable: {e}"),
+    }
 
     // Build the Ctrl+V virtual keyboard now rather than on the first paste:
     // evdev drops events for a device the compositor has not opened yet, which
@@ -166,16 +179,9 @@ async fn main() -> Result<()> {
 
     stats_ui::setup_stats(&settings_win, &db, &dirs.db_path);
 
-    // Mirror of the toolbar's active clip-type filter. Slint properties are
-    // only readable on the UI thread, so background tasks (the clipboard
-    // listener) read this instead of the live property; setup_filter keeps it
-    // in sync on every filter change.
-    let active_filter_state: Arc<std::sync::Mutex<String>> =
-        Arc::new(std::sync::Mutex::new(String::from("all")));
-
     search::setup_search(&ui, &db, &dirs, &tag_prefix);
 
-    search::setup_filter(&ui, &db, &dirs, &active_filter_state);
+    search::setup_filter(&ui, &db, &dirs);
 
     preview::setup_preview(&ui, &preview_win, &db, &dirs, image_preview_size.clone());
     preview::setup_dismiss_preview(&ui, &preview_win);
@@ -228,7 +234,6 @@ async fn main() -> Result<()> {
         suppression.clone(),
         blacklist_state.clone(),
         image_preview_size.clone(),
-        active_filter_state.clone(),
         selection_rx,
         active_window_cache,
     );
@@ -242,10 +247,7 @@ async fn main() -> Result<()> {
         let ui_weak = ui.as_weak();
         let td = dirs.thumbnails_dir.clone();
         let fd = dirs.favicons_dir.clone();
-        let filter = active_filter_state.lock().unwrap().clone();
-        tokio::spawn(async move {
-            helpers::refresh_clips(&db, &ui_weak, &td, &fd, "", &filter, None).await;
-        });
+        helpers::refresh_clips_live(&db, &ui_weak, &td, &fd, None);
     }
 
     // ── Global shortcuts ───────────────────────────────────────────────
