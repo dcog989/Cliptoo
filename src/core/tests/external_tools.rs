@@ -1,19 +1,6 @@
 //! External-tool integrations: Send-To and compare launch real processes with
-//! temp-file payloads that are cleaned up shortly after launch.
-
-/// Poll until `path` no longer exists, failing if the deadline passes.
-/// `launch_with_temp_files` removes its files ~5 s after a successful spawn.
-async fn wait_until_gone(path: &std::path::Path) {
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
-    while path.exists() {
-        assert!(
-            std::time::Instant::now() < deadline,
-            "temp file {:?} was not cleaned up",
-            path
-        );
-        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-    }
-}
+//! temp-file payloads. The files must outlive the launch (a cold app may take
+//! seconds to open them) and are left for the runtime directory's stale sweep.
 
 /// Poll until `path` exists (the async-spawned helper has run), failing on
 /// timeout.
@@ -39,9 +26,9 @@ fn write_executable(dir: &std::path::Path, name: &str, body: &str) -> std::path:
 }
 
 /// A Send-To launch writes the clip to a temp file, passes its path to the app
-/// as the first argument, and removes the temp file a few seconds later.
+/// as the first argument, and leaves the file for the app to read.
 #[tokio::test]
-async fn send_to_delivers_content_and_cleans_up_temp_file() {
+async fn send_to_delivers_content_and_keeps_the_handoff_file() {
     let dir = std::env::temp_dir().join(format!("cliptoo_sendto_{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
 
@@ -69,14 +56,17 @@ async fn send_to_delivers_content_and_cleans_up_temp_file() {
         Some("hello world"),
         "clip content reached the app"
     );
+    assert!(
+        temp_path.exists(),
+        "the handoff file must survive the launch for a slow app to read it"
+    );
 
-    wait_until_gone(&temp_path).await;
-
+    let _ = std::fs::remove_file(&temp_path);
     let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// A compare launch passes each clip's temp file to the tool as its two
-/// arguments; both files carry the correct content and are cleaned up after.
+/// arguments; both files carry the correct content and outlive the launch.
 #[tokio::test]
 async fn compare_launches_tool_with_both_clips() {
     let dir = std::env::temp_dir().join(format!("cliptoo_compare_{}", std::process::id()));
@@ -113,10 +103,13 @@ async fn compare_launches_tool_with_both_clips() {
         std::fs::read_to_string(&right_copy).unwrap(),
         "right-content"
     );
+    assert!(
+        left.exists() && right.exists(),
+        "the handoff files must survive the launch for a slow tool to read them"
+    );
 
-    wait_until_gone(&left).await;
-    wait_until_gone(&right).await;
-
+    let _ = std::fs::remove_file(&left);
+    let _ = std::fs::remove_file(&right);
     let _ = std::fs::remove_dir_all(&dir);
 }
 

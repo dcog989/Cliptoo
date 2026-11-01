@@ -1,10 +1,14 @@
 //! Temp-file helpers shared by the external-tool integrations.
 //!
 //! Both "compare with a diff tool" (`compare.rs`) and "send to app"
-//! (`send_to.rs`) write clip content to temp files, launch an external process
-//! that reads them, then delete those files a short while after launch. Keeping
-//! that lifecycle here avoids duplicating it. The KWin tracker script
-//! (`src/ui/src/source_app.rs`) also stages its script through [`runtime_dir`].
+//! (`send_to.rs`) write clip content to temp files and launch an external
+//! process that reads them. Keeping that lifecycle here avoids duplicating it.
+//! The KWin tracker script (`src/ui/src/source_app.rs`) also stages its script
+//! through [`runtime_dir`].
+//!
+//! Handoff files are *not* deleted on a timer: a cold editor can take longer
+//! than any fixed delay to open its argument. They are left in the 0700 runtime
+//! directory and removed by [`sweep_stale`] once they are clearly orphaned.
 
 use anyhow::{Context, Result};
 use std::os::unix::fs::PermissionsExt;
@@ -12,12 +16,9 @@ use std::path::{Path, PathBuf};
 use tokio::io::AsyncWriteExt;
 use uuid::Uuid;
 
-/// Delay before background temp-file cleanup after a successful launch.
-const CLEANUP_DELAY_SECS: u64 = 5;
-
 /// Age at which a file in the runtime directory counts as debris from a crashed
-/// run rather than in-flight work: a launched tool holds its file for at most
-/// [`CLEANUP_DELAY_SECS`], so anything this old was orphaned.
+/// run rather than in-flight work: the launched tool has long finished starting
+/// by then, so the file is no longer needed.
 const STALE_AGE_SECS: u64 = 3600;
 
 /// Ephemeral, per-user directory for files handed to external processes.
@@ -95,8 +96,9 @@ async fn write_private(path: &Path, content: &[u8]) -> std::io::Result<()> {
 /// invocation forms a recognizable set, e.g. `"cliptoo_compare_left_{}.txt"`.
 ///
 /// `spawn` receives the fully-resolved paths and is expected to launch the
-/// external process. On success the files are removed ~5 s later by a
-/// background task; on error they are removed immediately.
+/// external process. On error the files are removed immediately; on success
+/// they are left for [`sweep_stale`], because the launched tool may take a
+/// while to open them.
 pub(crate) async fn launch_with_temp_files<F>(files: &[(&str, &[u8])], spawn: F) -> Result<()>
 where
     F: FnOnce(&[PathBuf]) -> Result<()>,
@@ -116,20 +118,11 @@ where
         }
     }
 
-    match spawn(&paths) {
-        Ok(()) => {
-            let cleanup_paths = paths.clone();
-            tokio::spawn(async move {
-                tokio::time::sleep(std::time::Duration::from_secs(CLEANUP_DELAY_SECS)).await;
-                cleanup(&cleanup_paths).await;
-            });
-            Ok(())
-        }
-        Err(e) => {
-            cleanup(&paths).await;
-            Err(e)
-        }
+    if let Err(e) = spawn(&paths) {
+        cleanup(&paths).await;
+        return Err(e);
     }
+    Ok(())
 }
 
 async fn cleanup(paths: &[PathBuf]) {

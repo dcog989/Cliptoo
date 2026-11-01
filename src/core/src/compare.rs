@@ -47,8 +47,8 @@ fn discover_tool(explicit_path: &str) -> Result<(PathBuf, Vec<String>)> {
 
 /// Write two clips to temp files and launch the configured diff tool.
 ///
-/// The tool is launched without waiting; temp files are deleted ~5 s after
-/// launch (or immediately on error).
+/// The tool is launched without waiting; the files are removed immediately on
+/// error, or by the runtime directory's stale sweep after a successful launch.
 pub async fn compare_clips(
     left_content: &str,
     right_content: &str,
@@ -67,9 +67,14 @@ pub async fn compare_clips(
                 cmd.arg(arg);
             }
             cmd.arg(&paths[0]).arg(&paths[1]);
-            cmd.spawn()
-                .map(|_| ())
-                .map_err(|e| anyhow::anyhow!("spawn diff tool: {e}"))
+            let mut child = cmd
+                .spawn()
+                .map_err(|e| anyhow::anyhow!("spawn diff tool: {e}"))?;
+            // Reap the child so a long-lived daemon does not collect zombies.
+            std::thread::spawn(move || {
+                let _ = child.wait();
+            });
+            Ok(())
         },
     )
     .await

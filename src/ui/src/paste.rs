@@ -77,7 +77,12 @@ pub async fn paste_content(
 
     tokio::time::sleep(Duration::from_millis(80)).await;
 
-    simulate_ctrl_v().context("input simulation")?;
+    // Key injection sleeps between press and release; keep it off the async
+    // worker it would otherwise block.
+    tokio::task::spawn_blocking(simulate_ctrl_v)
+        .await
+        .context("input simulation task")?
+        .context("input simulation")?;
 
     Ok(())
 }
