@@ -50,21 +50,36 @@ export component ClipItem {
 
     height: Theme.row-height;
 
+    // Row surface geometry: inset from the list edges so the highlight reads as
+    // a row, not an app-wide bar.
+    private property <length> highlight-inset: 8px;
+    private property <length> highlight-radius: 4px;
+
     Rectangle {
-        // Selected rows get the accent-tinted selection surface plus a dim
-        // accent border. Hover moves the selection (see ClipList), so the
-        // pointer never adds a second highlight of its own.
-        border-width: is-selected ? 1px : 0px;
-        border-color: Theme.border-accent;
-        background: is-selected ? Theme.bg-row-selected : is-alt-row ? Theme.bg-row-alt : Theme.bg-primary;
         height: 100%;
         width: 100%;
 
-        animate background { duration: Theme.anim-fast; }
+        // Selected rows get the accent-tinted selection surface plus a dim
+        // accent border. Hover moves the selection (see ClipList), so the
+        // pointer never adds a second highlight of its own.
+        Rectangle {
+            x: root.highlight-inset;
+            y: 1px;
+            width: parent.width - root.highlight-inset - root.highlight-inset;
+            height: parent.height - 2px;
+            border-radius: root.highlight-radius;
+            border-width: is-selected ? 1px : 0px;
+            border-color: Theme.border-accent;
+            background: is-selected ? Theme.bg-row-selected : is-alt-row ? Theme.bg-row-alt : Theme.bg-primary;
+
+            animate background { duration: Theme.anim-fast; }
+        }
 
         HorizontalLayout {
             padding-left: 10px;
-            padding-right: 6px;
+            // Mirrors the left icon's 14px gap from the row edge, so the
+            // multiline icon does not sit against the highlight's right edge.
+            padding-right: 10px;
             spacing: 6px;
 
             // ── Column 1: type icon ──────────────────────────────────────

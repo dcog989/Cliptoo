@@ -197,10 +197,15 @@ export component ClipList {
     // track clicks don't register on Plasma) and replaced by the ScrollBar
     // overlay on the right edge.
     private property <length> scrollbar-width: 10px;
+    // Gap above the first row so its highlight (inset from the row edges in
+    // ClipItem) clears the window edge too.
+    private property <length> list-padding: 8px;
     // Rows per visible page for nav-page-up/down.
     private property <int> page-rows: max(1.0, round(list-view.visible-height / Theme.row-height));
 
     list-view := ListView {
+        y: root.list-padding;
+        height: root.height - root.list-padding;
         vertical-scrollbar-policy: ScrollBarPolicy.always-off;
         for clip[idx] in root.clips: ClipItem {
             clip-data: clip;
@@ -215,10 +220,10 @@ export component ClipList {
                 root.click-row(idx, ctrl, shift);
             }
             right-clicked(x, y) => {
-                root.item-right-clicked(clip.id, x, idx * Theme.row-height / 1px + list-view.content-y / 1px + y + root.list-offset-y, clip.is-bookmarked, clip.clip-type);
+                root.item-right-clicked(clip.id, x, idx * Theme.row-height / 1px + list-view.content-y / 1px + root.list-padding / 1px + y + root.list-offset-y, clip.is-bookmarked, clip.clip-type);
             }
             hovered(mx, my) => {
-                root.request-preview(clip.id, mx, idx * Theme.row-height / 1px + list-view.content-y / 1px + my + root.list-offset-y);
+                root.request-preview(clip.id, mx, idx * Theme.row-height / 1px + list-view.content-y / 1px + root.list-padding / 1px + my + root.list-offset-y);
             }
             // Hover moves the single-selection cursor, like a menu. A
             // multi-selection stays put under the pointer, and the shift-click
@@ -260,9 +265,9 @@ export component ClipList {
 
     scrollbar := ScrollBar {
         x: root.width - root.scrollbar-width;
-        y: 0px;
+        y: root.list-padding;
         width: root.scrollbar-width;
-        height: root.height;
+        height: root.height - root.list-padding;
         content-height: list-view.content-height;
         visible-height: list-view.visible-height;
         position: -list-view.content-y;
