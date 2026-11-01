@@ -13,11 +13,12 @@ build:
 	cargo build --release -p cliptoo
 
 package: build
+	# Wipe the whole tree, not just the tarballs: makepkg leaves pkg/ and src/
+	# behind (~47 MB of extracted binary) and only overwrites the same version,
+	# so stale bundles accumulate and `pacman -U .pkg/cliptoo-*.pkg.tar.zst`
+	# then fails with "duplicate target" (same pkgname listed twice).
+	rm -rf $(PKGDIR)
 	mkdir -p $(PKGDIR)
-	# Drop prior versions first: makepkg -f only overwrites the same version, so
-	# stale bundles accumulate and `pacman -U .pkg/cliptoo-*.pkg.tar.zst` then
-	# fails with "duplicate target" (same pkgname listed twice).
-	rm -f $(PKGDIR)/*.pkg.tar.zst
 	cp packaging/PKGBUILD $(PKGDIR)/
 	cd $(PKGDIR) && makepkg -f --nodeps --noconfirm
 
