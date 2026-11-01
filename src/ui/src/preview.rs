@@ -344,9 +344,8 @@ fn scan_folder_info(path: &str) -> String {
     format!("{count} {item_label} · {size_str} · {date_str}")
 }
 
-/// Preview for a copied file without a text or image rendition (archive,
-/// video, audio, data, dev, danger, generic): the path plus size and
-/// last-modified time, since the file itself cannot be shown.
+/// Preview for a copied file whose contents cannot be shown (archive, video,
+/// audio): the path plus size and last-modified time.
 fn show_file_preview(ctx: &PreviewContext) {
     ctx.preview.set_preview_clip_type(ctx.clip_type.into());
     ctx.preview.set_preview_text(ctx.content.into());
@@ -388,18 +387,24 @@ fn show_html_preview(ctx: &PreviewContext) {
     ctx.preview.set_preview_text(stripped.into());
 }
 
-/// Preview for a copied text document (`.txt`, `.md`, `.log`, …) and for
-/// document clips whose on-disk file is text-based (markdown, rst, …). Reads
-/// the file's contents and previews them instead of just the path, after the
-/// path and a size/last-modified line. Reading happens on a blocking thread;
-/// large files are bounded and binary files show the path and size/date alone.
+/// Preview for a copied file that is expected to hold text (code, config,
+/// data, plain text, documents, unknown/no extension). Reads the file's
+/// contents and previews them after the path and a size/last-modified line
+/// when the content decodes as text, whatever its extension. Reading happens
+/// on a blocking thread; large files are bounded and a binary file keeps the
+/// path plus size/date view under its own file type.
 fn show_text_file_preview(ctx: &PreviewContext) {
     // The path line is shown first so the popup is non-empty and the clip stays
     // identifiable even when the contents are truncated or unreadable.
     let path_line = ctx.content.to_string();
     let file_path = ctx.content.to_string();
+    // Types that render the path as preview text get the size/date appended to
+    // it; every other type shows it on its own info line.
+    let joined_info = matches!(ctx.clip_type, "file_text" | "file_document");
+    let fallback_type = ctx.clip_type.to_string();
     ctx.preview.set_preview_clip_type("file_text".into());
     ctx.preview.set_preview_text(path_line.clone().into());
+    ctx.preview.set_preview_file_info("".into());
 
     let ui_fin = ctx.preview.as_weak();
     let generation = ctx.request_generation;
@@ -415,28 +420,45 @@ fn show_text_file_preview(ctx: &PreviewContext) {
         let Ok((info, read)) = read else {
             return;
         };
-        let separator = FILE_PREVIEW_SEPARATOR_GLYPH.repeat(FILE_PREVIEW_SEPARATOR_LEN);
-        let mut preview = path_line;
-        if !info.is_empty() {
-            preview.push('\n');
-            preview.push_str(&info);
-        }
-        // A binary or unreadable document keeps the path and size/date view.
-        if let Ok((contents, truncated)) = read {
-            preview.push('\n');
-            preview.push_str(&separator);
-            preview.push('\n');
-            preview.push_str(&contents);
-            if truncated {
-                preview.push_str("\n… (preview truncated)");
-            }
-        }
         let _ = ui_fin.upgrade_in_event_loop(move |preview_win| {
             // Ignore the result if a newer request has taken over the popup.
             if generation_cell.load(Ordering::Relaxed) != generation {
                 return;
             }
-            preview_win.set_preview_text(preview.into());
+            match read {
+                Ok((contents, truncated)) => {
+                    let separator = FILE_PREVIEW_SEPARATOR_GLYPH.repeat(FILE_PREVIEW_SEPARATOR_LEN);
+                    let mut preview = path_line;
+                    if !info.is_empty() {
+                        preview.push('\n');
+                        preview.push_str(&info);
+                    }
+                    preview.push('\n');
+                    preview.push_str(&separator);
+                    preview.push('\n');
+                    preview.push_str(&contents);
+                    if truncated {
+                        preview.push_str("\n… (preview truncated)");
+                    }
+                    preview_win.set_preview_text(preview.into());
+                }
+                Err(_) => {
+                    // Binary or unreadable file: path plus size/date, under the
+                    // clip's own file type so its layout is unchanged.
+                    preview_win.set_preview_clip_type(fallback_type.into());
+                    if joined_info {
+                        let mut preview = path_line;
+                        if !info.is_empty() {
+                            preview.push('\n');
+                            preview.push_str(&info);
+                        }
+                        preview_win.set_preview_text(preview.into());
+                    } else {
+                        preview_win.set_preview_text(path_line.into());
+                        preview_win.set_preview_file_info(info.into());
+                    }
+                }
+            }
         });
     });
 }
@@ -475,18 +497,18 @@ const PREVIEW_HANDLERS: &[(&str, PreviewHandler)] = &[
     ("color", show_color_preview),
     ("link", show_link_preview),
     ("file_image", show_image_preview),
+    // Text-capable file types read their contents; see `ClipType::is_text_file`
+    // for the same set. Unknown/missing files fall back to the path view.
     ("file_text", show_text_file_preview),
-    // Document clips cover text-based formats (markdown, rst, …) and binary
-    // ones (pdf, docx, …); `show_text_file_preview` reads bounded text and
-    // shows the path plus size/date when the file is binary or unreadable.
     ("file_document", show_text_file_preview),
-    ("file_generic", show_file_preview),
-    ("file_dev", show_file_preview),
+    ("file_generic", show_text_file_preview),
+    ("file_dev", show_text_file_preview),
+    ("file_danger", show_text_file_preview),
+    ("file_data", show_text_file_preview),
+    // Binary containers and media never hold text: no read, path + size/date.
     ("file_archive", show_file_preview),
     ("file_video", show_file_preview),
     ("file_audio", show_file_preview),
-    ("file_danger", show_file_preview),
-    ("file_data", show_file_preview),
     ("folder", show_folder_preview),
     ("rtf", show_rtf_preview),
     ("html", show_html_preview),

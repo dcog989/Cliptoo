@@ -72,6 +72,9 @@ async fn main() -> Result<()> {
     // App-wide: complete a click whose press the compositor consumed while
     // activating the inactive window, so the first click registers.
     drag::repair_activation_clicks();
+    // App-wide: dismiss the hover preview on any left click, including a click
+    // on an already-focused search field that emits no focus change.
+    drag::dismiss_preview_on_left_press();
 
     ui.set_clips(std::rc::Rc::new(VecModel::<ClipData>::from(vec![])).into());
     let (is_dark, system_accent) = theme::apply_theme(&ui, &settings).await;

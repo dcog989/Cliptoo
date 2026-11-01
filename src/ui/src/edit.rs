@@ -134,10 +134,13 @@ pub fn setup_edit_window(
                         // rst, …) and binary ones (pdf, docx, …). Only write the
                         // edited text back to the file when it is actually
                         // text-readable, so a binary document is never
-                        // overwritten with the editor's path text.
+                        // overwritten with the editor's path text. The same
+                        // check keeps a code/config file clip in sync.
                         let write_back = if clip_type == "file_text" {
                             true
-                        } else if clip_type == "file_document" {
+                        } else if cliptoo_core::db::models::ClipType::parse(&clip_type)
+                            .is_text_file()
+                        {
                             let write_path = stored_content.clone();
                             tokio::task::spawn_blocking(move || {
                                 std::fs::read_to_string(&write_path).is_ok()

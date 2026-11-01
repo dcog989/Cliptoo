@@ -1,6 +1,7 @@
 // The only `unsafe` in the codebase — Qt FFI shims (drag_qt.cpp) for window
-// activation, tooltip parenting, the app-focus query, and mouse-wheel delta
-// normalization, which Slint's public API can't provide on the Qt backend.
+// activation, tooltip parenting, the app-focus query, mouse-wheel delta
+// normalization, and an app-wide left-press hook, which Slint's public API
+// can't provide on the Qt backend.
 // Interactive window move is handled by the `WindowMoveArea` element in
 // Toolbar.slint.
 // Crate roots `#![deny(unsafe_code)]`; this module is the sole carve-out.
@@ -16,6 +17,8 @@ use i_slint_backend_qt::QtWidgetAccessor;
 // - The C++ shim trusts the cast (no null/type checks) and never leaks a
 //   pointer back into Rust references; out-params are written by C++ and read
 //   immediately.
+// - The left-press hook calls a plain `extern "C" fn()` from the Qt GUI
+//   thread; it holds no pointer and only touches thread-local state.
 unsafe extern "C" {
     fn cliptoo_activate_window(widget: *mut std::ffi::c_void);
     fn cliptoo_minimize_window(widget: *mut std::ffi::c_void);
@@ -23,6 +26,7 @@ unsafe extern "C" {
     fn cliptoo_app_has_focus() -> bool;
     fn cliptoo_normalize_wheel_delta();
     fn cliptoo_repair_activation_clicks();
+    fn cliptoo_dismiss_preview_on_left_press(callback: extern "C" fn());
 }
 
 /// Raise and activate the window so the first click on a freshly-shown window
@@ -91,4 +95,19 @@ pub fn normalize_wheel_delta() {
 /// thread after the backend has created `qApp`; call once at startup.
 pub fn repair_activation_clicks() {
     unsafe { cliptoo_repair_activation_clicks() }
+}
+
+/// Install an application-wide Qt event filter that dismisses the hover
+/// preview on any left-button press (see cliptoo_dismiss_preview_on_left_press
+/// in drag_qt.cpp). Slint's focus/click callbacks never fire for a click on an
+/// already-focused field, so the press that should hide the tooltip would
+/// otherwise be missed. Must run on the Qt GUI thread after the backend has
+/// created `qApp`; call once at startup.
+pub fn dismiss_preview_on_left_press() {
+    unsafe { cliptoo_dismiss_preview_on_left_press(dismiss_preview_on_press) }
+}
+
+/// Runs on the Qt GUI (= Slint event loop) thread from the C++ event filter.
+extern "C" fn dismiss_preview_on_press() {
+    crate::preview::hide_preview();
 }

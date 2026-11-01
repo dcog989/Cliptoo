@@ -188,13 +188,11 @@ pub fn setup_clip_actions(
                     .await
                     .map(|(_, t, _)| t)
                     .unwrap_or_default();
-                // A text-document clip stores the file path, not its text. Load
-                // the file's actual contents so the editor opens on the document
-                // rather than on a bare path. A missing/unreadable file leaves the
-                // path text in place (the same view the user just had in preview).
-                // Document clips may be binary formats (pdf, docx, …); read_to_string
-                // fails on those, keeping the path text and never loading garbage.
-                if clip_type == "file_text" || clip_type == "file_document" {
+                // A file clip stores the file path, not its text. Load the file's
+                // actual contents so the editor — and its read-only code view —
+                // opens on the file rather than on a bare path, whatever the
+                // extension. A missing or binary file keeps the path text.
+                if cliptoo_core::db::models::ClipType::parse(&clip_type).is_text_file() {
                     let path = content.clone();
                     let read =
                         tokio::task::spawn_blocking(move || std::fs::read_to_string(path)).await;

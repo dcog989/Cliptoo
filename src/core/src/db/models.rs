@@ -76,6 +76,22 @@ impl ClipType {
         )
     }
 
+    /// True when the clip stores a path to a file whose contents can be shown
+    /// as text (source and config files, documents, plain text, data, generic).
+    /// Excludes images, folders and media/archive formats; a specific file can
+    /// still be binary, so callers keep the path view when reading fails.
+    pub fn is_text_file(&self) -> bool {
+        matches!(
+            self,
+            Self::FileText
+                | Self::FileDocument
+                | Self::FileDev
+                | Self::FileData
+                | Self::FileDanger
+                | Self::FileGeneric
+        )
+    }
+
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Text => "text",

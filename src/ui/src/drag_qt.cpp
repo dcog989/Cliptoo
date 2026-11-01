@@ -138,6 +138,28 @@ private:
     bool replaying = false;
 };
 
+// Dismiss the hover preview on any left-button press. The preview is a separate
+// always-on-top tooltip; Slint only reports focus/click changes on widgets, and
+// a click on an already-focused field (the search LineEdit) emits neither, so
+// the press that should hide the tooltip would otherwise go unnoticed.
+class LeftPressDismissFilter : public QObject {
+public:
+    explicit LeftPressDismissFilter(QObject* parent, void (*callback)())
+        : QObject(parent), callback(callback) {}
+
+protected:
+    bool eventFilter(QObject*, QEvent* event) override {
+        if (event->type() == QEvent::MouseButtonPress
+            && static_cast<QMouseEvent*>(event)->button() == Qt::LeftButton) {
+            callback();
+        }
+        return false;
+    }
+
+private:
+    void (*callback)();
+};
+
 } // namespace
 
 // Install the wheel-delta filter for the whole application. Called once from
@@ -154,5 +176,13 @@ extern "C" void cliptoo_normalize_wheel_delta() {
 extern "C" void cliptoo_repair_activation_clicks() {
     if (qApp != nullptr) {
         qApp->installEventFilter(new ActivationClickFilter(qApp));
+    }
+}
+
+// Install the hover-preview dismiss filter for the whole application. See
+// drag.rs dismiss_preview_on_left_press.
+extern "C" void cliptoo_dismiss_preview_on_left_press(void (*callback)()) {
+    if (qApp != nullptr && callback != nullptr) {
+        qApp->installEventFilter(new LeftPressDismissFilter(qApp, callback));
     }
 }
