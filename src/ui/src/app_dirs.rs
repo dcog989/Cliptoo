@@ -61,6 +61,14 @@ impl AppDirs {
             std::fs::create_dir_all(dir)?;
         }
 
+        // The history and everything derived from it holds clipboard payloads.
+        // XDG does not promise an owner-only home (Debian/Ubuntu default to
+        // 0755), so tighten the data-bearing dirs ourselves. Best-effort: a
+        // failure must not prevent startup.
+        for dir in [&data_dir, &cache_dir, &logs_dir] {
+            restrict_to_owner(dir);
+        }
+
         // One-time migrations from the pre-XDG layout, where the DB, logs and
         // cache all lived under the config dir. Best-effort: a failure leaves
         // data in place rather than discarding it.
@@ -97,6 +105,15 @@ impl AppDirs {
             thumbnails_dir,
             favicons_dir,
         })
+    }
+}
+
+/// Set `dir` to owner-only (0700). Best-effort: a directory the user cannot
+/// chmod must not stop the app from starting.
+fn restrict_to_owner(dir: &Path) {
+    use std::os::unix::fs::PermissionsExt;
+    if let Err(e) = std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o700)) {
+        eprintln!("cliptoo: cannot restrict {:?} to mode 0700: {e}", dir);
     }
 }
 

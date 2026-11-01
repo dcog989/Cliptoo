@@ -3,7 +3,6 @@ use rusqlite::{Connection, params};
 
 pub const KEY_UNIQUE_CLIPS_EVER: &str = "UniqueClipsEver";
 pub const KEY_PASTE_COUNT: &str = "PasteCount";
-pub const KEY_LAST_CLEANUP: &str = "LastCleanupTimestamp";
 pub const KEY_CREATION: &str = "CreationTimestamp";
 
 pub fn get_stat(conn: &Connection, key: &str) -> Result<Option<String>> {

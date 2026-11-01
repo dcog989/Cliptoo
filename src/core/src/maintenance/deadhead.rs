@@ -24,9 +24,19 @@ fn deadhead_clip_types() -> String {
 
 /// Collect file-type clip ids and paths for deadhead processing.
 /// Split from the delete step so filesystem checks happen outside `db.with`.
-pub fn deadhead_collect(conn: &Connection) -> Result<Vec<(i64, String)>> {
+///
+/// `unbookmarked_only` is set by the delete path: bookmarks are a deliberate
+/// keep signal (retention and `clear_history` spare them too), and a path on a
+/// temporarily unmounted drive is indistinguishable from one that is gone.
+pub fn deadhead_collect(conn: &Connection, unbookmarked_only: bool) -> Result<Vec<(i64, String)>> {
+    let bookmark_filter = if unbookmarked_only {
+        " AND IsBookmarked = 0"
+    } else {
+        ""
+    };
     let mut stmt = conn.prepare_cached(&format!(
-        "SELECT Id, Content FROM clips WHERE ClipType IN ({types})",
+        "SELECT Id, Content FROM clips
+         WHERE ClipType IN ({types}){bookmark_filter}",
         types = deadhead_clip_types(),
     ))?;
     let mut out = Vec::new();
@@ -60,7 +70,7 @@ fn clip_paths_exist(content: &str) -> bool {
 /// its own autocommitted statement; for a large history that was one lock
 /// acquisition per clip instead of one for the whole pass.
 pub async fn mark_deadheads(db: &Arc<DbPool>) -> Result<u64> {
-    let rows = db.with(deadhead_collect).await?;
+    let rows = db.with(|conn| deadhead_collect(conn, false)).await?;
 
     // Filesystem checks — no DB lock held.
     let mut gone: Vec<(i64, String)> = Vec::new();
@@ -116,14 +126,15 @@ fn deadhead_delete(conn: &Connection, id: i64) -> Result<()> {
 }
 
 /// Delete DB records for file-path clips whose path no longer exists on disk.
-/// Returns the number of rows deleted.
+/// Bookmarked clips are spared (see [`deadhead_collect`]). Returns the number
+/// of rows deleted.
 ///
 /// The DB mutex is held only for the initial collect and for one final
 /// batched-transaction delete — the `Path::exists` syscalls in between run
 /// with no lock held, so a large file history does not stall the clipboard
 /// listener or search while the manual "Deadhead" action runs.
 pub async fn delete_deadheads(db: &Arc<DbPool>) -> Result<u64> {
-    let rows = db.with(deadhead_collect).await?;
+    let rows = db.with(|conn| deadhead_collect(conn, true)).await?;
 
     // Filesystem checks — no DB lock held.
     let mut gone: Vec<(i64, String)> = Vec::new();

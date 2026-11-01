@@ -65,18 +65,19 @@ fn favicon_is_orphan(name: &str, known_domains: &HashSet<String>) -> bool {
     candidates.iter().all(|c| !known_domains.contains(c))
 }
 
-/// Delete thumbnail and favicon files on disk that have no matching DB record.
-/// Returns the total number of files deleted.
+/// Delete thumbnail, favicon and full-size image files on disk that have no
+/// matching DB record. Returns the total number of files deleted.
 ///
-/// Thumbnails are keyed by the first 16 chars of `ContentHash`; favicon cache
-/// files are keyed by the domain of a stored Link clip — the two dirs are
-/// matched against their respective keys, so a favicon for a still-present
-/// link is never pruned (the previous hash-prefix-only match deleted every
-/// favicon on each run).
+/// Thumbnails and full-size images are keyed by the first 16 chars of
+/// `ContentHash`; favicon cache files are keyed by the domain of a stored Link
+/// clip — each dir is matched against its own key, so a favicon for a
+/// still-present link is never pruned (the previous hash-prefix-only match
+/// deleted every favicon on each run).
 pub async fn prune_cache(
     db: &Arc<DbPool>,
     thumbnails_dir: &Path,
     favicons_dir: &Path,
+    images_dir: &Path,
 ) -> Result<u64> {
     // Collect the 16-char hash prefixes and the Link-clip domains that are
     // still in the DB. Storing the compact keys lets both dirs use a direct
@@ -121,6 +122,25 @@ pub async fn prune_cache(
             let stem = name.rsplit_once('.').map(|(s, _)| s).unwrap_or(&name);
             let hash_prefix = stem.strip_suffix("_preview").unwrap_or(stem);
             if known_prefixes.contains(hash_prefix) {
+                continue;
+            }
+            if let Err(e) = tokio::fs::remove_file(entry.path()).await {
+                warn!("prune_cache: failed to remove {:?}: {e}", entry.path());
+            } else {
+                pruned += 1;
+            }
+        }
+    }
+
+    // Full-size clipboard images are named `{hash[..16]}.png` and are the file
+    // a `file_image` clip's Content points at. Nothing else removes them when
+    // retention deletes the row, so without this sweep they grow forever.
+    if let Ok(entries) = std::fs::read_dir(images_dir) {
+        for entry in entries.filter_map(|e| e.ok()) {
+            let name = entry.file_name();
+            let name = name.to_string_lossy();
+            let stem = name.rsplit_once('.').map(|(s, _)| s).unwrap_or(&name);
+            if known_prefixes.contains(stem) {
                 continue;
             }
             if let Err(e) = tokio::fs::remove_file(entry.path()).await {

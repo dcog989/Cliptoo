@@ -110,6 +110,7 @@ pub fn setup_manual_maintenance(
     let maint_db = db.clone();
     let maint_td = dirs.thumbnails_dir.clone();
     let maint_fd = dirs.favicons_dir.clone();
+    let maint_id = dirs.images_dir.clone();
     let maint_settings = settings.clone();
     let maint_ui = ui.as_weak();
     let maint_win = settings_win.as_weak();
@@ -119,6 +120,7 @@ pub fn setup_manual_maintenance(
         let db = maint_db.clone();
         let td = maint_td.clone();
         let fd = maint_fd.clone();
+        let id_dir = maint_id.clone();
         let td2 = maint_td2.clone();
         let db_path = maint_db_path.clone();
         let settings = maint_settings.clone();
@@ -137,7 +139,7 @@ pub fn setup_manual_maintenance(
                         Ok(None)
                     }
                     "clear-caches" => {
-                        cliptoo_core::maintenance::prune_cache(&db, &td, &fd).await?;
+                        cliptoo_core::maintenance::prune_cache(&db, &td, &fd, &id_dir).await?;
                         // A cache clear re-allows favicon retries for clips whose
                         // fetch-failure budget had been exhausted.
                         crate::favicon::reset_favicon_failures(&fd);
@@ -248,6 +250,7 @@ pub fn setup_manual_maintenance(
                             },
                             &td,
                             &fd,
+                            &id_dir,
                         )
                         .await;
                     }

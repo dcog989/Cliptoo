@@ -4,10 +4,6 @@ use std::path::{Path, PathBuf};
 use crate::icon;
 
 const THUMB_MAX_DIM: u32 = 36;
-// PREVIEW_FALLBACK_DIM is the default preview dimension for callers without
-// access to settings. The disk-write path accepts preview_max_dim as a
-// parameter so the user's hover_image_preview_size setting is honoured.
-pub const PREVIEW_FALLBACK_DIM: u32 = 400;
 pub const HASH_FILENAME_PREFIX_LEN: usize = 16;
 
 /// Canonical list of all image-file extensions.  Single source of truth for
@@ -161,12 +157,6 @@ pub fn store_both_thumbnails(
         preview_max_dim,
         |dim| resize_to(img.clone(), dim),
     )
-}
-
-/// Check whether `ext` (lowercased) is one of the IMAGE-classified formats
-/// that cannot be decoded by the `image` crate or jxl-oxide.
-pub fn is_undecodable_image_ext(ext: &str) -> bool {
-    UNDECODABLE_IMAGE_EXTS.contains(&ext)
 }
 
 // ── Placeholder thumbnail ────────────────────────────────────────────────────

@@ -230,6 +230,30 @@ async fn delete_deadheads_removes_only_missing_paths() {
     let gone = file_dir.join("gone.txt");
     common::insert_clip(&db, gone.to_str().unwrap(), "dead_gone", "file_generic").await;
 
+    // A bookmarked missing-path clip is a keep signal (retention and
+    // clear_history spare bookmarks too), so deadhead delete must not touch it.
+    let gone_kept = file_dir.join("gone-kept.txt");
+    common::insert_clip(
+        &db,
+        gone_kept.to_str().unwrap(),
+        "dead_gone_kept",
+        "file_generic",
+    )
+    .await;
+    let kept_id: i64 = db
+        .with(|conn| {
+            Ok(conn.query_row(
+                "SELECT Id FROM clips WHERE ContentHash = 'dead_gone_kept'",
+                [],
+                |row| row.get(0),
+            )?)
+        })
+        .await
+        .unwrap();
+    db.with(|conn| cliptoo_core::db::queries::set_bookmarked(conn, kept_id, true))
+        .await
+        .unwrap();
+
     let deleted = cliptoo_core::maintenance::delete_deadheads(&db)
         .await
         .unwrap();
@@ -247,7 +271,11 @@ async fn delete_deadheads_removes_only_missing_paths() {
         })
         .await
         .unwrap();
-    assert_eq!(ids.len(), 1, "only the missing-path clip is removed");
+    assert_eq!(
+        ids,
+        vec![1, kept_id],
+        "the live clip and the bookmarked dead clip survive"
+    );
 
     clean_up(&dir);
     let _ = std::fs::remove_dir_all(&file_dir);
@@ -263,8 +291,10 @@ async fn scheduler_applies_updated_retention_config() {
 
     let thumbs = std::env::temp_dir().join(format!("cliptoo_sched_thumbs_{}", std::process::id()));
     let favs = std::env::temp_dir().join(format!("cliptoo_sched_favs_{}", std::process::id()));
+    let images = std::env::temp_dir().join(format!("cliptoo_sched_images_{}", std::process::id()));
     std::fs::create_dir_all(&thumbs).unwrap();
     std::fs::create_dir_all(&favs).unwrap();
+    std::fs::create_dir_all(&images).unwrap();
 
     for i in 0..5 {
         common::insert_clip(&db, &format!("clip {i}"), &format!("schash{i}"), "text").await;
@@ -274,7 +304,14 @@ async fn scheduler_applies_updated_retention_config() {
         max_clips: 1000,
         max_age_days: 0,
     });
-    cliptoo_core::maintenance::spawn_scheduler(db.clone(), thumbs.clone(), favs.clone(), rx, 1);
+    cliptoo_core::maintenance::spawn_scheduler(
+        db.clone(),
+        thumbs.clone(),
+        favs.clone(),
+        images.clone(),
+        rx,
+        1,
+    );
 
     // First pass runs at the initial config (keeps everything); then publish a
     // lower cap before the second pass and wait for it to prune.
@@ -304,6 +341,7 @@ async fn scheduler_applies_updated_retention_config() {
     clean_up(&dir);
     let _ = std::fs::remove_dir_all(&thumbs);
     let _ = std::fs::remove_dir_all(&favs);
+    let _ = std::fs::remove_dir_all(&images);
 }
 
 /// A stored file clip whose path no longer exists keeps its specific type: the
@@ -472,12 +510,15 @@ async fn prune_cache_tolerates_multibyte_content_hash() {
         std::env::temp_dir().join(format!("cliptoo_prunehash_thumbs_{}", std::process::id()));
     let favicons =
         std::env::temp_dir().join(format!("cliptoo_prunehash_favs_{}", std::process::id()));
+    let images =
+        std::env::temp_dir().join(format!("cliptoo_prunehash_images_{}", std::process::id()));
     std::fs::create_dir_all(&thumbs).unwrap();
     std::fs::create_dir_all(&favicons).unwrap();
+    std::fs::create_dir_all(&images).unwrap();
     // A genuine orphan (16-char hex prefix, no matching DB row) must be pruned.
     std::fs::write(thumbs.join("deadbeefdeadbeef.webp"), b"x").unwrap();
 
-    let pruned = maintenance::prune_cache(&db, &thumbs, &favicons)
+    let pruned = maintenance::prune_cache(&db, &thumbs, &favicons, &images)
         .await
         .unwrap();
     assert_eq!(
@@ -488,6 +529,46 @@ async fn prune_cache_tolerates_multibyte_content_hash() {
     clean_up(&dir);
     let _ = std::fs::remove_dir_all(&thumbs);
     let _ = std::fs::remove_dir_all(&favicons);
+    let _ = std::fs::remove_dir_all(&images);
+}
+
+/// Full-size clipboard images are keyed by `ContentHash[..16].png`. When
+/// retention deletes the row nothing else removes the PNG, so `prune_cache`
+/// must: an orphan goes, a live clip's file stays.
+#[tokio::test]
+async fn prune_cache_keeps_live_images_and_drops_orphans() {
+    let dir = std::env::temp_dir().join(format!("cliptoo_pruneimg_{}", std::process::id()));
+    clean_up(&dir);
+    let db = Arc::new(DbPool::open(&dir).unwrap());
+
+    let hash = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+    common::insert_clip(&db, "/tmp/live.png", hash, "file_image").await;
+
+    let thumbs =
+        std::env::temp_dir().join(format!("cliptoo_pruneimg_thumbs_{}", std::process::id()));
+    let favicons =
+        std::env::temp_dir().join(format!("cliptoo_pruneimg_favs_{}", std::process::id()));
+    let images =
+        std::env::temp_dir().join(format!("cliptoo_pruneimg_images_{}", std::process::id()));
+    for d in [&thumbs, &favicons, &images] {
+        std::fs::create_dir_all(d).unwrap();
+    }
+    let live = images.join("0123456789abcdef.png");
+    let orphan = images.join("deadbeefdeadbeef.png");
+    std::fs::write(&live, b"live").unwrap();
+    std::fs::write(&orphan, b"gone").unwrap();
+
+    let pruned = maintenance::prune_cache(&db, &thumbs, &favicons, &images)
+        .await
+        .unwrap();
+    assert_eq!(pruned, 1, "only the orphan image is removed");
+    assert!(live.exists(), "a live clip's full-size image is kept");
+    assert!(!orphan.exists());
+
+    clean_up(&dir);
+    for d in [&thumbs, &favicons, &images] {
+        let _ = std::fs::remove_dir_all(d);
+    }
 }
 
 /// `compact` must hand the pages freed by a bulk delete back to the filesystem

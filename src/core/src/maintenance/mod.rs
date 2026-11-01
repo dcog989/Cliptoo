@@ -11,8 +11,6 @@ use std::sync::Arc;
 use tracing::{info, warn};
 
 use crate::db::{DbPool, schema};
-use crate::stats;
-use crate::time::utc_now_iso;
 
 mod cache;
 mod deadhead;
@@ -42,31 +40,33 @@ pub fn compact(conn: &Connection) -> Result<()> {
 /// Run the full scheduled maintenance cycle:
 ///   1. Retention (count + age)
 ///   2. Deadhead (missing file paths)
-///   3. Cache pruning (orphaned thumbnail/favicon files)
+///   3. Cache pruning (orphaned thumbnails, favicons, full-size images)
 ///   4. Index housekeeping (planner stats, FTS integrity-check + optimize)
-///
-/// Updates `LastCleanupTimestamp` on completion.
+///   5. WAL truncate, so deleted payloads do not linger in the sidecar
 pub async fn run_scheduled(
     db: &Arc<DbPool>,
     config: RetentionConfig,
     thumbnails_dir: &Path,
     favicons_dir: &Path,
+    images_dir: &Path,
 ) -> Result<()> {
     let deleted_retention = db.with(|conn| retention(conn, &config)).await?;
     let marked_deadhead = mark_deadheads(db).await?;
-    let pruned_cache = prune_cache(db, thumbnails_dir, favicons_dir).await?;
+    let pruned_cache = prune_cache(db, thumbnails_dir, favicons_dir, images_dir).await?;
 
-    // Same lock acquisition for the cleanup stamp and the index housekeeping.
-    // `integrity-check` runs first so it inspects the index the pass left
-    // behind, not the freshly merged one. It only logs: a divergence means some
-    // write bypassed the FTS triggers, and silently rebuilding would hide that.
+    // Same lock acquisition for index housekeeping. `integrity-check` runs
+    // first so it inspects the index the pass left behind, not the freshly
+    // merged one. It only logs: a divergence means some write bypassed the FTS
+    // triggers, and silently rebuilding would hide that. The final checkpoint
+    // truncates the WAL: retention just deleted rows, and `secure_delete`
+    // zeroes their pages but the old WAL frames would keep the payloads.
     db.with(|conn| {
-        stats::set_stat(conn, stats::KEY_LAST_CLEANUP, &utc_now_iso())?;
         if let Err(e) = conn.execute_batch(schema::FTS_INTEGRITY_CHECK) {
             warn!("maintenance: clips_fts integrity-check failed: {e}");
         }
         conn.execute_batch(schema::PRAGMA_OPTIMIZE)?;
         conn.execute_batch(schema::FTS_OPTIMIZE)?;
+        conn.execute_batch(schema::WAL_CHECKPOINT_TRUNCATE)?;
         Ok(())
     })
     .await?;
@@ -84,6 +84,7 @@ pub fn spawn_scheduler(
     db: Arc<DbPool>,
     thumbnails_dir: PathBuf,
     favicons_dir: PathBuf,
+    images_dir: PathBuf,
     retention_rx: tokio::sync::watch::Receiver<RetentionConfig>,
     interval_secs: u64,
 ) {
@@ -92,7 +93,9 @@ pub fn spawn_scheduler(
         tokio::time::sleep(std::time::Duration::from_secs(interval_secs)).await;
         loop {
             let cfg = retention_rx.borrow().clone();
-            if let Err(e) = run_scheduled(&db, cfg, &thumbnails_dir, &favicons_dir).await {
+            if let Err(e) =
+                run_scheduled(&db, cfg, &thumbnails_dir, &favicons_dir, &images_dir).await
+            {
                 warn!("scheduled maintenance error: {e}");
             }
             tokio::time::sleep(std::time::Duration::from_secs(interval_secs)).await;

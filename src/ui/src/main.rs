@@ -201,6 +201,7 @@ async fn main() -> Result<()> {
         db.clone(),
         dirs.thumbnails_dir.clone(),
         dirs.favicons_dir.clone(),
+        dirs.images_dir.clone(),
         retention_rx,
         MAINTENANCE_INTERVAL_SECS,
     );

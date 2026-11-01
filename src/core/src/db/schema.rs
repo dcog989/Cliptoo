@@ -47,7 +47,6 @@ pub const SEED_STATS: &str = "
 INSERT OR IGNORE INTO stats (Key, Value) VALUES
     ('UniqueClipsEver',     '0'),
     ('PasteCount',          '0'),
-    ('LastCleanupTimestamp', ''),
     ('CreationTimestamp',   datetime('now'));
 ";
 
@@ -99,6 +98,11 @@ pub const PRAGMA_WAL: &str = "PRAGMA journal_mode = WAL;";
 /// Per-connection and not stored in the file, so it must be set on every open
 /// (unlike `journal_mode`, which is persistent).
 pub const PRAGMA_SYNCHRONOUS_NORMAL: &str = "PRAGMA synchronous = NORMAL;";
+/// Zero the bytes of deleted rows in every table. `FTS_SECURE_DELETE` only
+/// scrubs the FTS index; without this, a deleted clip's `Content` stays
+/// readable in the `clips` table's free pages until the next `VACUUM`.
+/// Per-connection, like `synchronous`.
+pub const PRAGMA_SECURE_DELETE: &str = "PRAGMA secure_delete = ON;";
 /// Keeps `sqlite_stat1` current so the planner's index choices are based on the
 /// real row distribution as the history grows, instead of the defaults it
 /// assumes with no stats at all. Cheap: it only runs `ANALYZE` on tables whose
