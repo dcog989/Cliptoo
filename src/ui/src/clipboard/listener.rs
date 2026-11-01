@@ -438,6 +438,7 @@ pub async fn run_listener(
                             continue;
                         };
 
+                        let is_file_uri = c.clip_type.is_file_clip();
                         let inserted = match insert_clip_with_stat(
                             &db,
                             &c.content,
@@ -449,7 +450,7 @@ pub async fn run_listener(
                             false,
                             c.is_multiline,
                             c.size_in_bytes,
-                            true,
+                            is_file_uri,
                         )
                         .await
                         {

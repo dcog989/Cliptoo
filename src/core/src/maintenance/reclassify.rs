@@ -76,10 +76,15 @@ pub async fn reclassify_all(db: &Arc<DbPool>) -> Result<u64> {
 
     // Classification (incl. filesystem existence checks) — no DB lock held.
     let mut updates: Vec<(i64, String, String, i64, i64)> = Vec::new();
-    for (id, raw, cur_clip_type, is_copied_file) in rows {
+    for (id, raw, cur_clip_type, is_file_uri) in rows {
         if raw.trim().is_empty() {
             continue;
         }
+        // `IsFileUri` only describes clips that are still file types. Text
+        // clips from older builds can carry a stale true (the uri-list ingest
+        // used to hard-code it); trusting that here would let a text block of
+        // existing paths reclassify into a file clip.
+        let is_copied_file = is_file_uri && ClipType::parse(&cur_clip_type).is_file_clip();
         let normalised = normalize_line_endings(&raw);
         if let Some(c) = ContentProcessor::process(&normalised, is_copied_file) {
             let new_type = c.clip_type.as_str();

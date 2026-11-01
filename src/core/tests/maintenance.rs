@@ -62,6 +62,51 @@ async fn reclassify_only_updates_rows_whose_classification_changed() {
     let _ = std::fs::remove_file(dir.with_extension("shm"));
 }
 
+/// A text clip can carry a stale `IsFileUri` flag from an older ingest (the
+/// uri-list path used to hard-code it). Reclassify must not trust that flag
+/// for a row that is not a file type, or a text block of existing paths turns
+/// into a file clip.
+#[tokio::test]
+async fn reclassify_keeps_text_clip_with_stale_file_uri_flag() {
+    let dir = std::env::temp_dir().join(format!("cliptoo_reclassify_uri_{}", std::process::id()));
+    clean_up(&dir);
+    let db = Arc::new(DbPool::open(&dir).unwrap());
+
+    let files = std::env::temp_dir().join(format!(
+        "cliptoo_reclassify_uri_files_{}",
+        std::process::id()
+    ));
+    std::fs::create_dir_all(&files).unwrap();
+    let a = files.join("a.txt");
+    let b = files.join("b.txt");
+    std::fs::write(&a, b"x").unwrap();
+    std::fs::write(&b, b"x").unwrap();
+    let block = format!("{}\n{}", a.display(), b.display());
+
+    common::insert_clip(&db, &block, "stale_uri_hash", "text").await;
+    db.with(|conn| Ok(conn.execute("UPDATE clips SET IsFileUri = 1", [])?))
+        .await
+        .unwrap();
+
+    let n = maintenance::reclassify_all(&db).await.unwrap();
+    assert_eq!(n, 0, "the text clip must stay text");
+
+    let clip_type: String = db
+        .with(|conn| {
+            Ok(
+                conn.query_row("SELECT ClipType FROM clips WHERE Id = 1", [], |row| {
+                    row.get(0)
+                })?,
+            )
+        })
+        .await
+        .unwrap();
+    assert_eq!(clip_type, "text");
+
+    clean_up(&dir);
+    let _ = std::fs::remove_dir_all(&files);
+}
+
 /// Image clips store an internal path under `images_dir` as their Content
 /// (the listener's image branch), which the classifier would misread as a
 /// plain text path and reclassify to `file_path`. reclassify must leave

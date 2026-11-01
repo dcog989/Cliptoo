@@ -95,7 +95,7 @@ impl ContentProcessor {
                 None if Self::is_code_heuristic(&content) => (ClipType::CodeSnippet, content),
                 None => (ClipType::Text, content),
             }
-        } else if !content.contains('\n') && Self::looks_like_path(&content) {
+        } else if !Self::has_line_break(&content) && Self::is_single_path_token(&content) {
             // Text that is wholly a single file path (to a folder or file).
             // Multiline content (e.g. a code block that merely contains a
             // path) never counts — only the whole clip being a path does.
@@ -202,6 +202,30 @@ impl ContentProcessor {
         opens >= 1 && closes >= 1
     }
 
+    /// Any line break, including a lone CR and the Unicode line/paragraph
+    /// separators some editors put on the clipboard. A block containing one is
+    /// never a single copied path.
+    fn has_line_break(s: &str) -> bool {
+        s.chars()
+            .any(|c| matches!(c, '\n' | '\r' | '\u{2028}' | '\u{2029}'))
+    }
+
+    /// True when a single-line text clip is one path, not a whitespace-
+    /// separated list of paths. A real path may contain spaces, so only extra
+    /// path-*looking* tokens count against it.
+    fn is_single_path_token(s: &str) -> bool {
+        if !Self::looks_like_path(s) {
+            return false;
+        }
+        let without_scheme = s.strip_prefix("file://").unwrap_or(s);
+        let decoded = crate::content::percent_decode_path(without_scheme);
+        decoded
+            .split_whitespace()
+            .filter(|token| Self::looks_like_path(token))
+            .count()
+            <= 1
+    }
+
     /// True when `raw` looks like a filesystem path, regardless of whether it
     /// exists on disk. `file://` prefixes and percent-encoding are handled, so
     /// both `file:///home/foo%20bar` and `/home/foo bar` count. Also accepts a
@@ -227,8 +251,11 @@ impl ContentProcessor {
     /// type (`Folder` or a `file_*`); a single path-like path that no longer
     /// exists falls back to `FileGeneric`. A multi-path payload (a
     /// multi-selection copy) is `Folder` only when every path is an existing
-    /// directory, otherwise `FileGeneric`. Missing paths need no existence
-    /// check: they become deadheads via maintenance.
+    /// directory, otherwise `FileGeneric`, and is rejected entirely when
+    /// *none* of its paths exist — a real uri-list comes from files the user
+    /// just selected, while a text block that merely looks like paths does not.
+    /// Missing single paths need no existence check: they become deadheads via
+    /// maintenance.
     fn classify_path(s: &str) -> Option<(ClipType, String)> {
         use std::path::Path;
         if !Self::looks_like_path(s) {
@@ -259,8 +286,8 @@ impl ContentProcessor {
             // (deleted between the copy and the poll, or on a stale re-read).
             // Keep it a file clip so deadhead maintenance can track it, and so
             // reclassify does not downgrade a temporarily-gone path to text —
-            // mirrors the multi-selection branch, which also keeps missing
-            // paths as FileGeneric.
+            // mirrors the multi-selection branch, which keeps missing paths
+            // whenever at least one selected path still exists.
             return Some((ClipType::FileGeneric, decoded[0].clone()));
         }
 
@@ -269,7 +296,26 @@ impl ContentProcessor {
         if decoded.iter().any(|l| !Self::looks_like_path(l)) {
             return None;
         }
-        let all_dirs = decoded.iter().all(|l| Path::new(l.as_str()).is_dir());
+        // At least one path must exist. A file manager writes the uri-list from
+        // the files the user just selected, so a list where none exist is text
+        // that merely looks like paths (some sources re-offer such a block as
+        // text/uri-list) and must stay Text instead of becoming a file clip.
+        let mut any_exists = false;
+        let mut all_dirs = true;
+        for line in &decoded {
+            match std::fs::metadata(line.as_str()) {
+                Ok(meta) => {
+                    any_exists = true;
+                    if !meta.is_dir() {
+                        all_dirs = false;
+                    }
+                }
+                Err(_) => all_dirs = false,
+            }
+        }
+        if !any_exists {
+            return None;
+        }
         let clip_type = if all_dirs {
             ClipType::Folder
         } else {
@@ -599,5 +645,38 @@ mod tests {
             let c = ContentProcessor::process(s, false).unwrap();
             assert_eq!(c.clip_type, ClipType::Text, "for {s}");
         }
+    }
+
+    /// A block of paths copied as text — newline-, CR-, Unicode-separator- or
+    /// space-separated — is text, never one file path.
+    #[test]
+    fn path_blocks_copied_as_text_stay_text() {
+        for block in [
+            "/home/user/a.jpg\n/home/user/b.webp",
+            "/home/user/a.jpg\r/home/user/b.webp",
+            "/home/user/a.jpg\u{2028}/home/user/b.webp",
+            "/home/user/a.jpg /home/user/b.webp",
+        ] {
+            let c = ContentProcessor::process(block, false).unwrap();
+            assert_eq!(c.clip_type, ClipType::Text, "for {block:?}");
+        }
+    }
+
+    /// A path containing spaces is still one path; only extra path-looking
+    /// tokens make the block something other than a file path.
+    #[test]
+    fn single_path_with_spaces_is_still_file_path() {
+        let c = ContentProcessor::process("/home/user/My Documents/report.txt", false).unwrap();
+        assert_eq!(c.clip_type, ClipType::FilePath);
+    }
+
+    /// A uri-list whose paths all fail to exist is not a file copy: a file
+    /// manager can only select files that are there, and some sources re-offer
+    /// a path-looking text block as text/uri-list.
+    #[test]
+    fn all_missing_uri_list_paths_fall_back_to_text() {
+        let block = "/definitely/not/a/clip.jpg\n/definitely/not/a/screen.webp";
+        let c = ContentProcessor::process(block, true).unwrap();
+        assert_eq!(c.clip_type, ClipType::Text);
     }
 }
