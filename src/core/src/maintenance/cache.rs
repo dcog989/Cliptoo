@@ -10,15 +10,7 @@ use tracing::warn;
 
 use crate::db::DbPool;
 use crate::image::HASH_FILENAME_PREFIX_LEN;
-
-/// Extract the host (domain) from an absolute URL, matching the exact rule the
-/// UI uses to name favicon cache files (`{domain}.webp`, see
-/// `src/ui/src/favicon.rs`). Returns `None` for relative or scheme-less
-/// strings — the UI never caches a favicon for those, so no file keyed by them
-/// can exist to prune. Must stay in sync with `helpers::extract_domain`.
-fn extract_domain(url: &str) -> Option<String> {
-    url::Url::parse(url).ok()?.host_str().map(ToOwned::to_owned)
-}
+use crate::url::extract_domain;
 
 /// Collect the favicon cache keys still referenced by a stored Link clip.
 /// Favicons are keyed by domain, not content hash, so membership here is
@@ -79,35 +71,40 @@ pub async fn prune_cache(
     favicons_dir: &Path,
     images_dir: &Path,
 ) -> Result<u64> {
-    // Collect the 16-char hash prefixes and the Link-clip domains that are
-    // still in the DB. Storing the compact keys lets both dirs use a direct
-    // HashSet::contains lookup — O(1) per file instead of O(n).
-    let (known_prefixes, known_domains) = db
+    // Collect the 16-char hash prefixes, the Link-clip domains and the live
+    // clip ids that are still in the DB. Storing the compact keys lets both
+    // dirs use a direct HashSet::contains lookup — O(1) per file instead of
+    // O(n). The ids prune the favicon failure ledger, which is keyed by clip id
+    // and would otherwise keep a row for every clip retention deletes.
+    let (known_prefixes, known_domains, live_ids) = db
         .with(|conn| {
-            let mut stmt = conn.prepare_cached("SELECT ContentHash FROM clips")?;
-            let prefixes: HashSet<String> = stmt
-                .query_map([], |row| row.get::<_, String>(0))?
-                .filter_map(|r| r.ok())
-                .filter_map(|h| {
-                    let end = h.len().min(HASH_FILENAME_PREFIX_LEN);
-                    if h.is_char_boundary(end) {
-                        Some(h[..end].to_string())
-                    } else {
-                        // Corrupt/legacy hash (e.g. imported before hash
-                        // validation): the prefix slice would split a
-                        // multi-byte UTF-8 char. It can never have keyed a
-                        // real thumbnail, so it is not a known prefix.
-                        warn!(
-                            "prune_cache: clip has non-UTF-8-boundary ContentHash; ignoring: {h:?}"
-                        );
-                        None
-                    }
-                })
-                .collect();
+            let mut stmt = conn.prepare_cached("SELECT Id, ContentHash FROM clips")?;
+            let mut prefixes: HashSet<String> = HashSet::new();
+            let mut live_ids: HashSet<i64> = HashSet::new();
+            for row in stmt.query_map([], |row| {
+                Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
+            })? {
+                let Ok((id, hash)) = row else { continue };
+                live_ids.insert(id);
+                let end = hash.len().min(HASH_FILENAME_PREFIX_LEN);
+                if hash.is_char_boundary(end) {
+                    prefixes.insert(hash[..end].to_string());
+                } else {
+                    // Corrupt/legacy hash (e.g. imported before hash
+                    // validation): the prefix slice would split a multibyte
+                    // UTF-8 char. It can never have keyed a real thumbnail, so
+                    // it is not a known prefix.
+                    warn!(
+                        "prune_cache: clip has non-UTF-8-boundary ContentHash; ignoring: {hash:?}"
+                    );
+                }
+            }
             let domains = known_favicon_domains(conn)?;
-            Ok((prefixes, domains))
+            Ok((prefixes, domains, live_ids))
         })
         .await?;
+
+    crate::favicon_failures::prune(favicons_dir, &live_ids);
 
     let mut pruned: u64 = 0;
 
@@ -176,57 +173,8 @@ pub async fn prune_cache(
 
 #[cfg(test)]
 mod tests {
-    use super::{extract_domain, favicon_is_orphan};
+    use super::favicon_is_orphan;
     use std::collections::HashSet;
-
-    #[test]
-    fn extracts_host_from_http_urls() {
-        assert_eq!(
-            extract_domain("https://github.com/foo").unwrap(),
-            "github.com"
-        );
-        assert_eq!(extract_domain("http://example.com").unwrap(), "example.com");
-        assert_eq!(
-            extract_domain("ftp://files.example.com/x").unwrap(),
-            "files.example.com"
-        );
-    }
-
-    #[test]
-    fn normalizes_scheme_and_host_case() {
-        assert_eq!(
-            extract_domain("HTTP://EXAMPLE.COM/path").unwrap(),
-            "example.com"
-        );
-    }
-
-    #[test]
-    fn strips_userinfo_port_and_handles_ipv6() {
-        assert_eq!(
-            extract_domain("https://user:pass@example.com").unwrap(),
-            "example.com"
-        );
-        assert_eq!(
-            extract_domain("https://example.com:8443/x").unwrap(),
-            "example.com"
-        );
-        assert_eq!(extract_domain("https://[::1]:8080/x").unwrap(), "[::1]");
-    }
-
-    #[test]
-    fn rejects_urls_without_a_host() {
-        // The UI never caches a favicon for these, so no file exists to prune.
-        for s in [
-            "",
-            "not a url",
-            "www.example.com",
-            "example.com",
-            "/relative/path",
-            "mailto:user@example.com",
-        ] {
-            assert_eq!(extract_domain(s), None, "for {s:?}");
-        }
-    }
 
     fn known(domains: &[&str]) -> HashSet<String> {
         domains.iter().map(|d| d.to_string()).collect()

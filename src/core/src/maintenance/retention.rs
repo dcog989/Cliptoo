@@ -93,10 +93,15 @@ pub fn retention(conn: &Connection, cfg: &RetentionConfig) -> Result<u64> {
     Ok(deleted)
 }
 
-/// Delete all non-bookmarked clips. Bookmarked clips are deliberate keep
-/// signals, so they always survive a history clear. Returns rows deleted.
+/// Delete all non-bookmarked clips. Bookmarked and bottom-pinned clips are
+/// deliberate keep signals — the same two exemptions retention honours — so
+/// they always survive a history clear. Returns rows deleted.
 pub fn clear_history(conn: &Connection) -> Result<u64> {
-    let n = conn.execute("DELETE FROM clips WHERE IsBookmarked = 0", [])? as u64;
+    let pinned = bottom_pinned_predicate();
+    let n = conn.execute(
+        &format!("DELETE FROM clips WHERE IsBookmarked = 0 AND NOT ({pinned})"),
+        [],
+    )? as u64;
     info!("clear_history: removed {n} clips");
     Ok(n)
 }

@@ -11,11 +11,21 @@ use crate::content::hash::normalize_line_endings;
 use crate::db::DbPool;
 use crate::db::models::ClipType;
 
-/// Collect every stored clip row for reclassification.
-/// Split from the update step so the classification filesystem checks run
-/// outside `db.with` — same shape as `deadhead_collect` for deadhead marking.
-fn reclassify_collect(conn: &Connection) -> Result<Vec<(i64, String, String, bool)>> {
-    // Fetch all ids + raw content + currently stored ClipType in a single pass.
+/// Rows fetched per reclassification page. Bounds the content held in memory:
+/// the stored `Content` can be up to 16 MB per clip, so loading the whole
+/// history at once cost hundreds of MB (or GB) on a large history.
+const RECLASSIFY_PAGE_SIZE: i64 = 200;
+
+/// One stored clip as reclassification needs it: id, raw content, current
+/// `ClipType`, and whether it was a copied file (`IsFileUri`).
+type StoredClip = (i64, String, String, bool);
+
+/// Collect one page of stored clips for reclassification, starting after
+/// `after_id`. Split from the update step so the classification filesystem
+/// checks run outside `db.with` — same shape as `deadhead_collect` for deadhead
+/// marking — and paged so the whole history is never resident at once.
+fn reclassify_collect(conn: &Connection, after_id: i64) -> Result<(Vec<StoredClip>, i64)> {
+    // Fetch ids + raw content + currently stored ClipType in a single pass.
     // IsFileUri tells the classifier whether the clip was a copied file/folder,
     // so path-looking *text* clips reclassify to FilePath while copied files
     // keep their Folder/file_* classification.
@@ -28,10 +38,13 @@ fn reclassify_collect(conn: &Connection) -> Result<Vec<(i64, String, String, boo
     // so the type is not re-derivable — leave the stored one alone.
     let mut stmt = conn.prepare_cached(
         "SELECT Id, Content, ClipType, IsFileUri FROM clips
-         WHERE Content IS NOT NULL AND ClipType != 'file_image'",
+         WHERE Content IS NOT NULL AND ClipType != 'file_image' AND Id > ?1
+         ORDER BY Id
+         LIMIT ?2",
     )?;
     let mut out = Vec::new();
-    for r in stmt.query_map([], |row| {
+    let mut last_id = after_id;
+    for r in stmt.query_map(params![after_id, RECLASSIFY_PAGE_SIZE], |row| {
         Ok((
             row.get(0)?,
             row.get(1)?,
@@ -40,11 +53,14 @@ fn reclassify_collect(conn: &Connection) -> Result<Vec<(i64, String, String, boo
         ))
     })? {
         match r {
-            Ok(row) => out.push(row),
+            Ok(row) => {
+                last_id = row.0;
+                out.push(row);
+            }
             Err(e) => warn!("reclassify: row read error: {e}"),
         }
     }
-    Ok(out)
+    Ok((out, last_id))
 }
 
 /// Re-run `ContentProcessor` on every stored clip and correct rows whose
@@ -72,40 +88,50 @@ fn reclassify_collect(conn: &Connection) -> Result<Vec<(i64, String, String, boo
 /// stalls the entire daemon. Previously each row's `UPDATE` also committed
 /// individually (one lock round-trip per clip instead of one for the pass).
 pub async fn reclassify_all(db: &Arc<DbPool>) -> Result<u64> {
-    let rows = db.with(reclassify_collect).await?;
-
-    // Classification (incl. filesystem existence checks) — no DB lock held.
+    // Classification (incl. filesystem existence checks) runs outside the DB
+    // lock, one page at a time, so neither the lock nor the heap is held for
+    // the whole history.
     let mut updates: Vec<(i64, String, String, i64, i64)> = Vec::new();
-    for (id, raw, cur_clip_type, is_file_uri) in rows {
-        if raw.trim().is_empty() {
-            continue;
+    let mut after_id = 0i64;
+    loop {
+        let (rows, last_id) = db
+            .with(move |conn| reclassify_collect(conn, after_id))
+            .await?;
+        if rows.is_empty() {
+            break;
         }
-        // `IsFileUri` only describes clips that are still file types. Text
-        // clips from older builds can carry a stale true (the uri-list ingest
-        // used to hard-code it); trusting that here would let a text block of
-        // existing paths reclassify into a file clip.
-        let is_copied_file = is_file_uri && ClipType::parse(&cur_clip_type).is_file_clip();
-        let normalised = normalize_line_endings(&raw);
-        if let Some(c) = ContentProcessor::process(&normalised, is_copied_file) {
-            let new_type = c.clip_type.as_str();
-            if new_type == cur_clip_type {
+        after_id = last_id;
+        for (id, raw, cur_clip_type, is_file_uri) in rows {
+            if raw.trim().is_empty() {
                 continue;
             }
-            // A stored file clip whose path is now missing reclassifies to
-            // `file_generic` (the classifier can only see current disk state).
-            // The specific type reflects what was copied, not what still exists
-            // — deadhead maintenance already flags the missing path — so don't
-            // degrade it.
-            if ClipType::parse(&cur_clip_type).is_file_clip() && new_type == "file_generic" {
-                continue;
+            // `IsFileUri` only describes clips that are still file types. Text
+            // clips from older builds can carry a stale true (the uri-list ingest
+            // used to hard-code it); trusting that here would let a text block of
+            // existing paths reclassify into a file clip.
+            let is_copied_file = is_file_uri && ClipType::parse(&cur_clip_type).is_file_clip();
+            let normalised = normalize_line_endings(&raw);
+            if let Some(c) = ContentProcessor::process(&normalised, is_copied_file) {
+                let new_type = c.clip_type.as_str();
+                if new_type == cur_clip_type {
+                    continue;
+                }
+                // A stored file clip whose path is now missing reclassifies to
+                // `file_generic` (the classifier can only see current disk state).
+                // The specific type reflects what was copied, not what still exists
+                // — deadhead maintenance already flags the missing path — so don't
+                // degrade it.
+                if ClipType::parse(&cur_clip_type).is_file_clip() && new_type == "file_generic" {
+                    continue;
+                }
+                updates.push((
+                    id,
+                    new_type.to_string(),
+                    c.preview_content,
+                    c.size_in_bytes,
+                    c.is_multiline as i64,
+                ));
             }
-            updates.push((
-                id,
-                new_type.to_string(),
-                c.preview_content,
-                c.size_in_bytes,
-                c.is_multiline as i64,
-            ));
         }
     }
 

@@ -532,15 +532,17 @@ async fn retention_enforces_max_clips_count() {
     clean_up(&dir);
 }
 
-/// `clear_history` removes non-bookmarked clips but spares bookmarks.
+/// `clear_history` removes non-bookmarked clips but spares both keep signals:
+/// bookmarks and clips pinned to the bottom.
 #[tokio::test]
-async fn clear_history_keeps_bookmarked_clips() {
+async fn clear_history_keeps_bookmarked_and_pinned_clips() {
     let dir = std::env::temp_dir().join(format!("cliptoo_clearhist_{}", std::process::id()));
     clean_up(&dir);
     let db = DbPool::open(&dir).unwrap();
 
     common::insert_clip(&db, "regular", "chist_1", "text").await;
     common::insert_clip(&db, "kept", "chist_2", "text").await;
+    common::insert_clip(&db, "pinned", "chist_3", "text").await;
 
     let kept_id = db
         .with(|conn| cliptoo_core::db::queries::search_clips(conn, "kept", "all", 10, 0, None))
@@ -548,6 +550,15 @@ async fn clear_history_keeps_bookmarked_clips() {
         .unwrap()[0]
         .id;
     db.with(|conn| cliptoo_core::db::queries::set_bookmarked(conn, kept_id, true))
+        .await
+        .unwrap();
+
+    let pinned_id = db
+        .with(|conn| cliptoo_core::db::queries::search_clips(conn, "pinned", "all", 10, 0, None))
+        .await
+        .unwrap()[0]
+        .id;
+    db.with(|conn| cliptoo_core::db::queries::bump_to_bottom(conn, pinned_id))
         .await
         .unwrap();
 
@@ -564,7 +575,7 @@ async fn clear_history_keeps_bookmarked_clips() {
         })
         .await
         .unwrap();
-    assert_eq!(n, 1);
+    assert_eq!(n, 2, "bookmark and bottom pin survive");
 
     clean_up(&dir);
 }
