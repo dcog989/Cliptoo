@@ -166,12 +166,17 @@ pub async fn run_listener(
             // the current selection, so its accessory text/plain must not be
             // suppressed anymore.
             non_text_ingested = false;
-            // A fresh generation may offer the same plain text that was read as
-            // the accessory rendition of the previous one; drop its seed so the
-            // genuine copy is ingested instead of matching that rendition.
+            // A fresh generation may offer the same rendition that was read as
+            // an accessory of the previous copy; drop every seed so the
+            // primary rendition is re-read (and bumps its row) instead of the
+            // accessory text being mistaken for a new clip.
             // Gated on `!baseline`: the forced baseline re-reads re-observe the
             // same startup content and must keep their seeds (see below).
             last_text_hash = None;
+            last_rtf_hash = None;
+            last_html_hash = None;
+            last_image_hash = None;
+            last_file_hash = None;
         }
 
         if !changed && !stale {
@@ -456,52 +461,46 @@ pub async fn run_listener(
                         };
 
                         let filter = active_filter_state.lock().unwrap().clone();
+                        let clip_type = c.clip_type.as_str();
                         if inserted {
-                            let clip_type = c.clip_type.as_str();
                             debug!("new file-uri clip: {} — {clip_type}", &c.content_hash[..12]);
-                            if clip_type == "file_image" {
-                                // Decode + thumbnail writes are blocking and slow
-                                // for large image files; hand the store-and-refresh
-                                // off to a task so the poll loop keeps detecting
-                                // new copies. The inline refresh is skipped so the
-                                // list isn't rebuilt with an empty (and then
-                                // cached-empty) thumbnail before the files land.
-                                let path = std::path::Path::new(&c.content).to_owned();
-                                let hash_c = c.content_hash.clone();
-                                let td = thumbnails_dir.clone();
-                                let db2 = db.clone();
-                                let ui2 = ui.clone();
-                                let td2 = thumbnails_dir.clone();
-                                let fd2 = favicons_dir.clone();
-                                let max_dim = preview_max_dim.clone();
-                                std::mem::drop(tokio::spawn(async move {
-                                    let store = tokio::task::spawn_blocking(move || {
-                                        if let Err(e) =
-                                            cliptoo_core::image::store_both_thumbnails_for_file(
-                                                &td,
-                                                &hash_c,
-                                                &path,
-                                                max_dim.load(std::sync::atomic::Ordering::Relaxed),
-                                            )
-                                        {
-                                            tracing::error!("store_both_thumbnails_for_file: {e}");
-                                        }
-                                    });
-                                    let _ = store.await;
-                                    refresh_clips(&db2, &ui2, &td2, &fd2, "", &filter, None).await;
-                                }));
-                            } else {
-                                refresh_clips(
-                                    &db,
-                                    &ui,
-                                    &thumbnails_dir,
-                                    &favicons_dir,
-                                    "",
-                                    &filter,
-                                    None,
-                                )
-                                .await;
-                            }
+                        } else {
+                            debug!(
+                                "existing file-uri clip updated: {} — {clip_type}",
+                                &c.content_hash[..12]
+                            );
+                        }
+                        if clip_type == "file_image" {
+                            // Decode + thumbnail writes are blocking and slow
+                            // for large image files; hand the store-and-refresh
+                            // off to a task so the poll loop keeps detecting
+                            // new copies. Runs on a bump too: the row may have
+                            // been a `file_path` clip from a text copy of the
+                            // same path, and a bump does not create new files.
+                            let path = std::path::Path::new(&c.content).to_owned();
+                            let hash_c = c.content_hash.clone();
+                            let td = thumbnails_dir.clone();
+                            let db2 = db.clone();
+                            let ui2 = ui.clone();
+                            let td2 = thumbnails_dir.clone();
+                            let fd2 = favicons_dir.clone();
+                            let max_dim = preview_max_dim.clone();
+                            std::mem::drop(tokio::spawn(async move {
+                                let store = tokio::task::spawn_blocking(move || {
+                                    if let Err(e) =
+                                        cliptoo_core::image::store_both_thumbnails_for_file(
+                                            &td,
+                                            &hash_c,
+                                            &path,
+                                            max_dim.load(std::sync::atomic::Ordering::Relaxed),
+                                        )
+                                    {
+                                        tracing::error!("store_both_thumbnails_for_file: {e}");
+                                    }
+                                });
+                                let _ = store.await;
+                                refresh_clips(&db2, &ui2, &td2, &fd2, "", &filter, None).await;
+                            }));
                         } else {
                             refresh_clips(
                                 &db,

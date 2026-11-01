@@ -15,6 +15,19 @@ const IMAGE_MIME_TYPES: &[&str] = &[
     "image/gif",
 ];
 
+/// Outcome of probing one clipboard rendition.
+enum Probe {
+    /// Not on the clipboard (or empty, or the read raced a change).
+    Absent,
+    /// On the clipboard with the same hash as the last read: the selection is
+    /// unchanged. The caller must stop — falling through to a lower-priority
+    /// rendition would ingest the accessory `text/plain` of the same selection
+    /// (a file's path, an image's URL/alt text) as a clip of its own.
+    Unchanged,
+    /// New content to ingest.
+    Found(ClipboardPayload),
+}
+
 /// Read a text-family payload (`text/plain` or `text/rtf`) and return a
 /// [`ClipboardPayload::Text`] when the content is new and non-empty. Shared by
 /// the plain-text and RTF probes; the classifier detects RTF from the content
@@ -22,7 +35,7 @@ const IMAGE_MIME_TYPES: &[&str] = &[
 async fn try_text_payload(
     mime: MimeType<'static>,
     last_hash: &mut Option<String>,
-) -> Result<Option<ClipboardPayload>> {
+) -> Result<Probe> {
     let result = tokio::task::spawn_blocking(move || {
         get_contents(ClipboardType::Regular, Seat::Unspecified, mime)
     })
@@ -33,7 +46,7 @@ async fn try_text_payload(
         Ok(r) => r,
         Err(wl_clipboard_rs::paste::Error::NoSeats)
         | Err(wl_clipboard_rs::paste::Error::ClipboardEmpty)
-        | Err(wl_clipboard_rs::paste::Error::NoMimeType) => return Ok(None),
+        | Err(wl_clipboard_rs::paste::Error::NoMimeType) => return Ok(Probe::Absent),
         Err(e) => return Err(e.into()),
     };
 
@@ -44,22 +57,22 @@ async fn try_text_payload(
     let (hash, sup_hash) = cliptoo_core::content::hash::sha256_hex_and_prefix(&normalized);
 
     if last_hash.as_deref() == Some(&hash) {
-        return Ok(None);
+        return Ok(Probe::Unchanged);
     }
     *last_hash = Some(hash.clone());
 
     if normalized.trim().is_empty() {
-        return Ok(None);
+        return Ok(Probe::Absent);
     }
 
-    Ok(Some(ClipboardPayload::Text {
+    Ok(Probe::Found(ClipboardPayload::Text {
         hash,
         content: normalized,
         sup_hash,
     }))
 }
 
-async fn try_text(last_hash: &mut Option<String>) -> Result<Option<ClipboardPayload>> {
+async fn try_text(last_hash: &mut Option<String>) -> Result<Probe> {
     try_text_payload(MimeType::Text, last_hash).await
 }
 
@@ -69,7 +82,7 @@ async fn try_text(last_hash: &mut Option<String>) -> Result<Option<ClipboardPayl
 /// classifier record an `Rtf` clip instead of a lossy `Text` one. The payload
 /// reuses `ClipboardPayload::Text` — the classifier detects RTF from the
 /// content itself (`is_rtf`).
-async fn try_rtf(last_hash: &mut Option<String>) -> Result<Option<ClipboardPayload>> {
+async fn try_rtf(last_hash: &mut Option<String>) -> Result<Probe> {
     try_text_payload(MimeType::Specific("text/rtf"), last_hash).await
 }
 
@@ -79,11 +92,11 @@ async fn try_rtf(last_hash: &mut Option<String>) -> Result<Option<ClipboardPaylo
 /// instead of a lossy `Text` one. The payload reuses
 /// `ClipboardPayload::Text` — the classifier detects HTML from the content
 /// itself (`is_html`).
-async fn try_html(last_hash: &mut Option<String>) -> Result<Option<ClipboardPayload>> {
+async fn try_html(last_hash: &mut Option<String>) -> Result<Probe> {
     try_text_payload(MimeType::Specific("text/html"), last_hash).await
 }
 
-async fn try_file_uri_list(last_hash: &mut Option<String>) -> Result<Option<ClipboardPayload>> {
+async fn try_file_uri_list(last_hash: &mut Option<String>) -> Result<Probe> {
     let result = tokio::task::spawn_blocking(|| {
         get_contents(
             ClipboardType::Regular,
@@ -98,7 +111,7 @@ async fn try_file_uri_list(last_hash: &mut Option<String>) -> Result<Option<Clip
         Ok(r) => r,
         Err(wl_clipboard_rs::paste::Error::NoSeats)
         | Err(wl_clipboard_rs::paste::Error::ClipboardEmpty)
-        | Err(wl_clipboard_rs::paste::Error::NoMimeType) => return Ok(None),
+        | Err(wl_clipboard_rs::paste::Error::NoMimeType) => return Ok(Probe::Absent),
         Err(e) => return Err(e.into()),
     };
 
@@ -113,20 +126,23 @@ async fn try_file_uri_list(last_hash: &mut Option<String>) -> Result<Option<Clip
         .join("\n");
 
     if content.is_empty() {
-        return Ok(None);
+        return Ok(Probe::Absent);
     }
 
     let (hash, sup_hash) = cliptoo_core::content::hash::sha256_hex_and_prefix(&content);
 
     if last_hash.as_deref() == Some(&hash) {
-        return Ok(None);
+        return Ok(Probe::Unchanged);
     }
     *last_hash = Some(hash.clone());
 
-    Ok(Some(ClipboardPayload::FileUri { content, sup_hash }))
+    Ok(Probe::Found(ClipboardPayload::FileUri {
+        content,
+        sup_hash,
+    }))
 }
 
-async fn try_image(last_hash: &mut Option<String>) -> Result<Option<ClipboardPayload>> {
+async fn try_image(last_hash: &mut Option<String>) -> Result<Probe> {
     for &mime_str in IMAGE_MIME_TYPES {
         let result = tokio::task::spawn_blocking(move || {
             get_contents(
@@ -166,11 +182,11 @@ async fn try_image(last_hash: &mut Option<String>) -> Result<Option<ClipboardPay
         );
 
         if last_hash.as_deref() == Some(&hash) {
-            return Ok(None);
+            return Ok(Probe::Unchanged);
         }
         *last_hash = Some(hash.clone());
 
-        return Ok(Some(ClipboardPayload::Image {
+        return Ok(Probe::Found(ClipboardPayload::Image {
             hash,
             data,
             sup_hash,
@@ -178,7 +194,7 @@ async fn try_image(last_hash: &mut Option<String>) -> Result<Option<ClipboardPay
         }));
     }
 
-    Ok(None)
+    Ok(Probe::Absent)
 }
 
 pub(super) async fn poll_clipboard(
@@ -194,14 +210,23 @@ pub(super) async fn poll_clipboard(
     // path both as text/uri-list AND text/plain. If plain text were read
     // first, a copied folder/file would be captured as a text clip and end
     // up as a `file_path` clip instead of its real `Folder`/`file_*` type.
-    if let Some(payload) = try_file_uri_list(last_file_hash).await? {
-        return Ok(Some(payload));
+    // An *unchanged* uri-list stops the read: falling through would ingest
+    // that accessory path text, which hashes to the same row and downgrades
+    // the file clip to `file_path`, dropping its thumbnail.
+    match try_file_uri_list(last_file_hash).await? {
+        Probe::Found(payload) => return Ok(Some(payload)),
+        Probe::Unchanged => return Ok(None),
+        Probe::Absent => {}
     }
     // RTF before plain text: a rich-text producer offers both the RTF markup
     // (text/rtf) and a plain rendition (text/plain). Reading the markup first
     // records an `Rtf` clip; reading text/plain first would lose the markup.
-    if let Some(payload) = try_rtf(last_rtf_hash).await? {
-        return Ok(Some(payload));
+    // An unchanged RTF is the same selection, so its plain rendition must not
+    // be ingested either.
+    match try_rtf(last_rtf_hash).await? {
+        Probe::Found(payload) => return Ok(Some(payload)),
+        Probe::Unchanged => return Ok(None),
+        Probe::Absent => {}
     }
     // Image before plain text when the clipboard advertises an image type: a
     // web-page image copy offers image/* alongside a non-empty text/plain
@@ -212,11 +237,12 @@ pub(super) async fn poll_clipboard(
     // cheap text stale-read.
     let offers_image =
         mime_types.is_some_and(|mt| mt.iter().any(|m| IMAGE_MIME_TYPES.contains(&m.as_str())));
-    if probe_images
-        && offers_image
-        && let Some(payload) = try_image(last_image_hash).await?
-    {
-        return Ok(Some(payload));
+    if probe_images && offers_image {
+        match try_image(last_image_hash).await? {
+            Probe::Found(payload) => return Ok(Some(payload)),
+            Probe::Unchanged => return Ok(None),
+            Probe::Absent => {}
+        }
     }
     // RTF and HTML are alternative renditions of the same rich-text selection;
     // a producer offering both (e.g. LibreOffice, Word) has its Rtf clip
@@ -231,13 +257,14 @@ pub(super) async fn poll_clipboard(
     // and RTF probes already assert over text/plain. (An HTML payload is
     // text-sized, so it is polled on every read like text/rtf, not gated on
     // probe_images.)
-    if !offers_image
-        && !offers_rtf
-        && let Some(payload) = try_html(last_html_hash).await?
-    {
-        return Ok(Some(payload));
+    if !offers_image && !offers_rtf {
+        match try_html(last_html_hash).await? {
+            Probe::Found(payload) => return Ok(Some(payload)),
+            Probe::Unchanged => return Ok(None),
+            Probe::Absent => {}
+        }
     }
-    if let Some(payload) = try_text(last_text_hash).await? {
+    if let Probe::Found(payload) = try_text(last_text_hash).await? {
         return Ok(Some(payload));
     }
     // Fallback probe for a stale/mismatched mime list whose payload offers an
@@ -246,7 +273,7 @@ pub(super) async fn poll_clipboard(
     // (just probed above) so the payload isn't downloaded twice.
     if probe_images
         && !offers_image
-        && let Some(payload) = try_image(last_image_hash).await?
+        && let Probe::Found(payload) = try_image(last_image_hash).await?
     {
         return Ok(Some(payload));
     }
