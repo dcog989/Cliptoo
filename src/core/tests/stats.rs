@@ -122,13 +122,6 @@ async fn increment_stat_upserts_and_accumulates() {
     let value = db.with(|conn| stats::get_stat(conn, key)).await.unwrap();
     assert_eq!(value.unwrap(), "3");
 
-    // set_stat replaces the accumulated value.
-    db.with(|conn| stats::set_stat(conn, key, "42"))
-        .await
-        .unwrap();
-    let value = db.with(|conn| stats::get_stat(conn, key)).await.unwrap();
-    assert_eq!(value.unwrap(), "42");
-
     // A missing key reads as None.
     let missing = db
         .with(|conn| stats::get_stat(conn, "NoSuchKey"))

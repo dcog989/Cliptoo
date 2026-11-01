@@ -18,14 +18,6 @@ pub fn get_stat(conn: &Connection, key: &str) -> Result<Option<String>> {
     }
 }
 
-pub fn set_stat(conn: &Connection, key: &str, value: &str) -> Result<()> {
-    conn.execute(
-        "INSERT OR REPLACE INTO stats (Key, Value) VALUES (?1, ?2)",
-        params![key, value],
-    )?;
-    Ok(())
-}
-
 /// Atomically increment an integer stat.
 ///
 pub fn increment_stat(conn: &Connection, key: &str) -> Result<()> {
