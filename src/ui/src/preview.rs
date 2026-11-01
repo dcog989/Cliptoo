@@ -160,6 +160,52 @@ fn show_link_preview(ctx: &PreviewContext) {
     });
 }
 
+/// Format a modification time in the user's local timezone, matching how the
+/// folder info line renders its newest entry.
+fn format_mtime(time: std::time::SystemTime) -> String {
+    let dt: chrono::DateTime<chrono::Utc> = time.into();
+    dt.with_timezone(&chrono::Local)
+        .format("%Y-%m-%d %H:%M")
+        .to_string()
+}
+
+/// Size and last-modified line for a single copied file, e.g.
+/// `1.2 MB · 2026-10-31 18:36`. Empty when the path is not a readable file
+/// (deleted, a directory, or a multi-selection payload).
+fn file_info(path: &str) -> String {
+    let Ok(meta) = std::fs::metadata(path) else {
+        return String::new();
+    };
+    if !meta.is_file() {
+        return String::new();
+    }
+    let size = crate::stats_ui::format_size(meta.len());
+    match meta.modified() {
+        Ok(mtime) => format!("{size} · {}", format_mtime(mtime)),
+        Err(_) => size,
+    }
+}
+
+/// Fill the preview's info line off the UI thread: a stat on a slow or network
+/// path must not block the event loop.
+fn spawn_file_info(ctx: &PreviewContext, path: String) {
+    let ui = ctx.preview.as_weak();
+    let generation = ctx.request_generation;
+    let generation_cell = ctx.generation.clone();
+    tokio::spawn(async move {
+        let info = tokio::task::spawn_blocking(move || file_info(&path)).await;
+        let Ok(info) = info else {
+            return;
+        };
+        let _ = ui.upgrade_in_event_loop(move |preview| {
+            if generation_cell.load(Ordering::Relaxed) != generation {
+                return;
+            }
+            preview.set_preview_file_info(info.into());
+        });
+    });
+}
+
 /// Preview for a file-image clip: the stored preview WebP/SVG if present,
 /// otherwise generate it in the background and load the result when ready.
 fn show_image_preview(ctx: &PreviewContext) {
@@ -228,6 +274,9 @@ fn show_image_preview(ctx: &PreviewContext) {
     }
     preview.set_preview_clip_type("file_image".into());
     preview.set_preview_text(content.into());
+    // The caption is the stored path; add the size/date line below it.
+    ctx.preview.set_preview_file_info("".into());
+    spawn_file_info(ctx, content.to_string());
 }
 
 /// Preview for a folder clip: the path plus an entry count, total size and the
@@ -237,6 +286,7 @@ fn show_image_preview(ctx: &PreviewContext) {
 fn show_folder_preview(ctx: &PreviewContext) {
     ctx.preview.set_preview_clip_type("folder".into());
     ctx.preview.set_preview_text(ctx.content.into());
+    ctx.preview.set_preview_file_info("".into());
     let path = ctx.content.to_string();
     let ui_fin = ctx.preview.as_weak();
     let generation = ctx.request_generation;
@@ -267,41 +317,36 @@ fn scan_folder_info(path: &str) -> String {
     }
     let mut count = 0u64;
     let mut total_size = 0u64;
-    let mut latest_mtime = 0i64;
+    let mut latest_mtime: Option<std::time::SystemTime> = None;
     if let Ok(entries) = std::fs::read_dir(path) {
         for entry in entries.flatten() {
             count += 1;
             if let Ok(meta) = entry.metadata() {
                 total_size += meta.len();
-                if let Ok(mtime) = meta.modified()
-                    && let Ok(dur) = mtime.duration_since(std::time::UNIX_EPOCH)
-                {
-                    latest_mtime = latest_mtime.max(dur.as_secs() as i64);
+                if let Ok(mtime) = meta.modified() {
+                    latest_mtime = Some(latest_mtime.map_or(mtime, |t| t.max(mtime)));
                 }
             }
         }
     }
-    let size_str = if total_size < 1024 {
-        format!("{total_size} B")
-    } else if total_size < 1024 * 1024 {
-        format!("{:.1} KB", total_size as f64 / 1024.0)
-    } else if total_size < 1024 * 1024 * 1024 {
-        format!("{:.1} MB", total_size as f64 / (1024.0 * 1024.0))
-    } else {
-        format!("{:.2} GB", total_size as f64 / (1024.0 * 1024.0 * 1024.0))
-    };
+    let size_str = crate::stats_ui::format_size(total_size);
     let item_label = if count == 1 { "item" } else { "items" };
-    let date_str = if latest_mtime > 0 {
-        chrono::DateTime::from_timestamp(latest_mtime, 0)
-            .map(|dt| dt.format("%Y-%m-%d %H:%M").to_string())
-            .unwrap_or_default()
-    } else {
-        String::new()
-    };
+    let date_str = latest_mtime.map(format_mtime).unwrap_or_default();
     format!("{count} {item_label} · {size_str} · {date_str}")
 }
 
-/// Preview for every other clip type (text, file_*): show text.
+/// Preview for a copied file without a text or image rendition (archive,
+/// video, audio, data, dev, danger, generic): the path plus size and
+/// last-modified time, since the file itself cannot be shown.
+fn show_file_preview(ctx: &PreviewContext) {
+    ctx.preview.set_preview_clip_type(ctx.clip_type.into());
+    ctx.preview.set_preview_text(ctx.content.into());
+    ctx.preview.set_preview_file_info("".into());
+    spawn_file_info(ctx, ctx.content.to_string());
+}
+
+/// Preview for every other clip type (plain text, paths copied as text): show
+/// the text and no file info.
 fn show_text_preview(ctx: &PreviewContext) {
     ctx.preview.set_preview_clip_type(ctx.clip_type.into());
     ctx.preview.set_preview_text(ctx.content.into());
@@ -336,9 +381,9 @@ fn show_html_preview(ctx: &PreviewContext) {
 
 /// Preview for a copied text document (`.txt`, `.md`, `.log`, …) and for
 /// document clips whose on-disk file is text-based (markdown, rst, …). Reads
-/// the file's contents and previews them instead of just the path. Reading
-/// happens on a blocking thread; large files are bounded and binary files
-/// fall back to showing the path alone (same as a generic file clip).
+/// the file's contents and previews them instead of just the path, after the
+/// path and a size/last-modified line. Reading happens on a blocking thread;
+/// large files are bounded and binary files show the path and size/date alone.
 fn show_text_file_preview(ctx: &PreviewContext) {
     // The path line is shown first so the popup is non-empty and the clip stays
     // identifiable even when the contents are truncated or unreadable.
@@ -351,16 +396,31 @@ fn show_text_file_preview(ctx: &PreviewContext) {
     let generation = ctx.request_generation;
     let generation_cell = ctx.generation.clone();
     tokio::spawn(async move {
-        let read = tokio::task::spawn_blocking(move || read_text_file_preview(&file_path)).await;
-        let Ok(Ok((contents, truncated))) = read else {
+        // Size/date and contents come from the same blocking stat/read pass so
+        // the UI thread never touches the filesystem.
+        let read = tokio::task::spawn_blocking(move || {
+            let info = file_info(&file_path);
+            (info, read_text_file_preview(&file_path))
+        })
+        .await;
+        let Ok((info, read)) = read else {
             return;
         };
-        let mut preview = format!(
-            "{path_line}\n{}\n{contents}",
-            FILE_PREVIEW_SEPARATOR_GLYPH.repeat(FILE_PREVIEW_SEPARATOR_LEN)
-        );
-        if truncated {
-            preview.push_str("\n… (preview truncated)");
+        let separator = FILE_PREVIEW_SEPARATOR_GLYPH.repeat(FILE_PREVIEW_SEPARATOR_LEN);
+        let mut preview = path_line;
+        if !info.is_empty() {
+            preview.push('\n');
+            preview.push_str(&info);
+        }
+        // A binary or unreadable document keeps the path and size/date view.
+        if let Ok((contents, truncated)) = read {
+            preview.push('\n');
+            preview.push_str(&separator);
+            preview.push('\n');
+            preview.push_str(&contents);
+            if truncated {
+                preview.push_str("\n… (preview truncated)");
+            }
         }
         let _ = ui_fin.upgrade_in_event_loop(move |preview_win| {
             // Ignore the result if a newer request has taken over the popup.
@@ -409,8 +469,15 @@ const PREVIEW_HANDLERS: &[(&str, PreviewHandler)] = &[
     ("file_text", show_text_file_preview),
     // Document clips cover text-based formats (markdown, rst, …) and binary
     // ones (pdf, docx, …); `show_text_file_preview` reads bounded text and
-    // falls back to the path alone for binary/unreadable files.
+    // shows the path plus size/date when the file is binary or unreadable.
     ("file_document", show_text_file_preview),
+    ("file_generic", show_file_preview),
+    ("file_dev", show_file_preview),
+    ("file_archive", show_file_preview),
+    ("file_video", show_file_preview),
+    ("file_audio", show_file_preview),
+    ("file_danger", show_file_preview),
+    ("file_data", show_file_preview),
     ("folder", show_folder_preview),
     ("rtf", show_rtf_preview),
     ("html", show_html_preview),
@@ -495,7 +562,7 @@ pub fn setup_dismiss_preview(app: &crate::AppWindow, preview: &crate::PreviewWin
 
 #[cfg(test)]
 mod tests {
-    use super::{FILE_TEXT_PREVIEW_MAX_BYTES, read_text_file_preview, scan_folder_info};
+    use super::{FILE_TEXT_PREVIEW_MAX_BYTES, file_info, read_text_file_preview, scan_folder_info};
     use std::io::Write;
 
     fn temp_dir(label: &str) -> std::path::PathBuf {
@@ -577,5 +644,23 @@ mod tests {
     #[test]
     fn folder_info_non_dir_is_empty() {
         assert_eq!(scan_folder_info("/definitely/not/a/dir"), "");
+    }
+
+    #[test]
+    fn file_info_prints_size_and_mtime() {
+        let path = temp_file("info", b"hello");
+        let info = file_info(path.to_str().unwrap());
+        assert!(info.starts_with("5 B · "), "got: {info:?}");
+        assert_eq!(info.matches('·').count(), 1, "got: {info:?}");
+        std::fs::remove_dir_all(path.parent().unwrap()).unwrap();
+    }
+
+    #[test]
+    fn file_info_is_empty_for_missing_paths_and_dirs() {
+        assert_eq!(file_info("/definitely/not/a/file.txt"), "");
+        let dir = temp_dir("info_dir");
+        std::fs::create_dir_all(&dir).unwrap();
+        assert_eq!(file_info(dir.to_str().unwrap()), "");
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 }

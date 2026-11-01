@@ -16,10 +16,16 @@ export component PreviewTooltip inherits Rectangle {
     // On-screen box for the image preview, from the preview-size setting.
     private property <length> image-box: Theme.preview-size;
 
+    // Clip types whose popup is the path line plus the size/last-modified
+    // line. Images and text documents have their own layouts; folders share
+    // this one, and it covers the copied files with no previewable content.
+    private property <bool> shows-file-info: root.preview-clip-type == "folder" || root.preview-clip-type == "file_generic" || root.preview-clip-type == "file_dev" || root.preview-clip-type == "file_archive" || root.preview-clip-type == "file_video" || root.preview-clip-type == "file_audio" || root.preview-clip-type == "file_danger" || root.preview-clip-type == "file_data";
+
     // Cap on the content height; taller content is hard-clipped and signalled
     // by the bottom fade-out gradient below. Image previews add room for the
-    // caption row below the image; every other type caps at the setting.
-    private property <length> max-content-height: root.preview-clip-type == "file_image" ? root.image-box + 56px : Theme.preview-size;
+    // caption and info rows below the image; every other type caps at the
+    // setting.
+    private property <length> max-content-height: root.preview-clip-type == "file_image" ? root.image-box + 80px : Theme.preview-size;
 
     // The preview-size setting drives the popup width for every clip type.
     width: root.preview-clip-type == "file_image" ? root.image-box + 24px : Theme.preview-size;
@@ -62,6 +68,15 @@ export component PreviewTooltip inherits Rectangle {
 
             Text {
                 text: root.preview-text;
+                font-family: Theme.font-family;
+                color: Theme.fg-secondary;
+                font-size: Theme.preview-font-size - 1px;
+                horizontal-alignment: center;
+                overflow: elide;
+            }
+
+            if root.preview-file-info != "": Text {
+                text: root.preview-file-info;
                 font-family: Theme.font-family;
                 color: Theme.fg-secondary;
                 font-size: Theme.preview-font-size - 1px;
@@ -117,7 +132,7 @@ export component PreviewTooltip inherits Rectangle {
         }
 
         // ── File / folder preview ────────────────────────────────────────
-        if root.preview-clip-type == "folder" || root.preview-clip-type == "file_generic" || root.preview-clip-type == "file_dev": VerticalLayout {
+        if root.shows-file-info: VerticalLayout {
             spacing: 4px;
             Text {
                 text: root.preview-text;
@@ -135,15 +150,14 @@ export component PreviewTooltip inherits Rectangle {
         }
 
         // ── Text preview (default) ───────────────────────────────────────
-        // Falls through for: text, rtf, html, file_audio, file_video,
-        // file_archive, file_document, file_text, file_danger,
-        // file_generic, and any future unknown types.
-        // These show plain text since the favicon/title pipeline doesn't
-        // run for them. If that changes, add an explicit branch above.
+        // Falls through for: text, rtf, html, file_text, file_document,
+        // file_path, and any future unknown types. These show plain text
+        // since the favicon/title pipeline doesn't run for them. If that
+        // changes, add an explicit branch above.
         //
         // Content beyond the height cap is hard-clipped (root height cap); the
         // gradient below signals truncation. Tracked as a future polish item.
-        if root.preview-clip-type != "color" && root.preview-clip-type != "file_image" && root.preview-clip-type != "link" && root.preview-clip-type != "code_snippet" && root.preview-clip-type != "folder" && root.preview-clip-type != "file_generic" && root.preview-clip-type != "file_dev":
+        if root.preview-clip-type != "color" && root.preview-clip-type != "file_image" && root.preview-clip-type != "link" && root.preview-clip-type != "code_snippet" && !root.shows-file-info:
         Text {
             // parent.width is the content box; subtract padding (2 × 12px) for
             // the wrap budget.
