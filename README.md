@@ -41,7 +41,7 @@ Advanced Linux clipboard manager. Use your clip history as a library of things. 
 ### Storage & Maintenance
 
 - **Cleanup:** prune by age and/or count, clear caches, remove dead file clips, reclassify.
-- **Backup:** JSON export/import, full history or bookmarks only.
+- **Backup:** JSON export/import, full history or bookmarks only (copied images are referenced by path, not embedded).
 - **Statistics:** DB size, clip count, copy/paste counts.
 
 ### Customisation

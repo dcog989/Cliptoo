@@ -10,6 +10,11 @@
 //! exported for reference but the import inserts fresh AUTOINCREMENT ids, so
 //! ids are not preserved across a restore.
 //!
+//! Full-size images are **not** embedded: a `file_image` clip's `Content` is an
+//! internal path under the app's data dir, so a restore on the same machine
+//! keeps working while a restore elsewhere yields image clips whose file is
+//! missing. Files copied as `text/uri-list` are by nature external references.
+//!
 //! ## Import
 //!
 //! Import is **additive**: rows with a `ContentHash` already in the DB are
@@ -124,22 +129,6 @@ pub fn fetch_bookmarked(conn: &Connection) -> Result<Vec<ExportRow>> {
 /// so anything over this is treated as a mistake rather than a real history.
 const MAX_IMPORT_BYTES: u64 = 256 * 1024 * 1024;
 
-/// Serialise all clips to a pretty-printed JSON byte vector.
-pub fn export_json(conn: &Connection) -> Result<Vec<u8>> {
-    let rows = fetch_all(conn)?;
-    let json = serde_json::to_vec_pretty(&rows).context("serialise clips to JSON")?;
-    info!("export_json: {} clips", rows.len());
-    Ok(json)
-}
-
-/// Serialise only bookmarked clips to a pretty-printed JSON byte vector.
-pub fn export_bookmarked_json(conn: &Connection) -> Result<Vec<u8>> {
-    let rows = fetch_bookmarked(conn)?;
-    let json = serde_json::to_vec_pretty(&rows).context("serialise bookmarks to JSON")?;
-    info!("export_bookmarked_json: {} clips", rows.len());
-    Ok(json)
-}
-
 /// Normalise an imported clip `Timestamp` to the canonical app format — UTC,
 /// space-separated `YYYY-MM-DD HH:MM:SS[.ffffff]`. The ordering, reorder and
 /// retention queries compare `Timestamp` strings lexicographically and assume
@@ -215,7 +204,13 @@ pub fn import_json(conn: &Connection, data: &[u8]) -> Result<u64> {
         );
     }
     let rows: Vec<ExportRow> = serde_json::from_slice(data).context("parse import JSON")?;
+    import_rows(conn, rows)
+}
 
+/// Insert already-parsed rows. Split from [`import_json`] so the file path can
+/// parse outside the DB lock — parsing a large history takes long enough to
+/// stall clipboard capture otherwise.
+fn import_rows(conn: &Connection, rows: Vec<ExportRow>) -> Result<u64> {
     let mut existing_hashes: std::collections::HashSet<String> = {
         let mut stmt = conn.prepare_cached("SELECT ContentHash FROM clips")?;
         stmt.query_map([], |row| row.get::<_, String>(0))?
@@ -328,13 +323,8 @@ pub async fn export_to_file(
     db: &std::sync::Arc<crate::db::DbPool>,
     path: &std::path::Path,
 ) -> Result<usize> {
-    let bytes = db.with(export_json).await?;
-    let len = bytes.len();
-    tokio::fs::write(path, &bytes)
-        .await
-        .with_context(|| format!("write export to {:?}", path))?;
-    info!("export_to_file: wrote {} bytes to {:?}", len, path);
-    Ok(len)
+    let rows = db.with(fetch_all).await?;
+    write_export(rows, path, "export_to_file").await
 }
 
 /// Export only bookmarked clips to the given path in JSON format.
@@ -342,15 +332,22 @@ pub async fn export_bookmarked_to_file(
     db: &std::sync::Arc<crate::db::DbPool>,
     path: &std::path::Path,
 ) -> Result<usize> {
-    let bytes = db.with(export_bookmarked_json).await?;
+    let rows = db.with(fetch_bookmarked).await?;
+    write_export(rows, path, "export_bookmarked_to_file").await
+}
+
+/// Serialise `rows` on a blocking thread (a full history takes a while) and
+/// write them out. Serialisation must not run while the DB lock is held.
+async fn write_export(rows: Vec<ExportRow>, path: &std::path::Path, label: &str) -> Result<usize> {
+    let bytes = tokio::task::spawn_blocking(move || serde_json::to_vec_pretty(&rows))
+        .await
+        .context("serialise clips task panicked")?
+        .context("serialise clips to JSON")?;
     let len = bytes.len();
     tokio::fs::write(path, &bytes)
         .await
-        .with_context(|| format!("write bookmarks export to {:?}", path))?;
-    info!(
-        "export_bookmarked_to_file: wrote {} bytes to {:?}",
-        len, path
-    );
+        .with_context(|| format!("write {label} to {:?}", path))?;
+    info!("{label}: wrote {len} bytes to {:?}", path);
     Ok(len)
 }
 
@@ -374,7 +371,13 @@ pub async fn import_from_file(
     let bytes = tokio::fs::read(path)
         .await
         .with_context(|| format!("read import file {:?}", path))?;
-    db.with(|conn| import_json(conn, &bytes)).await
+    // Parse off the DB lock and off the async worker: a full history is
+    // hundreds of MB of JSON.
+    let rows: Vec<ExportRow> = tokio::task::spawn_blocking(move || serde_json::from_slice(&bytes))
+        .await
+        .context("parse import task panicked")?
+        .context("parse import JSON")?;
+    db.with(move |conn| import_rows(conn, rows)).await
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
