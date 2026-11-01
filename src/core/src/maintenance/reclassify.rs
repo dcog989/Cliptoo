@@ -38,20 +38,23 @@ fn reclassify_collect(conn: &Connection, after_id: i64) -> Result<(Vec<StoredCli
     // so the type is not re-derivable — leave the stored one alone.
     let mut stmt = conn.prepare_cached(
         "SELECT Id, Content, ClipType, IsFileUri FROM clips
-         WHERE Content IS NOT NULL AND ClipType != 'file_image' AND Id > ?1
+         WHERE Content IS NOT NULL AND ClipType != ?3 AND Id > ?1
          ORDER BY Id
          LIMIT ?2",
     )?;
     let mut out = Vec::new();
     let mut last_id = after_id;
-    for r in stmt.query_map(params![after_id, RECLASSIFY_PAGE_SIZE], |row| {
-        Ok((
-            row.get(0)?,
-            row.get(1)?,
-            row.get(2)?,
-            row.get::<_, i32>(3)? != 0,
-        ))
-    })? {
+    for r in stmt.query_map(
+        params![after_id, RECLASSIFY_PAGE_SIZE, ClipType::FileImage.as_str()],
+        |row| {
+            Ok((
+                row.get(0)?,
+                row.get(1)?,
+                row.get(2)?,
+                row.get::<_, i32>(3)? != 0,
+            ))
+        },
+    )? {
         match r {
             Ok(row) => {
                 last_id = row.0;
@@ -80,18 +83,16 @@ fn reclassify_collect(conn: &Connection, after_id: i64) -> Result<(Vec<StoredCli
 /// from it (reclassifying trimmed content would always read them as false).
 /// The other fields are refreshed only alongside a type change.
 ///
-/// The DB mutex is held only for the initial collect and for one final
-/// batched-transaction update. `ContentProcessor::process` calls
-/// `Path::is_dir()` / `Path::is_file()` for path-like content, so running it
-/// under the lock would block every other DB access (clipboard listener,
-/// search) for the whole pass — on a history with many file clips that
-/// stalls the entire daemon. Previously each row's `UPDATE` also committed
-/// individually (one lock round-trip per clip instead of one for the pass).
+/// One page is classified outside the lock, then its changes are written in
+/// their own transaction; `ContentProcessor::process` calls `Path::is_dir()` /
+/// `Path::is_file()` for path-like content, so running it under the lock would
+/// block every other DB access (clipboard listener, search) for the whole
+/// pass. Paging also bounds both the lock hold and the memory per pass.
 pub async fn reclassify_all(db: &Arc<DbPool>) -> Result<u64> {
     // Classification (incl. filesystem existence checks) runs outside the DB
-    // lock, one page at a time, so neither the lock nor the heap is held for
-    // the whole history.
-    let mut updates: Vec<(i64, String, String, i64, i64)> = Vec::new();
+    // lock, one page at a time; each page's changes are written before the next
+    // page is read, so neither the lock nor the heap grows with the history.
+    let mut updated: u64 = 0;
     let mut after_id = 0i64;
     loop {
         let (rows, last_id) = db
@@ -101,6 +102,7 @@ pub async fn reclassify_all(db: &Arc<DbPool>) -> Result<u64> {
             break;
         }
         after_id = last_id;
+        let mut updates: Vec<(i64, String, String, i64, i64)> = Vec::new();
         for (id, raw, cur_clip_type, is_file_uri) in rows {
             if raw.trim().is_empty() {
                 continue;
@@ -121,7 +123,9 @@ pub async fn reclassify_all(db: &Arc<DbPool>) -> Result<u64> {
                 // The specific type reflects what was copied, not what still exists
                 // — deadhead maintenance already flags the missing path — so don't
                 // degrade it.
-                if ClipType::parse(&cur_clip_type).is_file_clip() && new_type == "file_generic" {
+                if ClipType::parse(&cur_clip_type).is_file_clip()
+                    && new_type == ClipType::FileGeneric.as_str()
+                {
                     continue;
                 }
                 updates.push((
@@ -133,28 +137,29 @@ pub async fn reclassify_all(db: &Arc<DbPool>) -> Result<u64> {
                 ));
             }
         }
-    }
 
-    if updates.is_empty() {
-        return Ok(0);
-    }
-
-    let updated = updates.len() as u64;
-    db.with(move |conn| {
-        let tx = conn.unchecked_transaction()?;
-        for (id, clip_type, preview_content, size_in_bytes, is_multiline) in &updates {
-            tx.execute(
-                "UPDATE clips
-                 SET ClipType = ?1, PreviewContent = ?2, SizeInBytes = ?3, IsMultiline = ?4
-                 WHERE Id = ?5",
-                params![clip_type, preview_content, size_in_bytes, is_multiline, id],
-            )?;
+        if updates.is_empty() {
+            continue;
         }
-        tx.commit()?;
-        Ok(())
-    })
-    .await?;
+        updated += updates.len() as u64;
+        db.with(move |conn| {
+            let tx = conn.unchecked_transaction()?;
+            for (id, clip_type, preview_content, size_in_bytes, is_multiline) in &updates {
+                tx.execute(
+                    "UPDATE clips
+                     SET ClipType = ?1, PreviewContent = ?2, SizeInBytes = ?3, IsMultiline = ?4
+                     WHERE Id = ?5",
+                    params![clip_type, preview_content, size_in_bytes, is_multiline, id],
+                )?;
+            }
+            tx.commit()?;
+            Ok(())
+        })
+        .await?;
+    }
 
-    info!("reclassify_all: updated {updated} clips");
+    if updated > 0 {
+        info!("reclassify_all: updated {updated} clips");
+    }
     Ok(updated)
 }
