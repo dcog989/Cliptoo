@@ -172,14 +172,20 @@ pub fn setup_manual_maintenance(
                     "export" => match pick_path(true).await? {
                         Some(path) => {
                             cliptoo_core::export::export_to_file(&db, &path).await?;
-                            Ok(Some(format!("Exported to {}", path.display())))
+                            Ok(Some(format!(
+                                "Exported to {} (images not included)",
+                                path.display()
+                            )))
                         }
                         None => Ok(None),
                     },
                     "export-bookmarks" => match pick_path(true).await? {
                         Some(path) => {
                             cliptoo_core::export::export_bookmarked_to_file(&db, &path).await?;
-                            Ok(Some(format!("Exported bookmarks to {}", path.display())))
+                            Ok(Some(format!(
+                                "Exported bookmarks to {} (images not included)",
+                                path.display()
+                            )))
                         }
                         None => Ok(None),
                     },

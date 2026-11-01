@@ -11,23 +11,25 @@
 //! ids are not preserved across a restore.
 //!
 //! Full-size images are **not** embedded: a `file_image` clip's `Content` is an
-//! internal path under the app's data dir, so a restore on the same machine
-//! keeps working while a restore elsewhere yields image clips whose file is
-//! missing. Files copied as `text/uri-list` are by nature external references.
+//! internal path under the app's data dir. The export is therefore not a backup
+//! of image clips: once the rows are gone, the scheduled cache prune deletes
+//! those PNGs. Files copied as `text/uri-list` are by nature external
+//! references.
 //!
 //! ## Import
 //!
 //! Import is **additive**: rows with a `ContentHash` already in the DB are
 //! silently skipped.  Rows whose hash is not the canonical 64-char lowercase
-//! SHA-256 hex shape are rejected (see `import_json`).  `UniqueClipsEver` is
+//! SHA-256 hex shape are rejected (see `import_reader`).  `UniqueClipsEver` is
 //! incremented by the number of new inserts.  Clip types are normalised to the
 //! canonical `ClipType` values (legacy names map to their current equivalent;
-//! unknown strings fall back to text), and payloads over `MAX_IMPORT_BYTES`
-//! are refused before they can be materialised in memory.
+//! unknown strings fall back to text).  Rows are read and inserted one at a
+//! time, so a history does not have to fit in memory to be restored.
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 use chrono::{DateTime, NaiveDateTime, Utc};
 use rusqlite::{Connection, OptionalExtension, params};
+use serde::de::DeserializeSeed;
 use serde::{Deserialize, Serialize};
 use tracing::{info, warn};
 
@@ -40,6 +42,8 @@ use crate::db::queries::{EPOCH_TS_PREFIX, TIMESTAMP_FORMAT, next_timestamp};
 /// Used for both export serialisation and import deserialisation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExportRow {
+    /// Exported for reference only: import inserts fresh AUTOINCREMENT ids.
+    #[serde(default)]
     pub id: i64,
     pub content: String,
     pub preview_content: String,
@@ -124,11 +128,6 @@ pub fn fetch_bookmarked(conn: &Connection) -> Result<Vec<ExportRow>> {
 
 // ── JSON ──────────────────────────────────────────────────────────────────────
 
-/// Upper bound on an import payload. A much larger export file would be fully
-/// materialised into `Vec<ExportRow>` in memory (several times the file size),
-/// so anything over this is treated as a mistake rather than a real history.
-const MAX_IMPORT_BYTES: u64 = 256 * 1024 * 1024;
-
 /// Normalise an imported clip `Timestamp` to the canonical app format — UTC,
 /// space-separated `YYYY-MM-DD HH:MM:SS[.ffffff]`. The ordering, reorder and
 /// retention queries compare `Timestamp` strings lexicographically and assume
@@ -197,35 +196,20 @@ pub fn is_valid_content_hash(h: &str) -> bool {
 /// a large import that was N*2 unbatched round-trips (each one committing
 /// individually in WAL mode) instead of one lookup pass plus one transaction.
 pub fn import_json(conn: &Connection, data: &[u8]) -> Result<u64> {
-    if data.len() as u64 > MAX_IMPORT_BYTES {
-        bail!(
-            "import payload of {} bytes exceeds the {MAX_IMPORT_BYTES} byte limit",
-            data.len()
-        );
-    }
-    let rows: Vec<ExportRow> = serde_json::from_slice(data).context("parse import JSON")?;
-    import_rows(conn, rows)
+    import_reader(conn, data)
 }
 
-/// Insert already-parsed rows. Split from [`import_json`] so the file path can
-/// parse outside the DB lock — parsing a large history takes long enough to
-/// stall clipboard capture otherwise.
-fn import_rows(conn: &Connection, rows: Vec<ExportRow>) -> Result<u64> {
-    let mut existing_hashes: std::collections::HashSet<String> = {
-        let mut stmt = conn.prepare_cached("SELECT ContentHash FROM clips")?;
-        stmt.query_map([], |row| row.get::<_, String>(0))?
-            .collect::<std::result::Result<_, _>>()
-            .context("fetch existing hashes for import")?
-    };
+/// Streaming state for one import: the open transaction, the hashes already
+/// stored, the running insert count and one "now" used to clamp bad timestamps.
+struct ImportState<'tx, 'conn> {
+    tx: &'tx rusqlite::Transaction<'conn>,
+    existing_hashes: &'tx mut std::collections::HashSet<String>,
+    inserted: &'tx mut u64,
+    import_now: String,
+}
 
-    // Single transaction; an uncommitted drop rolls back automatically, so no
-    // manual ROLLBACK arms are needed on the error paths below.
-    let tx = conn
-        .unchecked_transaction()
-        .context("begin import transaction")?;
-
-    let mut inserted: u64 = 0;
-    for row in &rows {
+impl ImportState<'_, '_> {
+    fn insert(&mut self, row: ExportRow) -> Result<()> {
         // Reject hashes that are not canonical 64-char lowercase SHA-256 hex.
         // A malformed hash would poison the thumbnail/favicon filename keys
         // derived from its first `HASH_FILENAME_PREFIX_LEN` bytes and could
@@ -236,32 +220,41 @@ fn import_rows(conn: &Connection, rows: Vec<ExportRow>) -> Result<u64> {
                 "import: skipping clip with invalid content_hash {:?} (expected 64 lowercase hex chars)",
                 row.content_hash
             );
-            continue;
+            return Ok(());
         }
 
         // Also catches duplicate hashes *within* the same import file, since
         // the set is updated below as each row is inserted.
-        if existing_hashes.contains(&row.content_hash) {
-            continue;
+        if self.existing_hashes.contains(&row.content_hash) {
+            return Ok(());
         }
 
         // Normalise the imported timestamp to the canonical shape before
-        // storing (see `normalize_timestamp`); unparseable values fall back
-        // to the current time rather than failing the whole import.
+        // storing (see `normalize_timestamp`). A value beyond `import_now`
+        // would sort above every new clip and never fall below the retention
+        // cutoff, so it is clamped instead of stored.
         let timestamp = match normalize_timestamp(&row.timestamp) {
-            Some(ts) => ts,
+            Some(ts) if ts <= self.import_now => ts,
+            Some(ts) => {
+                warn!(
+                    "import: future timestamp {:?} for clip hash {:?}; using current time",
+                    ts, row.content_hash
+                );
+                self.import_now.clone()
+            }
             None => {
                 warn!(
                     "import: unparseable timestamp {:?} for clip hash {:?}; using current time",
                     row.timestamp, row.content_hash
                 );
-                next_timestamp()
+                self.import_now.clone()
             }
         };
         // Two clips with the same Timestamp make move up/down a no-op (the swap
         // writes equal strings). The app never writes ties, so only a foreign
         // export can hit this: give the later row a fresh timestamp.
-        let timestamp = if tx
+        let timestamp = if self
+            .tx
             .query_row(
                 "SELECT 1 FROM clips WHERE Timestamp = ?1",
                 params![&timestamp],
@@ -287,34 +280,106 @@ fn import_rows(conn: &Connection, rows: Vec<ExportRow>) -> Result<u64> {
             );
         }
 
-        tx.execute(
-            "INSERT INTO clips (
+        self.tx
+            .execute(
+                "INSERT INTO clips (
                 Content, PreviewContent, ContentHash, ClipType, SourceApp,
                 Timestamp, IsBookmarked, WasTrimmed, HasLeadingWhitespace,
                 IsMultiline, SizeInBytes, PasteCount, Tags, IsFileUri, IsDeadhead
              ) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15)",
-            params![
-                row.content,
-                row.preview_content,
-                row.content_hash,
-                clip_type,
-                row.source_app,
-                timestamp,
-                row.is_bookmarked as i32,
-                row.was_trimmed as i32,
-                row.has_leading_whitespace as i32,
-                row.is_multiline as i32,
-                row.size_in_bytes,
-                row.paste_count,
-                row.tags,
-                row.is_file_uri as i32,
-                row.is_deadhead as i32,
-            ],
-        )
-        .with_context(|| format!("insert imported clip hash={}", row.content_hash))?;
+                params![
+                    row.content,
+                    row.preview_content,
+                    row.content_hash,
+                    clip_type,
+                    row.source_app,
+                    timestamp,
+                    row.is_bookmarked as i32,
+                    row.was_trimmed as i32,
+                    row.has_leading_whitespace as i32,
+                    row.is_multiline as i32,
+                    row.size_in_bytes,
+                    row.paste_count,
+                    row.tags,
+                    row.is_file_uri as i32,
+                    row.is_deadhead as i32,
+                ],
+            )
+            .with_context(|| format!("insert imported clip hash={}", row.content_hash))?;
 
-        existing_hashes.insert(row.content_hash.clone());
-        inserted += 1;
+        self.existing_hashes.insert(row.content_hash.clone());
+        *self.inserted += 1;
+        Ok(())
+    }
+}
+
+/// Fills [`ImportState`] from the elements of the top-level JSON array, one
+/// row at a time, so an import never has to materialise the whole history.
+struct ImportSeed<'a, 'tx, 'conn>(&'a mut ImportState<'tx, 'conn>);
+
+impl<'de, 'a, 'tx, 'conn> serde::de::DeserializeSeed<'de> for ImportSeed<'a, 'tx, 'conn> {
+    type Value = ();
+
+    fn deserialize<D: serde::Deserializer<'de>>(
+        self,
+        deserializer: D,
+    ) -> std::result::Result<(), D::Error> {
+        deserializer.deserialize_seq(ImportVisitor(self.0))
+    }
+}
+
+struct ImportVisitor<'a, 'tx, 'conn>(&'a mut ImportState<'tx, 'conn>);
+
+impl<'de, 'a, 'tx, 'conn> serde::de::Visitor<'de> for ImportVisitor<'a, 'tx, 'conn> {
+    type Value = ();
+
+    fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.write_str("a JSON array of clips")
+    }
+
+    fn visit_seq<A: serde::de::SeqAccess<'de>>(
+        self,
+        mut seq: A,
+    ) -> std::result::Result<(), A::Error> {
+        while let Some(row) = seq.next_element::<ExportRow>()? {
+            self.0.insert(row).map_err(serde::de::Error::custom)?;
+        }
+        Ok(())
+    }
+}
+
+/// Stream rows from `reader` into one transaction, skipping invalid or
+/// already-stored hashes. The whole import is atomic: any parse or insert
+/// error rolls back every row.
+fn import_reader<R: std::io::Read>(conn: &Connection, reader: R) -> Result<u64> {
+    let mut existing_hashes: std::collections::HashSet<String> = {
+        let mut stmt = conn.prepare_cached("SELECT ContentHash FROM clips")?;
+        stmt.query_map([], |row| row.get::<_, String>(0))?
+            .collect::<std::result::Result<_, _>>()
+            .context("fetch existing hashes for import")?
+    };
+
+    // Single transaction; an uncommitted drop rolls back automatically, so no
+    // manual ROLLBACK arms are needed on the error paths below.
+    let tx = conn
+        .unchecked_transaction()
+        .context("begin import transaction")?;
+
+    let mut inserted: u64 = 0;
+    {
+        let mut state = ImportState {
+            tx: &tx,
+            existing_hashes: &mut existing_hashes,
+            inserted: &mut inserted,
+            import_now: next_timestamp(),
+        };
+        let mut deserializer = serde_json::Deserializer::from_reader(reader);
+        ImportSeed(&mut state)
+            .deserialize(&mut deserializer)
+            .map_err(|e| anyhow::anyhow!("parse import JSON: {e}"))?;
+        deserializer
+            .end()
+            .map_err(|e| anyhow::anyhow!("parse import JSON: {e}"))?;
     }
 
     if inserted > 0 {
@@ -328,7 +393,7 @@ fn import_rows(conn: &Connection, rows: Vec<ExportRow>) -> Result<u64> {
 
     tx.commit().context("commit import transaction")?;
 
-    info!("import_json: {} / {} rows inserted", inserted, rows.len());
+    info!("import_json: {inserted} rows inserted");
     Ok(inserted)
 }
 
@@ -360,10 +425,20 @@ async fn write_export(rows: Vec<ExportRow>, path: &std::path::Path, label: &str)
         .context("serialise clips task panicked")?
         .context("serialise clips to JSON")?;
     let len = bytes.len();
-    tokio::fs::write(path, &bytes)
-        .await
-        .with_context(|| format!("write {label} to {:?}", path))?;
-    info!("{label}: wrote {len} bytes to {:?}", path);
+    // Write beside the target and rename, so a failed write (disk full, kill)
+    // cannot destroy an earlier export at the same path.
+    let mut tmp = path.as_os_str().to_owned();
+    tmp.push(".tmp");
+    let tmp = std::path::PathBuf::from(tmp);
+    if let Err(e) = tokio::fs::write(&tmp, &bytes).await {
+        let _ = tokio::fs::remove_file(&tmp).await;
+        return Err(e).with_context(|| format!("write {label} to {tmp:?}"));
+    }
+    if let Err(e) = tokio::fs::rename(&tmp, path).await {
+        let _ = tokio::fs::remove_file(&tmp).await;
+        return Err(e).with_context(|| format!("rename {tmp:?} to {path:?}"));
+    }
+    info!("{label}: wrote {len} bytes to {path:?}");
     Ok(len)
 }
 
@@ -372,28 +447,13 @@ pub async fn import_from_file(
     db: &std::sync::Arc<crate::db::DbPool>,
     path: &std::path::Path,
 ) -> Result<u64> {
-    // Check the size before reading so an oversized file is never loaded into
-    // memory at all (see `MAX_IMPORT_BYTES`).
-    let size = tokio::fs::metadata(path)
+    // Streamed row by row, so the file never has to fit in memory. Reading
+    // happens under the DB lock, like the inserts it feeds.
+    let file = tokio::fs::File::open(path)
         .await
-        .with_context(|| format!("stat import file {:?}", path))?
-        .len();
-    if size > MAX_IMPORT_BYTES {
-        bail!(
-            "import file {:?} is {size} bytes, exceeding the {MAX_IMPORT_BYTES} byte limit",
-            path
-        );
-    }
-    let bytes = tokio::fs::read(path)
-        .await
-        .with_context(|| format!("read import file {:?}", path))?;
-    // Parse off the DB lock and off the async worker: a full history is
-    // hundreds of MB of JSON.
-    let rows: Vec<ExportRow> = tokio::task::spawn_blocking(move || serde_json::from_slice(&bytes))
-        .await
-        .context("parse import task panicked")?
-        .context("parse import JSON")?;
-    db.with(move |conn| import_rows(conn, rows)).await
+        .with_context(|| format!("open import file {:?}", path))?;
+    let file = std::io::BufReader::new(file.into_std().await);
+    db.with(move |conn| import_reader(conn, file)).await
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

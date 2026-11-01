@@ -524,29 +524,47 @@ async fn import_normalizes_unknown_and_legacy_clip_types() {
     clean_up(&dir);
 }
 
-/// An oversized import file is refused before it is read or materialised.
+/// A timestamp in the future must be clamped to now: retention compares
+/// `Timestamp` against a cutoff, so a future date would never age out and
+/// would sort above every new clip.
 #[tokio::test]
-async fn import_rejects_oversized_files() {
-    const ONE_OVER_LIMIT: u64 = 256 * 1024 * 1024 + 1;
-
-    let dir = std::env::temp_dir().join(format!("cliptoo_impsize_{}", std::process::id()));
+async fn import_clamps_future_timestamps_to_now() {
+    let dir = std::env::temp_dir().join(format!("cliptoo_impfuture_{}", std::process::id()));
     clean_up(&dir);
     let db = Arc::new(DbPool::open(&dir).unwrap());
 
-    // Sparse file: reports the huge length without allocating any real space.
-    let path = dir.with_extension("big.json");
-    let f = std::fs::File::create(&path).unwrap();
-    f.set_len(ONE_OVER_LIMIT).unwrap();
-    drop(f);
-
-    let err = cliptoo_core::export::import_from_file(&db, &path)
+    let before = cliptoo_core::db::queries::next_timestamp();
+    let json = r#"[
+        {"id": 1, "content": "from the future", "preview_content": "from the future",
+         "content_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+         "clip_type": "text", "source_app": null,
+         "timestamp": "2999-01-01 00:00:00", "is_bookmarked": false,
+         "was_trimmed": false, "has_leading_whitespace": false,
+         "is_multiline": false, "size_in_bytes": 15, "paste_count": 0, "tags": null}
+    ]"#;
+    let inserted = db
+        .with(|conn| cliptoo_core::export::import_json(conn, json.as_bytes()))
         .await
-        .unwrap_err();
+        .unwrap();
+    assert_eq!(inserted, 1);
+
+    let ts: String = db
+        .with(|conn| {
+            let t = conn.query_row("SELECT Timestamp FROM clips WHERE Id = 1", [], |row| {
+                row.get(0)
+            })?;
+            Ok(t)
+        })
+        .await
+        .unwrap();
     assert!(
-        err.to_string().contains("byte limit"),
-        "unexpected error: {err}"
+        ts.as_str() > before.as_str(),
+        "future timestamp must be replaced with the import time, got {ts:?}"
+    );
+    assert!(
+        ts.as_str() < "2100-01-01 00:00:00",
+        "stored timestamp must not stay in the future, got {ts:?}"
     );
 
     clean_up(&dir);
-    let _ = std::fs::remove_file(&path);
 }
