@@ -62,8 +62,9 @@ fn decode_image(data: &[u8]) -> Result<image::DynamicImage> {
 /// under the byte cap can still declare gigapixel dimensions, so these limits
 /// are what actually protects the process.
 const MAX_DECODE_DIM: u32 = 16_384;
-/// Largest decoded buffer accepted, in bytes (a 16k x 4k RGBA frame fits).
-const MAX_DECODE_ALLOC: u64 = 256 * 1024 * 1024;
+/// Largest decoded buffer accepted, in bytes: 96 MiB, roughly a 24 MP RGBA
+/// frame. Anything bigger is refused rather than decoded and then downscaled.
+const MAX_DECODE_ALLOC: u64 = 96 * 1024 * 1024;
 
 fn decode_limits() -> image::Limits {
     let mut limits = image::Limits::default();
