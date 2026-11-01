@@ -16,7 +16,7 @@ use crate::source_app::ActiveWindowCache;
 
 use super::ClipboardPayload;
 use super::is_blacklisted;
-use super::reader::poll_clipboard;
+use super::reader::{LastHashes, poll_clipboard};
 use crate::helpers::refresh_clips_live;
 
 /// Read the current blacklist from shared state and test `source_app` against
@@ -78,11 +78,7 @@ pub async fn run_listener(
     active_window: ActiveWindowCache,
     watcher_connected: Arc<std::sync::atomic::AtomicBool>,
 ) -> Result<()> {
-    let mut last_text_hash: Option<String> = None;
-    let mut last_rtf_hash: Option<String> = None;
-    let mut last_html_hash: Option<String> = None;
-    let mut last_image_hash: Option<String> = None;
-    let mut last_file_hash: Option<String> = None;
+    let mut hashes = LastHashes::default();
     let mut last_mime_types: Option<Vec<String>> = None;
     let mut last_full_read: Option<Instant> = None;
     let mut last_image_probe: Option<Instant> = None;
@@ -145,11 +141,7 @@ pub async fn run_listener(
                 note_read_recovered(&mut read_failed);
                 // An empty clipboard at startup seeds the baseline too.
                 baseline = false;
-                last_text_hash = None;
-                last_rtf_hash = None;
-                last_html_hash = None;
-                last_image_hash = None;
-                last_file_hash = None;
+                hashes.reset();
                 last_mime_types = None;
                 last_full_read = None;
                 last_image_probe = None;
@@ -187,11 +179,7 @@ pub async fn run_listener(
             // accessory text being mistaken for a new clip.
             // Gated on `!baseline`: the forced baseline re-reads re-observe the
             // same startup content and must keep their seeds (see below).
-            last_text_hash = None;
-            last_rtf_hash = None;
-            last_html_hash = None;
-            last_image_hash = None;
-            last_file_hash = None;
+            hashes.reset();
         }
 
         if !changed && !stale {
@@ -222,16 +210,7 @@ pub async fn run_listener(
         // text/plain (URL/alt text), and reading text first would record a
         // spurious Link/Text clip while deferring the image to a stale read.
         // `probe_images` gates the image download (see IMAGE_RECHECK_INTERVAL).
-        let result = poll_clipboard(
-            &mut last_text_hash,
-            &mut last_rtf_hash,
-            &mut last_html_hash,
-            &mut last_image_hash,
-            &mut last_file_hash,
-            mime_types.as_deref(),
-            probe_images,
-        )
-        .await;
+        let result = poll_clipboard(&mut hashes, mime_types.as_deref(), probe_images).await;
 
         // A probe that found nothing new (image unchanged/absent) starts the
         // slow recheck window; a probe that yielded a fresh image leaves the
@@ -281,13 +260,17 @@ pub async fn run_listener(
                 };
                 debug!("clipboard: source app {source_app:?}");
 
-                let sup_hash = match &payload {
+                // An image rendered back to the clipboard by a paste is written
+                // as a text/uri-list of its path, which the uri-list probe
+                // catches first; no image-bytes hash is ever registered.
+                let suppressed = match &payload {
                     ClipboardPayload::Text { sup_hash, .. }
-                    | ClipboardPayload::FileUri { sup_hash, .. }
-                    | ClipboardPayload::Image { sup_hash, .. } => *sup_hash,
+                    | ClipboardPayload::FileUri { sup_hash, .. } => {
+                        *sup_hash != 0 && suppression.check_and_remove(*sup_hash)
+                    }
+                    ClipboardPayload::Image { .. } => false,
                 };
-
-                if sup_hash != 0 && suppression.check_and_remove(sup_hash) {
+                if suppressed {
                     debug!("suppressed re-ingest of own paste");
                     continue;
                 }
@@ -743,7 +726,6 @@ mod tests {
         assert!(baseline_covers_selection(&ClipboardPayload::Image {
             hash: String::new(),
             data: Vec::new(),
-            sup_hash: 0,
             mime: String::new(),
         }));
     }
