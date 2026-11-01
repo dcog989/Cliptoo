@@ -22,6 +22,10 @@ pub use deadhead::{deadhead_collect, delete_deadheads, mark_deadheads};
 pub use reclassify::reclassify_all;
 pub use retention::{RetentionConfig, clear_history, retention};
 
+/// Longest wait before the first scheduled pass. A short session still gets
+/// one; a long-running daemon waits only this long once.
+const FIRST_PASS_DELAY_SECS: u64 = 5 * 60;
+
 // ── Public API ────────────────────────────────────────────────────────────────
 
 /// Compact the database file in place. Retention deletes leave pages on the
@@ -89,8 +93,12 @@ pub fn spawn_scheduler(
     interval_secs: u64,
 ) {
     tokio::spawn(async move {
-        // Stagger first run by one interval so startup isn't burdened.
-        tokio::time::sleep(std::time::Duration::from_secs(interval_secs)).await;
+        // First run waits only a few minutes, not the whole interval: a user
+        // who runs the app for shorter sessions than the interval would
+        // otherwise never prune. Bounded by `interval_secs` so tests (and any
+        // short interval) still get a first pass promptly.
+        let first_delay = interval_secs.min(FIRST_PASS_DELAY_SECS);
+        tokio::time::sleep(std::time::Duration::from_secs(first_delay)).await;
         loop {
             let cfg = retention_rx.borrow().clone();
             if let Err(e) =
