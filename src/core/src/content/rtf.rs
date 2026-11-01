@@ -98,7 +98,9 @@ pub fn strip_rtf(rtf: &str) -> String {
                         "par" | "line" => out.push(b'\n'),
                         "tab" => out.push(b'\t'),
                         "u" if num_start < i => {
-                            let unit = (if negative { number + 65536 } else { number }) as u16;
+                            // `\uN` is signed 16-bit: values above 0x7FFF are
+                            // written as `-N`, meaning `65536 - N`.
+                            let unit = (if negative { 65536 - number } else { number }) as u16;
                             push_unicode_unit(&mut out, &mut pending_high, unit);
                             // `\uN` is followed by a short fallback for apps
                             // without Unicode support (usually `?`). Skip it —
@@ -226,6 +228,13 @@ mod tests {
         assert_eq!(strip_rtf(r"{\rtf1 \u8364?}"), "€");
         assert_eq!(strip_rtf(r"{\rtf1 \u8364 ?}"), "€");
         assert_eq!(strip_rtf(r"{\rtf1 caf\u233?}"), "café");
+    }
+
+    #[test]
+    fn decodes_negative_unicode_escapes() {
+        // Values above 0x7FFF are written as negative 16-bit numbers.
+        assert_eq!(strip_rtf(r"{\rtf1 \u-1?}"), "\u{ffff}");
+        assert_eq!(strip_rtf(r"{\rtf1 \u-29624?}"), "\u{8c48}");
     }
 
     #[test]
