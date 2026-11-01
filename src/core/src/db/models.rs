@@ -1,9 +1,6 @@
-use serde::{Deserialize, Serialize};
-
 /// All valid ClipType string values stored in the `clips.ClipType` column.
 /// Stored as their &str equivalents; see `ClipType::as_str()`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ClipType {
     Text,
     /// A text clip whose content is clearly a file path (to a folder or file).
@@ -133,7 +130,7 @@ impl ClipType {
 
 /// Lightweight row struct returned to the Slint UI via VecModel<ClipData>.
 /// Full `Content` is intentionally omitted; use `PreviewContent` for list display.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct ClipData {
     pub id: i64,
     pub preview_content: String,

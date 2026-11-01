@@ -2,8 +2,6 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
-const SETTINGS_VERSION: u32 = 1;
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SendToApp {
     pub name: String,
@@ -12,8 +10,6 @@ pub struct SendToApp {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Settings {
-    pub version: u32,
-
     // Hotkeys
     pub hotkey: String,
 
@@ -92,7 +88,6 @@ pub struct Settings {
 impl Default for Settings {
     fn default() -> Self {
         Self {
-            version: SETTINGS_VERSION,
             hotkey: "Ctrl+Alt+Q".to_string(),
             window_width: 460.0,
             window_height: 600.0,

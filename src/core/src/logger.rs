@@ -76,7 +76,7 @@ pub fn set_level(level: LevelFilter) {
 
 /// Must be kept alive for the entire program lifetime.
 pub struct LogGuard {
-    _guard: tracing_appender::non_blocking::WorkerGuard,
+    _guard: Option<tracing_appender::non_blocking::WorkerGuard>,
 }
 
 /// Initialise tracing:
@@ -91,14 +91,6 @@ pub struct LogGuard {
 pub fn init(logs_dir: &Path, level: LevelFilter) -> LogGuard {
     cleanup_old_logs(logs_dir, LOG_RETENTION_DAYS);
     FILE_LEVEL.store(level_to_u8(level), Ordering::Relaxed);
-
-    let file_appender = RollingFileAppender::builder()
-        .rotation(Rotation::DAILY)
-        .filename_prefix("cliptoo")
-        .filename_suffix("log")
-        .build(logs_dir)
-        .expect("initializing rolling file appender failed");
-    let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
 
     // If RUST_LOG is set to an invalid value it's silently ignored (can't log
     // before the subscriber is installed). Use e.g. RUST_LOG=cliptoo=debug.
@@ -116,10 +108,27 @@ pub fn init(logs_dir: &Path, level: LevelFilter) -> LogGuard {
 
     let file_filter = filter_fn(|metadata| file_level_allows(metadata.target(), *metadata.level()));
 
-    let file_layer = tracing_subscriber::fmt::layer()
-        .with_writer(non_blocking)
-        .with_ansi(false)
-        .with_filter(file_filter);
+    // A log file that cannot be opened must not take the app down: a read-only
+    // or full state dir costs logs, not the clipboard manager.
+    let (file_layer, guard) = match RollingFileAppender::builder()
+        .rotation(Rotation::DAILY)
+        .filename_prefix("cliptoo")
+        .filename_suffix("log")
+        .build(logs_dir)
+    {
+        Ok(appender) => {
+            let (non_blocking, guard) = tracing_appender::non_blocking(appender);
+            let layer = tracing_subscriber::fmt::layer()
+                .with_writer(non_blocking)
+                .with_ansi(false)
+                .with_filter(file_filter);
+            (Some(layer), Some(guard))
+        }
+        Err(e) => {
+            eprintln!("cliptoo: cannot open log file in {logs_dir:?}: {e}");
+            (None, None)
+        }
+    };
 
     Registry::default()
         .with(stderr_layer)
