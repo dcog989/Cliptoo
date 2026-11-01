@@ -149,6 +149,15 @@ fn clean_up(dir: &std::path::Path) {
     let _ = std::fs::remove_file(dir.with_extension("shm"));
 }
 
+/// Backdate a cache file so the prune pass does not treat it as a capture that
+/// is still being written (see `maintenance::cache`'s recent-file guard).
+fn backdate(path: &std::path::Path) {
+    let file = std::fs::OpenOptions::new().write(true).open(path).unwrap();
+    let old = std::time::SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(3600);
+    file.set_times(std::fs::FileTimes::new().set_modified(old))
+        .unwrap();
+}
+
 /// "Move to bottom" is a keep signal: retention must sweep a genuinely old
 /// clip while sparing the pinned one, even though the pinned clip's epoch
 /// sentinel timestamp is older than any age cutoff. Both the age and count
@@ -606,7 +615,9 @@ async fn prune_cache_tolerates_multibyte_content_hash() {
     std::fs::create_dir_all(&favicons).unwrap();
     std::fs::create_dir_all(&images).unwrap();
     // A genuine orphan (16-char hex prefix, no matching DB row) must be pruned.
-    std::fs::write(thumbs.join("deadbeefdeadbeef.webp"), b"x").unwrap();
+    let orphan = thumbs.join("deadbeefdeadbeef.webp");
+    std::fs::write(&orphan, b"x").unwrap();
+    backdate(&orphan);
 
     let pruned = maintenance::prune_cache(&db, &thumbs, &favicons, &images)
         .await
@@ -647,6 +658,7 @@ async fn prune_cache_keeps_live_images_and_drops_orphans() {
     let orphan = images.join("deadbeefdeadbeef.png");
     std::fs::write(&live, b"live").unwrap();
     std::fs::write(&orphan, b"gone").unwrap();
+    backdate(&orphan);
 
     let pruned = maintenance::prune_cache(&db, &thumbs, &favicons, &images)
         .await
@@ -654,6 +666,39 @@ async fn prune_cache_keeps_live_images_and_drops_orphans() {
     assert_eq!(pruned, 1, "only the orphan image is removed");
     assert!(live.exists(), "a live clip's full-size image is kept");
     assert!(!orphan.exists());
+
+    clean_up(&dir);
+    for d in [&thumbs, &favicons, &images] {
+        let _ = std::fs::remove_dir_all(d);
+    }
+}
+
+/// A capture writes its PNG and thumbnails before it inserts the row, so a file
+/// that appeared during the pass has no row yet. It must survive; the next
+/// pass removes it if it stays orphaned.
+#[tokio::test]
+async fn prune_cache_spares_recently_written_files() {
+    let dir = std::env::temp_dir().join(format!("cliptoo_prunefresh_{}", std::process::id()));
+    clean_up(&dir);
+    let db = Arc::new(DbPool::open(&dir).unwrap());
+
+    let thumbs =
+        std::env::temp_dir().join(format!("cliptoo_prunefresh_thumbs_{}", std::process::id()));
+    let favicons =
+        std::env::temp_dir().join(format!("cliptoo_prunefresh_favs_{}", std::process::id()));
+    let images =
+        std::env::temp_dir().join(format!("cliptoo_prunefresh_images_{}", std::process::id()));
+    for d in [&thumbs, &favicons, &images] {
+        std::fs::create_dir_all(d).unwrap();
+    }
+    let fresh = images.join("fedcba9876543210.png");
+    std::fs::write(&fresh, b"in flight").unwrap();
+
+    let pruned = maintenance::prune_cache(&db, &thumbs, &favicons, &images)
+        .await
+        .unwrap();
+    assert_eq!(pruned, 0, "a just-written file is not an orphan yet");
+    assert!(fresh.exists());
 
     clean_up(&dir);
     for d in [&thumbs, &favicons, &images] {

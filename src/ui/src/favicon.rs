@@ -371,8 +371,9 @@ fn looks_like_svg(bytes: &[u8]) -> bool {
         .is_some_and(|s| s.starts_with("<svg") || s.starts_with("<?xml"))
 }
 
-/// Prefix length of the URL hash used as the title cache key.
-const TITLE_HASH_PREFIX_LEN: usize = 16;
+/// Prefix length of the URL hash used as the title cache key. Shared with the
+/// maintenance sweep, which must recognise live title files as live.
+const TITLE_HASH_PREFIX_LEN: usize = cliptoo_core::image::HASH_FILENAME_PREFIX_LEN;
 
 /// Title cache file for one page. Keyed by the whole URL, not the domain: two
 /// pages on the same site must not share (or overwrite) each other's title.

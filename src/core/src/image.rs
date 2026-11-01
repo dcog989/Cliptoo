@@ -43,11 +43,11 @@ const SVG_RENDER_SIZE: u32 = 1024;
 //   list-cell:  `{thumbnails_dir}/{hash[..HASH_FILENAME_PREFIX_LEN]}.webp`
 //   preview:    `{thumbnails_dir}/{hash[..HASH_FILENAME_PREFIX_LEN]}_preview.webp`
 //
-// The two directories MUST be distinct so that `prune_cache` in maintenance.rs
-// (which is handed `thumbnails_dir` and `favicons_dir`, never `images_dir`)
-// never touches the full-res PNGs.
-// Callers in `clipboard.rs` pass `images_dir` to `store_image` and
-// `thumbnails_dir` to `store_both_thumbnails`, satisfying this invariant.
+// The two directories MUST be distinct: `prune_cache` sweeps each dir it is
+// handed and deletes hash-named files with no matching row, and a `file_image`
+// clip's Content points at the full-res PNG. Callers in `clipboard.rs` pass
+// `images_dir` to `store_image` and `thumbnails_dir` to
+// `store_both_thumbnails`, satisfying this invariant.
 
 // ── Decode ────────────────────────────────────────────────────────────────────
 

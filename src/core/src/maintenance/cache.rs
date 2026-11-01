@@ -2,46 +2,63 @@
 //! record.
 
 use anyhow::Result;
-use rusqlite::Connection;
+use rusqlite::{Connection, params};
 use std::collections::HashSet;
 use std::path::Path;
 use std::sync::Arc;
+use std::time::{Duration, SystemTime};
 use tracing::warn;
 
+use crate::content::hash::sha256_hex_and_prefix;
 use crate::db::DbPool;
+use crate::db::models::ClipType;
 use crate::image::HASH_FILENAME_PREFIX_LEN;
 use crate::url::extract_domain;
 
-/// Collect the favicon cache keys still referenced by a stored Link clip.
-/// Favicons are keyed by domain, not content hash, so membership here is
-/// checked against Link-clip domains rather than hash prefixes.
-fn known_favicon_domains(conn: &Connection) -> Result<HashSet<String>> {
-    let mut stmt = conn.prepare_cached("SELECT Content FROM clips WHERE ClipType = 'link'")?;
-    let mut domains = HashSet::new();
-    for row in stmt.query_map([], |row| row.get::<_, Option<String>>(0))? {
+/// Files touched since (pass start - this slack) are left alone. An image
+/// capture writes its PNG and thumbnails *before* it inserts the row, so a
+/// file created while this pass runs has no DB row yet and must not be
+/// deleted; the next pass cleans it if it stays orphaned.
+const RECENT_FILE_SLACK: Duration = Duration::from_secs(60);
+
+/// Collect the cache keys still referenced by a stored Link clip: the favicon
+/// domain, and the first [`HASH_FILENAME_PREFIX_LEN`] chars of the SHA-256 of
+/// the URL, which is the page-title cache key (see `ui/src/favicon.rs`). A
+/// title file is not keyed by domain — matching it against domains would prune
+/// every title on every pass.
+fn known_favicon_keys(conn: &Connection) -> Result<HashSet<String>> {
+    let mut stmt = conn.prepare_cached("SELECT Content FROM clips WHERE ClipType = ?1")?;
+    let mut keys = HashSet::new();
+    for row in stmt.query_map(params![ClipType::Link.as_str()], |row| {
+        row.get::<_, Option<String>>(0)
+    })? {
         match row {
             Ok(Some(content)) => {
                 if let Some(domain) = extract_domain(&content) {
-                    domains.insert(domain);
+                    keys.insert(domain);
+                }
+                let (hash, _) = sha256_hex_and_prefix(&content);
+                if let Some(stem) = hash.get(..HASH_FILENAME_PREFIX_LEN) {
+                    keys.insert(stem.to_string());
                 }
             }
             Ok(None) => {}
             Err(e) => warn!("prune_cache: link content read error: {e}"),
         }
     }
-    Ok(domains)
+    Ok(keys)
 }
 
 /// True when a favicon-cache filename belongs to no stored Link clip.
 ///
 /// Cache files are `{domain}.webp`, `{domain}.dark.webp` (dark-theme variant)
-/// and `{domain}.title` (cached page title). A file is orphaned when none of
-/// its candidate domain keys appears in `known_domains`. Candidates cover the
-/// `.dark` suffix ambiguity (a domain that itself ends in `.dark`) so a live
-/// file is never pruned because of a suffix that was appended to its name.
-/// Files with unrecognised extensions are treated as orphans — the directory
-/// is fully managed by the favicon cache.
-fn favicon_is_orphan(name: &str, known_domains: &HashSet<String>) -> bool {
+/// and `{url-hash}.title` (cached page title). A file is orphaned when none of
+/// its candidate keys appears in `known`. Candidates for the dark variant cover
+/// the suffix ambiguity (a domain that itself ends in `.dark`) so a live file
+/// is never pruned because of a suffix that was appended to its name. Files
+/// with unrecognised extensions are treated as orphans — the directory is
+/// fully managed by the favicon cache.
+fn favicon_is_orphan(name: &str, known: &HashSet<String>) -> bool {
     let candidates = if let Some(domain) = name.strip_suffix(".dark.webp") {
         vec![
             domain.to_string(),
@@ -49,12 +66,22 @@ fn favicon_is_orphan(name: &str, known_domains: &HashSet<String>) -> bool {
         ]
     } else if let Some(domain) = name.strip_suffix(".webp") {
         vec![domain.to_string()]
-    } else if let Some(domain) = name.strip_suffix(".title") {
-        vec![domain.to_string()]
+    } else if let Some(stem) = name.strip_suffix(".title") {
+        vec![stem.to_string()]
     } else {
         return true;
     };
-    candidates.iter().all(|c| !known_domains.contains(c))
+    candidates.iter().all(|c| !known.contains(c))
+}
+
+/// True when `entry` was written or modified so recently that it may still be
+/// mid-ingest. A metadata error is treated as recent, to keep the file.
+fn is_recent(entry: &std::fs::DirEntry, cutoff: SystemTime) -> bool {
+    entry
+        .metadata()
+        .and_then(|m| m.modified())
+        .map(|t| t >= cutoff)
+        .unwrap_or(true)
 }
 
 /// Delete thumbnail, favicon and full-size image files on disk that have no
@@ -62,21 +89,26 @@ fn favicon_is_orphan(name: &str, known_domains: &HashSet<String>) -> bool {
 ///
 /// Thumbnails and full-size images are keyed by the first 16 chars of
 /// `ContentHash`; favicon cache files are keyed by the domain of a stored Link
-/// clip — each dir is matched against its own key, so a favicon for a
-/// still-present link is never pruned (the previous hash-prefix-only match
-/// deleted every favicon on each run).
+/// clip and title files by the URL hash — each dir is matched against its own
+/// key, so a favicon for a still-present link is never pruned.
 pub async fn prune_cache(
     db: &Arc<DbPool>,
     thumbnails_dir: &Path,
     favicons_dir: &Path,
     images_dir: &Path,
 ) -> Result<u64> {
-    // Collect the 16-char hash prefixes, the Link-clip domains and the live
-    // clip ids that are still in the DB. Storing the compact keys lets both
-    // dirs use a direct HashSet::contains lookup — O(1) per file instead of
-    // O(n). The ids prune the favicon failure ledger, which is keyed by clip id
-    // and would otherwise keep a row for every clip retention deletes.
-    let (known_prefixes, known_domains, live_ids) = db
+    // Anything written this recently may belong to a capture that has not
+    // inserted its row yet (the listener writes the files first).
+    let cutoff = SystemTime::now()
+        .checked_sub(RECENT_FILE_SLACK)
+        .unwrap_or(SystemTime::UNIX_EPOCH);
+
+    // Collect the 16-char hash prefixes, the Link-clip favicon keys and the
+    // live clip ids that are still in the DB. Storing the compact keys lets
+    // both dirs use a direct HashSet::contains lookup — O(1) per file instead
+    // of O(n). The ids prune the favicon failure ledger, which is keyed by clip
+    // id and would otherwise keep a row for every clip retention deletes.
+    let (known_prefixes, known_favicon_keys, live_ids) = db
         .with(|conn| {
             let mut stmt = conn.prepare_cached("SELECT Id, ContentHash FROM clips")?;
             let mut prefixes: HashSet<String> = HashSet::new();
@@ -99,8 +131,8 @@ pub async fn prune_cache(
                     );
                 }
             }
-            let domains = known_favicon_domains(conn)?;
-            Ok((prefixes, domains, live_ids))
+            let favicon_keys = known_favicon_keys(conn)?;
+            Ok((prefixes, favicon_keys, live_ids))
         })
         .await?;
 
@@ -123,7 +155,7 @@ pub async fn prune_cache(
             }
             let stem = name.rsplit_once('.').map(|(s, _)| s).unwrap_or(&name);
             let hash_prefix = stem.strip_suffix("_preview").unwrap_or(stem);
-            if known_prefixes.contains(hash_prefix) {
+            if known_prefixes.contains(hash_prefix) || is_recent(&entry, cutoff) {
                 continue;
             }
             if let Err(e) = tokio::fs::remove_file(entry.path()).await {
@@ -142,7 +174,7 @@ pub async fn prune_cache(
             let name = entry.file_name();
             let name = name.to_string_lossy();
             let stem = name.rsplit_once('.').map(|(s, _)| s).unwrap_or(&name);
-            if known_prefixes.contains(stem) {
+            if known_prefixes.contains(stem) || is_recent(&entry, cutoff) {
                 continue;
             }
             if let Err(e) = tokio::fs::remove_file(entry.path()).await {
@@ -153,12 +185,12 @@ pub async fn prune_cache(
         }
     }
 
-    // Favicons are keyed by Link-clip domain, not by hash.
+    // Favicons are keyed by Link-clip domain; titles by URL hash.
     if let Ok(entries) = std::fs::read_dir(favicons_dir) {
         for entry in entries.filter_map(|e| e.ok()) {
             let fname = entry.file_name();
             let name = fname.to_string_lossy();
-            if !favicon_is_orphan(&name, &known_domains) {
+            if !favicon_is_orphan(&name, &known_favicon_keys) || is_recent(&entry, cutoff) {
                 continue;
             }
             if let Err(e) = tokio::fs::remove_file(entry.path()).await {
@@ -176,24 +208,28 @@ mod tests {
     use super::favicon_is_orphan;
     use std::collections::HashSet;
 
-    fn known(domains: &[&str]) -> HashSet<String> {
-        domains.iter().map(|d| d.to_string()).collect()
+    /// `known` holds link domains plus 16-char URL-hash stems.
+    fn known(keys: &[&str]) -> HashSet<String> {
+        keys.iter().map(|d| d.to_string()).collect()
     }
 
     #[test]
-    fn keeps_favicons_for_live_link_domains() {
-        let set = known(&["github.com", "example.com"]);
+    fn keeps_favicons_for_live_link_keys() {
+        let set = known(&["github.com", "example.com", "0123456789abcdef"]);
         assert!(!favicon_is_orphan("github.com.webp", &set));
         assert!(!favicon_is_orphan("github.com.dark.webp", &set));
-        assert!(!favicon_is_orphan("example.com.title", &set));
+        assert!(
+            !favicon_is_orphan("0123456789abcdef.title", &set),
+            "title files are keyed by the first 16 chars of the URL hash"
+        );
     }
 
     #[test]
-    fn prunes_favicons_whose_domain_is_gone() {
+    fn prunes_favicons_whose_key_is_gone() {
         let set = known(&["github.com"]);
         assert!(favicon_is_orphan("example.com.webp", &set));
         assert!(favicon_is_orphan("example.com.dark.webp", &set));
-        assert!(favicon_is_orphan("example.com.title", &set));
+        assert!(favicon_is_orphan("0123456789abcdef.title", &set));
         assert!(
             favicon_is_orphan("github.com", &set),
             "bare name is not a cache file"
