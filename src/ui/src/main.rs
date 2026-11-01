@@ -227,7 +227,8 @@ async fn main() -> Result<()> {
     let active_window_cache = source_app::spawn_active_window_tracker();
     let (selection_tx, selection_rx) =
         tokio::sync::mpsc::channel(clipboard::SELECTION_CHANNEL_CAPACITY);
-    clipboard::spawn_clipboard_watcher(active_window_cache.clone(), selection_tx);
+    let watcher_connected =
+        clipboard::spawn_clipboard_watcher(active_window_cache.clone(), selection_tx);
     clipboard::spawn_listener(
         db.clone(),
         ui.as_weak(),
@@ -239,6 +240,7 @@ async fn main() -> Result<()> {
         image_preview_size.clone(),
         selection_rx,
         active_window_cache,
+        watcher_connected,
     );
 
     // Populate the clip list from history on startup. The listener no longer

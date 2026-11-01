@@ -13,6 +13,8 @@
 //! KWin exposes `zwlr_data_control_manager_v1` (and `ext_data_control_v1` on
 //! newer Plasma); both are supported here, preferring the `ext` variant.
 
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use tokio::sync::mpsc;
@@ -47,26 +49,38 @@ const RECONNECT_DELAY: Duration = Duration::from_secs(5);
 /// forever: a missing protocol or a lost connection only downgrades
 /// attribution to the listener's poll+cache fallback for one
 /// `RECONNECT_DELAY` window at a time, it never permanently kills the watcher.
-pub fn spawn_clipboard_watcher(source_app: ActiveWindowCache, notifier: SelectionNotifier) {
+///
+/// The returned flag is true while a data-control device is live. The listener
+/// uses it to decide whether an unchanged-looking image needs a periodic
+/// re-read: with the watcher up, every copy already wakes the listener.
+pub fn spawn_clipboard_watcher(
+    source_app: ActiveWindowCache,
+    notifier: SelectionNotifier,
+) -> Arc<AtomicBool> {
+    let connected = Arc::new(AtomicBool::new(false));
+    let flag = connected.clone();
     let spawned = std::thread::Builder::new()
         .name(String::from("cliptoo-clipboard-watcher"))
         .spawn(move || {
             loop {
-                match run_clipboard_watcher(&source_app, &notifier) {
+                match run_clipboard_watcher(&source_app, &notifier, &flag) {
                     Ok(()) => tracing::debug!("clipboard watcher device invalidated; reconnecting"),
                     Err(e) => tracing::debug!("clipboard watcher unavailable: {e}; retrying"),
                 }
+                flag.store(false, Ordering::Relaxed);
                 std::thread::sleep(RECONNECT_DELAY);
             }
         });
     if let Err(e) = spawned {
         tracing::warn!("failed to spawn clipboard watcher thread: {e}");
     }
+    connected
 }
 
 fn run_clipboard_watcher(
     source_app: &ActiveWindowCache,
     notifier: &SelectionNotifier,
+    connected: &AtomicBool,
 ) -> anyhow::Result<()> {
     let conn = Connection::connect_to_env()?;
     let (globals, mut queue) = registry_queue_init::<WatcherState>(&conn)?;
@@ -106,6 +120,7 @@ fn run_clipboard_watcher(
         dead: false,
         swallow_initial_selection: true,
     };
+    connected.store(true, Ordering::Relaxed);
 
     while !state.dead {
         queue.blocking_dispatch(&mut state)?;

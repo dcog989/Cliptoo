@@ -2,7 +2,7 @@ use anyhow::Result;
 use cliptoo_core::content::classifier::ContentProcessor;
 use cliptoo_core::db::DbPool;
 use cliptoo_core::db::models::ClipType;
-use cliptoo_core::db::queries::insert_or_bump;
+use cliptoo_core::db::queries::{insert_or_bump_at, next_timestamp};
 use cliptoo_core::image::HASH_FILENAME_PREFIX_LEN;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -65,6 +65,7 @@ pub async fn run_listener(
     preview_max_dim: Arc<std::sync::atomic::AtomicU32>,
     mut selection_rx: mpsc::Receiver<Option<String>>,
     active_window: ActiveWindowCache,
+    watcher_connected: Arc<std::sync::atomic::AtomicBool>,
 ) -> Result<()> {
     let mut last_text_hash: Option<String> = None;
     let mut last_rtf_hash: Option<String> = None;
@@ -83,10 +84,12 @@ pub async fn run_listener(
     const POLL_INTERVAL: Duration = Duration::from_millis(500);
     const FULL_READ_INTERVAL: Duration = Duration::from_secs(5);
     // Image payloads must be downloaded in full to recompute their hash, so a
-    // static image clipboard costs real bandwidth on every probe. Re-probe an
-    // *unchanged* image at this slow cadence instead of on every cheap text
-    // stale-read; a freshly ingested image keeps last_image_probe cleared so a
-    // rapid re-copy (image A then B, same mime set) is still caught quickly.
+    // static image clipboard costs real bandwidth on every probe. When no
+    // data-control watcher is available, re-probe an *unchanged* image at this
+    // slow cadence instead of on every cheap text stale-read; a freshly
+    // ingested image keeps last_image_probe cleared so a rapid re-copy is still
+    // caught quickly. With the watcher up, every copy already wakes the
+    // listener, so the re-probe is skipped entirely.
     const IMAGE_RECHECK_INTERVAL: Duration = Duration::from_secs(30);
 
     // True until the clipboard's state at startup has been observed. Content
@@ -156,8 +159,8 @@ pub async fn run_listener(
 
         let changed = last_mime_types.as_ref() != mime_types.as_ref();
         let stale = last_full_read.is_none_or(|t| t.elapsed() >= FULL_READ_INTERVAL);
-        let image_recheck_due =
-            last_image_probe.is_none_or(|t| t.elapsed() >= IMAGE_RECHECK_INTERVAL);
+        let image_recheck_due = !watcher_connected.load(std::sync::atomic::Ordering::Relaxed)
+            && last_image_probe.is_none_or(|t| t.elapsed() >= IMAGE_RECHECK_INTERVAL);
         let probe_images = changed || image_recheck_due;
 
         if changed && !baseline {
@@ -343,6 +346,7 @@ pub async fn run_listener(
                                 classified.is_multiline,
                                 classified.size_in_bytes,
                                 false,
+                                &next_timestamp(),
                             )
                             .await
                             {
@@ -440,6 +444,7 @@ pub async fn run_listener(
                             c.is_multiline,
                             c.size_in_bytes,
                             is_file_uri,
+                            &next_timestamp(),
                         )
                         .await
                         {
@@ -518,6 +523,10 @@ pub async fn run_listener(
                         // no file on disk.
                         let size = data.len() as i64;
                         let preview = format!("{mime} · {size} bytes");
+                        // Stamped now, not at insert: the decode and file writes
+                        // below run asynchronously, and two quick image copies
+                        // must keep their copy order.
+                        let timestamp = next_timestamp();
 
                         let images = images_dir.clone();
                         let thumbnails = thumbnails_dir.clone();
@@ -576,6 +585,7 @@ pub async fn run_listener(
                                 false,
                                 size,
                                 false,
+                                &timestamp,
                             )
                             .await
                             {
@@ -613,7 +623,9 @@ pub async fn run_listener(
 /// record it in the "UniqueClipsEver" lifetime stat.
 ///
 /// Shared ingest path for the text, file-uri and image listener branches;
-/// callers supply the classification arguments themselves.
+/// callers supply the classification arguments themselves and the timestamp
+/// the copy was read at (an image is stored after an async decode, so its
+/// timestamp must not be taken at insert time).
 #[allow(clippy::too_many_arguments)]
 async fn insert_clip_with_stat(
     db: &DbPool,
@@ -627,12 +639,13 @@ async fn insert_clip_with_stat(
     is_multiline: bool,
     size_in_bytes: i64,
     is_file_uri: bool,
+    timestamp: &str,
 ) -> Result<bool> {
     db.with(|conn| {
         // Single transaction so a crash between the insert and the lifetime
         // stat bump cannot desync "UniqueClipsEver" from the stored rows.
         let tx = conn.unchecked_transaction()?;
-        let inserted = insert_or_bump(
+        let inserted = insert_or_bump_at(
             &tx,
             content,
             preview_content,
@@ -644,6 +657,7 @@ async fn insert_clip_with_stat(
             is_multiline,
             size_in_bytes,
             is_file_uri,
+            timestamp,
         )?;
         if inserted {
             cliptoo_core::stats::increment_stat(&tx, cliptoo_core::stats::KEY_UNIQUE_CLIPS_EVER)?;

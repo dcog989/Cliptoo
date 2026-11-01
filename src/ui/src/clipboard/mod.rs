@@ -33,6 +33,7 @@ pub fn spawn_listener(
     preview_max_dim: Arc<std::sync::atomic::AtomicU32>,
     selection_rx: mpsc::Receiver<Option<String>>,
     active_window: ActiveWindowCache,
+    watcher_connected: Arc<std::sync::atomic::AtomicBool>,
 ) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
         if let Err(e) = run_listener(
@@ -46,6 +47,7 @@ pub fn spawn_listener(
             preview_max_dim,
             selection_rx,
             active_window,
+            watcher_connected,
         )
         .await
         {

@@ -56,7 +56,10 @@ pub(crate) const TIMESTAMP_FORMAT: &str = "%Y-%m-%d %H:%M:%S%.6f";
 /// across calls. Each call reserves a microsecond slot greater than every
 /// previously reserved one, so two writes in the same microsecond still sort
 /// in write order.
-pub(crate) fn next_timestamp() -> String {
+///
+/// Public so a caller that reads a payload now but stores it later (a decoded
+/// image on a background task) can stamp the copy time and keep list order.
+pub fn next_timestamp() -> String {
     let now = Utc::now().timestamp_micros() as u64;
     let micros = {
         let mut last = LAST_TS_MICROS
@@ -240,6 +243,41 @@ pub fn insert_or_bump(
     size_in_bytes: i64,
     is_file_uri: bool,
 ) -> Result<bool> {
+    insert_or_bump_at(
+        conn,
+        content,
+        preview_content,
+        content_hash,
+        clip_type,
+        source_app,
+        was_trimmed,
+        has_leading_whitespace,
+        is_multiline,
+        size_in_bytes,
+        is_file_uri,
+        &next_timestamp(),
+    )
+}
+
+/// [`insert_or_bump`] with a caller-supplied timestamp, for payloads read at
+/// one moment but stored later (an image whose decode runs on a background
+/// task). Ordering is by `Timestamp`, so the stamp must be taken at copy time
+/// or two quick copies can land in the wrong order.
+#[allow(clippy::too_many_arguments)]
+pub fn insert_or_bump_at(
+    conn: &Connection,
+    content: &str,
+    preview_content: &str,
+    content_hash: &str,
+    clip_type: &str,
+    source_app: Option<&str>,
+    was_trimmed: bool,
+    has_leading_whitespace: bool,
+    is_multiline: bool,
+    size_in_bytes: i64,
+    is_file_uri: bool,
+    timestamp: &str,
+) -> Result<bool> {
     // Determine insert-vs-bump by checking existence *before* the upsert,
     // rather than comparing `last_insert_rowid()` to the row's `Id` afterwards.
     // The latter is unreliable on a connection's very first statement: SQLite
@@ -271,7 +309,6 @@ pub fn insert_or_bump(
         _ => (clip_type.to_string(), is_file_uri),
     };
 
-    let now = next_timestamp();
     conn.execute(
         "INSERT INTO clips
              (Content, PreviewContent, ContentHash, ClipType, SourceApp, Timestamp,
@@ -297,7 +334,7 @@ pub fn insert_or_bump(
             is_multiline as i32,
             size_in_bytes,
             is_file_uri as i32,
-            now,
+            timestamp,
         ],
     )?;
 
