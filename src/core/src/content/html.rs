@@ -23,7 +23,18 @@ pub fn strip_html(html: &str) -> String {
         if is_tag_start_at(bytes, i) {
             let start = i;
             let mut j = i + 1;
-            while j < bytes.len() && bytes[j] != b'>' {
+            // A `>` inside a quoted attribute value (e.g. `title="2 > 1"`) does
+            // not end the tag; only an unquoted `>` does.
+            let mut quote: Option<u8> = None;
+            while j < bytes.len() {
+                let b = bytes[j];
+                match quote {
+                    Some(q) if b == q => quote = None,
+                    Some(_) => {}
+                    None if b == b'"' || b == b'\'' => quote = Some(b),
+                    None if b == b'>' => break,
+                    None => {}
+                }
                 j += 1;
             }
             let has_close = j < bytes.len();
@@ -214,19 +225,26 @@ fn tag_name(tag: &str) -> &str {
     &inner[..end]
 }
 
+/// Upper bound on the characters scanned for an entity's closing `;`. The
+/// longest named entity is far shorter; the bound keeps an `&` with no `;`
+/// from scanning the whole remaining text (quadratic on URL-heavy HTML).
+const MAX_ENTITY_LEN: usize = 32;
+
 /// Decode `&...;` character references (named and numeric) in `s`.
 fn decode_entities(s: &str) -> String {
     let mut result = String::with_capacity(s.len());
     let mut i = 0;
+    let bytes = s.as_bytes();
     while i < s.len() {
-        if s.as_bytes()[i] == b'&'
-            && let Some(end) = s[i..].find(';')
-        {
-            let entity = &s[i..i + end + 1];
-            if let Some(c) = decode_entity(entity) {
-                result.push(c);
-                i += end + 1;
-                continue;
+        if bytes[i] == b'&' {
+            let window = &bytes[i..(i + MAX_ENTITY_LEN).min(s.len())];
+            if let Some(rel) = window.iter().position(|&b| b == b';') {
+                let entity = &s[i..i + rel + 1];
+                if let Some(c) = decode_entity(entity) {
+                    result.push(c);
+                    i += rel + 1;
+                    continue;
+                }
             }
         }
         let c = s[i..].chars().next().expect("i is on a char boundary");
@@ -288,7 +306,7 @@ fn collapse_blank_lines(s: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::strip_html;
+    use super::{MAX_ENTITY_LEN, strip_html};
 
     #[test]
     fn strips_tags_and_keeps_text() {
@@ -372,5 +390,19 @@ mod tests {
     fn malformed_entity_passes_through() {
         assert_eq!(strip_html("<p>a & b</p>"), "a & b");
         assert_eq!(strip_html("<p>fish &amp</p>"), "fish &amp");
+    }
+
+    #[test]
+    fn greater_than_inside_attribute_does_not_end_the_tag() {
+        assert_eq!(strip_html(r#"<div title="2 > 1">x</div>"#), "x");
+        assert_eq!(strip_html("<div title='a > b'>y</div>"), "y");
+    }
+
+    /// The `;` search is bounded, so an `&` with no nearby `;` is left alone
+    /// instead of scanning (and re-scanning) the rest of the text.
+    #[test]
+    fn entity_lookahead_is_bounded() {
+        let long = format!("&{};", "a".repeat(MAX_ENTITY_LEN + 8));
+        assert_eq!(strip_html(&format!("<p>{long}</p>")), long);
     }
 }

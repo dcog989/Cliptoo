@@ -58,7 +58,9 @@ pub fn transform(content: &str, key: &str) -> String {
                     } else {
                         let mut g = w.graphemes(true);
                         match g.next() {
-                            Some(first) => format!("{}{}", first.to_uppercase(), g.as_str()),
+                            Some(first) => {
+                                format!("{}{}", first.to_uppercase(), g.as_str().to_lowercase())
+                            }
                             None => String::new(),
                         }
                     }
@@ -94,18 +96,6 @@ pub fn transform(content: &str, key: &str) -> String {
                 }
             }
             out.trim().to_string()
-        }
-
-        // Normalise then ensure all paragraph breaks become \n\n.
-        "lf2" => {
-            let normalised = content.replace("\r\n", "\n").replace('\r', "\n");
-            // Split on blank lines (\n\n+), trim each paragraph, rejoin with \n\n.
-            let paragraphs: Vec<&str> = normalised
-                .split("\n\n")
-                .map(|p| p.trim_matches('\n'))
-                .filter(|p| !p.is_empty())
-                .collect();
-            paragraphs.join("\n\n")
         }
 
         // Strip all line breaks.
@@ -344,6 +334,13 @@ mod tests {
         assert_eq!(transform("", "camel"), "");
         assert_eq!(transform("hello", "camel"), "hello");
         assert_eq!(transform("HELLO", "camel"), "hello");
+    }
+
+    /// Later all-caps words keep only their first capital, not the whole run.
+    #[test]
+    fn camel_lowercases_tail_of_later_words() {
+        assert_eq!(transform("USER NAME", "camel"), "userName");
+        assert_eq!(transform("Hello WORLD", "camel"), "helloWorld");
     }
 
     /// Multi-byte content survives line-break removal intact.

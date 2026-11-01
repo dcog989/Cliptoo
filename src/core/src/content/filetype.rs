@@ -65,6 +65,8 @@ const DANGER: &[&str] = &[
 ];
 // Extension-only entries. Extensionless dev filenames (Dockerfile, Makefile, etc.)
 // are matched by name in DEV_FILENAMES below.
+// `ts` is both TypeScript source and an MPEG transport stream. The dev reading
+// wins (it is far more common on a desktop clipboard), so it appears here only.
 const DEV: &[&str] = &[
     "rs", "js", "ts", "jsx", "tsx", "go", "cs", "cpp", "c", "h", "hpp", "java", "kt", "swift",
     "json", "yaml", "yml", "toml", "xml", "html", "htm", "css", "scss", "sass", "less", "svelte",
@@ -94,8 +96,7 @@ const DOCUMENT: &[&str] = &[
 
 const TEXT_FILE: &[&str] = &["txt", "log", "nfo"];
 const VIDEO: &[&str] = &[
-    "mp4", "mkv", "avi", "mov", "webm", "flv", "wmv", "m4v", "3gp", "ts", "vob", "ogv", "rm",
-    "rmvb",
+    "mp4", "mkv", "avi", "mov", "webm", "flv", "wmv", "m4v", "3gp", "vob", "ogv", "rm", "rmvb",
 ];
 
 #[cfg(test)]
@@ -174,5 +175,12 @@ mod tests {
         for ext in ["x.md", "x.markdown", "x.rst", "x.adoc", "x.org", "x.tex"] {
             assert_eq!(classify(ext), ClipType::FileDocument, "for {ext}");
         }
+    }
+
+    #[test]
+    fn ts_resolves_to_dev_not_video() {
+        // `.ts` is also an MPEG transport stream. The dev reading wins, and the
+        // list must not claim both.
+        assert_eq!(classify("x.ts"), ClipType::FileDev);
     }
 }
