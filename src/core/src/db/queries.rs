@@ -225,6 +225,9 @@ fn run_search(
 /// the row. `IsDeadhead` is cleared because the caller just re-copied the
 /// content, and its insert-time classifier already re-checked the path.
 ///
+/// One exception: a path copied as plain text never downgrades an existing
+/// file/folder row to `file_path` — see the guard below.
+///
 /// Returns `true` if a new row was inserted, `false` if an existing row was
 /// bumped.  Both statements run inside the caller's `db.with(|conn| ...)` lock,
 /// so they are serialised against all other writes on the single connection.
@@ -249,14 +252,29 @@ pub fn insert_or_bump(
     // DO-UPDATE branch, and on a fresh connection "unchanged" means it is
     // still 0 — which would wrongly compare unequal to a real existing Id and
     // report a duplicate as newly inserted.
-    let already_existed: bool = conn
+    let existing: Option<(String, bool)> = conn
         .query_row(
-            "SELECT 1 FROM clips WHERE ContentHash = ?1",
+            "SELECT ClipType, IsFileUri FROM clips WHERE ContentHash = ?1",
             params![content_hash],
-            |_| Ok(()),
+            |row| Ok((row.get(0)?, row.get::<_, i32>(1)? != 0)),
         )
-        .optional()?
-        .is_some();
+        .optional()?;
+    let already_existed = existing.is_some();
+
+    // A path copied as plain text hashes to the same row as the file clip it
+    // points at: both store the path as Content. Keep the stored file/folder
+    // type and its file-uri flag — downgrading to `file_path` would drop the
+    // clip's type, thumbnail and paste-as-file behaviour for a mere re-copy of
+    // the same path as text.
+    let (clip_type, is_file_uri) = match existing {
+        Some((stored_type, stored_file_uri))
+            if clip_type == ClipType::FilePath.as_str()
+                && ClipType::parse(&stored_type).is_file_clip() =>
+        {
+            (stored_type, stored_file_uri)
+        }
+        _ => (clip_type.to_string(), is_file_uri),
+    };
 
     let now = next_timestamp();
     conn.execute(

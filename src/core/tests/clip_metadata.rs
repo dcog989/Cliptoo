@@ -194,6 +194,57 @@ async fn insert_or_bump_refreshes_stale_metadata() {
     clean_up(&dir);
 }
 
+/// A path copied as plain text hashes to the same row as the file clip it
+/// points at. The bump must keep the file type and its file-uri flag instead of
+/// downgrading the row to `file_path`, which would drop the image thumbnail and
+/// paste-as-file behaviour.
+#[tokio::test]
+async fn plain_text_path_does_not_downgrade_a_file_clip() {
+    let (dir, db) = temp_db("bump_no_downgrade").await;
+
+    let path = "/tmp/screenshot.webp";
+    let insert = |clip_type: &'static str, is_file_uri: bool| {
+        let db = db.clone();
+        async move {
+            db.with(move |conn| {
+                cliptoo_core::db::queries::insert_or_bump(
+                    conn,
+                    path,
+                    path,
+                    "hash-downgrade",
+                    clip_type,
+                    Some("org.kde.dolphin"),
+                    false,
+                    false,
+                    false,
+                    path.len() as i64,
+                    is_file_uri,
+                )
+            })
+            .await
+            .unwrap()
+        }
+    };
+
+    assert!(insert("file_image", true).await, "first copy inserts");
+    assert!(!insert("file_path", false).await, "same hash bumps");
+
+    let (clip_type, is_file_uri): (String, i32) = db
+        .with(|conn| {
+            Ok(conn.query_row(
+                "SELECT ClipType, IsFileUri FROM clips WHERE ContentHash = 'hash-downgrade'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )?)
+        })
+        .await
+        .unwrap();
+    assert_eq!(clip_type, "file_image");
+    assert_eq!(is_file_uri, 1);
+
+    clean_up(&dir);
+}
+
 /// The DDL leaves `Content`/`PreviewContent` nullable even though every writer
 /// supplies a value, so a hand-edited row must not fail the whole list query.
 #[tokio::test]
