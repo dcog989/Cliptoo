@@ -67,14 +67,8 @@ pub async fn compare_clips(
                 cmd.arg(arg);
             }
             cmd.arg(&paths[0]).arg(&paths[1]);
-            let mut child = cmd
-                .spawn()
-                .map_err(|e| anyhow::anyhow!("spawn diff tool: {e}"))?;
-            // Reap the child so a long-lived daemon does not collect zombies.
-            std::thread::spawn(move || {
-                let _ = child.wait();
-            });
-            Ok(())
+            crate::temp::spawn_detached(&mut cmd)
+                .map_err(|e| anyhow::anyhow!("spawn diff tool: {e}"))
         },
     )
     .await

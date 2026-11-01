@@ -130,3 +130,13 @@ async fn cleanup(paths: &[PathBuf]) {
         let _ = tokio::fs::remove_file(p).await;
     }
 }
+
+/// Spawn `cmd` and reap it on a detached thread so a long-lived daemon does not
+/// collect zombies.
+pub(crate) fn spawn_detached(cmd: &mut std::process::Command) -> std::io::Result<()> {
+    let mut child = cmd.spawn()?;
+    std::thread::spawn(move || {
+        let _ = child.wait();
+    });
+    Ok(())
+}
