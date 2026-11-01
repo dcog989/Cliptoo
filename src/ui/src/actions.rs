@@ -515,6 +515,32 @@ pub fn setup_clip_actions(
         });
     }
 
+    // ── Load the next page when the list nears its end ──────────────────
+    // One page in flight at a time: a wheel fling runs the list's near-end
+    // check on several ticks, and two queries at the same offset would append
+    // the same rows twice. `helpers::load_more_clips_live` clears the flag.
+    {
+        let more_pending = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let more_db = db.clone();
+        let more_ui = ui.as_weak();
+        let more_td = thumbnails_dir.clone();
+        let more_fd = favicons_dir.clone();
+        let more_pfx = tag_prefix.clone();
+        ui.on_load_more(move || {
+            if more_pending.swap(true, std::sync::atomic::Ordering::Relaxed) {
+                return;
+            }
+            helpers::load_more_clips_live(
+                &more_db,
+                &more_ui,
+                &more_td,
+                &more_fd,
+                Some(more_pfx.as_str()),
+                more_pending.clone(),
+            );
+        });
+    }
+
     // ── Item activated (paste on click / Enter) ─────────────────────────
     {
         let paste_db = db.clone();

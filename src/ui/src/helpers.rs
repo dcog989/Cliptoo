@@ -1,5 +1,6 @@
 use std::path::Path;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use cliptoo_core::db::queries::SEARCH_RESULT_LIMIT;
 use slint::{ComponentHandle, Model};
@@ -132,6 +133,9 @@ pub async fn refresh_clips(
         });
     }
     if let Ok(clips) = result {
+        // A full page means older rows exist beyond it; the list appends the
+        // next one as it nears the end (see `load_more_clips_live`).
+        let has_more = clips.len() as i64 >= SEARCH_RESULT_LIMIT;
         let db2 = db.clone();
         let td = td.to_path_buf();
         let fd = fd.to_path_buf();
@@ -158,6 +162,7 @@ pub async fn refresh_clips(
             let slint_clips = crate::thumbnail_cache::convert_vec(clips, &td, &fd);
             let model = std::rc::Rc::new(slint::VecModel::<crate::ClipData>::from(slint_clips));
             ui.set_clips(model.clone().into());
+            ui.set_clips_has_more(has_more);
             let new_idx = prev_selected.and_then(|id| {
                 (0..model.row_count()).find(|&i| model.row_data(i).is_some_and(|d| d.id == id))
             });
@@ -165,6 +170,82 @@ pub async fn refresh_clips(
             crate::favicon::check_pending_favicons(&ui, &db2, &fd);
         });
     }
+}
+
+/// Query one page past the rows the model already holds and append it.
+///
+/// Called from the list's `load-more` callback (UI thread), so the current
+/// view, the offset and the model are all read before the query runs. The
+/// `pending` flag holds the request to one page in flight: a wheel fling fires
+/// the list's near-end check on several ticks, and two queries at the same
+/// offset would append the same rows twice. It is cleared once the page is
+/// applied, or on any path that drops it.
+pub fn load_more_clips_live(
+    db: &Arc<cliptoo_core::db::DbPool>,
+    ui: &slint::Weak<crate::AppWindow>,
+    td: &Path,
+    fd: &Path,
+    tag_prefix: Option<&str>,
+    pending: Arc<AtomicBool>,
+) {
+    let Some(window) = ui.upgrade() else {
+        pending.store(false, Ordering::Relaxed);
+        return;
+    };
+    let offset = window.get_clips().row_count() as i64;
+    let query = window.get_search_text().to_string();
+    let filter = window.get_active_filter().to_string();
+    drop(window);
+
+    let db = db.clone();
+    let ui = ui.clone();
+    let td = td.to_path_buf();
+    let fd = fd.to_path_buf();
+    let prefix = tag_prefix.map(str::to_string);
+    tokio::spawn(async move {
+        let result = db
+            .with(|conn| {
+                cliptoo_core::db::queries::search_clips(
+                    conn,
+                    &query,
+                    &filter,
+                    SEARCH_RESULT_LIMIT,
+                    offset,
+                    prefix.as_deref(),
+                )
+            })
+            .await;
+        let clips = match result {
+            Ok(clips) => clips,
+            Err(e) => {
+                tracing::error!("load_more: query {query:?}/{filter:?} at {offset} failed: {e:#}");
+                pending.store(false, Ordering::Relaxed);
+                return;
+            }
+        };
+        // A short page ends the view: the list stops asking for more.
+        let has_more = clips.len() as i64 >= SEARCH_RESULT_LIMIT;
+        let done = pending.clone();
+        let sent = ui.upgrade_in_event_loop(move |ui| {
+            done.store(false, Ordering::Relaxed);
+            // Drop a page built for a view the user has since left; mixing it
+            // into the new model would interleave two result sets.
+            if ui.get_search_text().as_str() != query || ui.get_active_filter().as_str() != filter {
+                return;
+            }
+            ui.set_clips_has_more(has_more);
+            let model = ui.get_clips();
+            for clip in crate::thumbnail_cache::convert_vec(clips, &td, &fd) {
+                if let Err(e) = model.insert_row(model.row_count(), clip) {
+                    tracing::warn!("load_more: append failed: {e}");
+                    break;
+                }
+            }
+        });
+        if sent.is_err() {
+            pending.store(false, Ordering::Relaxed);
+        }
+    });
 }
 
 /// A single-row reorder already applied to the DB, to mirror in the UI model.
@@ -177,11 +258,11 @@ pub enum RowMove {
 }
 
 /// Whether the visible model is the full, timestamp-ordered clip list: no active
-/// text query, no type/bookmark filter, and not truncated by
-/// [`SEARCH_RESULT_LIMIT`]. Only then does the model's row order match the DB's
-/// `ORDER BY Timestamp DESC, Id DESC`, so a single-row mutation can be mirrored
-/// in the model instead of re-querying and rebuilding it (`search_clips` orders
-/// filtered or full-text results differently, so those must re-query).
+/// text query, no type/bookmark filter, and not truncated by paging. Only then
+/// does the model's row order match the DB's `ORDER BY Timestamp DESC, Id DESC`,
+/// so a single-row mutation can be mirrored in the model instead of re-querying
+/// and rebuilding it (`search_clips` orders filtered or full-text results
+/// differently, so those must re-query).
 pub fn model_is_timestamp_ordered(ui: &crate::AppWindow) -> bool {
     ui.get_search_text().is_empty()
         && ui.get_active_filter().as_str() == "all"
@@ -191,7 +272,7 @@ pub fn model_is_timestamp_ordered(ui: &crate::AppWindow) -> bool {
 /// Whether the model holds every row of the current view, so removing one row in
 /// place cannot leave a truncated list that a re-query would refill.
 pub fn model_is_complete(ui: &crate::AppWindow) -> bool {
-    ui.get_clips().row_count() < SEARCH_RESULT_LIMIT as usize
+    !ui.get_clips_has_more()
 }
 
 /// Mirror a clip reorder in the UI model in place, keeping the selected clip

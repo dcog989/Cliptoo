@@ -166,8 +166,8 @@ pub(super) fn setup_setting_commit(
                 }
                 "max_clips" => {
                     if let Ok(v) = value.parse::<u32>() {
-                        // The list shows at most SEARCH_RESULT_LIMIT rows, so a
-                        // larger retention keeps clips the user can never reach.
+                        // Retention ceiling the settings page offers; the clip
+                        // list pages through whatever is kept.
                         s.max_clips = v.min(cliptoo_core::db::queries::SEARCH_RESULT_LIMIT as u32);
                     }
                 }

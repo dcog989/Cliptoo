@@ -90,7 +90,8 @@ pub fn next_timestamp() -> String {
     dt.format(TIMESTAMP_FORMAT).to_string()
 }
 
-/// Default row limit for `search_clips` — bounds the list view.
+/// Page size for `search_clips`: the clip list loads this many rows per call
+/// and appends the next page as it nears the end.
 pub const SEARCH_RESULT_LIMIT: i64 = 1000;
 
 /// Fractional boost applied to a bookmarked clip's BM25 `rank` (1.5× total).

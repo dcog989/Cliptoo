@@ -16,6 +16,8 @@ export component MainClipArea inherits Rectangle {
     forward-focus: focus-scope;
 
     in property <[ClipData]> clips: [];
+    // True while older rows of the current view can still be appended.
+    in property <bool> clips-has-more: false;
     in property <bool> is-searching: false;
     in-out property <bool> quick-paste-active: false;
     // Set from Rust on every show/hide of the main window. Gates the
@@ -60,6 +62,7 @@ export component MainClipArea inherits Rectangle {
     callback edit-clip(int);           // Ctrl+E: open the editor
     callback request-preview(int, float, float);  // id, x, y
     callback dismiss-preview();
+    callback load-more();              // list neared its end: append the next page
     callback close-window();           // ESC pressed
     callback blur-closed();            // window lost focus
     callback open-context-menu(int, float, float, bool, string);  // id, x, y, is-bookmarked, clip-type
@@ -299,6 +302,7 @@ export component MainClipArea inherits Rectangle {
             // Clip list — fills all available vertical space
             clip-list := ClipList {
                 clips: root.clips;
+                has-more: root.clips-has-more;
                 quick-paste-active: root.quick-paste-active;
                 quick-paste-slots: root.quick-paste-slots;
                 is-searching: root.is-searching;
@@ -321,6 +325,9 @@ export component MainClipArea inherits Rectangle {
                 }
                 dismiss-preview => {
                     root.dismiss-preview();
+                }
+                load-more => {
+                    root.load-more();
                 }
             }
 

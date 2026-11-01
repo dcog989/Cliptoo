@@ -37,11 +37,15 @@ export component ClipList {
     // Mirrors the window's popup state so rows end their hover session while a
     // menu owns the pointer (see ClipItem.popup-open).
     in property <bool> popup-open: false;
+    // True while the current view has older rows the model has not appended
+    // yet. Cleared by Rust when a page comes back short (end of the view).
+    in property <bool> has-more: false;
 
     callback item-activated(int);
     callback item-right-clicked(int, float, float, bool, string);
     callback request-preview(int, float, float);  // id, x, y in logical px
     callback dismiss-preview;
+    callback load-more;              // viewport neared the end of the loaded rows
 
     // A new model (search, filter, ingest) drops the multi-selection; Rust
     // re-points selected-index right after.
@@ -211,6 +215,19 @@ export component ClipList {
     private property <length> list-padding: 8px;
     // Rows per visible page for nav-page-up/down.
     private property <int> page-rows: max(1.0, round(list-view.visible-height / Theme.row-height));
+
+    // Paging: ask for the next page once the viewport is within a few rows of
+    // the loaded end. Fires on the scroll transition, and an appended page
+    // pushes that end out of the threshold, so each page loads once.
+    private property <length> scroll-bottom: -list-view.content-y + list-view.visible-height;
+    private property <length> load-more-threshold: 3 * Theme.row-height;
+    changed scroll-bottom => {
+        if (root.has-more
+            && list-view.content-height > list-view.visible-height
+            && root.scroll-bottom > list-view.content-height - root.load-more-threshold) {
+            root.load-more();
+        }
+    }
 
     list-view := ListView {
         y: root.list-padding;
