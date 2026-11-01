@@ -147,6 +147,12 @@ export component AppWindow inherits Window {
     public function reset-scroll() {
         main-clip-area.reset-scroll();
     }
+    // Jumps the clip list back to the first row without moving the selection.
+    // Called from Rust whenever the search text changes, so results always
+    // start at #1 even if the previous list was scrolled down.
+    public function scroll-to-top() {
+        main-clip-area.scroll-to-top();
+    }
     // Closes every PopupWindow menu (context/hamburger/filter) at once. Called
     // from Rust on blur so a menu can't linger as its own top-level window
     // after the main window closes to tray.

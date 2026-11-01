@@ -72,6 +72,9 @@ pub fn setup_search(
             .upgrade()
             .map(|u| {
                 u.set_is_searching(!query.is_empty());
+                // Jump back to #1: the result set is about to change, and
+                // leaving the list scrolled would hide the first matches.
+                u.invoke_scroll_to_top();
                 u.get_active_filter().to_string()
             })
             .unwrap_or_default();

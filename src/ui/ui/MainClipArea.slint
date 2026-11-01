@@ -73,6 +73,10 @@ export component MainClipArea inherits Rectangle {
     public function reset-scroll() {
         clip-list.nav-home();
     }
+    // Scrolls the clip list back to the top without moving the selection.
+    public function scroll-to-top() {
+        clip-list.scroll-to-top();
+    }
 
     // True when selected-index points at a row. The key handler indexes clips[]
     // with it, so an empty or stale list must not reach the lookup.

@@ -165,6 +165,12 @@ export component ClipList {
         list-view.content-y = 0px;
     }
 
+    // Scroll only, no cursor move: search jumps the list back to the first
+    // row as the query changes, without re-pointing the selection.
+    public function scroll-to-top() {
+        list-view.content-y = 0px;
+    }
+
     public function nav-end() {
         if (root.clips.length > 0) {
             root.set-cursor(root.clips.length - 1);
