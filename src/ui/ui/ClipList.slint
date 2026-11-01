@@ -34,6 +34,9 @@ export component ClipList {
     // Window-absolute Y of the top of this list component. Set from AppWindow
     // so the hovered callback can produce a window-absolute popup-y coordinate.
     in property <float> list-offset-y: 0.0;
+    // Mirrors the window's popup state so rows end their hover session while a
+    // menu owns the pointer (see ClipItem.popup-open).
+    in property <bool> popup-open: false;
 
     callback item-activated(int);
     callback item-right-clicked(int, float, float, bool, string);
@@ -221,6 +224,7 @@ export component ClipList {
             quick-paste-active: root.quick-paste-active;
             quick-paste-slots: root.quick-paste-slots;
             is-searching: root.is-searching;
+            popup-open: root.popup-open;
 
             activated(ctrl, shift) => {
                 root.click-row(idx, ctrl, shift);

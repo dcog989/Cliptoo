@@ -38,6 +38,9 @@ export component MainClipArea inherits Rectangle {
     // main window's keyboard focus, so item focus is no blur signal there.
     in property <bool> window-active: true;
     in-out property <bool> popup-just-closed: false;
+    // Mirrors AppWindow's flag: set by the context menu's Preview action so
+    // the focus restore from the closing popup does not dismiss the request.
+    in-out property <bool> menu-preview-pending: false;
 
     in-out property <int> selected-index: 0;  // reset by Rust on search/filter change
     in-out property <string> search-text: "";
@@ -228,6 +231,16 @@ export component MainClipArea inherits Rectangle {
             }
         }
 
+        // Safety net: if the popup close did not hand focus back to the search
+        // field, stop suppressing the next genuine search click after a moment.
+        menu-preview-expiry := Timer {
+            interval: 500ms;
+            running: root.menu-preview-pending;
+            triggered => {
+                root.menu-preview-pending = false;
+            }
+        }
+
         focus-poll := Timer {
             interval: 200ms;
             // Gated on visibility: Rust sets window-visible on every
@@ -289,6 +302,7 @@ export component MainClipArea inherits Rectangle {
                 quick-paste-active: root.quick-paste-active;
                 quick-paste-slots: root.quick-paste-slots;
                 is-searching: root.is-searching;
+                popup-open: root.popup-open;
                 selected-index <=> root.selected-index;
                 horizontal-stretch: 1;
                 vertical-stretch: 1;
@@ -343,7 +357,15 @@ export component MainClipArea inherits Rectangle {
                 active-filter: root.active-filter;
                 search-focus-changed(focused) => {
                     if (focused) {
-                        root.dismiss-preview();
+                        // Focus handed back when the context menu closed,
+                        // often to the search field. The menu's Preview action
+                        // just requested a preview; dismissing here would bump
+                        // the preview generation and cancel that request.
+                        if (root.menu-preview-pending) {
+                            root.menu-preview-pending = false;
+                        } else {
+                            root.dismiss-preview();
+                        }
                     }
                 }
             }

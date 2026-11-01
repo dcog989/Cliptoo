@@ -19,6 +19,19 @@ export component ClipItem {
     in property <bool> quick-paste-active: false;
     in property <int> quick-paste-slots: 9;
     in property <bool> is-searching:       false;
+    // True while a menu/child window is open. Ends the hover session without
+    // dismissing: the popup handler already hid the preview, and a delayed
+    // hover request or exit must not race a menu "Preview" action.
+    in property <bool> popup-open:         false;
+
+    // A popup takes the pointer, so the row would otherwise keep its hover
+    // latch armed and fire a stale exit (and a dismiss) the instant the popup
+    // closes — after a menu "Preview" request has already started.
+    changed popup-open => {
+        if (root.popup-open) {
+            root.preview-triggered = false;
+        }
+    }
 
     callback activated(bool, bool);  // ctrl, shift held on the click
     callback right-clicked(float, float);
@@ -303,10 +316,11 @@ export component ClipItem {
         }
 
         // Fires once, after hover-preview-delay. The latch prevents re-firing
-        // on subsequent ticks while the cursor stays on the row.
+        // on subsequent ticks while the cursor stays on the row. A popup menu
+        // owns the pointer, so no hover preview is requested over it.
         Timer {
             interval: Theme.hover-preview-delay;
-            running: touch.has-hover && !root.preview-triggered && Theme.hover-preview-delay > 0ms;
+            running: touch.has-hover && !root.preview-triggered && !root.popup-open && Theme.hover-preview-delay > 0ms;
             triggered => {
                 root.preview-triggered = true;
                 root.hovered(touch.mouse-x / 1px, touch.mouse-y / 1px);

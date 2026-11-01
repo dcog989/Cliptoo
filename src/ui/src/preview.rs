@@ -21,6 +21,11 @@ const FILE_PREVIEW_SEPARATOR_GLYPH: &str = "─";
 /// Length (in glyphs) of the path/contents divider line.
 const FILE_PREVIEW_SEPARATOR_LEN: usize = 40;
 
+/// Bumped on every preview request and on every dismissal. A request still in
+/// flight when the pointer leaves (or the window hides) must not show the
+/// tooltip afterwards — nobody would be left to dismiss it.
+static PREVIEW_GENERATION: AtomicU64 = AtomicU64::new(0);
+
 thread_local! {
     // The live preview window, registered at startup so modules without a
     // handle (e.g. `window::hide_window`) can hide it. UI-thread only.
@@ -36,6 +41,9 @@ pub fn register_preview_window(window: &crate::PreviewWindow) {
 /// Hide the hover preview without a window handle. Called when the main window
 /// hides, so a stale preview can't reappear orphaned on the next show.
 pub fn hide_preview() {
+    // Invalidate any request still in flight so a late `show()` cannot orphan
+    // the tooltip after the main window hid or a dismissal ran.
+    PREVIEW_GENERATION.fetch_add(1, Ordering::Relaxed);
     PREVIEW_WINDOW.with(|slot| {
         if let Some(window) = slot.borrow().as_ref().and_then(|w| w.upgrade()) {
             let _ = window.hide();
@@ -72,12 +80,13 @@ struct PreviewContext<'a> {
     /// the size used when the clip was ingested.
     preview_max_dim: u32,
     /// Generation of the request that built this context, plus the shared
-    /// counter. Bumped on every request; async completions (title/favicon,
-    /// thumbnail generation, file reads) apply their result only while the
-    /// counter still equals `request_generation`, so a slow result for a previously
-    /// hovered clip can never overwrite a newer preview.
+    /// counter. Bumped on every request and on every dismissal; async
+    /// completions (title/favicon, thumbnail generation, file reads) apply
+    /// their result only while the counter still equals `request_generation`,
+    /// so a slow result for a previously hovered clip can never overwrite a
+    /// newer preview or reopen a dismissed one.
     request_generation: u64,
-    generation: &'a Arc<AtomicU64>,
+    generation: &'static AtomicU64,
 }
 
 /// Place the preview next to the pointer. Coordinates are main-window-local;
@@ -116,7 +125,7 @@ fn show_link_preview(ctx: &PreviewContext) {
         preview.set_preview_web_title(t.clone().into());
     }
     let generation = ctx.request_generation;
-    let generation_cell = ctx.generation.clone();
+    let generation_cell = ctx.generation;
     let has_cached_title = cached_title.is_some();
     tokio::spawn(async move {
         let (title, fav_path) = if has_cached_title {
@@ -191,7 +200,7 @@ fn file_info(path: &str) -> String {
 fn spawn_file_info(ctx: &PreviewContext, path: String) {
     let ui = ctx.preview.as_weak();
     let generation = ctx.request_generation;
-    let generation_cell = ctx.generation.clone();
+    let generation_cell = ctx.generation;
     tokio::spawn(async move {
         let info = tokio::task::spawn_blocking(move || file_info(&path)).await;
         let Ok(info) = info else {
@@ -233,7 +242,7 @@ fn show_image_preview(ctx: &PreviewContext) {
         let hash2 = content_hash.to_string();
         let max_dim = ctx.preview_max_dim;
         let generation = ctx.request_generation;
-        let generation_cell = ctx.generation.clone();
+        let generation_cell = ctx.generation;
         let w = preview.as_weak();
         tokio::spawn(async move {
             let _ = cliptoo_core::image::store_both_thumbnails_for_file(
@@ -290,7 +299,7 @@ fn show_folder_preview(ctx: &PreviewContext) {
     let path = ctx.content.to_string();
     let ui_fin = ctx.preview.as_weak();
     let generation = ctx.request_generation;
-    let generation_cell = ctx.generation.clone();
+    let generation_cell = ctx.generation;
     tokio::spawn(async move {
         let info = tokio::task::spawn_blocking(move || scan_folder_info(&path)).await;
         let Ok(info) = info else {
@@ -394,7 +403,7 @@ fn show_text_file_preview(ctx: &PreviewContext) {
 
     let ui_fin = ctx.preview.as_weak();
     let generation = ctx.request_generation;
-    let generation_cell = ctx.generation.clone();
+    let generation_cell = ctx.generation;
     tokio::spawn(async move {
         // Size/date and contents come from the same blocking stat/read pass so
         // the UI thread never touches the filesystem.
@@ -496,19 +505,16 @@ pub fn setup_preview(
     let preview_fd = dirs.favicons_dir.clone();
     let preview_td = dirs.thumbnails_dir.clone();
     let preview_max_dim = preview_size.clone();
-    // Bumped on every preview request; async completions use it to detect and
-    // discard results for a clip the user has already moved on from.
-    let request_generation = Arc::new(AtomicU64::new(0));
     app.on_request_preview(move |id: i32, x: f32, y: f32| {
-        // Invalidate any still-running work from an earlier request.
-        let generation = request_generation.fetch_add(1, Ordering::Relaxed) + 1;
+        // Invalidate any still-running work from an earlier request or from a
+        // preview that has since been dismissed.
+        let generation = PREVIEW_GENERATION.fetch_add(1, Ordering::Relaxed) + 1;
         let db = preview_db.clone();
         let app = app_weak.clone();
         let preview = preview_weak.clone();
         let fav_dir = preview_fd.clone();
         let td = preview_td.clone();
         let max_dim = preview_max_dim.clone();
-        let generation_cell = request_generation.clone();
         tokio::spawn(async move {
             let result = db
                 .with(|conn| cliptoo_core::db::queries::get_clip_type_and_content(conn, id as i64))
@@ -518,8 +524,8 @@ pub fn setup_preview(
                     let Some(preview) = preview.upgrade() else {
                         return;
                     };
-                    // A newer request already took over the popup; drop this one.
-                    if generation_cell.load(Ordering::Relaxed) != generation {
+                    // A newer request (or a dismissal) superseded this one.
+                    if PREVIEW_GENERATION.load(Ordering::Relaxed) != generation {
                         return;
                     }
                     let preview_max_dim = max_dim.load(Ordering::Relaxed);
@@ -534,7 +540,7 @@ pub fn setup_preview(
                         td: &td,
                         preview_max_dim,
                         request_generation: generation,
-                        generation: &generation_cell,
+                        generation: &PREVIEW_GENERATION,
                     };
                     let handler = PREVIEW_HANDLERS
                         .iter()
@@ -554,6 +560,10 @@ pub fn setup_preview(
 pub fn setup_dismiss_preview(app: &crate::AppWindow, preview: &crate::PreviewWindow) {
     let preview = preview.as_weak();
     app.on_dismiss_preview(move || {
+        // Also invalidate a request that is still waiting on the DB read: its
+        // late `show()` would reopen the tooltip with no row left to dismiss
+        // it (e.g. the pointer has already moved to the search box).
+        PREVIEW_GENERATION.fetch_add(1, Ordering::Relaxed);
         if let Some(preview) = preview.upgrade() {
             let _ = preview.hide();
         }

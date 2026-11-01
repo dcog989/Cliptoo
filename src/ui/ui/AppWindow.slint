@@ -96,6 +96,10 @@ export component AppWindow inherits Window {
     property <string> quick-paste-mod-text:
         root.quick-paste-mod == "Right Alt" ? "\u{0013}" : root.quick-paste-mod == "Left Alt" ? "\u{0012}" : "\u{0011}";
     in-out property <bool> popup-just-closed: false;
+    // Set when the context menu's Preview action is taken. Closing that popup
+    // restores keyboard focus to the search field when it had focus, and that
+    // focus gain must not dismiss the preview request the menu just started.
+    in-out property <bool> menu-preview-pending: false;
     // Set from Rust on a 200ms poll of the Qt window system: true while any
     // of the app's windows still holds OS activation. MainClipArea's
     // blur-detection poll uses it because an open popup menu steals the main
@@ -186,6 +190,7 @@ export component AppWindow inherits Window {
         popup-windows-open: root.popup-windows-open;
         window-active: root.window-active;
         popup-just-closed <=> root.popup-just-closed;
+        menu-preview-pending <=> root.menu-preview-pending;
         selected-index <=> root.selected-index;
         search-text <=> root.search-text;
         active-filter <=> root.active-filter;
@@ -230,16 +235,22 @@ export component AppWindow inherits Window {
             root.focus-regained();
         }
         open-context-menu(id, x, y, bookmarked, ctype) => {
+            // The hover tooltip is a separate always-on-top window. Hide it
+            // before any popup opens, or it keeps sitting over the menu (and
+            // over the clip the menu is for).
+            root.dismiss-preview();
             root.popup-opening = true;
             ctx-menu-host.open-at(id, x, y, bookmarked, ctype);
             root.popup-opening = false;
         }
         open-hamburger-menu() => {
+            root.dismiss-preview();
             root.popup-opening = true;
             hamburger-host.show();
             root.popup-opening = false;
         }
         open-filter-popup() => {
+            root.dismiss-preview();
             root.popup-opening = true;
             filter-popup.show();
             root.popup-opening = false;
@@ -255,6 +266,11 @@ export component AppWindow inherits Window {
         send-to-apps: root.ctx-send-to-apps;
 
         preview-requested(id, x, y) => {
+            // The popup closes right after this and may hand keyboard focus
+            // back to the search field. That focus gain is not the user asking
+            // for search, so it must not dismiss this request while the DB
+            // read is still in flight.
+            root.menu-preview-pending = true;
             root.request-preview(id, x, y);
         }
         edit-clip(id) => {
