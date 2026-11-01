@@ -22,25 +22,32 @@ fn deadhead_clip_types() -> String {
         .join(", ")
 }
 
-/// Collect file-type clip ids and paths for deadhead processing.
-/// Split from the delete step so filesystem checks happen outside `db.with`.
+/// Collect file-type clip ids, stored content and current `IsDeadhead` flag
+/// for deadhead processing. Split from the filesystem checks so those run
+/// outside `db.with`, and the flag lets a later pass skip rows whose state
+/// would not change.
 ///
 /// `unbookmarked_only` is set by the delete path: bookmarks are a deliberate
 /// keep signal (retention and `clear_history` spare them too), and a path on a
 /// temporarily unmounted drive is indistinguishable from one that is gone.
-pub fn deadhead_collect(conn: &Connection, unbookmarked_only: bool) -> Result<Vec<(i64, String)>> {
+pub fn deadhead_collect(
+    conn: &Connection,
+    unbookmarked_only: bool,
+) -> Result<Vec<(i64, String, bool)>> {
     let bookmark_filter = if unbookmarked_only {
         " AND IsBookmarked = 0"
     } else {
         ""
     };
     let mut stmt = conn.prepare_cached(&format!(
-        "SELECT Id, Content FROM clips
+        "SELECT Id, Content, IsDeadhead FROM clips
          WHERE ClipType IN ({types}){bookmark_filter}",
         types = deadhead_clip_types(),
     ))?;
     let mut out = Vec::new();
-    for r in stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))? {
+    for r in stmt.query_map([], |row| {
+        Ok((row.get(0)?, row.get(1)?, row.get::<_, i32>(2)? != 0))
+    })? {
         match r {
             Ok(pair) => out.push(pair),
             Err(e) => warn!("deadhead: row read error: {e}"),
@@ -49,14 +56,38 @@ pub fn deadhead_collect(conn: &Connection, unbookmarked_only: bool) -> Result<Ve
     Ok(out)
 }
 
-/// True when any path in a file clip's `Content` still exists. Single-path
-/// clips store one path; multi-selection copies store one path per line, so a
-/// clip is only a deadhead once every referenced path is gone.
+/// True when any path in a file clip's `Content` still exists or cannot be
+/// checked. Single-path clips store one path; multi-selection copies store one
+/// path per line, so a clip is only a deadhead once every referenced path is
+/// gone.
+///
+/// `try_exists` reports "cannot tell" (permission denied, I/O error) as `Err`,
+/// which is treated as alive: deleting a clip because its directory is
+/// unreadable or its drive is briefly absent loses data the user still has.
 fn clip_paths_exist(content: &str) -> bool {
     content
         .lines()
         .filter(|l| !l.trim().is_empty())
-        .any(|l| Path::new(l).exists())
+        .any(|l| Path::new(l).try_exists().unwrap_or(true))
+}
+
+/// Split collected rows into (still missing, path is back) using the
+/// filesystem. Runs on a blocking thread: a path on an unresponsive network
+/// mount can block the check for a long time.
+fn sort_by_existence(rows: Vec<(i64, String, bool)>) -> (Vec<(i64, String)>, Vec<i64>) {
+    let mut gone = Vec::new();
+    let mut back = Vec::new();
+    for (id, path_str, was_dead) in rows {
+        if clip_paths_exist(&path_str) {
+            // Only a row flagged in an earlier pass needs a clearing write.
+            if was_dead {
+                back.push(id);
+            }
+        } else {
+            gone.push((id, path_str));
+        }
+    }
+    (gone, back)
 }
 
 /// Mark file-type clips whose path no longer exists as deadheads
@@ -65,23 +96,11 @@ fn clip_paths_exist(content: &str) -> bool {
 /// number of rows newly marked.
 ///
 /// The DB mutex is held only for the initial collect and for one final
-/// batched-transaction update — `Path::exists` syscalls in between run with
-/// no lock held. Previously every row's update acquired the lock and ran as
-/// its own autocommitted statement; for a large history that was one lock
-/// acquisition per clip instead of one for the whole pass.
+/// batched-transaction update. Only rows whose flag actually changes get a
+/// write, so a pass over a large but healthy history updates nothing.
 pub async fn mark_deadheads(db: &Arc<DbPool>) -> Result<u64> {
     let rows = db.with(|conn| deadhead_collect(conn, false)).await?;
-
-    // Filesystem checks — no DB lock held.
-    let mut gone: Vec<(i64, String)> = Vec::new();
-    let mut back: Vec<i64> = Vec::new();
-    for (id, path_str) in rows {
-        if clip_paths_exist(&path_str) {
-            back.push(id);
-        } else {
-            gone.push((id, path_str));
-        }
-    }
+    let (gone, back) = tokio::task::spawn_blocking(move || sort_by_existence(rows)).await?;
 
     if gone.is_empty() && back.is_empty() {
         return Ok(0);
@@ -92,9 +111,8 @@ pub async fn mark_deadheads(db: &Arc<DbPool>) -> Result<u64> {
             let tx = conn.unchecked_transaction()?;
             let mut newly_marked: u64 = 0;
             for (id, path_str) in &gone {
-                // `AND IsDeadhead = 0` so rows flagged in a previous pass are
-                // not counted (or logged) again — the return value is the
-                // number of rows newly marked.
+                // `AND IsDeadhead = 0` so a re-copy during the pass (which
+                // clears the flag) is not marked dead again by a stale check.
                 let n = tx.execute(
                     "UPDATE clips SET IsDeadhead = 1 WHERE Id = ?1 AND IsDeadhead = 0",
                     params![id],
@@ -119,30 +137,22 @@ pub async fn mark_deadheads(db: &Arc<DbPool>) -> Result<u64> {
     Ok(newly_marked)
 }
 
-/// Delete a single clip by id. Used by the async deadhead driver.
-fn deadhead_delete(conn: &Connection, id: i64) -> Result<()> {
-    conn.execute("DELETE FROM clips WHERE Id = ?1", params![id])?;
-    Ok(())
-}
-
 /// Delete DB records for file-path clips whose path no longer exists on disk.
 /// Bookmarked clips are spared (see [`deadhead_collect`]). Returns the number
 /// of rows deleted.
 ///
 /// The DB mutex is held only for the initial collect and for one final
-/// batched-transaction delete — the `Path::exists` syscalls in between run
-/// with no lock held, so a large file history does not stall the clipboard
-/// listener or search while the manual "Deadhead" action runs.
+/// batched-transaction delete. The filesystem checks run on a blocking thread
+/// so a slow mount cannot stall the runtime.
 pub async fn delete_deadheads(db: &Arc<DbPool>) -> Result<u64> {
     let rows = db.with(|conn| deadhead_collect(conn, true)).await?;
-
-    // Filesystem checks — no DB lock held.
-    let mut gone: Vec<(i64, String)> = Vec::new();
-    for (id, path_str) in rows {
-        if !clip_paths_exist(&path_str) {
-            gone.push((id, path_str));
-        }
-    }
+    let gone = tokio::task::spawn_blocking(move || {
+        rows.into_iter()
+            .filter(|(_, path_str, _)| !clip_paths_exist(path_str))
+            .map(|(id, path_str, _)| (id, path_str))
+            .collect::<Vec<_>>()
+    })
+    .await?;
 
     if gone.is_empty() {
         return Ok(0);
@@ -151,8 +161,15 @@ pub async fn delete_deadheads(db: &Arc<DbPool>) -> Result<u64> {
     let deleted = gone.len() as u64;
     db.with(move |conn| {
         let tx = conn.unchecked_transaction()?;
+        // Ids are integers built here, never user text; one statement instead
+        // of a round-trip per clip.
+        let ids = gone
+            .iter()
+            .map(|(id, _)| id.to_string())
+            .collect::<Vec<_>>()
+            .join(",");
+        tx.execute(&format!("DELETE FROM clips WHERE Id IN ({ids})"), [])?;
         for (id, path_str) in &gone {
-            deadhead_delete(&tx, *id)?;
             info!("deadhead: removed clip {id} — path gone: {path_str}");
         }
         tx.commit()?;
