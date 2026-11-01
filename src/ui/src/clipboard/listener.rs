@@ -22,13 +22,24 @@ use crate::helpers::refresh_clips_live;
 /// Read the current blacklist from shared state and test `source_app` against
 /// it. The settings UI swaps the list on change, so edits take effect on the
 /// next clipboard event without a restart.
+///
+/// `warned_unknown` makes the fail-closed case audible once per session: with a
+/// blacklist configured and no known source app, every clip is dropped and the
+/// user would otherwise see capture stop with no explanation.
 fn is_blacklisted_live(
     state: &Arc<std::sync::Mutex<Vec<String>>>,
     source_app: Option<&str>,
+    warned_unknown: &mut bool,
 ) -> bool {
     let blacklist = state
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
+    if !blacklist.is_empty() && source_app.is_none() && !*warned_unknown {
+        *warned_unknown = true;
+        tracing::warn!(
+            "clip dropped: an app blacklist is configured but active-window tracking is unavailable; clear the blacklist or check the log"
+        );
+    }
     is_blacklisted(source_app, &blacklist)
 }
 
@@ -75,6 +86,8 @@ pub async fn run_listener(
     let mut last_mime_types: Option<Vec<String>> = None;
     let mut last_full_read: Option<Instant> = None;
     let mut last_image_probe: Option<Instant> = None;
+    // True once the "blacklist set but source unknown" warning has been logged.
+    let mut blacklist_unknown_warned = false;
     // True while the current clipboard generation (mime set) has already been
     // ingested through a non-text channel (file/uri-list, image, RTF, HTML).
     // The text/plain rendition of that same selection is accessory and must
@@ -316,7 +329,11 @@ pub async fn run_listener(
                                 continue;
                             }
 
-                            if is_blacklisted_live(&blacklist_state, source_app.as_deref()) {
+                            if is_blacklisted_live(
+                                &blacklist_state,
+                                source_app.as_deref(),
+                                &mut blacklist_unknown_warned,
+                            ) {
                                 debug!("blacklisted app {source_app:?} — skipping text clip");
                                 continue;
                             }
@@ -406,7 +423,11 @@ pub async fn run_listener(
                         }
                     }
                     ClipboardPayload::FileUri { content, .. } => {
-                        if is_blacklisted_live(&blacklist_state, source_app.as_deref()) {
+                        if is_blacklisted_live(
+                            &blacklist_state,
+                            source_app.as_deref(),
+                            &mut blacklist_unknown_warned,
+                        ) {
                             debug!("blacklisted app {source_app:?} — skipping file-uri clip");
                             continue;
                         }
@@ -508,7 +529,11 @@ pub async fn run_listener(
                     ClipboardPayload::Image {
                         hash, data, mime, ..
                     } => {
-                        if is_blacklisted_live(&blacklist_state, source_app.as_deref()) {
+                        if is_blacklisted_live(
+                            &blacklist_state,
+                            source_app.as_deref(),
+                            &mut blacklist_unknown_warned,
+                        ) {
                             debug!("blacklisted app {source_app:?} — skipping image clip");
                             continue;
                         }
