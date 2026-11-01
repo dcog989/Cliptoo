@@ -82,6 +82,8 @@ pub async fn run_listener(
     let mut last_mime_types: Option<Vec<String>> = None;
     let mut last_full_read: Option<Instant> = None;
     let mut last_image_probe: Option<Instant> = None;
+    // Set when a clipboard read timed out; see `READ_TIMEOUT`.
+    let mut read_stalled: Option<Instant> = None;
     // True once the "blacklist set but source unknown" warning has been logged.
     let mut blacklist_unknown_warned = false;
     // True while the current clipboard generation (mime set) has already been
@@ -92,6 +94,17 @@ pub async fn run_listener(
     let mut non_text_ingested = false;
     const POLL_INTERVAL: Duration = Duration::from_millis(500);
     const FULL_READ_INTERVAL: Duration = Duration::from_secs(5);
+    // With the data-control watcher live, every copy wakes the loop, so the
+    // MIME poll and the full re-read are only a safety net for a dropped
+    // event. Idle instead of opening a Wayland connection twice a second.
+    const WATCHER_IDLE_INTERVAL: Duration = Duration::from_secs(30);
+    const WATCHER_STALE_INTERVAL: Duration = Duration::from_secs(60);
+    // A clipboard owner that stops servicing the pipe blocks the read forever.
+    // Bound it so one hung app cannot freeze capture for the session.
+    const READ_TIMEOUT: Duration = Duration::from_secs(5);
+    // After a timeout, do not re-read the same unresponsive selection more
+    // often than this; a selection change retries immediately.
+    const STALLED_RETRY: Duration = Duration::from_secs(30);
     // Image payloads must be downloaded in full to recompute their hash, so a
     // static image clipboard costs real bandwidth on every probe. When no
     // data-control watcher is available, re-probe an *unchanged* image at this
@@ -163,9 +176,20 @@ pub async fn run_listener(
         };
 
         let changed = last_mime_types.as_ref() != mime_types.as_ref();
-        let stale = last_full_read.is_none_or(|t| t.elapsed() >= FULL_READ_INTERVAL);
-        let image_recheck_due = !watcher_connected.load(std::sync::atomic::Ordering::Relaxed)
-            && last_image_probe.is_none_or(|t| t.elapsed() >= IMAGE_RECHECK_INTERVAL);
+        if changed {
+            // A new selection (any watcher event also clears `last_mime_types`)
+            // may have replaced a hung owner, so retry a stalled read at once.
+            read_stalled = None;
+        }
+        let watcher_up = watcher_connected.load(std::sync::atomic::Ordering::Relaxed);
+        let stale_interval = if watcher_up {
+            WATCHER_STALE_INTERVAL
+        } else {
+            FULL_READ_INTERVAL
+        };
+        let stale = last_full_read.is_none_or(|t| t.elapsed() >= stale_interval);
+        let image_recheck_due =
+            !watcher_up && last_image_probe.is_none_or(|t| t.elapsed() >= IMAGE_RECHECK_INTERVAL);
         let probe_images = changed || image_recheck_due;
 
         if changed && !baseline {
@@ -182,14 +206,23 @@ pub async fn run_listener(
             hashes.reset();
         }
 
-        if !changed && !stale {
+        // A timed-out read leaves the owner unresponsive; retry it only after
+        // `STALLED_RETRY` (or at once when the selection changes) so a hung app
+        // cannot stack blocked reader threads.
+        let stalled = read_stalled.is_some_and(|at| at.elapsed() < STALLED_RETRY);
+        if (!changed && !stale) || stalled {
             // Wait for a selection change (data-control watcher) or the poll
             // interval, whichever comes first. The watcher snapshots the
             // source app at the exact moment of the copy, so a focus switch
             // that lands before ingest can't be mistaken for the copy's
             // source. If the watcher is gone (no data-control on the
             // compositor) the timeout keeps the plain polling cadence.
-            match tokio::time::timeout(POLL_INTERVAL, selection_rx.recv()).await {
+            let wait = if watcher_up {
+                WATCHER_IDLE_INTERVAL
+            } else {
+                POLL_INTERVAL
+            };
+            match tokio::time::timeout(wait, selection_rx.recv()).await {
                 Ok(Some(app)) => {
                     pending_source_app = Some(app);
                     // Force a poll even when the mime set is unchanged (a
@@ -210,7 +243,24 @@ pub async fn run_listener(
         // text/plain (URL/alt text), and reading text first would record a
         // spurious Link/Text clip while deferring the image to a stale read.
         // `probe_images` gates the image download (see IMAGE_RECHECK_INTERVAL).
-        let result = poll_clipboard(&mut hashes, mime_types.as_deref(), probe_images).await;
+        let result = tokio::time::timeout(
+            READ_TIMEOUT,
+            poll_clipboard(&mut hashes, mime_types.as_deref(), probe_images),
+        )
+        .await;
+        let result = match result {
+            Ok(result) => result,
+            Err(_) => {
+                tracing::warn!(
+                    "clipboard read timed out after {READ_TIMEOUT:?}; the owner is not responding"
+                );
+                read_stalled = Some(Instant::now());
+                pending_source_app = None;
+                last_mime_types = mime_types;
+                last_full_read = Some(Instant::now());
+                continue;
+            }
+        };
 
         // A probe that found nothing new (image unchanged/absent) starts the
         // slow recheck window; a probe that yielded a fresh image leaves the
