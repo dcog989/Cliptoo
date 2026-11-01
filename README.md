@@ -2,7 +2,7 @@
 
 Advanced Linux clipboard manager. Use your clip history as a library of things. Rust, Slint, and SQLite = small footprint and fast performance.
 
-![assets/screen-1.WebP](assets/screen-1.webp)
+![screen-1](assets/screen-1.webp)
 
 ---
 
@@ -77,7 +77,7 @@ Large Language Models (LLMs) were used to assist with code generation, refactori
 
 ## Installation
 
-Cliptoo runs on **Wayland** only (KDE Plasma 6); X11 sessions are not supported. Keep `xdg-desktop-portal-kde` installed so global shortcuts work.
+Cliptoo runs on *Wayland* only (KDE Plasma 6). Requires `xdg-desktop-portal-kde`.
 
 Prebuilt bundles are on the [releases page](https://github.com/dcog989/Cliptoo/releases).
 

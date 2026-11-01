@@ -1,7 +1,5 @@
 **/[Pp]ackages/*
 .pkg/
 *.pkg.tar.zst
-.assets/
 .docs/
-.test-data/
 target/
