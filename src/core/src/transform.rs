@@ -2,7 +2,7 @@
 // See PORTING.md §5 for per-key notes.
 // All case ops use unicode-segmentation grapheme cluster iteration.
 
-use crate::time::local_timestamp;
+use chrono::Local;
 use unicode_segmentation::UnicodeSegmentation;
 
 pub fn transform(content: &str, key: &str) -> String {
@@ -41,26 +41,24 @@ pub fn transform(content: &str, key: &str) -> String {
         "invert" => invert_case(content),
 
         // Convert to kebab-case.
-        "kebab" => normalise_to_words(content).join("-").to_lowercase(),
+        "kebab" => machine_words(content).join("-"),
 
         // Convert to snake_case.
-        "snake" => normalise_to_words(content).join("_").to_lowercase(),
+        "snake" => machine_words(content).join("_"),
 
         // Convert to camelCase.
         "camel" => {
-            let words = normalise_to_words(content);
+            let words = machine_words(content);
             words
                 .iter()
                 .enumerate()
                 .map(|(i, w)| {
                     if i == 0 {
-                        w.to_lowercase()
+                        w.clone()
                     } else {
                         let mut g = w.graphemes(true);
                         match g.next() {
-                            Some(first) => {
-                                format!("{}{}", first.to_uppercase(), g.as_str().to_lowercase())
-                            }
+                            Some(first) => format!("{}{}", first.to_uppercase(), g.as_str()),
                             None => String::new(),
                         }
                     }
@@ -98,18 +96,12 @@ pub fn transform(content: &str, key: &str) -> String {
             out.trim().to_string()
         }
 
-        // Strip all line breaks.
-        "remove_lf" => content
-            .replace("\r\n", " ")
-            .replace(['\r', '\n'], " ")
-            .split_whitespace()
-            .collect::<Vec<_>>()
-            .join(" "),
+        // Strip all line breaks, keeping whitespace inside each line.
+        "remove_lf" => content.replace("\r\n", " ").replace(['\r', '\n'], " "),
 
-        // Prepend [YYYY-MM-DD HH:MM:SS] using local time (via std::time).
+        // Prepend [YYYY-MM-DD HH:MM:SS] using local time.
         "timestamp" => {
-            let ts = local_timestamp();
-            format!("{ts} {content}")
+            format!("[{}] {content}", Local::now().format("%Y-%m-%d %H:%M:%S"))
         }
 
         _ => content.to_string(),
@@ -117,15 +109,6 @@ pub fn transform(content: &str, key: &str) -> String {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-/// Split content on whitespace, hyphens, and underscores — returns individual
-/// words suitable for reassembly into kebab / snake / camel.
-fn normalise_to_words(content: &str) -> Vec<&str> {
-    content
-        .split(|c: char| c.is_whitespace() || c == '-' || c == '_')
-        .filter(|w| !w.is_empty())
-        .collect()
-}
 
 /// Split machine-formatted identifiers into lowercase words: on whitespace and
 /// `_` `-` `.` separators, plus case boundaries inside each segment —
@@ -156,24 +139,26 @@ fn machine_words(content: &str) -> Vec<String> {
     words
 }
 
-/// Capitalise the first grapheme of each sentence. Sentence boundaries are
-/// defined as `.`, `!`, or `?` followed by one or more whitespace characters.
+/// Capitalise the first grapheme of each sentence. A sentence boundary is `.`,
+/// `!`, or `?` followed by whitespace or the end of the text, so dots inside
+/// domains, decimals, and abbreviations do not start a new sentence.
 fn capitalize_sentences(content: &str) -> String {
     let mut out = String::with_capacity(content.len());
     let mut capitalise_next = true;
 
-    let chars = content.chars();
-    for ch in chars {
-        if ch == '.' || ch == '!' || ch == '?' {
-            out.push(ch);
-            // Flag the next non-whitespace character for capitalisation.
-            capitalise_next = true;
-        } else if capitalise_next && !ch.is_whitespace() {
+    let mut chars = content.chars().peekable();
+    while let Some(ch) = chars.next() {
+        if capitalise_next && !ch.is_whitespace() {
             // to_uppercase can expand to multiple chars (e.g. ß → SS).
             for uc in ch.to_uppercase() {
                 out.push(uc);
             }
             capitalise_next = false;
+        } else if matches!(ch, '.' | '!' | '?')
+            && chars.peek().is_none_or(|next| next.is_whitespace())
+        {
+            out.push(ch);
+            capitalise_next = true;
         } else {
             out.push(ch);
         }
@@ -282,9 +267,61 @@ mod tests {
         assert_eq!(transform("a\nb", "remove_lf"), "a b");
     }
 
+    /// Only line breaks are replaced; spacing inside a line is left alone.
+    #[test]
+    fn remove_lf_keeps_spacing_inside_lines() {
+        assert_eq!(transform("a  b", "remove_lf"), "a  b");
+        assert_eq!(
+            transform("col1\tcol2\nnext", "remove_lf"),
+            "col1\tcol2 next"
+        );
+    }
+
     #[test]
     fn sentence_capitalise() {
         assert_eq!(transform("hello. world", "sentence"), "Hello. World");
+    }
+
+    /// Dots inside domains, decimals, and abbreviations are not sentence ends.
+    #[test]
+    fn sentence_ignores_dots_inside_words() {
+        assert_eq!(
+            transform("visit example.com, then stop", "sentence"),
+            "Visit example.com, then stop"
+        );
+        assert_eq!(transform("took 3.5 hours", "sentence"), "Took 3.5 hours");
+    }
+
+    /// kebab/snake/camel split camelCase and acronym runs like de-slug does.
+    #[test]
+    fn kebab_snake_split_case_boundaries() {
+        assert_eq!(transform("helloWorld", "snake"), "hello_world");
+        assert_eq!(transform("HTTPServer", "kebab"), "http-server");
+        assert_eq!(transform("parseXMLResponse", "camel"), "parseXmlResponse");
+    }
+
+    /// Every key offered by FormatMenu.slint must actually change the text; a
+    /// key typo would otherwise fall through and paste the clip unchanged.
+    #[test]
+    fn format_menu_keys_all_transform() {
+        let input = " hello WORLD\nagain ";
+        for key in [
+            "upper",
+            "lower",
+            "capitalize",
+            "sentence",
+            "invert",
+            "kebab",
+            "snake",
+            "camel",
+            "deslug",
+            "trim",
+            "remove_lf",
+            "lf1",
+            "timestamp",
+        ] {
+            assert_ne!(transform(input, key), input, "key {key} is a no-op");
+        }
     }
 
     #[test]

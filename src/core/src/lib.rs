@@ -19,7 +19,6 @@ pub mod send_to;
 pub mod settings;
 pub mod stats;
 pub mod temp;
-pub(crate) mod time;
 pub mod transform;
 pub mod url;
 
