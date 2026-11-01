@@ -4,10 +4,15 @@ use std::sync::{Arc, Mutex, OnceLock};
 
 use crate::helpers::extract_domain;
 use cliptoo_core::db::DbPool;
+use futures::StreamExt;
 use slint::ComponentHandle;
 use slint::Model;
 
 const FAVICON_FETCH_TIMEOUT_SECS: u64 = 3;
+
+/// Domains fetched at once. Every fetch can make up to three HTTP requests, so
+/// this keeps a large link history from opening hundreds of connections.
+const FAVICON_FETCH_CONCURRENCY: usize = 4;
 
 /// Cache-file suffixes for the two theme variants. Light and dark favicons
 /// are cached side-by-side (`{domain}.webp` vs `{domain}.dark.webp`) so
@@ -274,18 +279,26 @@ fn looks_like_svg(bytes: &[u8]) -> bool {
         .is_some_and(|s| s.starts_with("<svg") || s.starts_with("<?xml"))
 }
 
+/// Prefix length of the URL hash used as the title cache key.
+const TITLE_HASH_PREFIX_LEN: usize = 16;
+
+/// Title cache file for one page. Keyed by the whole URL, not the domain: two
+/// pages on the same site must not share (or overwrite) each other's title.
+fn title_cache_path(url: &str, fav_dir: &Path) -> Option<PathBuf> {
+    extract_domain(url)?;
+    let (hash, _) = cliptoo_core::content::hash::sha256_hex_and_prefix(url);
+    Some(fav_dir.join(format!("{}.title", &hash[..TITLE_HASH_PREFIX_LEN])))
+}
+
 pub fn load_cached_page_title(url: &str, fav_dir: &Path) -> Option<String> {
-    let domain = extract_domain(url)?;
-    let path = fav_dir.join(format!("{domain}.title"));
+    let path = title_cache_path(url, fav_dir)?;
     std::fs::read_to_string(&path).ok()
 }
 
 pub fn cache_page_title(url: &str, title: &str, fav_dir: &Path) {
-    let domain = match extract_domain(url) {
-        Some(d) => d,
-        None => return,
+    let Some(path) = title_cache_path(url, fav_dir) else {
+        return;
     };
-    let path = fav_dir.join(format!("{domain}.title"));
     let _ = std::fs::write(&path, title);
 }
 
@@ -341,7 +354,17 @@ fn save_failures(favicons_dir: &Path, failures: &HashMap<i64, u32>) {
     let _ = std::fs::write(failures_path(favicons_dir), out);
 }
 
+/// Serialises the read-modify-write of the failure ledger. Concurrent fetch
+/// batches otherwise lose each other's increments.
+fn failure_ledger_lock() -> &'static Mutex<()> {
+    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+    LOCK.get_or_init(|| Mutex::new(()))
+}
+
 fn increment_failure(favicons_dir: &Path, clip_id: i64) {
+    let _guard = failure_ledger_lock()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     let mut failures = load_failures(favicons_dir);
     let count = failures.entry(clip_id).or_insert(0);
     *count = count.saturating_add(1).min(MAX_FAVICON_FAILURES);
@@ -349,6 +372,9 @@ fn increment_failure(favicons_dir: &Path, clip_id: i64) {
 }
 
 fn reset_failure(favicons_dir: &Path, clip_id: i64) {
+    let _guard = failure_ledger_lock()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     let mut failures = load_failures(favicons_dir);
     if failures.remove(&clip_id).is_some() {
         save_failures(favicons_dir, &failures);
@@ -366,8 +392,8 @@ pub fn reset_favicon_failures(favicons_dir: &Path) {
 }
 
 /// After populating the clip list, scan for link clips without cached
-/// favicons and fetch them in the background.  Updates the model row
-/// in-place as each favicon arrives.
+/// favicons and fetch them in the background. The model is reloaded once
+/// after the batch finishes.
 ///
 /// Must be called on the UI thread (e.g. inside `upgrade_in_event_loop`)
 /// because it accesses the Slint model synchronously to collect pending
@@ -378,7 +404,12 @@ pub fn check_pending_favicons(ui: &crate::AppWindow, db: &Arc<DbPool>, favicons_
     let mut attempted = attempted_favicon_domains()
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
-    let failures = load_failures(favicons_dir);
+    let failures = {
+        let _guard = failure_ledger_lock()
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        load_failures(favicons_dir)
+    };
     for i in 0..model.row_count() {
         if let Some(data) = model.row_data(i) {
             let ct = data.clip_type.as_str();
@@ -397,43 +428,57 @@ pub fn check_pending_favicons(ui: &crate::AppWindow, db: &Arc<DbPool>, favicons_
             }
         }
     }
+    // Stop holding the dispatch ledger while the HTTP work runs: a refresh
+    // during a slow fetch must not block on this mutex.
+    drop(attempted);
     if pending.is_empty() {
         return;
     }
     // Fetch the variant matching the current theme (dark cache entries are
-    // fetched separately from light ones).
+    // fetched separately from light ones). One task with bounded concurrency:
+    // one spawned task per domain (the old code) opened hundreds of requests at
+    // once, and every success reloaded the whole list, for O(domains × rows) UI
+    // work.
     let dark = crate::theme::cached_resolved_theme().0;
     let weak = ui.as_weak();
     let db = db.clone();
     let fav_dir = favicons_dir.to_owned();
-    for clip_id in pending {
-        let weak = weak.clone();
-        let db = db.clone();
-        let fav_dir = fav_dir.clone();
-        tokio::spawn(async move {
-            let Ok(content) = db
-                .with(|conn| cliptoo_core::db::queries::get_clip_content(conn, clip_id))
-                .await
-            else {
-                return;
-            };
-            let Some(_) = fetch_favicon(&content, &fav_dir, dark).await else {
-                // Record the failure against this clip; after the budget is
-                // exhausted the scan stops dispatching it entirely.
+    tokio::spawn(async move {
+        let fetch_dir = fav_dir.clone();
+        let results = futures::stream::iter(pending.into_iter().map(move |clip_id| {
+            let db = db.clone();
+            let fav_dir = fetch_dir.clone();
+            async move {
+                let content = db
+                    .with(|conn| cliptoo_core::db::queries::get_clip_content(conn, clip_id))
+                    .await
+                    .ok()?;
+                let fetched = fetch_favicon(&content, &fav_dir, dark).await.is_some();
+                Some((clip_id, fetched))
+            }
+        }))
+        .buffer_unordered(FAVICON_FETCH_CONCURRENCY)
+        .collect::<Vec<_>>()
+        .await;
+
+        let mut any_fetched = false;
+        for (clip_id, fetched) in results.into_iter().flatten() {
+            if fetched {
+                // Clear this clip's failure count; the single reload below
+                // picks up the icon for every row sharing the domain.
+                reset_failure(&fav_dir, clip_id);
+                any_fetched = true;
+            } else {
+                // After the budget is exhausted the scan stops dispatching it.
                 increment_failure(&fav_dir, clip_id);
-                return;
-            };
-            // The favicon is now on disk. Clear this clip's failure count and
-            // reload every row in place: this clears the LRU's stale empty
-            // default (cached while the file was missing) and picks up the
-            // fetched favicon for all rows of this domain, not just the one
-            // that was dispatched.
-            reset_failure(&fav_dir, clip_id);
+            }
+        }
+        if any_fetched {
             let _ = weak.upgrade_in_event_loop(move |ui| {
                 crate::thumbnail_cache::reload_favicons(&ui, &fav_dir);
             });
-        });
-    }
+        }
+    });
 }
 
 #[cfg(test)]
@@ -477,6 +522,18 @@ mod tests {
                 "https://example.com/favicon-16.png".to_string(),
                 "https://example.com/favicon-32.png".to_string(),
             ]
+        );
+    }
+
+    #[test]
+    fn titles_are_cached_per_url_not_per_domain() {
+        let dir = Path::new("/tmp/cliptoo-titles");
+        let first = title_cache_path("https://github.com/a", dir).unwrap();
+        let second = title_cache_path("https://github.com/b", dir).unwrap();
+        assert_ne!(first, second);
+        assert_eq!(
+            first,
+            title_cache_path("https://github.com/a", dir).unwrap()
         );
     }
 

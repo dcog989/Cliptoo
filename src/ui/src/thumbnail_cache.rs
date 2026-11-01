@@ -64,7 +64,7 @@ impl Default for ThumbnailLru {
 /// a corrupt or legacy hash (e.g. imported before hash validation) can never
 /// have keyed a real thumbnail, mirroring the guard in
 /// `maintenance::prune_cache`.
-fn hash_key(hash: &str) -> Option<&str> {
+pub(crate) fn hash_key(hash: &str) -> Option<&str> {
     let end = hash.len().min(HASH_FILENAME_PREFIX_LEN);
     hash.is_char_boundary(end).then(|| &hash[..end])
 }

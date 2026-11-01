@@ -6,8 +6,6 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use slint::{ComponentHandle, Model};
 
-use cliptoo_core::image::HASH_FILENAME_PREFIX_LEN;
-
 use crate::helpers;
 
 /// Horizontal offset (logical px) of the preview popup from the pointer.
@@ -222,14 +220,18 @@ fn show_image_preview(ctx: &PreviewContext) {
     let content = ctx.content;
     let content_hash = ctx.content_hash;
     let td = ctx.td;
-    let preview_webp = td.join(format!(
-        "{}_preview.webp",
-        &content_hash[..HASH_FILENAME_PREFIX_LEN]
-    ));
-    let preview_svg = td.join(format!(
-        "{}_preview.svg",
-        &content_hash[..HASH_FILENAME_PREFIX_LEN]
-    ));
+    // A legacy/corrupt row can carry a hash too short (or not on a char
+    // boundary) for the filename prefix; do not slice it blindly.
+    let Some(prefix) = crate::thumbnail_cache::hash_key(content_hash) else {
+        preview.set_preview_clip_type("file_image".into());
+        preview.set_preview_text(content.into());
+        preview.set_preview_file_info("".into());
+        spawn_file_info(ctx, content.to_string());
+        return;
+    };
+    let prefix = prefix.to_string();
+    let preview_webp = td.join(format!("{prefix}_preview.webp"));
+    let preview_svg = td.join(format!("{prefix}_preview.svg"));
     if preview_webp.exists() {
         let img = slint::Image::load_from_path(&preview_webp).unwrap_or_default();
         preview.set_preview_image(img);
@@ -238,6 +240,7 @@ fn show_image_preview(ctx: &PreviewContext) {
         preview.set_preview_image(img);
     } else {
         let file_path = content.to_string();
+        let store_td = td.to_path_buf();
         let td2 = td.to_path_buf();
         let hash2 = content_hash.to_string();
         let max_dim = ctx.preview_max_dim;
@@ -245,16 +248,18 @@ fn show_image_preview(ctx: &PreviewContext) {
         let generation_cell = ctx.generation;
         let w = preview.as_weak();
         tokio::spawn(async move {
-            let _ = cliptoo_core::image::store_both_thumbnails_for_file(
-                &td2,
-                &hash2,
-                Path::new(&file_path),
-                max_dim,
-            );
-            let p = td2.join(format!(
-                "{}_preview.webp",
-                &hash2[..HASH_FILENAME_PREFIX_LEN]
-            ));
+            // Decoding, resizing and WebP encoding are blocking; keep them off
+            // the async workers that also run the clipboard poll.
+            let _ = tokio::task::spawn_blocking(move || {
+                cliptoo_core::image::store_both_thumbnails_for_file(
+                    &store_td,
+                    &hash2,
+                    Path::new(&file_path),
+                    max_dim,
+                )
+            })
+            .await;
+            let p = td2.join(format!("{prefix}_preview.webp"));
             if p.exists() {
                 let _ = w.upgrade_in_event_loop(move |preview| {
                     // A newer request has taken over the popup; leave it alone.
@@ -265,10 +270,7 @@ fn show_image_preview(ctx: &PreviewContext) {
                     preview.set_preview_image(img);
                 });
             } else {
-                let svg_p = td2.join(format!(
-                    "{}_preview.svg",
-                    &hash2[..HASH_FILENAME_PREFIX_LEN]
-                ));
+                let svg_p = td2.join(format!("{prefix}_preview.svg"));
                 if svg_p.exists() {
                     let _ = w.upgrade_in_event_loop(move |preview| {
                         if generation_cell.load(Ordering::Relaxed) != generation {

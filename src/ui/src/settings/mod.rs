@@ -10,6 +10,20 @@ mod parse;
 mod pickers;
 mod theme_apply;
 
+/// Show a toast on the settings window (its bottom overlay). Severity is
+/// "info" | "warn" | "error". Shared so every action reports failures the
+/// same way.
+pub(crate) fn show_toast(win: &slint::Weak<crate::SettingsWindow>, message: &str, severity: &str) {
+    let message = message.to_string();
+    let severity = severity.to_string();
+    let _ = win.upgrade_in_event_loop(move |win| {
+        win.set_toast_visible(false);
+        win.set_toast_message(message.into());
+        win.set_toast_severity(severity.into());
+        win.set_toast_visible(true);
+    });
+}
+
 /// Persist the settings window's current size into `Settings` so a resized
 /// window keeps its size across restarts, and update the window's own
 /// `stored-width`/`stored-height` so its `preferred-*` binding reflects the

@@ -88,17 +88,6 @@ async fn pick_path(save: bool) -> anyhow::Result<Option<std::path::PathBuf>> {
     anyhow::bail!("file chooser message stream ended unexpectedly")
 }
 
-/// Show a toast on the settings window (the window the user is looking at).
-fn toast(settings_win: &slint::Weak<crate::SettingsWindow>, message: &str, severity: &str) {
-    let msg = message.to_string();
-    let sev = severity.to_string();
-    let _ = settings_win.upgrade_in_event_loop(move |win| {
-        win.set_toast_message(msg.into());
-        win.set_toast_severity(sev.into());
-        win.set_toast_visible(true);
-    });
-}
-
 /// Set up the manual maintenance actions handler on the main window.
 pub fn setup_manual_maintenance(
     ui: &crate::AppWindow,
@@ -198,7 +187,7 @@ pub fn setup_manual_maintenance(
                         Some(path) => {
                             let count = cliptoo_core::export::import_from_file(&db, &path).await?;
                             let msg = format!("Imported {count} clips from {}", path.display());
-                            crate::helpers::refresh_clips(&db, &ui, &td2, &fd, "", "", None).await;
+                            crate::helpers::refresh_clips_live(&db, &ui, &td2, &fd, None);
                             Ok(Some(msg))
                         }
                         None => Ok(None),
@@ -216,7 +205,7 @@ pub fn setup_manual_maintenance(
                 matches!(&result, Ok(None)) && matches!(key.as_str(), "export" | "import");
 
             match &result {
-                Ok(Some(msg)) => toast(&settings_win, msg, "info"),
+                Ok(Some(msg)) => crate::settings::show_toast(&settings_win, msg, "info"),
                 Ok(None) if !cancelled => {
                     let msg = match key.as_str() {
                         "clear-history" => "History cleared",
@@ -224,20 +213,20 @@ pub fn setup_manual_maintenance(
                         _ => "",
                     };
                     if !msg.is_empty() {
-                        toast(&settings_win, msg, "info");
+                        crate::settings::show_toast(&settings_win, msg, "info");
                     }
                 }
                 Ok(None) => {}
                 Err(e) => {
                     tracing::error!("maintenance_action '{key}' failed: {e}");
-                    toast(&settings_win, &format!("Error: {e}"), "error");
+                    crate::settings::show_toast(&settings_win, &format!("Error: {e}"), "error");
                 }
             }
 
             if !cancelled {
                 let need_refresh = key != "import" && key != "compact";
                 if need_refresh {
-                    crate::helpers::refresh_clips(&db, &ui, &td2, &fd, "", "", None).await;
+                    crate::helpers::refresh_clips_live(&db, &ui, &td2, &fd, None);
                 }
 
                 match key.as_str() {

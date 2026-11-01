@@ -1,22 +1,31 @@
 //! System theme detection: the dark/light preference and accent color are read
 //! from the XDG Desktop Portal, with a KDE Plasma 6 `kdeglobals` fallback.
 
+use std::time::Duration;
+
+/// A portal that owns its bus name but never replies must not hang startup:
+/// the theme is resolved before the main window is shown.
+const PORTAL_TIMEOUT: Duration = Duration::from_secs(2);
+
 /// Detect the system color-scheme preference via xdg-desktop-portal.
 /// Returns `true` for dark, `false` for light, `None` if undetectable.
 /// Portal's `Read` returns `(v)` where `v` is the value; zbus unwraps
 /// the variant transparently, so we deserialize as `(u32,)`.
 pub async fn detect_system_dark() -> Option<bool> {
     let conn = crate::dbus::session().await.ok()?;
-    let msg = conn
-        .call_method(
+    let msg = tokio::time::timeout(
+        PORTAL_TIMEOUT,
+        conn.call_method(
             Some("org.freedesktop.portal.Desktop"),
             "/org/freedesktop/portal/desktop",
             Some("org.freedesktop.portal.Settings"),
             "Read",
             &("org.freedesktop.appearance", "color-scheme"),
-        )
-        .await
-        .ok()?;
+        ),
+    )
+    .await
+    .ok()?
+    .ok()?;
 
     let (val,): (u32,) = msg.body().deserialize().ok()?;
     match val {
@@ -81,15 +90,17 @@ pub async fn detect_system_accent() -> Option<(u8, u8, u8)> {
     }
     // Try the portal (org.freedesktop.appearance.accent-color)
     if let Ok(conn) = crate::dbus::session().await
-        && let Ok(msg) = conn
-            .call_method(
+        && let Ok(Ok(msg)) = tokio::time::timeout(
+            PORTAL_TIMEOUT,
+            conn.call_method(
                 Some("org.freedesktop.portal.Desktop"),
                 "/org/freedesktop/portal/desktop",
                 Some("org.freedesktop.portal.Settings"),
                 "Read",
                 &("org.freedesktop.appearance", "accent-color"),
-            )
-            .await
+            ),
+        )
+        .await
         && let Ok((r, g, b)) = msg.body().deserialize::<(f64, f64, f64)>()
     {
         return Some((

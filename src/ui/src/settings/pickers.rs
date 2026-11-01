@@ -6,15 +6,6 @@ use slint::ComponentHandle;
 
 use super::theme_apply::apply_theme_to_windows;
 
-/// Show a toast on the settings window (its bottom overlay). Severity is one
-/// of "info" | "warn" | "error".
-fn show_settings_toast(win: &crate::SettingsWindow, message: &str, severity: &str) {
-    win.set_toast_visible(false);
-    win.set_toast_message(message.into());
-    win.set_toast_severity(severity.into());
-    win.set_toast_visible(true);
-}
-
 /// Clear accent: empty accent_color means "use the OS default accent".
 pub(super) fn setup_clear_accent(
     settings_win: &crate::SettingsWindow,
@@ -145,11 +136,9 @@ if ok:
             }
 
             if family.is_empty() {
-                if error.is_some()
-                    && let Some(win) = sw.upgrade()
-                {
-                    show_settings_toast(
-                        &win,
+                if error.is_some() {
+                    crate::settings::show_toast(
+                        &sw,
                         "Font picker failed (python3 + PyQt6 required)",
                         "error",
                     );
@@ -255,10 +244,12 @@ pub(super) fn setup_accent_picker(
             }
 
             let Some(hex) = hex else {
-                if error.is_some()
-                    && let Some(win) = sw.upgrade()
-                {
-                    show_settings_toast(&win, "Color picker failed (kdialog required)", "error");
+                if error.is_some() {
+                    crate::settings::show_toast(
+                        &sw,
+                        "Color picker failed (kdialog required)",
+                        "error",
+                    );
                 }
                 return;
             };
