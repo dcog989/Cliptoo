@@ -1,3 +1,5 @@
+use std::cell::RefCell;
+use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
@@ -6,6 +8,32 @@ use anyhow::Context;
 use slint::ComponentHandle;
 
 use crate::helpers;
+
+thread_local! {
+    /// File mtime/size captured when a clip was opened, by clip id. Kept out of
+    /// Slint properties because `float` is f32 there and cannot represent an
+    /// epoch mtime precisely enough to detect an external edit.
+    static FILE_SNAPSHOTS: RefCell<HashMap<i32, (f64, u64)>> =
+        RefCell::new(HashMap::new());
+}
+
+/// Record the file snapshot for an open clip (UI thread only).
+pub fn remember_file_snapshot(id: i32, mtime: f64, size: u64) {
+    FILE_SNAPSHOTS.with(|s| {
+        s.borrow_mut().insert(id, (mtime, size));
+    });
+}
+
+/// Drop a snapshot (clip is not a readable file, or the editor was reopened).
+pub fn forget_file_snapshot(id: i32) {
+    FILE_SNAPSHOTS.with(|s| {
+        s.borrow_mut().remove(&id);
+    });
+}
+
+fn file_snapshot(id: i32) -> Option<(f64, u64)> {
+    FILE_SNAPSHOTS.with(|s| s.borrow().get(&id).copied())
+}
 
 /// Persist the editor window's current size to settings. Called on every close
 /// path — WM close, Cancel, and Save — because save/cancel hide the window
@@ -104,6 +132,9 @@ pub fn setup_edit_window(
                 if let Some(win) = ew.upgrade() {
                     save_editor_size(&win, &edit_settings, &edit_settings_path);
                 }
+                // Snapshot taken when the clip was opened; Save only rewrites
+                // the file when it was actually loaded and has not changed.
+                let file_snapshot = file_snapshot(id);
                 let db = edit_db.clone();
                 let win = ew.clone();
                 let ui = edit_ui.clone();
@@ -132,25 +163,28 @@ pub fn setup_edit_window(
                             .context("loading clip")?;
                         // `file_document` covers text-based formats (markdown,
                         // rst, …) and binary ones (pdf, docx, …). Only write the
-                        // edited text back to the file when it is actually
-                        // text-readable, so a binary document is never
-                        // overwritten with the editor's path text. The same
-                        // check keeps a code/config file clip in sync.
-                        let write_back = if clip_type == "file_text" {
-                            true
-                        } else if cliptoo_core::db::models::ClipType::parse(&clip_type)
-                            .is_text_file()
-                        {
-                            let write_path = stored_content.clone();
-                            tokio::task::spawn_blocking(move || {
-                                std::fs::read_to_string(&write_path).is_ok()
+                        // edited text back when the editor actually loaded this
+                        // regular file; a deleted, binary or oversized file keeps
+                        // the path view, and Save must not recreate it with the
+                        // path text as its contents.
+                        let write_back = file_snapshot.is_some()
+                            && (clip_type == "file_text"
+                                || cliptoo_core::db::models::ClipType::parse(&clip_type)
+                                    .is_text_file());
+                        if write_back {
+                            let (file_mtime, file_size) =
+                                file_snapshot.expect("write_back requires a snapshot");
+                            let check_path = stored_content.clone();
+                            let unchanged = tokio::task::spawn_blocking(move || {
+                                file_unchanged(&check_path, file_mtime, file_size)
                             })
                             .await
-                            .unwrap_or(false)
-                        } else {
-                            false
-                        };
-                        if write_back {
+                            .context("file-check task panicked")?;
+                            if !unchanged {
+                                anyhow::bail!(
+                                    "the file changed on disk since it was opened; reopen the clip"
+                                );
+                            }
                             let write_path = stored_content.clone();
                             let write_content = content.clone();
                             let wrote = tokio::task::spawn_blocking(move || {
@@ -251,10 +285,52 @@ pub fn setup_edit_window(
     edit_win
 }
 
-/// Write edited text back to a text-document file. Separated so the save path
-/// can be unit-tested without the window/tokio plumbing.
+/// Write edited text back to a text-document file via a temp file in the same
+/// directory, so a crash mid-write cannot truncate the user's document. The
+/// original permissions are carried over (a 0600 note must not become 0644).
+/// Separated so the save path can be unit-tested without the window/tokio
+/// plumbing.
 fn write_text_file(path: &str, contents: &str) -> std::io::Result<()> {
-    std::fs::write(path, contents)
+    // Write through a symlink (dotfile setups) instead of replacing the link
+    // with a regular file. Falls back to the given path when it is gone.
+    let original = Path::new(path);
+    let target = std::fs::canonicalize(original).unwrap_or_else(|_| original.to_path_buf());
+    let path = target.as_path();
+    let name = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("cliptoo-edit");
+    let dir = path.parent().unwrap_or_else(|| Path::new("."));
+    let tmp = dir.join(format!(".{name}.cliptoo-{}.tmp", std::process::id()));
+
+    if let Err(e) = std::fs::write(&tmp, contents) {
+        let _ = std::fs::remove_file(&tmp);
+        return Err(e);
+    }
+    if let Ok(meta) = std::fs::metadata(path) {
+        let _ = std::fs::set_permissions(&tmp, meta.permissions());
+    }
+    if let Err(e) = std::fs::rename(&tmp, path) {
+        let _ = std::fs::remove_file(&tmp);
+        return Err(e);
+    }
+    Ok(())
+}
+
+/// Whether the file still has the size and mtime it had when the editor loaded
+/// it, so Save does not silently overwrite an edit made in another program.
+fn file_unchanged(path: &str, mtime: f64, size: u64) -> bool {
+    let Ok(meta) = std::fs::metadata(path) else {
+        return false;
+    };
+    if !meta.is_file() || meta.len() != size {
+        return false;
+    }
+    meta.modified()
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_secs_f64())
+        == Some(mtime)
 }
 
 #[cfg(test)]
@@ -264,10 +340,13 @@ mod tests {
     #[test]
     fn writes_text_file_contents() {
         let dir = std::env::temp_dir().join(format!("cliptoo_edit_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("doc.txt");
         write_text_file(path.to_str().unwrap(), "edited text").unwrap();
         assert_eq!(std::fs::read_to_string(&path).unwrap(), "edited text");
+        // No temp file is left behind.
+        assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 1);
         std::fs::remove_dir_all(&dir).unwrap();
     }
 

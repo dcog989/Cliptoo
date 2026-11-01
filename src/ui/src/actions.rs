@@ -87,11 +87,20 @@ pub fn setup_clip_actions(
             let db = bm_db.clone();
             let ui = bm_ui.clone();
             tokio::spawn(async move {
-                let _ = db
+                // Only reflect a write that actually happened: flipping the row
+                // on a busy/full DB leaves the icon lying until the next refresh.
+                if let Err(e) = db
                     .with(|conn| {
                         cliptoo_core::db::queries::set_bookmarked(conn, id as i64, !current)
                     })
-                    .await;
+                    .await
+                {
+                    tracing::error!("bookmark toggle failed for clip {id}: {e}");
+                    let _ = ui.upgrade_in_event_loop(|ui| {
+                        show_main_toast(&ui, "Could not save bookmark", "error");
+                    });
+                    return;
+                }
                 let _ = ui.upgrade_in_event_loop(move |ui| {
                     let model = ui.get_clips();
                     for i in 0..model.row_count() {
@@ -116,12 +125,15 @@ pub fn setup_clip_actions(
         let mtt_fd = favicons_dir.clone();
         let mtt_sup = suppression.clone();
         let mtt_pfx = tag_prefix.clone();
+        let mtt_settings = settings.clone();
         ui.on_move_to_top(move |id: i32| {
             let db = mtt_db.clone();
             let ui = mtt_ui.clone();
             let td = mtt_td.clone();
             let fd = mtt_fd.clone();
             let sup = mtt_sup.clone();
+            // Same rich/plain choice a copy or paste would make.
+            let offer_rich = !mtt_settings.borrow().paste_as_plain_text;
             let (query, filter) = helpers::current_view_state(&ui);
             let pfx = mtt_pfx.clone();
             let in_place = ui
@@ -143,7 +155,8 @@ pub fn setup_clip_actions(
                 if let Ok((content, clip_type, _hash)) = result {
                     crate::paste::register_suppression(&sup, &content, &clip_type);
                     if let Err(e) =
-                        crate::paste::write_content_to_clipboard(&content, &clip_type, true).await
+                        crate::paste::write_content_to_clipboard(&content, &clip_type, offer_rich)
+                            .await
                     {
                         tracing::error!("Move-to-top clipboard write error: {e}");
                     }
@@ -191,13 +204,16 @@ pub fn setup_clip_actions(
                 // A file clip stores the file path, not its text. Load the file's
                 // actual contents so the editor — and its read-only code view —
                 // opens on the file rather than on a bare path, whatever the
-                // extension. A missing or binary file keeps the path text.
+                // extension. A missing, binary or oversized file keeps the path
+                // text. The mtime/size snapshot lets Save refuse to overwrite a
+                // file that changed on disk after this read.
+                let mut file_snapshot: Option<(f64, u64)> = None;
                 if cliptoo_core::db::models::ClipType::parse(&clip_type).is_text_file() {
                     let path = content.clone();
-                    let read =
-                        tokio::task::spawn_blocking(move || std::fs::read_to_string(path)).await;
-                    if let Ok(Ok(text)) = read {
+                    let read = tokio::task::spawn_blocking(move || load_text_file(&path)).await;
+                    if let Ok(Some((text, mtime, size))) = read {
                         content = text;
+                        file_snapshot = Some((mtime, size));
                     }
                 }
                 let tags = db
@@ -220,6 +236,10 @@ pub fn setup_clip_actions(
                     edit.set_initial_tags(tags.into());
                     edit.set_clip_type(clip_type.into());
                     edit.set_meta_info(meta.into());
+                    match file_snapshot {
+                        Some((mtime, size)) => crate::edit::remember_file_snapshot(id, mtime, size),
+                        None => crate::edit::forget_file_snapshot(id),
+                    }
                     // Fresh open: clear any dirty/discard state left by the
                     // previous clip (see EditWindow.slint dirty).
                     edit.set_dirty(false);
@@ -535,18 +555,27 @@ pub fn setup_clip_actions(
                         cliptoo_core::db::queries::get_clip_type_and_content(conn, id as i64)
                     })
                     .await;
-                if let Ok((content, clip_type, _hash)) = result
-                    && let Err(e) = crate::paste::paste_content(
-                        &content,
-                        &clip_type,
-                        &sup,
-                        &ui,
-                        paste_plain,
-                        keep_open,
-                    )
-                    .await
-                {
-                    tracing::error!("Paste error: {e}");
+                match result {
+                    Ok((content, clip_type, _hash)) => {
+                        if let Err(e) = crate::paste::paste_content(
+                            &content,
+                            &clip_type,
+                            &sup,
+                            &ui,
+                            paste_plain,
+                            keep_open,
+                        )
+                        .await
+                        {
+                            tracing::error!("Paste error: {e}");
+                        }
+                    }
+                    // A retention pass can delete a row while the window still
+                    // lists it; re-query so the row disappears instead of the
+                    // click doing nothing.
+                    Err(e) => {
+                        report_missing_clip(&db, &ui, &td, &fd, &pfx, id, &e);
+                    }
                 }
             });
         });
@@ -592,20 +621,74 @@ pub fn setup_clip_actions(
                         cliptoo_core::db::queries::get_clip_type_and_content(conn, id as i64)
                     })
                     .await;
-                if let Ok((content, clip_type, _hash)) = result
-                    && let Err(e) = crate::paste::paste_content(
-                        &content,
-                        &clip_type,
-                        &sup,
-                        &ui,
-                        paste_plain,
-                        keep_open,
-                    )
-                    .await
-                {
-                    tracing::error!("Paste-as ({paste_plain}) error: {e}");
+                match result {
+                    Ok((content, clip_type, _hash)) => {
+                        if let Err(e) = crate::paste::paste_content(
+                            &content,
+                            &clip_type,
+                            &sup,
+                            &ui,
+                            paste_plain,
+                            keep_open,
+                        )
+                        .await
+                        {
+                            tracing::error!("Paste-as ({paste_plain}) error: {e}");
+                        }
+                    }
+                    Err(e) => {
+                        report_missing_clip(&db, &ui, &td, &fd, &pfx, id, &e);
+                    }
                 }
             });
         });
     }
 }
+
+/// A clip the window still lists was deleted from the DB (scheduled
+/// retention). Re-query the current view and tell the user why nothing pasted.
+fn report_missing_clip(
+    db: &Arc<cliptoo_core::db::DbPool>,
+    ui: &slint::Weak<crate::AppWindow>,
+    td: &std::path::Path,
+    fd: &std::path::Path,
+    pfx: &str,
+    id: i32,
+    error: &anyhow::Error,
+) {
+    tracing::warn!("clip {id} is no longer in the database: {error}");
+    helpers::refresh_clips_live(db, ui, td, fd, Some(pfx));
+    let _ = ui.upgrade_in_event_loop(|ui| {
+        show_main_toast(&ui, "Clip no longer exists", "warn");
+    });
+}
+
+/// Show a toast on the main window. Severity is "info" | "warn" | "error".
+fn show_main_toast(ui: &crate::AppWindow, message: &str, severity: &str) {
+    ui.set_toast_visible(false);
+    ui.set_toast_message(message.into());
+    ui.set_toast_severity(severity.into());
+    ui.set_toast_visible(true);
+}
+
+/// Read a clip's file for the editor. Only regular files up to
+/// `MAX_EDIT_FILE_BYTES` are read: a copied FIFO or device never ends, and a
+/// multi-GB log would fill memory just to open a text box. Returns the text and
+/// the mtime/size snapshot used to detect an external edit before saving.
+fn load_text_file(path: &str) -> Option<(String, f64, u64)> {
+    let metadata = std::fs::metadata(path).ok()?;
+    if !metadata.is_file() || metadata.len() > MAX_EDIT_FILE_BYTES {
+        return None;
+    }
+    let text = std::fs::read_to_string(path).ok()?;
+    let mtime = metadata
+        .modified()
+        .ok()?
+        .duration_since(std::time::UNIX_EPOCH)
+        .ok()?
+        .as_secs_f64();
+    Some((text, mtime, metadata.len()))
+}
+
+/// Largest file the editor loads, and the largest one Save may rewrite.
+const MAX_EDIT_FILE_BYTES: u64 = 16 * 1024 * 1024;
