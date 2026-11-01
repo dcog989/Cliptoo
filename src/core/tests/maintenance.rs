@@ -255,6 +255,39 @@ async fn retention_spares_legacy_plain_epoch_bottom_pins() {
     clean_up(&dir);
 }
 
+/// An imported clip whose timestamp merely happens to be the Unix epoch is a
+/// real time, not a bottom pin: only the exact pin sentinel (prefix, or prefix
+/// plus the 15-digit counter) is exempt from retention.
+#[tokio::test]
+async fn retention_sweeps_an_epoch_timestamp_that_is_not_a_pin() {
+    let dir = std::env::temp_dir().join(format!("cliptoo_retepoch_{}", std::process::id()));
+    clean_up(&dir);
+    let db = DbPool::open(&dir).unwrap();
+
+    common::insert_clip(&db, "one", "hash_one", "text").await;
+    db.with(|conn| {
+        conn.execute(
+            "UPDATE clips SET Timestamp = '1970-01-01 00:00:00.000000' WHERE Id = 1",
+            [],
+        )?;
+        Ok(())
+    })
+    .await
+    .unwrap();
+
+    let cfg = cliptoo_core::maintenance::RetentionConfig {
+        max_clips: 0,
+        max_age_days: 30,
+    };
+    let deleted = db
+        .with(|conn| cliptoo_core::maintenance::retention(conn, &cfg))
+        .await
+        .unwrap();
+    assert_eq!(deleted, 1, "an epoch timestamp is not a bottom pin");
+
+    clean_up(&dir);
+}
+
 /// The async delete path checks file existence outside the DB lock and removes
 /// only clips whose paths are genuinely gone — a live file clip must survive.
 #[tokio::test]

@@ -115,3 +115,42 @@ async fn bottom_pinned_clips_stay_distinct_and_reorderable() {
 
     clean_up(&dir);
 }
+
+/// A newly pinned clip goes to the absolute bottom whatever its `Id`, and
+/// pinning it again after a move never reuses a pin suffix (two rows with one
+/// `Timestamp` would make the next move a no-op).
+#[tokio::test]
+async fn move_to_bottom_puts_the_clip_last_regardless_of_id() {
+    let (dir, db) = temp_db("pinorder").await;
+
+    common::insert_clip(&db, "one", "hash_one", "text").await;
+    common::insert_clip(&db, "two", "hash_two", "text").await;
+    common::insert_clip(&db, "three", "hash_three", "text").await;
+
+    let pin = |id: i64| {
+        let db = db.clone();
+        async move {
+            db.with(|conn| cliptoo_core::db::queries::bump_to_bottom(conn, id))
+                .await
+                .unwrap();
+        }
+    };
+
+    pin(1).await;
+    assert_eq!(browse_order(&db).await, vec![3, 2, 1]);
+
+    // Pinning id 2 after id 1 must put 2 below 1, not above it.
+    pin(2).await;
+    assert_eq!(browse_order(&db).await, vec![3, 1, 2]);
+
+    // Move the pin on 1 onto 3, then pin 1 again: no duplicate timestamp, so
+    // the following move still works.
+    move_up(&db, 1).await;
+    assert_eq!(browse_order(&db).await, vec![1, 3, 2]);
+    pin(1).await;
+    assert_eq!(browse_order(&db).await, vec![3, 2, 1]);
+    move_up(&db, 1).await;
+    assert_eq!(browse_order(&db).await, vec![3, 1, 2]);
+
+    clean_up(&dir);
+}

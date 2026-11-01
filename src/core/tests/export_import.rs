@@ -253,6 +253,58 @@ async fn import_normalizes_foreign_timestamps_to_canonical_form() {
     clean_up(&dir);
 }
 
+/// Two imported rows whose timestamps normalise to the same instant must not
+/// share a stored `Timestamp`: move up/down swaps the strings, so a tie makes
+/// the swap a no-op and those clips can never be reordered.
+#[tokio::test]
+async fn import_gives_duplicate_timestamps_distinct_values() {
+    let dir = std::env::temp_dir().join(format!("cliptoo_imptsdup_{}", std::process::id()));
+    clean_up(&dir);
+    let db = Arc::new(DbPool::open(&dir).unwrap());
+
+    let json = r#"[
+        {"id": 1, "content": "first", "preview_content": "first",
+         "content_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+         "clip_type": "text", "source_app": null,
+         "timestamp": "2024-01-01T00:00:00", "is_bookmarked": false,
+         "was_trimmed": false, "has_leading_whitespace": false,
+         "is_multiline": false, "size_in_bytes": 5, "paste_count": 0, "tags": null},
+        {"id": 2, "content": "second", "preview_content": "second",
+         "content_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+         "clip_type": "text", "source_app": null,
+         "timestamp": "2024-01-01T00:00:00", "is_bookmarked": false,
+         "was_trimmed": false, "has_leading_whitespace": false,
+         "is_multiline": false, "size_in_bytes": 6, "paste_count": 0, "tags": null}
+    ]"#;
+    let inserted = db
+        .with(|conn| cliptoo_core::export::import_json(conn, json.as_bytes()))
+        .await
+        .unwrap();
+    assert_eq!(inserted, 2);
+
+    let (first, second): (String, String) = db
+        .with(|conn| {
+            let a = conn.query_row(
+                "SELECT Timestamp FROM clips
+                 WHERE ContentHash LIKE 'aaaa%'",
+                [],
+                |row| row.get(0),
+            )?;
+            let b = conn.query_row(
+                "SELECT Timestamp FROM clips
+                 WHERE ContentHash LIKE 'bbbb%'",
+                [],
+                |row| row.get(0),
+            )?;
+            Ok((a, b))
+        })
+        .await
+        .unwrap();
+    assert_ne!(first, second, "a timestamp tie makes move up/down a no-op");
+
+    clean_up(&dir);
+}
+
 /// An unparseable imported timestamp falls back to the current time, so the
 /// row still imports while keeping the canonical shape (garbage in the
 /// `Timestamp` column would poison ordering and retention comparisons).

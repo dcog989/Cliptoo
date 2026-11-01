@@ -11,12 +11,15 @@ pub const CONTENT_SNIPPET_TOKENS: i32 = 32;
 
 /// Opening highlight sentinel emitted by FTS5 `snippet()`.
 /// The UI crate must use the same delimiters when parsing match spans.
-pub const FTS_HL_OPEN: &str = "[HL]";
+/// Control characters, not a printable marker: clipboard text can contain any
+/// printable string, and one holding a literal marker would render as a false
+/// highlight.
+pub const FTS_HL_OPEN: &str = "\u{1}";
 /// Closing highlight sentinel emitted by FTS5 `snippet()`.
-pub const FTS_HL_CLOSE: &str = "[/HL]";
+pub const FTS_HL_CLOSE: &str = "\u{2}";
 
 /// Timestamp prefix used by `bump_to_bottom` — a fixed epoch date that sorts
-/// before every real timestamp. The clip's `Id` is appended as a zero-padded
+/// before every real timestamp. A zero-padded pin counter is appended as a
 /// suffix so bottom-pinned clips stay distinct (and therefore reorderable)
 /// instead of all sharing one identical timestamp.
 ///
@@ -26,9 +29,13 @@ pub const FTS_HL_CLOSE: &str = "[/HL]";
 /// `maintenance::bottom_pinned_predicate`), treating a manual "move to bottom"
 /// like a bookmark — a deliberate keep signal.
 pub(crate) const EPOCH_TS_PREFIX: &str = "1970-01-01 00:00:00";
-/// Zero-padded width of the `Id` suffix appended to `EPOCH_TS_PREFIX`.
-/// Fixed width keeps the padded values sortable numerically.
-const EPOCH_TS_SUFFIX_WIDTH: usize = 15;
+/// Zero-padded width of the pin counter appended to `EPOCH_TS_PREFIX`.
+/// Fixed width keeps the padded values sortable as text.
+pub(crate) const EPOCH_TS_SUFFIX_WIDTH: usize = 15;
+/// Counter value for the first pin in a database. Each later pin takes the
+/// lowest existing suffix minus one, so it sorts last and never reuses a value
+/// (two rows with the same `Timestamp` make `move_one`'s swap a no-op).
+const FIRST_PIN_SUFFIX: i64 = 999_999_999_999_999;
 
 /// Last reserved write timestamp, microseconds since the Unix epoch.
 /// Writes are serialised on the single connection, but the guard still
@@ -116,28 +123,13 @@ impl FilterClause {
     }
 }
 
-/// ClipTypes the UI can filter by directly, mapping 1:1 to their stored
-/// `as_str()` value. Kept here so the filter strings always match
-/// `ClipType::as_str()`; the special-cased `rtf` (Rich Text covers the
-/// `rtf` + `html` clipboard content types) and `file_generic` (bare "file"
-/// filter) are handled explicitly in `clip_type_filter`.
-const FILTERABLE_TYPES: &[ClipType] = &[
-    ClipType::Text,
-    ClipType::FilePath,
-    ClipType::Link,
-    ClipType::Color,
-    ClipType::CodeSnippet,
-    ClipType::FileImage,
-    ClipType::FileVideo,
-    ClipType::FileAudio,
-    ClipType::FileArchive,
-    ClipType::FileDev,
-    ClipType::FileDanger,
-    ClipType::FileData,
-    ClipType::FileDocument,
-    ClipType::FileText,
-    ClipType::Folder,
-];
+/// Filter strings that map 1:1 to a stored `ClipType` value. Derived from
+/// `ClipType::ALL` so a new variant cannot be forgotten here and silently fall
+/// back to "no filter". `Html` has no button of its own (Rich Text covers it)
+/// and `FileGeneric` is reached through the "file" filter below.
+fn is_own_type_filter(t: &ClipType) -> bool {
+    !matches!(t, ClipType::Html | ClipType::FileGeneric)
+}
 
 fn clip_type_filter(filter: &str) -> FilterClause {
     match filter {
@@ -148,7 +140,10 @@ fn clip_type_filter(filter: &str) -> FilterClause {
         "rtf" => FilterClause::NoParam("AND c.ClipType IN ('rtf', 'html')"),
         // A copied generic file: one that isn't any specific type.
         "file" => FilterClause::NoParam("AND c.ClipType = 'file_generic'"),
-        _ if FILTERABLE_TYPES.iter().any(|t| t.as_str() == filter) => {
+        _ if ClipType::ALL
+            .iter()
+            .any(|t| t.as_str() == filter && is_own_type_filter(t)) =>
+        {
             FilterClause::BindFilter("AND c.ClipType = ?")
         }
         _ => FilterClause::NoParam(""),
@@ -522,6 +517,20 @@ pub fn update_clip_content(
     is_multiline: bool,
     size_in_bytes: i64,
 ) -> Result<()> {
+    // `ContentHash` is UNIQUE and the hash is taken from the trimmed text, so
+    // an edit that matches another clip would otherwise fail with a raw SQLite
+    // "UNIQUE constraint failed" error. Name the real cause instead.
+    let hash_owner: Option<i64> = conn
+        .query_row(
+            "SELECT Id FROM clips WHERE ContentHash = ?1 AND Id != ?2",
+            params![content_hash, id],
+            |row| row.get(0),
+        )
+        .optional()?;
+    if hash_owner.is_some() {
+        anyhow::bail!("another clip already has this text; edit or delete that one instead");
+    }
+
     conn.execute(
         "UPDATE clips SET Content = ?1, PreviewContent = ?2, ContentHash = ?3, ClipType = ?4,
          WasTrimmed = ?5, HasLeadingWhitespace = ?6, IsMultiline = ?7, SizeInBytes = ?8,
@@ -596,9 +605,27 @@ pub fn record_paste(conn: &Connection, id: i64, move_to_top: bool) -> Result<()>
     Ok(())
 }
 
+/// Next bottom-pin counter value: one below every suffix already stored, so a
+/// newly pinned clip always sorts last and never reuses a value.
+fn next_pin_suffix(conn: &Connection) -> Result<i64> {
+    let start = EPOCH_TS_PREFIX.len() + 2; // first suffix digit, 1-based
+    let pinned_len = EPOCH_TS_PREFIX.len() + 1 + EPOCH_TS_SUFFIX_WIDTH;
+    let lowest: Option<i64> = conn.query_row(
+        &format!(
+            "SELECT MIN(CAST(substr(Timestamp, {start}) AS INTEGER)) FROM clips
+             WHERE Timestamp LIKE '{EPOCH_TS_PREFIX}.%'
+               AND length(Timestamp) = {pinned_len}"
+        ),
+        [],
+        |row| row.get(0),
+    )?;
+    Ok(lowest.unwrap_or(FIRST_PIN_SUFFIX).saturating_sub(1))
+}
+
 pub fn bump_to_bottom(conn: &Connection, id: i64) -> Result<()> {
     let ts = format!(
-        "{EPOCH_TS_PREFIX}.{id:0width$}",
+        "{EPOCH_TS_PREFIX}.{:0width$}",
+        next_pin_suffix(conn)?,
         width = EPOCH_TS_SUFFIX_WIDTH
     );
     conn.execute(

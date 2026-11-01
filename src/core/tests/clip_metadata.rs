@@ -245,6 +245,117 @@ async fn plain_text_path_does_not_downgrade_a_file_clip() {
     clean_up(&dir);
 }
 
+/// The FTS index must follow an edit and a delete. `clips_fts` is an external
+/// content table kept in sync by triggers, so a broken trigger leaves an edited
+/// clip matching its old text (and a deleted one still matching) with no error.
+#[tokio::test]
+async fn fts_index_follows_edit_and_delete() {
+    let (dir, db) = temp_db("fts_sync").await;
+    common::insert_clip(&db, "alpha", "hash-alpha", "text").await;
+    let id: i64 = db
+        .with(|conn| {
+            Ok(conn.query_row(
+                "SELECT Id FROM clips WHERE ContentHash = 'hash-alpha'",
+                [],
+                |row| row.get(0),
+            )?)
+        })
+        .await
+        .unwrap();
+
+    db.with(|conn| {
+        cliptoo_core::db::queries::update_clip_content(
+            conn,
+            id,
+            "beta",
+            "beta",
+            "hash-beta",
+            "text",
+            false,
+            false,
+            false,
+            4,
+        )
+    })
+    .await
+    .unwrap();
+
+    let old_text = db
+        .with(|conn| cliptoo_core::db::queries::search_clips(conn, "alpha", "all", 10, 0, None))
+        .await
+        .unwrap();
+    assert!(
+        old_text.is_empty(),
+        "the pre-edit text must stop matching: {old_text:?}"
+    );
+    let new_text = db
+        .with(|conn| cliptoo_core::db::queries::search_clips(conn, "beta", "all", 10, 0, None))
+        .await
+        .unwrap();
+    assert_eq!(new_text.len(), 1, "the edited text must match");
+
+    db.with(|conn| cliptoo_core::db::queries::delete_clip(conn, id))
+        .await
+        .unwrap();
+    let deleted = db
+        .with(|conn| cliptoo_core::db::queries::search_clips(conn, "beta", "all", 10, 0, None))
+        .await
+        .unwrap();
+    assert!(deleted.is_empty(), "a deleted clip must stop matching");
+
+    clean_up(&dir);
+}
+
+/// `ContentHash` is UNIQUE and derived from the trimmed text, so an edit onto
+/// text another clip already holds must fail with a message a user can act on,
+/// not an SQLite constraint error, and must leave the row untouched.
+#[tokio::test]
+async fn update_clip_content_refuses_text_another_clip_holds() {
+    let (dir, db) = temp_db("content_collision").await;
+    common::insert_clip(&db, "alpha", "hash-alpha", "text").await;
+    common::insert_clip(&db, "beta", "hash-beta", "text").await;
+    let id: i64 = db
+        .with(|conn| {
+            Ok(conn.query_row(
+                "SELECT Id FROM clips WHERE ContentHash = 'hash-beta'",
+                [],
+                |row| row.get(0),
+            )?)
+        })
+        .await
+        .unwrap();
+
+    let result = db
+        .with(|conn| {
+            cliptoo_core::db::queries::update_clip_content(
+                conn,
+                id,
+                "alpha",
+                "alpha",
+                "hash-alpha",
+                "text",
+                false,
+                false,
+                false,
+                5,
+            )
+        })
+        .await;
+
+    let err = result.expect_err("a hash owned by another clip must be refused");
+    assert!(
+        format!("{err}").contains("another clip already has this text"),
+        "unexpected error: {err:#}"
+    );
+    let content = db
+        .with(|conn| cliptoo_core::db::queries::get_clip_content(conn, id))
+        .await
+        .unwrap();
+    assert_eq!(content, "beta", "the refused edit must not change the row");
+
+    clean_up(&dir);
+}
+
 /// The DDL leaves `Content`/`PreviewContent` nullable even though every writer
 /// supplies a value, so a hand-edited row must not fail the whole list query.
 #[tokio::test]

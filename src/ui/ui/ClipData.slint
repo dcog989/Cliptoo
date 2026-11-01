@@ -6,7 +6,7 @@
 // Consumers should treat "" identically to "no value" – avoid displaying "" as a tag.
 
 /// A single text span in the FTS5 match-context highlight sequence.
-/// `is-highlight` is true for the `[HL]...[/HL]` segments.
+/// `is-highlight` is true for the segments FTS5 `snippet()` marked as matches.
 export struct MatchSpan {
     text: string,
     is-highlight: bool,

@@ -5,7 +5,7 @@ use anyhow::Result;
 use rusqlite::{Connection, params};
 use tracing::info;
 
-use crate::db::queries::EPOCH_TS_PREFIX;
+use crate::db::queries::{EPOCH_TS_PREFIX, EPOCH_TS_SUFFIX_WIDTH};
 
 /// Parameters for the scheduled retention pass.
 #[derive(Clone)]
@@ -19,8 +19,16 @@ pub struct RetentionConfig {
 /// otherwise always sort older than any retention cutoff. Retention must treat
 /// a manual "move to bottom" like a bookmark — a deliberate keep signal — and
 /// never sweep these clips.
+///
+/// The sentinel must have its exact shape (prefix, or prefix + 15-digit
+/// counter): an imported clip that merely carries a 1970 timestamp is a real
+/// time, not a pin, and stays sweepable.
 fn bottom_pinned_predicate() -> String {
-    format!("Timestamp LIKE '{}%'", EPOCH_TS_PREFIX)
+    let pinned_len = EPOCH_TS_PREFIX.len() + 1 + EPOCH_TS_SUFFIX_WIDTH;
+    format!(
+        "(Timestamp = '{EPOCH_TS_PREFIX}'
+          OR (Timestamp LIKE '{EPOCH_TS_PREFIX}.%' AND length(Timestamp) = {pinned_len}))"
+    )
 }
 
 /// Delete clips that exceed `max_clips` (oldest first) or are older than

@@ -93,6 +93,21 @@ pub async fn refresh_clips(
             )
         })
         .await;
+    if let Err(e) = &result {
+        // A failed query must not look like "the search box ignores me": the
+        // model below is left untouched, so say so instead of silently
+        // keeping the previous list.
+        tracing::error!(
+            "refresh_clips: query {:?}/{:?} failed: {e:#}",
+            query,
+            filter
+        );
+        let _ = ui.upgrade_in_event_loop(|ui| {
+            ui.set_toast_message("Search failed; see the log".into());
+            ui.set_toast_severity("error".into());
+            ui.set_toast_visible(true);
+        });
+    }
     if let Ok(clips) = result {
         let db2 = db.clone();
         let td = td.to_path_buf();

@@ -27,7 +27,7 @@
 
 use anyhow::{Context, Result, bail};
 use chrono::{DateTime, NaiveDateTime, Utc};
-use rusqlite::{Connection, params};
+use rusqlite::{Connection, OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 use tracing::{info, warn};
 
@@ -257,6 +257,22 @@ fn import_rows(conn: &Connection, rows: Vec<ExportRow>) -> Result<u64> {
                 );
                 next_timestamp()
             }
+        };
+        // Two clips with the same Timestamp make move up/down a no-op (the swap
+        // writes equal strings). The app never writes ties, so only a foreign
+        // export can hit this: give the later row a fresh timestamp.
+        let timestamp = if tx
+            .query_row(
+                "SELECT 1 FROM clips WHERE Timestamp = ?1",
+                params![&timestamp],
+                |_| Ok(()),
+            )
+            .optional()?
+            .is_some()
+        {
+            next_timestamp()
+        } else {
+            timestamp
         };
 
         // Normalise the imported clip type to a canonical stored value. Legacy

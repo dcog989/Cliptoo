@@ -21,10 +21,10 @@ fn without_last_word(text: &str) -> String {
     trimmed[..cut].trim_end().to_string()
 }
 
-/// Parse an FTS5 match-context string with `[HL]...[/HL]` sentinels
-/// into a sequence of `MatchSpan` structs for inline highlighting.
+/// Parse an FTS5 match-context string with the `FTS_HL_OPEN` / `FTS_HL_CLOSE`
+/// sentinels into a sequence of `MatchSpan` structs for inline highlighting.
 ///
-/// E.g. `"foo [HL]bar[/HL] baz"` →
+/// E.g. `"foo <open>bar<close> baz"` →
 ///   `[("foo ", false), ("bar", true), (" baz", false)]`
 pub fn parse_match_spans(context: &str) -> slint::ModelRc<crate::MatchSpan> {
     use cliptoo_core::db::queries::{FTS_HL_CLOSE, FTS_HL_OPEN};
@@ -52,7 +52,7 @@ pub fn parse_match_spans(context: &str) -> slint::ModelRc<crate::MatchSpan> {
                 });
                 rest = &after_open[hl_end + FTS_HL_CLOSE.len()..];
             } else {
-                // Unclosed [HL] — treat remainder as plain
+                // Unclosed opening sentinel — treat remainder as plain
                 spans.push(crate::MatchSpan {
                     text: after_open.into(),
                     is_highlight: false,
@@ -184,6 +184,7 @@ pub fn setup_filter(
 #[cfg(test)]
 mod tests {
     use super::{parse_match_spans, without_last_word};
+    use cliptoo_core::db::queries::{FTS_HL_CLOSE, FTS_HL_OPEN};
     use slint::Model;
 
     fn spans_to_strings(model: &slint::ModelRc<crate::MatchSpan>) -> Vec<(String, bool)> {
@@ -199,9 +200,10 @@ mod tests {
     fn parse_highlights_only_matches_not_ellipsis() {
         // A multi-line clip produces a long snippet with FTS5 ellipsis markers
         // at the elided edges. The markers must stay outside highlighted spans.
-        let snippet =
-            "…[HL]the[/HL] quick brown fox jumps\nover the lazy dog\n…[HL]These[/HL] are separate…";
-        let spans = spans_to_strings(&parse_match_spans(snippet));
+        let snippet = format!(
+            "…{FTS_HL_OPEN}the{FTS_HL_CLOSE} quick brown fox jumps\nover the lazy dog\n…{FTS_HL_OPEN}These{FTS_HL_CLOSE} are separate…"
+        );
+        let spans = spans_to_strings(&parse_match_spans(&snippet));
 
         for (text, is_highlight) in &spans {
             if *is_highlight {
@@ -216,7 +218,8 @@ mod tests {
 
     #[test]
     fn parse_single_line_snippet() {
-        let spans = spans_to_strings(&parse_match_spans("foo [HL]bar[/HL] baz"));
+        let snippet = format!("foo {FTS_HL_OPEN}bar{FTS_HL_CLOSE} baz");
+        let spans = spans_to_strings(&parse_match_spans(&snippet));
         assert_eq!(
             spans,
             vec![

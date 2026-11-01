@@ -54,6 +54,58 @@ async fn fts_special_characters_do_not_error() {
     clean_up(&dir);
 }
 
+/// Every clip type the UI can filter by maps to its stored value; an unknown
+/// filter string is "no filter" (the whole list), never a silent partial match.
+#[tokio::test]
+async fn type_filter_matches_only_that_type() {
+    let (dir, db) = temp_db("search_filter").await;
+    common::insert_clip(&db, "hello world", "hash_hello", "text").await;
+    common::insert_clip(&db, "#ff0000", "hash_color", "color").await;
+
+    let color = db
+        .with(|conn| cliptoo_core::db::queries::search_clips(conn, "", "color", 10, 0, None))
+        .await
+        .unwrap();
+    assert_eq!(color.len(), 1);
+    assert_eq!(color[0].clip_type.as_str(), "color");
+
+    let text = db
+        .with(|conn| cliptoo_core::db::queries::search_clips(conn, "", "text", 10, 0, None))
+        .await
+        .unwrap();
+    assert_eq!(text.len(), 1);
+    assert_eq!(text[0].clip_type.as_str(), "text");
+
+    let unknown = db
+        .with(|conn| cliptoo_core::db::queries::search_clips(conn, "", "not_a_type", 10, 0, None))
+        .await
+        .unwrap();
+    assert_eq!(unknown.len(), 2, "an unknown filter must not filter");
+
+    clean_up(&dir);
+}
+
+/// The snippet markers must reach the caller: the UI splits on exactly these
+/// strings, and a printable marker could collide with clip text.
+#[tokio::test]
+async fn content_snippet_carries_the_highlight_sentinels() {
+    let (dir, db) = temp_db("search_hl").await;
+    common::insert_clip(&db, "hello world", "hash_hello", "text").await;
+
+    let clips = db
+        .with(|conn| cliptoo_core::db::queries::search_clips(conn, "hello", "all", 10, 0, None))
+        .await
+        .unwrap();
+    let context = clips[0].match_context.as_deref().unwrap_or("");
+    assert!(
+        context.contains(cliptoo_core::db::queries::FTS_HL_OPEN)
+            && context.contains(cliptoo_core::db::queries::FTS_HL_CLOSE),
+        "snippet must carry the highlight sentinels: {context:?}"
+    );
+
+    clean_up(&dir);
+}
+
 /// The tag prefix routes the query to the Tags column; `##` alone lists every
 /// tagged clip, and `##work` matches tags by prefix.
 #[tokio::test]
