@@ -6,44 +6,28 @@
 //! Android/Java `0xAARRGGBB` integers, `cmyk()`, and Björn Ottosson's
 //! `okhsl()` (converted via [`crate::color::okhsl_to_srgb_bytes`]).
 
-/// Parsed color result with all representations.
-/// `hex` is `#RRGGBB` for fully-opaque colors and `#RRGGBBAA` otherwise, so
-/// transparency is never silently dropped from the canonical representation.
+/// Parsed color as 8-bit RGBA channels.
 #[derive(Debug, Clone)]
 pub struct ParsedColor {
     pub r: u8,
     pub g: u8,
     pub b: u8,
     pub a: u8,
-    pub hex: String,
-}
-
-/// `#RRGGBB`, or `#RRGGBBAA` when the alpha channel is not fully opaque.
-fn rgba_hex(r: u8, g: u8, b: u8, a: u8) -> String {
-    if a == 255 {
-        format!("#{r:02X}{g:02X}{b:02X}")
-    } else {
-        format!("#{r:02X}{g:02X}{b:02X}{a:02X}")
-    }
 }
 
 /// Android/Java `0xAARRGGBB` integer literal → parsed color (ARGB byte order).
 fn parse_argb_0x(s: &str) -> Option<ParsedColor> {
     let s = s.strip_prefix("0x").or_else(|| s.strip_prefix("0X"))?;
-    if s.len() != 8 {
+    // The fixed-offset slicing below panics if a multi-byte character straddles
+    // a cut, so only ASCII can be an ARGB literal in the first place.
+    if s.len() != 8 || !s.is_ascii() {
         return None;
     }
     let a = u8::from_str_radix(&s[0..2], 16).ok()?;
     let r = u8::from_str_radix(&s[2..4], 16).ok()?;
     let g = u8::from_str_radix(&s[4..6], 16).ok()?;
     let b = u8::from_str_radix(&s[6..8], 16).ok()?;
-    Some(ParsedColor {
-        r,
-        g,
-        b,
-        a,
-        hex: rgba_hex(r, g, b, a),
-    })
+    Some(ParsedColor { r, g, b, a })
 }
 
 /// `cmyk()` is not part of CSS Color 4, so `csscolorparser` rejects it.
@@ -75,13 +59,7 @@ fn parse_cmyk(s: &str) -> Option<ParsedColor> {
     let r = (255.0 * (1.0 - c.clamp(0.0, 1.0)) * (1.0 - k.clamp(0.0, 1.0))).round() as u8;
     let g = (255.0 * (1.0 - m.clamp(0.0, 1.0)) * (1.0 - k.clamp(0.0, 1.0))).round() as u8;
     let b = (255.0 * (1.0 - y.clamp(0.0, 1.0)) * (1.0 - k.clamp(0.0, 1.0))).round() as u8;
-    Some(ParsedColor {
-        r,
-        g,
-        b,
-        a: 255,
-        hex: rgba_hex(r, g, b, 255),
-    })
+    Some(ParsedColor { r, g, b, a: 255 })
 }
 
 /// A 3/4/6/8-character string of only hex digits without a `#` prefix.
@@ -146,24 +124,12 @@ fn parse_okhsl(s: &str) -> Option<ParsedColor> {
 
     let [r, g, b] = crate::color::okhsl_to_srgb_bytes(h, saturation, lightness);
     let a = (a.clamp(0.0, 1.0) * 255.0).round() as u8;
-    Some(ParsedColor {
-        r,
-        g,
-        b,
-        a,
-        hex: rgba_hex(r, g, b, a),
-    })
+    Some(ParsedColor { r, g, b, a })
 }
 
 fn to_parsed(c: csscolorparser::Color) -> ParsedColor {
     let [r, g, b, a] = c.to_rgba8();
-    ParsedColor {
-        r,
-        g,
-        b,
-        a,
-        hex: rgba_hex(r, g, b, a),
-    }
+    ParsedColor { r, g, b, a }
 }
 
 pub struct ColorParser;
@@ -210,30 +176,27 @@ impl ColorParser {
 mod tests {
     use super::ColorParser;
 
+    /// `#RRGGBB` for opaque colours, `#RRGGBBAA` otherwise. Only the tests need
+    /// a printable canonical form, so it lives here rather than in the parser.
+    fn hex(s: &str) -> String {
+        let c = ColorParser::try_parse(s).unwrap();
+        if c.a == 255 {
+            format!("#{:02X}{:02X}{:02X}", c.r, c.g, c.b)
+        } else {
+            format!("#{:02X}{:02X}{:02X}{:02X}", c.r, c.g, c.b, c.a)
+        }
+    }
+
     #[test]
     fn hex_preserves_alpha() {
         // Opaque colors keep the compact 6-digit form.
-        assert_eq!(ColorParser::try_parse("#ff0000").unwrap().hex, "#FF0000");
-        assert_eq!(ColorParser::try_parse("red").unwrap().hex, "#FF0000");
+        assert_eq!(hex("#ff0000"), "#FF0000");
+        assert_eq!(hex("red"), "#FF0000");
         // Transparent colors include the alpha octet.
-        assert_eq!(
-            ColorParser::try_parse("#ff00007f").unwrap().hex,
-            "#FF00007F"
-        );
-        assert_eq!(
-            ColorParser::try_parse("rgba(0, 128, 255, 0.5)")
-                .unwrap()
-                .hex,
-            "#0080FF80"
-        );
-        assert_eq!(
-            ColorParser::try_parse("0x7F80FF00").unwrap().hex,
-            "#80FF007F"
-        );
-        assert_eq!(
-            ColorParser::try_parse("transparent").unwrap().hex,
-            "#00000000"
-        );
+        assert_eq!(hex("#ff00007f"), "#FF00007F");
+        assert_eq!(hex("rgba(0, 128, 255, 0.5)"), "#0080FF80");
+        assert_eq!(hex("0x7F80FF00"), "#80FF007F");
+        assert_eq!(hex("transparent"), "#00000000");
     }
 
     #[test]
@@ -250,34 +213,19 @@ mod tests {
 
     #[test]
     fn hwb_parses_commas_and_whitespace() {
-        assert_eq!(
-            ColorParser::try_parse("hwb(0, 0%, 0%)").unwrap().hex,
-            "#FF0000"
-        );
-        assert_eq!(
-            ColorParser::try_parse("hwb(120 0% 0%)").unwrap().hex,
-            "#00FF00"
-        );
+        assert_eq!(hex("hwb(0, 0%, 0%)"), "#FF0000");
+        assert_eq!(hex("hwb(120 0% 0%)"), "#00FF00");
     }
 
     #[test]
     fn hwb_blends_toward_white() {
-        assert_eq!(
-            ColorParser::try_parse("hwb(0 50% 0%)").unwrap().hex,
-            "#FF8080"
-        );
+        assert_eq!(hex("hwb(0 50% 0%)"), "#FF8080");
     }
 
     #[test]
     fn hwb_overflow_is_gray() {
-        assert_eq!(
-            ColorParser::try_parse("hwb(0 50% 50%)").unwrap().hex,
-            "#808080"
-        );
-        assert_eq!(
-            ColorParser::try_parse("hwb(0 20% 80%)").unwrap().hex,
-            "#333333"
-        );
+        assert_eq!(hex("hwb(0 50% 50%)"), "#808080");
+        assert_eq!(hex("hwb(0 20% 80%)"), "#333333");
     }
 
     #[test]
@@ -291,9 +239,9 @@ mod tests {
 
     #[test]
     fn hex_forms() {
-        assert_eq!(ColorParser::try_parse("#ff0000").unwrap().hex, "#FF0000");
-        assert_eq!(ColorParser::try_parse("#ABC").unwrap().hex, "#AABBCC");
-        assert_eq!(ColorParser::try_parse("#F00").unwrap().hex, "#FF0000");
+        assert_eq!(hex("#ff0000"), "#FF0000");
+        assert_eq!(hex("#ABC"), "#AABBCC");
+        assert_eq!(hex("#F00"), "#FF0000");
         assert_eq!(ColorParser::try_parse("#ff00007f").unwrap().a, 127);
         assert_eq!(ColorParser::try_parse("#ABCD").unwrap().a, 0xDD);
         assert!(ColorParser::try_parse("#f00").is_some());
@@ -312,28 +260,16 @@ mod tests {
         ] {
             assert!(ColorParser::is_color(s), "for {s}");
         }
-        assert_eq!(ColorParser::try_parse("red").unwrap().hex, "#FF0000");
+        assert_eq!(hex("red"), "#FF0000");
         assert_eq!(ColorParser::try_parse("transparent").unwrap().a, 0);
     }
 
     #[test]
     fn rgb_hsl_forms() {
-        assert_eq!(
-            ColorParser::try_parse("rgb(255, 0, 128)").unwrap().hex,
-            "#FF0080"
-        );
-        assert_eq!(
-            ColorParser::try_parse("rgb(100%, 0%, 0%)").unwrap().hex,
-            "#FF0000"
-        );
-        assert_eq!(
-            ColorParser::try_parse("hsl(120, 100%, 50%)").unwrap().hex,
-            "#00FF00"
-        );
-        assert_eq!(
-            ColorParser::try_parse("HSV(0 100% 100%)").unwrap().hex,
-            "#FF0000"
-        );
+        assert_eq!(hex("rgb(255, 0, 128)"), "#FF0080");
+        assert_eq!(hex("rgb(100%, 0%, 0%)"), "#FF0000");
+        assert_eq!(hex("hsl(120, 100%, 50%)"), "#00FF00");
+        assert_eq!(hex("HSV(0 100% 100%)"), "#FF0000");
     }
 
     #[test]
@@ -348,93 +284,57 @@ mod tests {
         ] {
             assert!(ColorParser::is_color(s), "for {s}");
         }
-        assert_eq!(
-            ColorParser::try_parse("lab(100% 0 0)").unwrap().hex,
-            "#FFFFFF"
-        );
-        assert_eq!(
-            ColorParser::try_parse("lab(0% 0 0)").unwrap().hex,
-            "#000000"
-        );
-        assert_eq!(
-            ColorParser::try_parse("oklab(1 0 0)").unwrap().hex,
-            "#FFFFFF"
-        );
-        assert_eq!(
-            ColorParser::try_parse("oklab(0 0 0)").unwrap().hex,
-            "#000000"
-        );
-        assert_eq!(
-            ColorParser::try_parse("oklch(100% 0 0)").unwrap().hex,
-            "#FFFFFF"
-        );
-        assert_eq!(
-            ColorParser::try_parse("oklch(0% 0 0)").unwrap().hex,
-            "#000000"
-        );
+        assert_eq!(hex("lab(100% 0 0)"), "#FFFFFF");
+        assert_eq!(hex("lab(0% 0 0)"), "#000000");
+        assert_eq!(hex("oklab(1 0 0)"), "#FFFFFF");
+        assert_eq!(hex("oklab(0 0 0)"), "#000000");
+        assert_eq!(hex("oklch(100% 0 0)"), "#FFFFFF");
+        assert_eq!(hex("oklch(0% 0 0)"), "#000000");
     }
 
     #[test]
     fn argb_0x_integer_literals() {
-        assert_eq!(ColorParser::try_parse("0xFF880044").unwrap().hex, "#880044");
+        assert_eq!(hex("0xFF880044"), "#880044");
         assert_eq!(ColorParser::try_parse("0xFF880044").unwrap().a, 255);
         assert_eq!(ColorParser::try_parse("0x7F80FF00").unwrap().a, 127);
         assert!(ColorParser::try_parse("0xzz").is_none());
     }
 
+    /// The ARGB parser cuts the literal at fixed byte offsets; a multi-byte
+    /// character there must be rejected, not split (which panics).
+    #[test]
+    fn argb_non_ascii_is_rejected_without_panicking() {
+        assert!(!ColorParser::is_color("0xa\u{1F600}abc"));
+        assert!(!ColorParser::is_color("0x\u{00E9}\u{20AC}\u{20AC}"));
+    }
+
     #[test]
     fn cmyk() {
-        assert_eq!(
-            ColorParser::try_parse("cmyk(100%, 0%, 0%, 0%)")
-                .unwrap()
-                .hex,
-            "#00FFFF"
-        );
-        assert_eq!(
-            ColorParser::try_parse("cmyk(0 0 0 0)").unwrap().hex,
-            "#FFFFFF"
-        );
-        assert_eq!(
-            ColorParser::try_parse("cmyk(0, 0, 0, 100%)").unwrap().hex,
-            "#000000"
-        );
-        assert_eq!(
-            ColorParser::try_parse("CMYK(0 0 0 50%)").unwrap().hex,
-            "#808080"
-        );
+        assert_eq!(hex("cmyk(100%, 0%, 0%, 0%)"), "#00FFFF");
+        assert_eq!(hex("cmyk(0 0 0 0)"), "#FFFFFF");
+        assert_eq!(hex("cmyk(0, 0, 0, 100%)"), "#000000");
+        assert_eq!(hex("CMYK(0 0 0 50%)"), "#808080");
     }
 
     #[test]
     fn okhsl() {
         assert!(ColorParser::is_color("okhsl(210 80% 60%)"));
         // Achromatic endpoints are independent of the conversion.
-        assert_eq!(
-            ColorParser::try_parse("okhsl(0 0% 0%)").unwrap().hex,
-            "#000000"
-        );
-        assert_eq!(
-            ColorParser::try_parse("okhsl(0 0% 100%)").unwrap().hex,
-            "#FFFFFF"
-        );
+        assert_eq!(hex("okhsl(0 0% 0%)"), "#000000");
+        assert_eq!(hex("okhsl(0 0% 100%)"), "#FFFFFF");
     }
 
     #[test]
     fn okhsl_syntax_variants() {
         // Comma form, decimal channels, bare percentages and a `deg` suffix all
         // address the same colour.
-        let expected = ColorParser::try_parse("okhsl(210, 0.8, 0.6)").unwrap().hex;
+        let expected = hex("okhsl(210, 0.8, 0.6)");
         for s in ["okhsl(210 80 60)", "okhsl(210deg 80% 60%)"] {
-            assert_eq!(ColorParser::try_parse(s).unwrap().hex, expected, "for {s}");
+            assert_eq!(hex(s), expected, "for {s}");
         }
         // Hue wraps around 360 and tolerates negatives.
-        assert_eq!(
-            ColorParser::try_parse("okhsl(390 100% 50%)").unwrap().hex,
-            ColorParser::try_parse("okhsl(30 100% 50%)").unwrap().hex
-        );
-        assert_eq!(
-            ColorParser::try_parse("okhsl(-30 100% 50%)").unwrap().hex,
-            ColorParser::try_parse("okhsl(330 100% 50%)").unwrap().hex
-        );
+        assert_eq!(hex("okhsl(390 100% 50%)"), hex("okhsl(30 100% 50%)"));
+        assert_eq!(hex("okhsl(-30 100% 50%)"), hex("okhsl(330 100% 50%)"));
     }
 
     #[test]
