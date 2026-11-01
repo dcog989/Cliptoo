@@ -94,9 +94,8 @@ export global ClipTypeMap {
     }
 
     // Body-text / icon colour per clip type, used when the "Color code clip
-    // types" setting is on. Each type maps to its own theme token; the tokens
-    // are an OKLCH palette grouped by hue family, so related types share a
-    // band (see Theme.slint / theme::palette).
+    // types" setting is on. Each type maps to its own theme token (see
+    // Theme.slint / theme::palette).
     // Plain text and unknown keys stay the base list colour, so plain text
     // never changes.
     public pure function color-for(key: string) -> color {

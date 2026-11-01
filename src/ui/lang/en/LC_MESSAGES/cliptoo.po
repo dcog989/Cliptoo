@@ -583,9 +583,7 @@ msgstr ""
 
 #: src/ui/ui/SettingsPage.slint:197
 msgctxt "SettingsPage"
-msgid ""
-"Tint clip text by type: URLs blue, images green, videos red, rich text "
-"cream, and so on"
+msgid "Colorise each clip type a different hue"
 msgstr ""
 
 #: src/ui/ui/SettingsPage.slint:210

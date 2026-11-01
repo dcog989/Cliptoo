@@ -1,11 +1,9 @@
 //! The clip-type colour palette.
 //!
-//! Each type is one OKLCH hue at one of three shared lightness levels, so
-//! related types land in the same hue band: media (video → audio → image) in
-//! the warm band, documents in the blue band, code and dev/config in the
-//! violet band. Members sharing a hue take different levels so same-hue
-//! neighbours stay apart. A role may also pin an exact dark-mode colour (rich
-//! text is a muted cream).
+//! Each type is one OKLCH hue at one of three shared lightness levels; related
+//! types take nearby hues. Members sharing a hue take different levels so
+//! same-hue neighbours stay apart. A role may also pin an exact dark-mode
+//! colour.
 //!
 //! Colours are generated from the table rather than hand-picked, so
 //! [`TypeColor::rgb`] can be checked against the APCA floor in the tests below.
@@ -43,7 +41,7 @@ impl TypeColor {
     }
 
     /// As [`TypeColor::new`], but pins the dark-mode colour (light is still
-    /// generated) — for off-model roles like a muted cream.
+    /// generated).
     const fn with_dark(hue: f64, level: u8, chroma_scale: f64, dark: [u8; 3]) -> Self {
         Self {
             hue,
@@ -71,38 +69,29 @@ impl TypeColor {
     }
 }
 
-// Warm band — danger, then the media trio (video → audio → image).
 pub(super) const DANGER: TypeColor = TypeColor::new(25.0, 1, 1.0);
 pub(super) const VIDEO: TypeColor = TypeColor::new(55.0, 2, 1.0);
 pub(super) const AUDIO: TypeColor = TypeColor::new(85.0, 3, 1.0);
-pub(super) const IMAGE: TypeColor = TypeColor::new(115.0, 2, 1.0);
-/// Neutral taupe, deliberately desaturated so it reads as "misc bundle"
-/// rather than joining the media family.
+pub(super) const CODE: TypeColor = TypeColor::new(115.0, 1, 1.0);
+pub(super) const DEV: TypeColor = TypeColor::new(115.0, 2, 1.0);
 pub(super) const ARCHIVE: TypeColor = TypeColor::new(80.0, 2, 0.35);
 
-// Teal band — on-disk paths and folders.
 pub(super) const PATH: TypeColor = TypeColor::new(175.0, 1, 1.0);
 pub(super) const FOLDER: TypeColor = TypeColor::new(175.0, 3, 1.0);
 
-// Blue band — text file → document, then links.
 pub(super) const TEXT_FILE: TypeColor = TypeColor::new(210.0, 3, 1.0);
 pub(super) const DOCUMENT: TypeColor = TypeColor::new(240.0, 1, 1.0);
 pub(super) const LINK: TypeColor = TypeColor::new(265.0, 2, 1.0);
 
-/// Rich text is a muted cream (hue 77) rather than a family hue, so it does
-/// not compete with the type colours. The dark value is the reference; light
-/// is generated from the same hue at the light band's lightness and chroma.
+/// The dark value is the reference; light is generated from the same hue at
+/// the light band's lightness and chroma.
 pub(super) const RICH: TypeColor = TypeColor::with_dark(77.0, 3, 0.54, [0xF2, 0xD7, 0xB0]);
 
-// Violet band — code snippets and dev/config files.
-pub(super) const CODE: TypeColor = TypeColor::new(300.0, 2, 1.0);
-pub(super) const DEV: TypeColor = TypeColor::new(310.0, 1, 1.0);
+pub(super) const IMAGE: TypeColor = TypeColor::new(310.0, 1, 1.0);
 
-// Magenta band — colour clips, then data/tabular files.
 pub(super) const COLOR: TypeColor = TypeColor::new(330.0, 2, 1.0);
 pub(super) const DATA: TypeColor = TypeColor::new(355.0, 3, 1.0);
 
-// Desaturated slate for "other file" — visible without forming a family.
 pub(super) const GENERIC: TypeColor = TypeColor::new(250.0, 1, 0.28);
 
 /// Every role, for the palette contrast test.

@@ -50,29 +50,25 @@ export global Theme {
     // window's tagline. Static in both theme modes.
     in property <color> brand-gold:        #ff9500;
     // Per-clip-type body-text and filter-icon colours, used only when
-    // `color-code-clip-types` is on. Plain text keeps `fg-clip-list`. Each type
-    // is one OKLCH hue in one of three shared lightness levels (dark
-    // L 0.64/0.74/0.84), so related types share a hue band: media (video →
-    // audio → image) warm, documents blue, code and dev/config violet. Rich
-    // text is a muted cream in both modes, not a family hue. `theme::palette`
-    // generates both modes; these dark defaults are fallbacks used only until
-    // Rust applies the real values.
-    in property <color> fg-type-danger:    #C6706A;  //  25°  danger
-    in property <color> fg-type-video:     #E09865;  //  55°  video
-    in property <color> fg-type-audio:     #EBC573;  //  85°  audio
-    in property <color> fg-type-image:     #A8B35E;  // 115°  images
-    in property <color> fg-type-archive:   #B8A990;  //  80°  archives (desaturated)
-    in property <color> fg-type-path:      #29A288;  // 175°  file paths
-    in property <color> fg-type-folder:    #74E2C6;  // 175°  folders
-    in property <color> fg-type-text-file: #67DEF2;  // 210°  text files
-    in property <color> fg-type-rich:      #F2D7B0;  //  77°  rich text (cream)
-    in property <color> fg-type-document:  #4494C8;  // 240°  documents
-    in property <color> fg-type-link:      #89A9F1;  // 265°  links
-    in property <color> fg-type-code:      #B59BE6;  // 300°  code
-    in property <color> fg-type-dev:       #A179BE;  // 310°  dev / config
-    in property <color> fg-type-color:     #D291CC;  // 330°  colour clips
-    in property <color> fg-type-data:      #FFB0CE;  // 355°  data / tabular
-    in property <color> fg-type-generic:   #7E8E9F;  // 250°  other files (desaturated)
+    // `color-code-clip-types` is on. Plain text keeps `fg-clip-list`.
+    // `theme::palette` generates both modes; these dark defaults are fallbacks
+    // used only until Rust applies the real values.
+    in property <color> fg-type-danger:    #C6706A;
+    in property <color> fg-type-video:     #E09865;
+    in property <color> fg-type-audio:     #EBC573;
+    in property <color> fg-type-image:     #A179BE;
+    in property <color> fg-type-archive:   #B8A990;
+    in property <color> fg-type-path:      #29A288;
+    in property <color> fg-type-folder:    #74E2C6;
+    in property <color> fg-type-text-file: #67DEF2;
+    in property <color> fg-type-rich:      #F2D7B0;
+    in property <color> fg-type-document:  #4494C8;
+    in property <color> fg-type-link:      #89A9F1;
+    in property <color> fg-type-code:      #8A943F;
+    in property <color> fg-type-dev:       #A8B35E;
+    in property <color> fg-type-color:     #D291CC;
+    in property <color> fg-type-data:      #FFB0CE;
+    in property <color> fg-type-generic:   #7E8E9F;
 
     in property <color> border-subtle:     #444444;
     in property <color> shadow:            #00000030;
@@ -98,8 +94,8 @@ export global Theme {
     in property <length> font-size:        13px;
     in property <length> clip-list-font-size: 13px;
     // When true, clip-list body text and filter-grid icons are tinted by clip
-    // type (media warm, documents blue, code violet, …). Plain text keeps the
-    // base list colour. `ClipTypeMap.color-for` holds the mapping.
+    // type. Plain text keeps the base list colour. `ClipTypeMap.color-for`
+    // holds the mapping.
     in property <bool> color-code-clip-types: false;
     in property <length> preview-font-size: 12px;
     // Max box (px) for the hover preview; drives the popup's width and height

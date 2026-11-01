@@ -48,9 +48,8 @@ pub struct Settings {
     pub font_size: f64,
     pub preview_font_size: f64,
     pub clip_item_padding: String,
-    // When true, clip-list body text is tinted by clip type (URLs blue,
-    // images green, videos red, rich text cream, …). Text clips keep the base
-    // list colour. See `ClipTypeMap.color-for` for the mapping.
+    // When true, clip-list body text is tinted by clip type. Text clips keep
+    // the base list colour. See `ClipTypeMap.color-for` for the mapping.
     #[serde(default = "default_color_code_clip_types")]
     pub color_code_clip_types: bool,
 

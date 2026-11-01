@@ -172,7 +172,7 @@ export component SettingsPage inherits ScrollView {
 
         ToggleRow {
             label: @tr("Color code clip types");
-            tooltip-text: @tr("Tint clip text by type: URLs blue, images green, videos red, rich text cream, and so on");
+            tooltip-text: @tr("Colorise each clip type a different hue");
             value <=> root.s-color-code-clip-types;
             committed(v) => {
                 root.setting-changed("color_code_clip_types", v ? "true" : "false");
