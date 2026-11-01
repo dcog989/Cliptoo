@@ -37,6 +37,9 @@ slint::include_modules!();
 #[tokio::main]
 async fn main() -> Result<()> {
     let dirs = app_dirs::AppDirs::resolve()?;
+    // Cached hover previews from an older pixel ratio are upscaled (blurred) in
+    // the popup; drop them so the next hover regenerates at the current ratio.
+    cliptoo_core::image::migrate_preview_ratio(&dirs.thumbnails_dir);
     let settings = cliptoo_core::Settings::load(&dirs.settings_path);
     let _log_guard = cliptoo_core::logger::init(&dirs.logs_dir, settings.log_level_filter());
 

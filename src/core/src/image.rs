@@ -6,6 +6,16 @@ use crate::icon;
 const THUMB_MAX_DIM: u32 = 36;
 pub const HASH_FILENAME_PREFIX_LEN: usize = 16;
 
+/// Preview thumbnails are written at this multiple of the logical preview size:
+/// the popup is laid out in logical px but Slint rasterises it at device px, so
+/// a 1× preview is upscaled and blurred on a HiDPI display.
+pub const PREVIEW_PIXEL_RATIO: u32 = 2;
+
+/// Records the pixel ratio the cached previews were written at, so previews
+/// from a build with a different ratio are dropped once. See
+/// [`migrate_preview_ratio`].
+const PREVIEW_RATIO_MARKER: &str = ".preview_ratio";
+
 /// Canonical list of all image-file extensions.  Single source of truth for
 /// `filetype.rs` (DB `ClipType` classification) and `preview.rs` (hover popup
 /// `resolved_type`).  Keep this in sync with the two downstream consumers.
@@ -86,8 +96,10 @@ fn resize_to(img: image::DynamicImage, max_dim: u32) -> image::DynamicImage {
     if w.max(h) <= max_dim {
         return img;
     }
-    // Aspect-preserving downscale that fits within max_dim × max_dim.
-    img.thumbnail(max_dim, max_dim)
+    // Aspect-preserving downscale that fits within max_dim × max_dim. Lanczos3
+    // rather than `thumbnail`'s triangle filter: the preview is drawn at device
+    // pixels, where a cheap filter shows as soft text and edges.
+    img.resize(max_dim, max_dim, image::imageops::FilterType::Lanczos3)
 }
 
 // ── Full-resolution store (PNG, images_dir) ───────────────────────────────────
@@ -122,7 +134,8 @@ fn write_thumbnails_pair(
     }
     if !preview_path.exists() {
         let mut file = std::fs::File::create(preview_path)?;
-        render(preview_dim).write_to(&mut file, image::ImageFormat::WebP)?;
+        render(preview_dim.saturating_mul(PREVIEW_PIXEL_RATIO))
+            .write_to(&mut file, image::ImageFormat::WebP)?;
     }
     Ok(())
 }
@@ -130,8 +143,9 @@ fn write_thumbnails_pair(
 /// Decode once and write both list-cell (36px) and preview thumbnails
 /// as WebP to `thumbnails_dir`. This is the sole thumbnail write path.
 ///
-/// `preview_max_dim` is the max pixel dimension for the preview image;
-/// pass `settings.hover_image_preview_size` (default 300) here.
+/// `preview_max_dim` is the logical max dimension for the preview image; pass
+/// `settings.hover_image_preview_size` (default 300) here. The stored preview
+/// is [`PREVIEW_PIXEL_RATIO`]× that, in device pixels.
 pub fn store_both_thumbnails(
     dir: &Path,
     hash: &str,
@@ -157,6 +171,33 @@ pub fn store_both_thumbnails(
         preview_max_dim,
         |dim| resize_to(img.clone(), dim),
     )
+}
+
+/// Drop cached preview thumbnails written at a different [`PREVIEW_PIXEL_RATIO`]
+/// so the next hover regenerates them sharp (a 1× preview is blurred on HiDPI).
+/// Resolution-independent SVG previews and the 36px list-cell thumbnails are
+/// kept. Runs once per ratio change; the marker makes later starts a no-op.
+pub fn migrate_preview_ratio(thumbnails_dir: &Path) {
+    let marker = thumbnails_dir.join(PREVIEW_RATIO_MARKER);
+    let ratio = PREVIEW_PIXEL_RATIO.to_string();
+    if std::fs::read_to_string(&marker).unwrap_or_default().trim() == ratio {
+        return;
+    }
+    if let Ok(entries) = std::fs::read_dir(thumbnails_dir) {
+        for entry in entries.filter_map(|e| e.ok()) {
+            if entry
+                .file_name()
+                .to_string_lossy()
+                .ends_with("_preview.webp")
+                && let Err(e) = std::fs::remove_file(entry.path())
+            {
+                tracing::warn!("migrate_preview_ratio: {:?}: {e}", entry.path());
+            }
+        }
+    }
+    if let Err(e) = std::fs::write(&marker, ratio) {
+        tracing::warn!("migrate_preview_ratio: {marker:?}: {e}");
+    }
 }
 
 // ── Placeholder thumbnail ────────────────────────────────────────────────────
@@ -253,5 +294,68 @@ pub fn store_both_thumbnails_for_file(
             let data = std::fs::read(file_path)?;
             store_both_thumbnails(dir, hash, &data, preview_max_dim)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn temp_dir(label: &str) -> PathBuf {
+        let dir =
+            std::env::temp_dir().join(format!("cliptoo_image_{}_{label}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn png_bytes(w: u32, h: u32) -> Vec<u8> {
+        let mut out = std::io::Cursor::new(Vec::new());
+        image::RgbImage::from_pixel(w, h, image::Rgb([10, 40, 90]))
+            .write_to(&mut out, image::ImageFormat::Png)
+            .unwrap();
+        out.into_inner()
+    }
+
+    #[test]
+    fn preview_thumbnail_is_stored_at_the_device_pixel_ratio() {
+        let dir = temp_dir("ratio");
+        let data = png_bytes(1200, 600);
+        let hash = "0123456789abcdef0123";
+        store_both_thumbnails(&dir, hash, &data, 300).unwrap();
+
+        let preview = dir.join(format!(
+            "{}_preview.webp",
+            &hash[..HASH_FILENAME_PREFIX_LEN]
+        ));
+        let (pw, ph) = image::image_dimensions(&preview).unwrap();
+        assert_eq!(pw.max(ph), 300 * PREVIEW_PIXEL_RATIO, "preview: {pw}x{ph}");
+
+        let thumb = dir.join(format!("{}.webp", &hash[..HASH_FILENAME_PREFIX_LEN]));
+        let (tw, th) = image::image_dimensions(&thumb).unwrap();
+        assert!(tw.max(th) <= THUMB_MAX_DIM, "thumb: {tw}x{th}");
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn migrate_ratio_drops_stale_previews_once() {
+        let dir = temp_dir("migrate");
+        let thumb = dir.join("0123456789abcdef.webp");
+        let stale = dir.join("0123456789abcdef_preview.webp");
+        let svg = dir.join("0123456789abcdef_preview.svg");
+        std::fs::write(&thumb, b"x").unwrap();
+        std::fs::write(&stale, b"x").unwrap();
+        std::fs::write(&svg, b"x").unwrap();
+
+        migrate_preview_ratio(&dir);
+        assert!(!stale.exists(), "stale preview must be dropped");
+        assert!(thumb.exists(), "list-cell thumbnail must survive");
+        assert!(svg.exists(), "SVG preview is resolution-independent");
+
+        // Second start is a no-op: previews written since must survive.
+        let fresh = dir.join("fedcba9876543210_preview.webp");
+        std::fs::write(&fresh, b"y").unwrap();
+        migrate_preview_ratio(&dir);
+        assert!(fresh.exists(), "fresh preview must survive a restart");
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 }

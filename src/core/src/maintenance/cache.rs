@@ -119,6 +119,11 @@ pub async fn prune_cache(
         for entry in entries.filter_map(|e| e.ok()) {
             let name = entry.file_name();
             let name = name.to_string_lossy();
+            // Cache bookkeeping files (e.g. `.preview_ratio`) are not keyed by
+            // a clip hash; deleting them would force a needless preview rebuild.
+            if name.starts_with('.') {
+                continue;
+            }
             let stem = name.rsplit_once('.').map(|(s, _)| s).unwrap_or(&name);
             let hash_prefix = stem.strip_suffix("_preview").unwrap_or(stem);
             if known_prefixes.contains(hash_prefix) {
