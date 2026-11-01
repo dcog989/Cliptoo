@@ -96,8 +96,8 @@ impl AppDirs {
         migrate_dir(&data_dir.join("thumbnails"), &thumbnails_dir);
         migrate_dir(&data_dir.join("favicons"), &favicons_dir);
         migrate_file(
-            &data_dir.join(crate::favicon::FAVICON_FAILURES_FILE),
-            &cache_dir.join(crate::favicon::FAVICON_FAILURES_FILE),
+            &data_dir.join(cliptoo_core::favicon_failures::FAVICON_FAILURES_FILE),
+            &cache_dir.join(cliptoo_core::favicon_failures::FAVICON_FAILURES_FILE),
         );
 
         Ok(Self {

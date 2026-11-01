@@ -2,13 +2,31 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};
 
-use crate::helpers::extract_domain;
 use cliptoo_core::db::DbPool;
+use cliptoo_core::favicon_failures;
+use cliptoo_core::url::extract_domain;
 use futures::StreamExt;
 use slint::ComponentHandle;
 use slint::Model;
 
+use crate::helpers::{USER_AGENT, is_fetchable_url, read_body_capped};
+
 const FAVICON_FETCH_TIMEOUT_SECS: u64 = 3;
+
+/// One client for every page and icon fetch. Each `Client` owns a connection
+/// pool, so building one per request paid a fresh TLS handshake per icon.
+fn http_client() -> Option<&'static reqwest::Client> {
+    static CLIENT: OnceLock<Option<reqwest::Client>> = OnceLock::new();
+    CLIENT
+        .get_or_init(|| {
+            reqwest::Client::builder()
+                .timeout(std::time::Duration::from_secs(FAVICON_FETCH_TIMEOUT_SECS))
+                .user_agent(USER_AGENT)
+                .build()
+                .ok()
+        })
+        .as_ref()
+}
 
 /// Domains fetched at once. Every fetch can make up to three HTTP requests, so
 /// this keeps a large link history from opening hundreds of connections.
@@ -36,39 +54,111 @@ pub fn favicon_file_name(domain: &str, dark: bool) -> String {
 pub async fn fetch_favicon(url: &str, fav_dir: &Path, dark: bool) -> Option<PathBuf> {
     let domain = extract_domain(url)?;
     let fav_path = fav_dir.join(favicon_file_name(&domain, dark));
-    if fav_path.exists() {
-        let bytes = std::fs::read(&fav_path).ok()?;
-        if image::load_from_memory(&bytes).is_ok() {
-            return Some(fav_path);
+    if let Some(path) = cached_favicon(&fav_path) {
+        return Some(path);
+    }
+    let client = http_client()?;
+    // The page is fetched at most once per call; its own icon declarations are
+    // all read from this one response.
+    let html = fetch_page(client, url).await;
+    store_favicon(client, url, &fav_path, dark, html.as_deref()).await
+}
+
+/// Fetch a link's page title and favicon from a single page download. Both
+/// live in the same HTML, so this is what keeps one hover from downloading the
+/// same page two or three times.
+pub async fn fetch_link_meta(
+    url: &str,
+    fav_dir: &Path,
+    dark: bool,
+) -> (Option<String>, Option<PathBuf>) {
+    let Some(client) = http_client() else {
+        return (None, None);
+    };
+    let html = fetch_page(client, url).await;
+    let title = html.as_deref().and_then(page_title);
+    let favicon = match extract_domain(url) {
+        Some(domain) => {
+            let fav_path = fav_dir.join(favicon_file_name(&domain, dark));
+            match cached_favicon(&fav_path) {
+                Some(path) => Some(path),
+                None => store_favicon(client, url, &fav_path, dark, html.as_deref()).await,
+            }
         }
-        let _ = std::fs::remove_file(&fav_path);
+        None => None,
+    };
+    (title, favicon)
+}
+
+/// The cached favicon, when the file exists and still decodes. A file that no
+/// longer decodes is removed so the next fetch replaces it.
+fn cached_favicon(fav_path: &Path) -> Option<PathBuf> {
+    if !fav_path.exists() {
+        return None;
     }
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(FAVICON_FETCH_TIMEOUT_SECS))
-        .user_agent(crate::helpers::USER_AGENT)
-        .build()
-        .ok()?;
+    let bytes = std::fs::read(fav_path).ok()?;
+    if cliptoo_core::image::decode_raster(&bytes).is_some() {
+        return Some(fav_path.to_path_buf());
+    }
+    let _ = std::fs::remove_file(fav_path);
+    None
+}
+
+/// Write the best available icon: the site's dark variant, its normal icon,
+/// then the DuckDuckGo proxy.
+async fn store_favicon(
+    client: &reqwest::Client,
+    url: &str,
+    fav_path: &Path,
+    dark: bool,
+    html: Option<&str>,
+) -> Option<PathBuf> {
     if dark
-        && let Some(bytes) = fetch_dark_favicon(&client, url).await
-        && save_favicon(&fav_path, &bytes)
+        && let Some(html) = html
+        && let Some(bytes) = fetch_dark_favicon(client, url, html).await
+        && save_favicon(fav_path, &bytes)
     {
-        return Some(fav_path);
+        return Some(fav_path.to_path_buf());
     }
-    // The site's own (non-dark) declared icon, when it has one. Some sites
-    // ship only a normal favicon (no dark variant) that the DuckDuckGo proxy
-    // doesn't know about, so without this the row would stay icon-less forever.
-    if let Some(bytes) = fetch_site_favicon(&client, url).await
-        && save_favicon(&fav_path, &bytes)
+    if let Some(html) = html
+        && let Some(bytes) = fetch_site_favicon(client, url, html).await
+        && save_favicon(fav_path, &bytes)
     {
-        return Some(fav_path);
+        return Some(fav_path.to_path_buf());
     }
+    let domain = extract_domain(url)?;
     let fallback_url = format!("https://icons.duckduckgo.com/ip3/{domain}.ico");
-    if let Some(bytes) = download_bytes(&client, &fallback_url).await
-        && save_favicon(&fav_path, &bytes)
+    if let Some(bytes) = download_bytes(client, &fallback_url).await
+        && save_favicon(fav_path, &bytes)
     {
-        return Some(fav_path);
+        return Some(fav_path.to_path_buf());
     }
     None
+}
+
+/// Download a page for its title and icon declarations. Local and private
+/// addresses are refused: a copied link can point at the user's own machine.
+async fn fetch_page(client: &reqwest::Client, url: &str) -> Option<String> {
+    if !is_fetchable_url(url) {
+        return None;
+    }
+    let resp = client.get(url).send().await.ok()?;
+    if !resp.status().is_success() {
+        return None;
+    }
+    let bytes = read_body_capped(resp).await?;
+    Some(String::from_utf8_lossy(&bytes).into_owned())
+}
+
+/// The page's `<title>`, trimmed to one line.
+fn page_title(html: &str) -> Option<String> {
+    static TITLE_RE: OnceLock<Option<regex::Regex>> = OnceLock::new();
+    let re = TITLE_RE.get_or_init(|| regex::Regex::new(r"(?i)<title>([^<]+)</title>").ok());
+    re.as_ref()?
+        .captures(html)
+        .and_then(|c| c.get(1))
+        .map(|m| m.as_str().trim().to_string())
+        .filter(|title| !title.is_empty())
 }
 
 /// Regexes for scanning a page for its dark-mode favicon declaration. Two
@@ -80,21 +170,19 @@ pub async fn fetch_favicon(url: &str, fav_dir: &Path, dark: bool) -> Option<Path
 const LINK_TAG_RE: &str = r"(?is)<link\b[^>]*>";
 const LINK_ATTR_RE: &str = r#"(?is)\b(rel|media|href|data-base-href)\s*=\s*["']([^"']*)["']"#;
 
-/// Dark-variant favicon URL candidates from a page, as `(direct, probes)`.
-/// `direct` hrefs are declared dark-mode icons; `probes` are GitHub-style
-/// `-dark` siblings that only exist if they return 200.
+/// Dark-variant favicon URL candidates from a already-downloaded page, as
+/// `(direct, probes)`. `direct` hrefs are declared dark-mode icons; `probes`
+/// are GitHub-style `-dark` siblings that only exist if they return 200.
 type DarkFaviconCandidates = (Vec<String>, Vec<String>);
 
-/// Fetch the page at `base_url` and download its dark-mode favicon, if it has
-/// one. Tries declared `prefers-color-scheme: dark` icons first, then probes
-/// GitHub-style `{base}-dark.{png,webp,svg}` siblings.
-async fn fetch_dark_favicon(client: &reqwest::Client, base_url: &str) -> Option<Vec<u8>> {
-    let resp = client.get(base_url).send().await.ok()?;
-    if !resp.status().is_success() {
-        return None;
-    }
-    let html = resp.text().await.ok()?;
-    let (direct, probes) = find_dark_favicon_candidates(&html, base_url);
+/// Pick the dark-mode favicon out of the page's `<link>` declarations and
+/// GitHub-style `-dark` siblings.
+async fn fetch_dark_favicon(
+    client: &reqwest::Client,
+    base_url: &str,
+    html: &str,
+) -> Option<Vec<u8>> {
+    let (direct, probes) = find_dark_favicon_candidates(html, base_url);
     for url in direct.into_iter().chain(probes) {
         if let Some(bytes) = download_bytes(client, &url).await {
             return Some(bytes);
@@ -144,9 +232,11 @@ type LinkAttrs = (
 );
 
 fn parse_link_tags(html: &str) -> Vec<LinkAttrs> {
-    let tag_re = regex::Regex::new(LINK_TAG_RE).ok();
-    let attr_re = regex::Regex::new(LINK_ATTR_RE).ok();
-    let (Some(tag_re), Some(attr_re)) = (tag_re, attr_re) else {
+    static TAG_RE: OnceLock<Option<regex::Regex>> = OnceLock::new();
+    static ATTR_RE: OnceLock<Option<regex::Regex>> = OnceLock::new();
+    let tag_re = TAG_RE.get_or_init(|| regex::Regex::new(LINK_TAG_RE).ok());
+    let attr_re = ATTR_RE.get_or_init(|| regex::Regex::new(LINK_ATTR_RE).ok());
+    let (Some(tag_re), Some(attr_re)) = (tag_re.as_ref(), attr_re.as_ref()) else {
         return Vec::new();
     };
     let mut tags = Vec::new();
@@ -177,16 +267,15 @@ fn parse_link_tags(html: &str) -> Vec<LinkAttrs> {
 /// is preferred in dark themes, but a site that only ships a normal icon still
 /// gets its favicon instead of falling through to the DuckDuckGo proxy (which
 /// 404s for many smaller sites).
-async fn fetch_site_favicon(client: &reqwest::Client, base_url: &str) -> Option<Vec<u8>> {
-    let resp = client.get(base_url).send().await.ok()?;
-    if !resp.status().is_success() {
-        return None;
-    }
-    let html = resp.text().await.ok()?;
+async fn fetch_site_favicon(
+    client: &reqwest::Client,
+    base_url: &str,
+    html: &str,
+) -> Option<Vec<u8>> {
     // The spec's default icon is the last `rel="icon"` without a `sizes`
     // attribute; try from the end so an overriding declaration wins, then work
     // backwards through the rest.
-    for url in site_favicon_hrefs(&html, base_url).into_iter().rev() {
+    for url in site_favicon_hrefs(html, base_url).into_iter().rev() {
         if let Some(bytes) = download_bytes(client, &url).await {
             return Some(bytes);
         }
@@ -234,11 +323,14 @@ fn resolve_url(base_url: &str, href: &str) -> Option<String> {
 }
 
 async fn download_bytes(client: &reqwest::Client, url: &str) -> Option<Vec<u8>> {
+    if !is_fetchable_url(url) {
+        return None;
+    }
     let resp = client.get(url).send().await.ok()?;
     if !resp.status().is_success() {
         return None;
     }
-    resp.bytes().await.ok().map(|b| b.to_vec())
+    read_body_capped(resp).await
 }
 
 /// Persist favicon `bytes` to `fav_path` as WebP. Bitmap formats go through
@@ -249,7 +341,7 @@ fn save_favicon(fav_path: &Path, bytes: &[u8]) -> bool {
     {
         return false;
     }
-    if let Ok(img) = image::load_from_memory(bytes) {
+    if let Some(img) = cliptoo_core::image::decode_raster(bytes) {
         return img.save(fav_path).is_ok();
     }
     if looks_like_svg(bytes)
@@ -318,79 +410,10 @@ fn attempted_favicon_domains() -> &'static Mutex<HashSet<String>> {
 /// ledger is persistent and only reset by the "Clear caches" maintenance
 /// action, so a domain with no obtainable favicon costs at most a handful of
 /// requests ever instead of one per session forever.
-const MAX_FAVICON_FAILURES: u32 = 5;
-pub(crate) const FAVICON_FAILURES_FILE: &str = "favicon_failures.txt";
-
-/// Path of the persistent favicon-fetch failure ledger. Lives beside (not
-/// inside) the favicon cache dir, because scheduled cache pruning deletes any
-/// unrecognised file it finds in `favicons_dir` — which would silently reset
-/// the counts on every maintenance run. Only the explicit "Clear caches"
-/// action resets the ledger.
-fn failures_path(favicons_dir: &Path) -> PathBuf {
-    favicons_dir
-        .parent()
-        .unwrap_or(favicons_dir)
-        .join(FAVICON_FAILURES_FILE)
-}
-
-/// Read the per-clip favicon fetch-failure counts, as `clip_id → failures`.
-fn load_failures(favicons_dir: &Path) -> HashMap<i64, u32> {
-    let Ok(raw) = std::fs::read_to_string(failures_path(favicons_dir)) else {
-        return HashMap::new();
-    };
-    raw.lines()
-        .filter_map(|line| line.split_once(':'))
-        .filter_map(|(id, count)| Some((id.trim().parse().ok()?, count.trim().parse().ok()?)))
-        .collect()
-}
-
-fn save_failures(favicons_dir: &Path, failures: &HashMap<i64, u32>) {
-    let mut ids: Vec<_> = failures.keys().copied().collect();
-    ids.sort_unstable();
-    let mut out = String::new();
-    for id in ids {
-        out.push_str(&format!("{id}:{}\n", failures[&id]));
-    }
-    let _ = std::fs::write(failures_path(favicons_dir), out);
-}
-
-/// Serialises the read-modify-write of the failure ledger. Concurrent fetch
-/// batches otherwise lose each other's increments.
-fn failure_ledger_lock() -> &'static Mutex<()> {
-    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-    LOCK.get_or_init(|| Mutex::new(()))
-}
-
-fn increment_failure(favicons_dir: &Path, clip_id: i64) {
-    let _guard = failure_ledger_lock()
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner());
-    let mut failures = load_failures(favicons_dir);
-    let count = failures.entry(clip_id).or_insert(0);
-    *count = count.saturating_add(1).min(MAX_FAVICON_FAILURES);
-    save_failures(favicons_dir, &failures);
-}
-
-fn reset_failure(favicons_dir: &Path, clip_id: i64) {
-    let _guard = failure_ledger_lock()
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner());
-    let mut failures = load_failures(favicons_dir);
-    if failures.remove(&clip_id).is_some() {
-        save_failures(favicons_dir, &failures);
-    }
-}
-
-fn failures_exhausted(failures: &HashMap<i64, u32>, clip_id: i64) -> bool {
-    failures.get(&clip_id).copied().unwrap_or(0) >= MAX_FAVICON_FAILURES
-}
-
-/// Reset every clip's favicon-fetch failure budget. Called by the "Clear
-/// caches" maintenance action so a cache clear also re-allows favicon retries.
-pub fn reset_favicon_failures(favicons_dir: &Path) {
-    let _ = std::fs::remove_file(failures_path(favicons_dir));
-}
-
+///
+/// The ledger itself lives in `cliptoo_core::favicon_failures` so the
+/// maintenance pass can prune counts for clips it deletes.
+///
 /// After populating the clip list, scan for link clips without cached
 /// favicons and fetch them in the background. The model is reloaded once
 /// after the batch finishes.
@@ -404,19 +427,16 @@ pub fn check_pending_favicons(ui: &crate::AppWindow, db: &Arc<DbPool>, favicons_
     let mut attempted = attempted_favicon_domains()
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
-    let failures = {
-        let _guard = failure_ledger_lock()
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
-        load_failures(favicons_dir)
-    };
+    // Loaded on first use: a list whose links all have icons never pays for it.
+    let mut failures: Option<HashMap<i64, u32>> = None;
     for i in 0..model.row_count() {
         if let Some(data) = model.row_data(i) {
             let ct = data.clip_type.as_str();
             if ct == "link" && data.favicon_image.size().width == 0 {
                 // Budget exhausted: never fetch this clip again (until caches
                 // are cleared) — the favicon has proven unobtainable.
-                if failures_exhausted(&failures, data.id as i64) {
+                let failures = failures.get_or_insert_with(|| favicon_failures::load(favicons_dir));
+                if favicon_failures::exhausted(failures, data.id as i64) {
                     continue;
                 }
                 let Some(domain) = extract_domain(&data.preview_content) else {
@@ -453,29 +473,32 @@ pub fn check_pending_favicons(ui: &crate::AppWindow, db: &Arc<DbPool>, favicons_
                     .with(|conn| cliptoo_core::db::queries::get_clip_content(conn, clip_id))
                     .await
                     .ok()?;
+                let domain = extract_domain(&content);
                 let fetched = fetch_favicon(&content, &fav_dir, dark).await.is_some();
-                Some((clip_id, fetched))
+                Some((clip_id, domain, fetched))
             }
         }))
         .buffer_unordered(FAVICON_FETCH_CONCURRENCY)
         .collect::<Vec<_>>()
         .await;
 
-        let mut any_fetched = false;
-        for (clip_id, fetched) in results.into_iter().flatten() {
+        let mut reloaded_domains = HashSet::new();
+        for (clip_id, domain, fetched) in results.into_iter().flatten() {
             if fetched {
-                // Clear this clip's failure count; the single reload below
-                // picks up the icon for every row sharing the domain.
-                reset_failure(&fav_dir, clip_id);
-                any_fetched = true;
+                // Clear this clip's failure count and remember its domain: only
+                // rows showing that icon are reloaded, not the whole list.
+                favicon_failures::reset(&fav_dir, clip_id);
+                if let Some(domain) = domain {
+                    reloaded_domains.insert(domain);
+                }
             } else {
                 // After the budget is exhausted the scan stops dispatching it.
-                increment_failure(&fav_dir, clip_id);
+                favicon_failures::increment(&fav_dir, clip_id);
             }
         }
-        if any_fetched {
+        if !reloaded_domains.is_empty() {
             let _ = weak.upgrade_in_event_loop(move |ui| {
-                crate::thumbnail_cache::reload_favicons(&ui, &fav_dir);
+                crate::thumbnail_cache::reload_favicons_for(&ui, &fav_dir, &reloaded_domains);
             });
         }
     });
@@ -588,29 +611,12 @@ mod tests {
     }
 
     #[test]
-    fn failure_budget_exhausts_at_limit_and_resets_on_clear_cache() {
-        let dir = std::env::temp_dir().join("cliptoo-favicon-failures-test");
-        let fav_dir = dir.join("favicons");
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&fav_dir).unwrap();
-
-        assert!(!failures_exhausted(&load_failures(&fav_dir), 42));
-        for _ in 0..5 {
-            increment_failure(&fav_dir, 42);
-        }
-        assert!(failures_exhausted(&load_failures(&fav_dir), 42));
-
-        // "Clear caches" deletes the ledger, re-allowing fetches.
-        reset_favicon_failures(&fav_dir);
-        assert!(!failures_exhausted(&load_failures(&fav_dir), 42));
-
-        // A successful fetch clears a single clip's count.
-        increment_failure(&fav_dir, 7);
-        increment_failure(&fav_dir, 7);
-        reset_failure(&fav_dir, 7);
-        assert!(!failures_exhausted(&load_failures(&fav_dir), 7));
-        assert!(!failures_exhausted(&load_failures(&fav_dir), 42));
-
-        let _ = std::fs::remove_dir_all(&dir);
+    fn extracts_the_page_title() {
+        assert_eq!(
+            page_title("<html><head><title> Hello &amp; bye </title></head></html>"),
+            Some("Hello &amp; bye".to_string())
+        );
+        assert_eq!(page_title("<title></title>"), None);
+        assert_eq!(page_title("<p>no title</p>"), None);
     }
 }

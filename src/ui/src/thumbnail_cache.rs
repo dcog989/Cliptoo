@@ -1,12 +1,13 @@
 use slint::Image;
 use slint::Model;
+use std::collections::HashSet;
 use std::num::NonZeroUsize;
 use std::path::Path;
 
-use crate::helpers::extract_domain;
 use cliptoo_core::db::models::ClipData as DbClipData;
 use cliptoo_core::db::models::ClipType;
 use cliptoo_core::image::HASH_FILENAME_PREFIX_LEN;
+use cliptoo_core::url::extract_domain;
 
 use lru::LruCache;
 
@@ -122,6 +123,16 @@ impl FaviconLru {
     pub fn clear(&mut self) {
         self.0.clear();
     }
+
+    /// Evict the cached icons whose domain `keep` rejects. The key is either
+    /// `domain` or `domain:dark`, so the variant suffix is stripped before the
+    /// caller's filter sees it.
+    pub fn evict_where(&mut self, keep: &dyn Fn(&str) -> bool) {
+        self.0.retain(|key, _| {
+            let domain = key.strip_suffix(":dark").unwrap_or(key);
+            keep(domain)
+        });
+    }
 }
 
 impl Default for FaviconLru {
@@ -140,12 +151,26 @@ fn load_favicon(favicons_dir: &Path, content: &str) -> Image {
 /// theme. Call on the UI thread after the theme changes so rows switch to
 /// the matching light/dark favicon variant in place.
 pub fn reload_favicons(ui: &crate::AppWindow, favicons_dir: &Path) {
-    FAVICON_LRU.with(|lru| lru.borrow_mut().clear());
+    reload_favicons_where(ui, favicons_dir, &|_| true);
+}
+
+/// Re-load only the rows whose domain just got a new icon, so a favicon fetch
+/// batch does not re-read every link row's image on the UI thread.
+pub fn reload_favicons_for(ui: &crate::AppWindow, favicons_dir: &Path, domains: &HashSet<String>) {
+    reload_favicons_where(ui, favicons_dir, &|domain| domains.contains(domain));
+}
+
+fn reload_favicons_where(ui: &crate::AppWindow, favicons_dir: &Path, keep: &dyn Fn(&str) -> bool) {
+    FAVICON_LRU.with(|lru| lru.borrow_mut().evict_where(keep));
     let model = ui.get_clips();
     for i in 0..model.row_count() {
         if let Some(mut data) = model.row_data(i)
             && data.clip_type.as_str() == "link"
         {
+            let domain = extract_domain(&data.preview_content);
+            if !domain.as_deref().is_some_and(keep) {
+                continue;
+            }
             data.favicon_image = load_favicon(favicons_dir, &data.preview_content);
             model.set_row_data(i, data);
         }

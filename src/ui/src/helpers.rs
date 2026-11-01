@@ -4,31 +4,54 @@ use std::sync::Arc;
 use cliptoo_core::db::queries::SEARCH_RESULT_LIMIT;
 use slint::{ComponentHandle, Model};
 
-const PAGE_TITLE_FETCH_TIMEOUT_SECS: u64 = 5;
-
+/// User agent sent with every page and favicon request.
 pub const USER_AGENT: &str = "Cliptoo/0.2";
 
-/// Extract the domain from a URL (e.g. "https://github.com/foo" -> "github.com").
-/// Returns the host component of an absolute URL; `None` when the input is not
-/// a valid absolute URL with a host (e.g. a relative or scheme-less string).
-pub fn extract_domain(url: &str) -> Option<String> {
-    url::Url::parse(url).ok()?.host_str().map(ToOwned::to_owned)
+/// Largest page or icon body accepted for a link preview. A page can be
+/// arbitrarily large, and any app can put a URL on the clipboard, so the body
+/// is capped instead of being read into memory in full.
+pub const MAX_FETCH_BYTES: usize = 2 * 1024 * 1024;
+
+/// Read a response body up to [`MAX_FETCH_BYTES`]. `None` when the response
+/// declares or streams more than that.
+pub async fn read_body_capped(resp: reqwest::Response) -> Option<Vec<u8>> {
+    if resp
+        .content_length()
+        .is_some_and(|len| len > MAX_FETCH_BYTES as u64)
+    {
+        return None;
+    }
+    let mut out = Vec::new();
+    let mut resp = resp;
+    loop {
+        match resp.chunk().await {
+            Ok(Some(chunk)) => {
+                if out.len() + chunk.len() > MAX_FETCH_BYTES {
+                    return None;
+                }
+                out.extend_from_slice(&chunk);
+            }
+            Ok(None) => return Some(out),
+            Err(_) => return None,
+        }
+    }
 }
 
-pub async fn fetch_page_title(url: &str) -> Option<String> {
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(
-            PAGE_TITLE_FETCH_TIMEOUT_SECS,
-        ))
-        .user_agent(USER_AGENT)
-        .build()
-        .ok()?;
-    let resp = client.get(url).send().await.ok()?;
-    let body = resp.text().await.ok()?;
-    let re = regex::Regex::new(r"(?i)<title>([^<]+)</title>").ok()?;
-    re.captures(&body)
-        .and_then(|c| c.get(1))
-        .map(|m| m.as_str().trim().to_string())
+/// Whether a link-preview fetch may target this URL. A copied link can point
+/// at the user's own machine or LAN (a pasted URL, or a page that puts one on
+/// the clipboard); the preview must not probe those.
+pub fn is_fetchable_url(url: &str) -> bool {
+    let Ok(parsed) = url::Url::parse(url) else {
+        return false;
+    };
+    match parsed.host() {
+        Some(url::Host::Domain(domain)) => domain != "localhost" && !domain.ends_with(".localhost"),
+        Some(url::Host::Ipv4(ip)) => !(ip.is_private() || ip.is_loopback() || ip.is_link_local()),
+        Some(url::Host::Ipv6(ip)) => {
+            !(ip.is_loopback() || ip.is_unique_local() || ip.is_unicast_link_local())
+        }
+        None => false,
+    }
 }
 
 /// Snapshot the list's active search query and filter on the UI thread, so a
@@ -265,52 +288,34 @@ fn swap_rows(model: &slint::ModelRc<crate::ClipData>, a: usize, b: usize) {
 
 #[cfg(test)]
 mod tests {
-    use super::extract_domain;
+    use super::is_fetchable_url;
 
     #[test]
-    fn extracts_host_from_http_urls() {
-        assert_eq!(
-            extract_domain("https://github.com/foo").unwrap(),
-            "github.com"
-        );
-        assert_eq!(extract_domain("http://example.com").unwrap(), "example.com");
-        assert_eq!(
-            extract_domain("ftp://files.example.com/x").unwrap(),
-            "files.example.com"
-        );
-    }
-
-    #[test]
-    fn normalizes_scheme_and_host_case() {
-        assert_eq!(
-            extract_domain("HTTP://EXAMPLE.COM/path").unwrap(),
-            "example.com"
-        );
-    }
-
-    #[test]
-    fn strips_userinfo_port_and_handles_ipv6() {
-        assert_eq!(
-            extract_domain("https://user:pass@example.com").unwrap(),
-            "example.com"
-        );
-        assert_eq!(
-            extract_domain("https://example.com:8443/x").unwrap(),
-            "example.com"
-        );
-        assert_eq!(extract_domain("https://[::1]:8080/x").unwrap(), "[::1]");
-    }
-
-    #[test]
-    fn rejects_non_urls() {
-        for s in [
-            "",
-            "not a url",
-            "www.example.com",
-            "example.com",
-            "/relative/path",
+    fn accepts_public_hosts() {
+        for url in [
+            "https://github.com/foo",
+            "http://example.com",
+            "https://[2001:db8::1]/x",
         ] {
-            assert_eq!(extract_domain(s), None, "for {s:?}");
+            assert!(is_fetchable_url(url), "for {url}");
+        }
+    }
+
+    #[test]
+    fn refuses_local_and_private_hosts() {
+        for url in [
+            "http://localhost:8080/admin",
+            "http://app.localhost/",
+            "http://127.0.0.1/",
+            "http://10.1.2.3/",
+            "http://172.16.0.1/",
+            "http://192.168.1.1/",
+            "http://169.254.169.254/latest/meta-data/",
+            "http://[::1]/",
+            "http://[fd00::1]/",
+            "not a url",
+        ] {
+            assert!(!is_fetchable_url(url), "for {url}");
         }
     }
 }

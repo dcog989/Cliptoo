@@ -6,8 +6,6 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use slint::{ComponentHandle, Model};
 
-use crate::helpers;
-
 /// Horizontal offset (logical px) of the preview popup from the pointer.
 const POPUP_OFFSET_X: f32 = 20.0;
 /// Maximum bytes read from a copied file for its text preview, so a huge file
@@ -129,10 +127,8 @@ fn show_link_preview(ctx: &PreviewContext) {
         let (title, fav_path) = if has_cached_title {
             (None, crate::favicon::fetch_favicon(&c, &fd, dark).await)
         } else {
-            let (t, f) = tokio::join!(
-                helpers::fetch_page_title(&c),
-                crate::favicon::fetch_favicon(&c, &fd, dark),
-            );
+            // One page download yields both the title and the icon.
+            let (t, f) = crate::favicon::fetch_link_meta(&c, &fd, dark).await;
             if let Some(ref t) = t {
                 crate::favicon::cache_page_title(&c, t, &fd);
             }
