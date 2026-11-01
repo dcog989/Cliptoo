@@ -1,6 +1,6 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SendToApp {
@@ -9,6 +9,7 @@ pub struct SendToApp {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct Settings {
     // Hotkeys
     pub hotkey: String,
@@ -19,28 +20,12 @@ pub struct Settings {
     pub editor_window_width: f64,
     pub editor_window_height: f64,
     // Settings window size, persisted so user resizes survive restarts.
-    #[serde(default = "default_settings_window_width")]
     pub settings_window_width: f64,
-    #[serde(default = "default_settings_window_height")]
     pub settings_window_height: f64,
 
     // Theming
     // accent_color is a "#RRGGBB" string; empty means "use the OS accent".
-    // Older settings files stored accent_hue + accent_chroma_level, which are
-    // no longer read.
-    #[serde(default = "default_accent_color")]
     pub accent_color: String,
-    // Accent tuning: a legacy HSV description of the accent color (hue in
-    // degrees 0–360, saturation and brightness 0.0–1.0). The hex in
-    // accent_color is authoritative; the settings UI keeps these in sync when
-    // a color is picked. Retained so older settings files still deserialize.
-    // The defaults match the fallback accent (#7C6EE6, hue 247°).
-    #[serde(default = "default_accent_hue")]
-    pub accent_hue: f64,
-    #[serde(default = "default_accent_saturation")]
-    pub accent_saturation: f64,
-    #[serde(default = "default_accent_value")]
-    pub accent_value: f64,
     pub theme: String,
 
     // Typography / layout
@@ -50,7 +35,6 @@ pub struct Settings {
     pub clip_item_padding: String,
     // When true, clip-list body text is tinted by clip type. Text clips keep
     // the base list colour. See `ClipTypeMap.color-for` for the mapping.
-    #[serde(default = "default_color_code_clip_types")]
     pub color_code_clip_types: bool,
 
     // Behaviour
@@ -60,11 +44,9 @@ pub struct Settings {
     // their path text instead of offering `text/rtf`/`text/html`/`text/uri-list`.
     pub paste_as_plain_text: bool,
     // When true, pasting a clip bumps it to the top of the list.
-    #[serde(default = "default_paste_moves_clip_to_top")]
     pub paste_moves_clip_to_top: bool,
     // Modifier key that activates the quick-paste overlay:
     // "Right Alt" | "Left Alt" | "Control".
-    #[serde(default = "default_quick_paste_modifier")]
     pub quick_paste_modifier: String,
 
     // Data / retention
@@ -79,7 +61,6 @@ pub struct Settings {
 
     // System
     pub start_with_system: bool,
-    #[serde(default = "default_always_close_to_tray")]
     pub always_close_to_tray: bool,
     pub logging_level: String,
 }
@@ -95,9 +76,6 @@ impl Default for Settings {
             settings_window_width: 560.0,
             settings_window_height: 540.0,
             accent_color: String::new(),
-            accent_hue: 247.0,
-            accent_saturation: 0.65,
-            accent_value: 0.95,
             theme: "System".to_string(),
             font_family: "Inter".to_string(),
             font_size: 13.0,
@@ -135,8 +113,8 @@ impl Settings {
     }
 
     /// Load settings from the given path, falling back to defaults on error.
-    /// Corrupted files are renamed to a `.bak` before returning defaults, and
-    /// the defaults are persisted in the file's place.
+    /// Corrupted or unreadable files are renamed to a `.bak` before returning
+    /// defaults, and the defaults are persisted in the file's place.
     pub fn load(path: &Path) -> Self {
         if !path.exists() {
             let defaults = Self::default();
@@ -154,8 +132,11 @@ impl Settings {
             }
             Err(e) => {
                 // Transient I/O error (permissions, filesystem full, etc.).
-                // Return defaults but do NOT overwrite the file — it may be intact.
+                // Move the file aside: the defaults returned here are saved on
+                // the next settings change, and that save would otherwise
+                // overwrite a file that may still be intact.
                 tracing::error!("settings: failed to read {:?}: {e}", path);
+                let _ = std::fs::rename(path, backup_path(path));
                 return Self::default();
             }
         };
@@ -163,15 +144,8 @@ impl Settings {
         match serde_json::from_str::<Self>(&raw) {
             Ok(s) => s,
             Err(e) => {
-                // Move the corrupt file aside under a single, fixed name. The
-                // backup is a debugging aid, not history: one per corruption
-                // would accumulate in the config dir forever.
                 tracing::warn!("settings: parse error in {:?}: {e}; renaming to .bak", path);
-                let bak = path.with_file_name(format!(
-                    "{}.bak",
-                    path.file_name().unwrap_or_default().to_string_lossy()
-                ));
-                let _ = std::fs::rename(path, &bak);
+                let _ = std::fs::rename(path, backup_path(path));
                 // Persist defaults in the file's place so a crash now still
                 // leaves a valid settings file instead of none.
                 let defaults = Self::default();
@@ -182,79 +156,47 @@ impl Settings {
     }
 
     /// Atomically write settings: write to .tmp then rename over live file. A
-    /// failed rename removes the .tmp, so the config dir keeps no debris.
+    /// failed write or rename removes the .tmp and is logged: every caller
+    /// discards the error, and a silently unsaved setting looks like the app
+    /// forgot it.
     pub fn save(&self, path: &Path) -> Result<()> {
         let json = serde_json::to_string_pretty(self)?;
         let tmp = path.with_extension("tmp");
-        std::fs::write(&tmp, &json)?;
-        if let Err(e) = std::fs::rename(&tmp, path) {
+        let written = std::fs::write(&tmp, &json).and_then(|()| std::fs::rename(&tmp, path));
+        if let Err(e) = written {
             let _ = std::fs::remove_file(&tmp);
+            tracing::warn!("settings: cannot save {:?}: {e}", path);
             return Err(e.into());
         }
         Ok(())
     }
 }
 
-// Serde `default =` hooks. Each delegates to `Settings::default()` so the
-// `Default` impl is the single source of truth for every default value.
-
-fn default_accent_color() -> String {
-    Settings::default().accent_color
-}
-
-fn default_accent_hue() -> f64 {
-    Settings::default().accent_hue
-}
-
-fn default_accent_saturation() -> f64 {
-    Settings::default().accent_saturation
-}
-
-fn default_accent_value() -> f64 {
-    Settings::default().accent_value
-}
-
-fn default_always_close_to_tray() -> bool {
-    Settings::default().always_close_to_tray
-}
-
-fn default_paste_moves_clip_to_top() -> bool {
-    Settings::default().paste_moves_clip_to_top
-}
-
-fn default_color_code_clip_types() -> bool {
-    Settings::default().color_code_clip_types
-}
-
-fn default_quick_paste_modifier() -> String {
-    Settings::default().quick_paste_modifier
-}
-
-fn default_settings_window_width() -> f64 {
-    Settings::default().settings_window_width
-}
-
-fn default_settings_window_height() -> f64 {
-    Settings::default().settings_window_height
+/// Fixed-name backup for a settings file that cannot be read or parsed. One
+/// backup, not history: a `.bak` per corruption would accumulate in the config
+/// dir forever.
+fn backup_path(path: &Path) -> PathBuf {
+    path.with_file_name(format!(
+        "{}.bak",
+        path.file_name().unwrap_or_default().to_string_lossy()
+    ))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    /// Settings files written before the accent tuning fields existed must
-    /// load with the tuning defaults, not 0.0 (which would make the accent
-    /// black / grayscale).
+    /// Settings files written by an older version, or missing a key, must load
+    /// with the default for that field instead of failing the whole file (a
+    /// parse error renames the file and resets every setting).
     #[test]
-    fn accent_tuning_defaults_for_legacy_files() {
+    fn missing_fields_get_defaults() {
         let mut value = serde_json::to_value(Settings::default()).unwrap();
-        value.as_object_mut().unwrap().remove("accent_hue");
-        value.as_object_mut().unwrap().remove("accent_saturation");
-        value.as_object_mut().unwrap().remove("accent_value");
+        value.as_object_mut().unwrap().remove("theme");
+        value.as_object_mut().unwrap().remove("hotkey");
         let s: Settings = serde_json::from_value(value).unwrap();
-        assert!((s.accent_hue - 247.0).abs() < f64::EPSILON);
-        assert!((s.accent_saturation - 0.65).abs() < f64::EPSILON);
-        assert!((s.accent_value - 0.95).abs() < f64::EPSILON);
+        assert_eq!(s.theme, "System");
+        assert_eq!(s.hotkey, "Ctrl+Alt+Q");
     }
 
     /// A corrupt settings file is moved to `settings.json.bak` and defaults are
@@ -321,8 +263,8 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
-    /// Settings files written before the newer non-accent fields existed must
-    /// load with their defaults rather than 0 / empty / false.
+    /// Settings files written before the newer fields existed must load with
+    /// their defaults rather than 0 / empty / false.
     #[test]
     fn legacy_files_get_non_accent_defaults() {
         let mut value = serde_json::to_value(Settings::default()).unwrap();

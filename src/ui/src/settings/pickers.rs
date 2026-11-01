@@ -19,50 +19,45 @@ pub(super) fn setup_clear_accent(
     let s = settings.clone();
     let p = settings_path.to_path_buf();
     settings_win.on_clear_accent_color(move || {
-        // Clear synchronously: Rc<RefCell<Settings>> is !Send, so it must
-        // not cross into the spawned task. Snapshot the cleared settings.
-        let s_snap;
-        {
-            let mut s = s.borrow_mut();
-            s.accent_color = String::new();
-            s_snap = s.clone();
-        }
+        // Clear synchronously: the swatch and any save made before the theme
+        // lookup finishes must see the cleared value.
+        s.borrow_mut().accent_color = String::new();
         let sw = sw.clone();
         let settings_ui = settings_ui.clone();
         let p = p.clone();
         let fillers = fillers.clone();
-        tokio::spawn(async move {
-            // Resolve first so the shared cache holds the freshly detected
-            // OS accent; the settings swatch reads that cache. Without this,
-            // a previously custom accent leaves the cache stale and "Clear"
-            // shows the fallback color until a second click.
-            let (is_dark, system_accent) = crate::theme::resolve_theme(&s_snap).await;
+        let s = s.clone();
+        // Runs on the UI thread, so the live settings can be saved directly and
+        // no other save can interleave with it.
+        if let Err(e) = slint::spawn_local(async move {
+            let snapshot = s.borrow().clone();
+            let (is_dark, system_accent) = crate::theme::resolve_theme(&snapshot).await;
             let swatch = crate::theme::default_accent_color();
-            let main_weak = settings_ui.clone();
-            let settings_weak = sw.clone();
-            let s_main = s_snap.clone();
-            let s_settings = s_snap.clone();
-            let _ = main_weak.upgrade_in_event_loop(move |ui| {
+            if let Some(ui) = settings_ui.upgrade() {
                 crate::theme::fill_theme(
                     &ui.global::<crate::Theme>(),
-                    &s_main,
+                    &snapshot,
                     is_dark,
                     system_accent,
                 );
-            });
-            let _ = settings_weak.upgrade_in_event_loop(move |win| {
+            }
+            if let Some(win) = sw.upgrade() {
                 crate::theme::fill_theme(
                     &win.global::<crate::Theme>(),
-                    &s_settings,
+                    &snapshot,
                     is_dark,
                     system_accent,
                 );
                 // Re-fill the tray and About window globals too.
-                crate::theme::apply_theme_fillers(&fillers, &s_settings, is_dark, system_accent);
+                crate::theme::apply_theme_fillers(&fillers, &snapshot, is_dark, system_accent);
                 win.set_s_accent_color(swatch);
-            });
-            let _ = s_snap.save(&p);
-        });
+            }
+            // Save the live settings, not the snapshot: a change made while the
+            // theme resolved must not be overwritten.
+            let _ = s.borrow().save(&p);
+        }) {
+            tracing::warn!("clear-accent: failed to schedule on the event loop: {e}");
+        }
     });
 }
 
@@ -256,14 +251,7 @@ pub(super) fn setup_accent_picker(
 
             {
                 let mut settings = s.borrow_mut();
-                let (r, g, b) = crate::theme::parse_accent_hex(&hex);
-                let (h, sat, val) = crate::theme::rgb_to_hsv(r, g, b);
-                // The hex is authoritative; the HSV fields are kept in sync so
-                // older settings files and any remaining readers stay valid.
                 settings.accent_color.clone_from(&hex);
-                settings.accent_hue = h;
-                settings.accent_saturation = sat;
-                settings.accent_value = val;
                 let _ = settings.save(&p);
             }
             let (is_dark, _) = crate::theme::cached_resolved_theme();

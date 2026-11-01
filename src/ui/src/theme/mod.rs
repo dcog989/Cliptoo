@@ -252,30 +252,6 @@ pub fn cached_resolved_theme() -> ResolvedTheme {
         .unwrap_or((true, None))
 }
 
-/// Convert sRGB (0–255) to HSV (hue 0–360, saturation 0–1, value 0–1).
-/// Used by the settings accent picker to keep the persisted HSV fields in
-/// sync with the picked hex.
-pub(crate) fn rgb_to_hsv(r: u8, g: u8, b: u8) -> (f64, f64, f64) {
-    let r = r as f64 / 255.0;
-    let g = g as f64 / 255.0;
-    let b = b as f64 / 255.0;
-    let max = r.max(g).max(b);
-    let min = r.min(g).min(b);
-    let d = max - min;
-    let h = if d == 0.0 {
-        0.0
-    } else if max == r {
-        60.0 * ((g - b) / d % 6.0)
-    } else if max == g {
-        60.0 * ((b - r) / d + 2.0)
-    } else {
-        60.0 * ((r - g) / d + 4.0)
-    };
-    let h = if h < 0.0 { h + 360.0 } else { h };
-    let s = if max == 0.0 { 0.0 } else { d / max };
-    (h, s, max)
-}
-
 /// Resolve the dark-mode and system-accent context for the given settings.
 /// Side-effect: caches the result for `cached_resolved_theme`.
 pub async fn resolve_theme(settings: &Settings) -> ResolvedTheme {
