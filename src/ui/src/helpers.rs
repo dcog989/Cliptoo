@@ -4,9 +4,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use slint::{ComponentHandle, Model};
 
-/// Rows fetched per list page. The window shows ~17 rows, so 100 is about six
-/// screens of headroom; a smaller page keeps the first paint's thumbnail
-/// decode short, and `load_more` appends the next page on scroll.
+/// Rows fetched per list page. The default window shows ~17 rows and a
+/// maximized 4K window ~45–60; 100 rows is about two screens, covers the usual
+/// scroll depth, and keeps each UI-thread thumbnail decode short.
 const CLIP_PAGE_SIZE: i64 = 100;
 
 /// User agent sent with every page and favicon request.
