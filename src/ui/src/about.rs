@@ -15,26 +15,14 @@ pub fn setup_about_window(
     about_win.set_logs_folder_path(dirs.logs_dir.display().to_string().into());
 
     // Open the project repository in the default browser.
-    {
-        about_win.on_open_repo(move || {
-            const REPO_URL: &str = "https://github.com/dcog989/Cliptoo";
-            if let Err(e) = std::process::Command::new("xdg-open").arg(REPO_URL).spawn() {
-                tracing::warn!("about: failed to launch xdg-open for {REPO_URL}: {e}");
-            }
-        });
-    }
+    about_win.on_open_repo(|| {
+        crate::helpers::open_with_default(env!("CARGO_PKG_REPOSITORY"));
+    });
 
     // Open a path (install/data/cache/logs dir) in the default file manager.
-    {
-        about_win.on_open_folder(move |path: SharedString| {
-            if let Err(e) = std::process::Command::new("xdg-open")
-                .arg(path.as_str())
-                .spawn()
-            {
-                tracing::warn!("about: failed to launch xdg-open for {path}: {e}");
-            }
-        });
-    }
+    about_win.on_open_folder(|path: SharedString| {
+        crate::helpers::open_with_default(path.as_str());
+    });
 
     // Opening the About window must not trigger blur-to-tray on the main
     // window, so guard it with the same mechanism as the settings window.

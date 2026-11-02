@@ -78,6 +78,20 @@ pub fn is_fetchable_url(url: &str) -> bool {
     }
 }
 
+/// Open a path or URL with the desktop's default handler. The child is reaped
+/// on a detached thread: dropping a `Child` without `wait` leaves a zombie in a
+/// process that stays up for the whole session.
+pub fn open_with_default(target: &str) {
+    match std::process::Command::new("xdg-open").arg(target).spawn() {
+        Ok(mut child) => {
+            std::thread::spawn(move || {
+                let _ = child.wait();
+            });
+        }
+        Err(e) => tracing::warn!("xdg-open {target}: {e}"),
+    }
+}
+
 /// Bumped whenever the clip model is replaced or changed in place. A background
 /// query takes it before reading the DB and drops its result when the model
 /// moved on, so a slow refresh cannot re-add a deleted row or append a page

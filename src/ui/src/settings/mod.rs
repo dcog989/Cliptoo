@@ -148,12 +148,7 @@ fn setup_open_log(settings_win: &crate::SettingsWindow, logs_dir: &std::path::Pa
             tracing::warn!("open-log: no log file yet in {}", logs_dir.display());
             return;
         };
-        if let Err(e) = std::process::Command::new("xdg-open").arg(&latest).spawn() {
-            tracing::warn!(
-                "open-log: failed to launch xdg-open for {}: {e}",
-                latest.display()
-            );
-        }
+        crate::helpers::open_with_default(&latest.to_string_lossy());
     });
 }
 
