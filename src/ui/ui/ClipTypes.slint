@@ -69,6 +69,17 @@ export global ClipTypeMap {
             || key == "link";
     }
 
+    // True when the row and the hover preview show the same plain text, so a
+    // preview that already fits the row is redundant. Excludes code (syntax
+    // highlighting), links (title/favicon) and colour (swatch), whose previews
+    // add content the row cannot show.
+    public pure function is-plain-text-like(key: string) -> bool {
+        return key == "text"
+            || key == "file_path"
+            || key == "rtf"
+            || key == "html";
+    }
+
     // True when `key` references an on-disk file/folder (ingested from a file
     // copy's text/uri-list). Mirrors `ClipType::is_file_clip()`; file_path is
     // excluded because a path copied as text already pastes as text.

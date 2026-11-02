@@ -332,16 +332,18 @@ export component ClipItem {
             mouse-cursor: pointer;
         }
 
-        // A single-line plain-text clip whose row already shows the whole
-        // string gets no hover preview: it would only repeat the row. Elided
-        // text, multiline content, search-highlight rows and every richer clip
-        // type keep theirs. `preferred-width` stays the full one-line text
-        // width even with `overflow: elide`, so comparing it to the laid-out
-        // width detects elision.
+        // A single-line plain-text-like clip whose row already shows the whole
+        // string gets no hover preview: the preview would only repeat the row.
+        // Elided text, truncated content (the row only has a 200-byte preview,
+        // however well it fits), multiline content, search-highlight rows and
+        // richer clip types keep theirs. `preferred-width` stays the full
+        // one-line text width even with `overflow: elide`, so comparing it to
+        // the laid-out width detects elision.
         private property <bool> preview-offered:
             clip-data.is-multiline
-            || clip-data.clip-type != "text"
+            || !ClipTypeMap.is-plain-text-like(clip-data.clip-type)
             || (root.is-searching && clip-data.match-context != "")
+            || clip-data.preview-truncated
             || preview-text.preferred-width > preview-text.width;
 
         // Fires once, after hover-preview-delay. The latch prevents re-firing

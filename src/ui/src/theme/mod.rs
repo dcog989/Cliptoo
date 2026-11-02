@@ -178,6 +178,7 @@ pub fn fill_theme(
         t.set_danger_fg(rgb(DANGER_FG_DARK));
         t.set_link_fg(rgb(LINK_FG_DARK));
         t.set_border_subtle(Color::from_rgb_u8(0x44, 0x44, 0x44));
+        t.set_border_preview(Color::from_rgb_u8(0x66, 0x66, 0x66));
         t.set_shadow(Color::from_argb_u8(SHADOW_ALPHA, 0x00, 0x00, 0x00));
     } else {
         t.set_bg_primary(Color::from_rgb_u8(bg_r, bg_g, bg_b));
@@ -197,6 +198,7 @@ pub fn fill_theme(
         t.set_danger_fg(rgb(DANGER_FG_LIGHT));
         t.set_link_fg(rgb(LINK_FG_LIGHT));
         t.set_border_subtle(Color::from_rgb_u8(0xD0, 0xD0, 0xD0));
+        t.set_border_preview(Color::from_rgb_u8(0xD0, 0xD0, 0xD0));
         t.set_shadow(Color::from_argb_u8(SHADOW_ALPHA, 0x00, 0x00, 0x00));
     }
 

@@ -172,6 +172,14 @@ pub fn convert(db_clip: DbClipData, thumbnails_dir: &Path, favicons_dir: &Path) 
     };
     let has_leading_whitespace = db_clip.has_leading_whitespace;
     let is_multiline = db_clip.is_multiline;
+    // The stored preview is capped at 200 bytes; a longer clip is not fully
+    // readable from the row even when that preview fits it. Rich text previews
+    // the stripped plain text, so the raw-markup byte size says nothing about
+    // the cut — `build_preview` marks a truncated preview with an ellipsis.
+    let preview_truncated = match db_clip.clip_type {
+        ClipType::Rtf | ClipType::Html => db_clip.preview_content.ends_with('…'),
+        _ => db_clip.size_in_bytes > db_clip.preview_content.len() as i64,
+    };
 
     let match_context_str = db_clip.match_context.as_deref().unwrap_or("");
     let match_spans = if match_context_str.is_empty() {
@@ -187,6 +195,7 @@ pub fn convert(db_clip: DbClipData, thumbnails_dir: &Path, favicons_dir: &Path) 
         is_bookmarked: db_clip.is_bookmarked,
         has_leading_whitespace,
         is_multiline,
+        preview_truncated,
         match_context: match_context_str.into(),
         match_spans,
         is_deadhead: db_clip.is_deadhead,

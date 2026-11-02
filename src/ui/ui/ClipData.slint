@@ -18,6 +18,9 @@ export struct ClipData {
     is-bookmarked: bool,
     has-leading-whitespace: bool,
     is-multiline: bool,
+    // True when the previewed text is longer than the stored 200-byte preview,
+    // so the row cannot be showing all of it (even if that preview fits).
+    preview-truncated: bool,
     match-context: string,
     // Parsed match-context spans: populated when match-context != "".
     // Each span is either plain text or an accent-highlighted segment.
