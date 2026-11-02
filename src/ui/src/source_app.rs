@@ -31,7 +31,9 @@ const KW_SCRIPTING_IFACE: &str = "org.kde.kwin.Scripting";
 const KW_SCRIPT_IFACE: &str = "org.kde.kwin.Script";
 const SCRIPT_TIMEOUT: Duration = Duration::from_secs(2);
 // D-Bus member the tracker script calls back on for every focus change.
-const SCRIPT_MEMBER: &str = "activeWindow";
+// PascalCase: zbus derives the same name from the interface method, and the
+// dispatch compares it byte for byte.
+const SCRIPT_MEMBER: &str = "ActiveWindow";
 // Interface serving `SCRIPT_MEMBER` on the tracker connection. The script must
 // name it explicitly: zbus rejects a call that carries no interface field.
 const TRACKER_IFACE: &str = "org.cliptoo.Tracker";
@@ -269,7 +271,7 @@ impl Tracker {
 
 #[cfg(test)]
 mod tests {
-    use super::{TRACKER_IFACE, Tracker};
+    use super::{ActiveWindowCache, SCRIPT_MEMBER, TRACKER_IFACE, Tracker};
     use zbus::object_server::Interface;
 
     /// The script spells the interface name out as a literal; keep it in sync
@@ -277,5 +279,15 @@ mod tests {
     #[test]
     fn tracker_interface_name_matches_the_script() {
         assert_eq!(Tracker::name().as_str(), TRACKER_IFACE);
+    }
+
+    /// The script spells the member out as a literal too, and zbus rejects a
+    /// callback whose member does not match the method name exactly.
+    #[test]
+    fn tracker_member_matches_the_script() {
+        let cache: ActiveWindowCache = Default::default();
+        let mut xml = String::new();
+        Tracker(cache).introspect_to_writer(&mut xml, 0);
+        assert!(xml.contains(&format!(r#"name="{SCRIPT_MEMBER}""#)), "{xml}");
     }
 }
