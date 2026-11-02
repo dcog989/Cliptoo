@@ -182,20 +182,32 @@ fn page_title(html: &str) -> Option<String> {
 
 /// Regexes for scanning a page for its dark-mode favicon declaration. Two
 /// mechanisms exist in the wild: a `<link rel="icon" media="(prefers-color-scheme:
-/// dark)">` tag (what a dark browser tab would pick), and GitHub's
-/// `data-base-href` attribute, where a `-dark`-suffixed sibling is swapped in
-/// by client-side JS. Attribute order varies, so each `<link>` tag is captured
-/// whole and its attributes inspected individually.
+/// dark)">` tag (what a dark browser tab would pick), and a `-dark`-suffixed
+/// sibling next to a declared icon (GitHub's `data-base-href` names its icon
+/// without an extension, so the suffix is appended to that). Attribute order
+/// varies, so each `<link>` tag is captured whole and its attributes inspected
+/// individually.
 const LINK_TAG_RE: &str = r"(?is)<link\b[^>]*>";
 const LINK_ATTR_RE: &str = r#"(?is)\b(rel|media|href|data-base-href)\s*=\s*["']([^"']*)["']"#;
 
+/// Extensions tried for a `-dark` sibling, matching the common asset naming.
+const DARK_PROBE_EXTENSIONS: [&str; 3] = ["png", "webp", "svg"];
+
+/// Extensions stripped from a declared icon href before the `-dark` suffix is
+/// inserted (`favicon.svg` → `favicon-dark.svg`).
+const ICON_EXTENSIONS: [&str; 8] = ["avif", "gif", "ico", "jpeg", "jpg", "png", "svg", "webp"];
+
+/// Every declared icon costs one probe per extension. Cap the fan-out so a
+/// page declaring many sizes does not fire dozens of requests on one hover.
+const MAX_DARK_FAVICON_PROBES: usize = 12;
+
 /// Dark-variant favicon URL candidates from a already-downloaded page, as
 /// `(direct, probes)`. `direct` hrefs are declared dark-mode icons; `probes`
-/// are GitHub-style `-dark` siblings that only exist if they return 200.
+/// are `-dark` siblings that only exist if they return 200.
 type DarkFaviconCandidates = (Vec<String>, Vec<String>);
 
 /// Pick the dark-mode favicon out of the page's `<link>` declarations and
-/// GitHub-style `-dark` siblings.
+/// `-dark` siblings.
 async fn fetch_dark_favicon(
     client: &reqwest::Client,
     base_url: &str,
@@ -214,31 +226,67 @@ fn find_dark_favicon_candidates(html: &str, base_url: &str) -> DarkFaviconCandid
     let mut direct = Vec::new();
     let mut probes = Vec::new();
     for (rel, media, href, base) in parse_link_tags(html) {
-        // GitHub puts `data-base-href` on a non-icon `<link>`, so this probe
-        // must not be gated on the `rel` attribute.
-        if let Some(base) = base.as_deref()
-            && let Some(resolved) = resolve_url(base_url, base)
-        {
-            for ext in ["png", "webp", "svg"] {
-                probes.push(format!("{resolved}-dark.{ext}"));
-            }
-        }
-        let Some(rel) = rel else {
-            continue;
-        };
-        if !rel.split_whitespace().any(|w| w == "icon") {
-            continue;
-        }
-        if let Some(media) = media.as_deref()
-            && media.contains("dark")
-            && let Some(href) = href.as_deref()
-            && !href.starts_with("data:")
-            && let Some(url) = resolve_url(base_url, href)
+        let is_icon = rel
+            .as_deref()
+            .is_some_and(|r| r.split_whitespace().any(|w| w == "icon"));
+        let dark_media = media.as_deref().is_some_and(|m| m.contains("dark"));
+        let declared = href.as_deref().filter(|href| !href.starts_with("data:"));
+        if is_icon
+            && dark_media
+            && let Some(url) = declared.and_then(|href| resolve_url(base_url, href))
         {
             direct.push(url);
         }
+        // GitHub puts `data-base-href` on a non-icon `<link>`, so this probe
+        // must not be gated on the `rel` attribute. A declared dark icon is
+        // already in `direct`, so only the non-dark declarations are probed.
+        let base_source = base.as_deref().filter(|href| !href.starts_with("data:"));
+        let icon_source = if is_icon && !dark_media {
+            declared
+        } else {
+            None
+        };
+        for source in base_source.into_iter().chain(icon_source) {
+            if let Some(url) = resolve_url(base_url, source) {
+                probes.extend(dark_probe_urls(&url));
+            }
+        }
     }
+    probes.sort_unstable();
+    probes.dedup();
+    probes.truncate(MAX_DARK_FAVICON_PROBES);
     (direct, probes)
+}
+
+/// `-dark` siblings for one icon URL: `favicon.svg` → `favicon-dark.{png,webp,svg}`.
+/// Query and fragment are dropped because the sibling is a different file, and
+/// a URL that already names a dark asset is left alone.
+fn dark_probe_urls(url: &str) -> Vec<String> {
+    let stem = icon_stem(url);
+    if stem.ends_with("-dark") {
+        return Vec::new();
+    }
+    DARK_PROBE_EXTENSIONS
+        .iter()
+        .map(|ext| format!("{stem}-dark.{ext}"))
+        .collect()
+}
+
+/// Strip one recognised image extension from a URL's path, leaving any
+/// extensionless asset name (GitHub's `.../favicon`) untouched.
+fn icon_stem(url: &str) -> &str {
+    let clean = url.split(['?', '#']).next().unwrap_or(url);
+    let Some((stem, ext)) = clean.rsplit_once('.') else {
+        return clean;
+    };
+    if ICON_EXTENSIONS
+        .iter()
+        .any(|known| ext.eq_ignore_ascii_case(known))
+    {
+        stem
+    } else {
+        clean
+    }
 }
 
 /// Parse every `<link>` tag in `html` into its `(rel, media, href,
@@ -661,6 +709,28 @@ mod tests {
         assert_eq!(
             probes.first().map(String::as_str),
             Some("https://github.com/foo/bar-dark.png")
+        );
+    }
+
+    #[test]
+    fn probes_dark_siblings_of_declared_icons() {
+        let html = r#"
+            <link rel="icon" href="/favicon.png">
+            <link rel="icon" href="/favicon.svg?v=2">
+            <link rel="icon" href="/favicon">
+            <link rel="icon" href="/icon-dark.png">
+            <link rel="icon" media="(prefers-color-scheme: dark)" href="/dark.svg">
+            <link rel="apple-touch-icon" href="/touch.png">
+        "#;
+        let (direct, probes) = find_dark_favicon_candidates(html, "https://example.com/page");
+        assert_eq!(direct, vec!["https://example.com/dark.svg".to_string()]);
+        assert_eq!(
+            probes,
+            vec![
+                "https://example.com/favicon-dark.png".to_string(),
+                "https://example.com/favicon-dark.svg".to_string(),
+                "https://example.com/favicon-dark.webp".to_string(),
+            ]
         );
     }
 }
