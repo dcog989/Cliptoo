@@ -1,5 +1,5 @@
 // MenuRow.slint — A single row for a popup menu: optional icon + label +
-// optional sublabel + optional right-arrow, with hover/press accent styling.
+// optional right-arrow, with hover/press accent styling.
 // Used by ContextMenu (32px rows) and HamburgerMenu (36px rows).
 
 import { Theme } from "Theme.slint";
@@ -7,7 +7,6 @@ import { Theme } from "Theme.slint";
 export component MenuRow {
     in property <image> icon;
     in property <string> label;
-    in property <string> sublabel: "";
     in property <bool> is-danger: false;
     in property <bool> has-arrow: false;
     // Keyboard selection highlight, driven by the owning menu.
@@ -19,7 +18,6 @@ export component MenuRow {
     // keyboard highlight to follow the mouse.
     callback hovered();
     // "…" submenu affordance, sits at the row's right edge.
-    in property <length> arrow-size: Theme.font-size + 2px;
     in property <bool> is-separator: false;
     in property <length> row-height: 32px;
     callback clicked;
@@ -89,17 +87,10 @@ export component MenuRow {
                 horizontal-stretch: root.has-arrow ? 1 : 0;
             }
 
-            if root.sublabel != "": Text {
-                text: root.sublabel;
-                color: touch.has-hover && !touch.pressed ? Theme.fg-clip-list : Theme.fg-muted;
-                font-size: Theme.font-size - 1px;
-                vertical-alignment: center;
-            }
-
             if root.has-arrow: Text {
                 text: "…";
                 color: touch.has-hover && !touch.pressed ? Theme.fg-clip-list : Theme.fg-muted;
-                font-size: root.arrow-size;
+                font-size: Theme.font-size + 2px;
                 vertical-alignment: center;
             }
         }

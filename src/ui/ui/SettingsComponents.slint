@@ -85,7 +85,6 @@ export component StepperButton inherits Rectangle {
     // (guillemets ‹ ›); the math +/− glyphs need none.
     in property <length> glyph-offset: 0px;
     callback clicked;
-    callback pressed-changed(bool);
     out property <bool> hovered: touch.has-hover;
 
     min-width: 24px;
@@ -109,13 +108,6 @@ export component StepperButton inherits Rectangle {
 
     touch := TouchArea {
         mouse-cursor: pointer;
-        pointer-event(e) => {
-            if (e.kind == PointerEventKind.down) {
-                root.pressed-changed(true);
-            } else if (e.kind == PointerEventKind.up) {
-                root.pressed-changed(false);
-            }
-        }
         clicked => {
             root.clicked();
         }
