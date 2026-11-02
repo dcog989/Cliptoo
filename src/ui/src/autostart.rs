@@ -22,6 +22,11 @@ fn exec_quote(value: &str) -> String {
                 out.push('\\');
                 out.push(c);
             }
+            // A literal percent starts a field code in `Exec`; `%%` escapes it.
+            '%' => {
+                out.push('%');
+                out.push('%');
+            }
             _ => out.push(c),
         }
     }
@@ -31,7 +36,13 @@ fn exec_quote(value: &str) -> String {
 
 pub fn ensure_autostart() -> Result<()> {
     let path = autostart_path()?;
-    let exe = std::env::current_exe()?;
+    // Inside an AppImage `current_exe()` is a path in the temporary mount, which
+    // disappears at logout; `$APPIMAGE` is the file the user launches and
+    // survives. Writing the mount path would silently disable autostart.
+    let exe = match std::env::var_os("APPIMAGE") {
+        Some(appimage) => PathBuf::from(appimage),
+        None => std::env::current_exe()?,
+    };
 
     let content = format!(
         "[Desktop Entry]\n\
@@ -62,4 +73,20 @@ pub fn remove_autostart() -> Result<()> {
         std::fs::remove_file(&path)?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::exec_quote;
+
+    #[test]
+    fn exec_quote_matches_the_desktop_entry_spec() {
+        assert_eq!(
+            exec_quote("/opt/My App/cliptoo"),
+            r#""/opt/My App/cliptoo""#
+        );
+        assert_eq!(exec_quote("a\"b"), r#""a\"b""#);
+        assert_eq!(exec_quote("/opt/a$b"), r#""/opt/a\$b""#);
+        assert_eq!(exec_quote("/opt/100%/cliptoo"), r#""/opt/100%%/cliptoo""#);
+    }
 }
