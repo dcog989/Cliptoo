@@ -2,8 +2,11 @@ use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use cliptoo_core::db::queries::SEARCH_RESULT_LIMIT;
 use slint::{ComponentHandle, Model};
+
+/// Rows fetched per list page. Kept small so the first paint only decodes the
+/// thumbnails it shows; `load_more` appends the next page on scroll.
+const CLIP_PAGE_SIZE: i64 = 200;
 
 /// User agent sent with every page and favicon request.
 pub const USER_AGENT: &str = "Cliptoo/0.2";
@@ -40,16 +43,31 @@ pub async fn read_body_capped(resp: reqwest::Response) -> Option<Vec<u8>> {
 
 /// Whether a link-preview fetch may target this URL. A copied link can point
 /// at the user's own machine or LAN (a pasted URL, or a page that puts one on
-/// the clipboard); the preview must not probe those.
+/// the clipboard); the preview must not probe those. Callers must apply this
+/// to redirect targets too.
 pub fn is_fetchable_url(url: &str) -> bool {
     let Ok(parsed) = url::Url::parse(url) else {
         return false;
     };
     match parsed.host() {
-        Some(url::Host::Domain(domain)) => domain != "localhost" && !domain.ends_with(".localhost"),
-        Some(url::Host::Ipv4(ip)) => !(ip.is_private() || ip.is_loopback() || ip.is_link_local()),
+        Some(url::Host::Domain(domain)) => {
+            let domain = domain.trim_end_matches('.');
+            domain != "localhost" && !domain.ends_with(".localhost")
+        }
+        Some(url::Host::Ipv4(ip)) => {
+            !(ip.is_private() || ip.is_loopback() || ip.is_link_local() || ip.is_unspecified())
+        }
         Some(url::Host::Ipv6(ip)) => {
-            !(ip.is_loopback() || ip.is_unique_local() || ip.is_unicast_link_local())
+            // `::ffff:127.0.0.1` is loopback on the wire but not per flag, and
+            // `::` is "any address", which Linux connects to localhost.
+            let mapped = ip.to_ipv4_mapped().is_some_and(|v4| {
+                v4.is_private() || v4.is_loopback() || v4.is_link_local() || v4.is_unspecified()
+            });
+            !(ip.is_loopback()
+                || ip.is_unique_local()
+                || ip.is_unicast_link_local()
+                || ip.is_unspecified()
+                || mapped)
         }
         None => false,
     }
@@ -111,7 +129,7 @@ pub async fn refresh_clips(
                 conn,
                 query,
                 filter,
-                SEARCH_RESULT_LIMIT,
+                CLIP_PAGE_SIZE,
                 0,
                 tag_prefix,
             )
@@ -135,7 +153,7 @@ pub async fn refresh_clips(
     if let Ok(clips) = result {
         // A full page means older rows exist beyond it; the list appends the
         // next one as it nears the end (see `load_more_clips_live`).
-        let has_more = clips.len() as i64 >= SEARCH_RESULT_LIMIT;
+        let has_more = clips.len() as i64 >= CLIP_PAGE_SIZE;
         let db2 = db.clone();
         let td = td.to_path_buf();
         let fd = fd.to_path_buf();
@@ -209,7 +227,7 @@ pub fn load_more_clips_live(
                     conn,
                     &query,
                     &filter,
-                    SEARCH_RESULT_LIMIT,
+                    CLIP_PAGE_SIZE,
                     offset,
                     prefix.as_deref(),
                 )
@@ -224,7 +242,7 @@ pub fn load_more_clips_live(
             }
         };
         // A short page ends the view: the list stops asking for more.
-        let has_more = clips.len() as i64 >= SEARCH_RESULT_LIMIT;
+        let has_more = clips.len() as i64 >= CLIP_PAGE_SIZE;
         let done = pending.clone();
         let sent = ui.upgrade_in_event_loop(move |ui| {
             done.store(false, Ordering::Relaxed);
@@ -394,6 +412,12 @@ mod tests {
             "http://169.254.169.254/latest/meta-data/",
             "http://[::1]/",
             "http://[fd00::1]/",
+            // Addresses that Linux routes to localhost even though the IP
+            // predicates do not flag them as loopback.
+            "http://0.0.0.0:8080/",
+            "http://[::]/",
+            "http://[::ffff:127.0.0.1]/",
+            "http://localhost.:8080/admin",
             "not a url",
         ] {
             assert!(!is_fetchable_url(url), "for {url}");

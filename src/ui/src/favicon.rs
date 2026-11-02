@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};
 
@@ -13,8 +14,14 @@ use crate::helpers::{USER_AGENT, is_fetchable_url, read_body_capped};
 
 const FAVICON_FETCH_TIMEOUT_SECS: u64 = 3;
 
+/// Cached icons are drawn at ~16 logical px; 32 keeps them sharp on HiDPI and
+/// stops a site's 512px icon from holding a 1 MiB RGBA buffer in the LRU.
+const FAVICON_MAX_DIM: u32 = 32;
+
 /// One client for every page and icon fetch. Each `Client` owns a connection
 /// pool, so building one per request paid a fresh TLS handshake per icon.
+/// Redirects are re-checked: a public URL can otherwise bounce the fetch to a
+/// private address that `is_fetchable_url` refused on the first hop.
 fn http_client() -> Option<&'static reqwest::Client> {
     static CLIENT: OnceLock<Option<reqwest::Client>> = OnceLock::new();
     CLIENT
@@ -22,6 +29,13 @@ fn http_client() -> Option<&'static reqwest::Client> {
             reqwest::Client::builder()
                 .timeout(std::time::Duration::from_secs(FAVICON_FETCH_TIMEOUT_SECS))
                 .user_agent(USER_AGENT)
+                .redirect(reqwest::redirect::Policy::custom(|attempt| {
+                    if is_fetchable_url(attempt.url().as_str()) {
+                        attempt.follow()
+                    } else {
+                        attempt.stop()
+                    }
+                }))
                 .build()
                 .ok()
         })
@@ -90,14 +104,13 @@ pub async fn fetch_link_meta(
     (title, favicon)
 }
 
-/// The cached favicon, when the file exists and still decodes. A file that no
-/// longer decodes is removed so the next fetch replaces it.
+/// The cached favicon, when the file still starts with a WebP header. A
+/// truncated or foreign file is removed so the next fetch replaces it. The
+/// header check avoids decoding the whole icon just to validate it.
 fn cached_favicon(fav_path: &Path) -> Option<PathBuf> {
-    if !fav_path.exists() {
-        return None;
-    }
-    let bytes = std::fs::read(fav_path).ok()?;
-    if cliptoo_core::image::decode_raster(&bytes).is_some() {
+    let mut header = [0u8; 12];
+    let mut file = std::fs::File::open(fav_path).ok()?;
+    if file.read_exact(&mut header).is_ok() && &header[..4] == b"RIFF" && &header[8..] == b"WEBP" {
         return Some(fav_path.to_path_buf());
     }
     let _ = std::fs::remove_file(fav_path);
@@ -150,14 +163,20 @@ async fn fetch_page(client: &reqwest::Client, url: &str) -> Option<String> {
     Some(String::from_utf8_lossy(&bytes).into_owned())
 }
 
-/// The page's `<title>`, trimmed to one line.
+/// The page's `<title>`, trimmed to one line and with HTML entities decoded
+/// (`Fish &amp; Chips` → `Fish & Chips`), so the popup shows page text, not
+/// page source.
 fn page_title(html: &str) -> Option<String> {
     static TITLE_RE: OnceLock<Option<regex::Regex>> = OnceLock::new();
     let re = TITLE_RE.get_or_init(|| regex::Regex::new(r"(?i)<title>([^<]+)</title>").ok());
     re.as_ref()?
         .captures(html)
         .and_then(|c| c.get(1))
-        .map(|m| m.as_str().trim().to_string())
+        .map(|m| {
+            cliptoo_core::content::decode_entities(m.as_str())
+                .trim()
+                .to_string()
+        })
         .filter(|title| !title.is_empty())
 }
 
@@ -195,6 +214,15 @@ fn find_dark_favicon_candidates(html: &str, base_url: &str) -> DarkFaviconCandid
     let mut direct = Vec::new();
     let mut probes = Vec::new();
     for (rel, media, href, base) in parse_link_tags(html) {
+        // GitHub puts `data-base-href` on a non-icon `<link>`, so this probe
+        // must not be gated on the `rel` attribute.
+        if let Some(base) = base.as_deref()
+            && let Some(resolved) = resolve_url(base_url, base)
+        {
+            for ext in ["png", "webp", "svg"] {
+                probes.push(format!("{resolved}-dark.{ext}"));
+            }
+        }
         let Some(rel) = rel else {
             continue;
         };
@@ -208,13 +236,6 @@ fn find_dark_favicon_candidates(html: &str, base_url: &str) -> DarkFaviconCandid
             && let Some(url) = resolve_url(base_url, href)
         {
             direct.push(url);
-        }
-        if let Some(base) = base.as_deref()
-            && let Some(resolved) = resolve_url(base_url, base)
-        {
-            for ext in ["png", "webp", "svg"] {
-                probes.push(format!("{resolved}-dark.{ext}"));
-            }
         }
     }
     (direct, probes)
@@ -333,8 +354,10 @@ async fn download_bytes(client: &reqwest::Client, url: &str) -> Option<Vec<u8>> 
     read_body_capped(resp).await
 }
 
-/// Persist favicon `bytes` to `fav_path` as WebP. Bitmap formats go through
-/// the `image` crate; SVG is rasterized with resvg first.
+/// Persist favicon `bytes` to `fav_path` as WebP, downscaled to
+/// [`FAVICON_MAX_DIM`]. Bitmap formats go through the `image` crate; SVG is
+/// rasterized with resvg first. Written through a temp file so a crash cannot
+/// leave a truncated icon that later calls treat as cached.
 fn save_favicon(fav_path: &Path, bytes: &[u8]) -> bool {
     if let Some(parent) = fav_path.parent()
         && std::fs::create_dir_all(parent).is_err()
@@ -342,10 +365,11 @@ fn save_favicon(fav_path: &Path, bytes: &[u8]) -> bool {
         return false;
     }
     if let Some(img) = cliptoo_core::image::decode_raster(bytes) {
-        return img.save(fav_path).is_ok();
+        let icon = cliptoo_core::image::resize_to(&img, FAVICON_MAX_DIM);
+        return cliptoo_core::image::save_atomic(&icon, fav_path, image::ImageFormat::WebP).is_ok();
     }
     if looks_like_svg(bytes)
-        && let Ok((rgba, w, h)) = cliptoo_core::icon::rasterize_svg(bytes, 32)
+        && let Ok((rgba, w, h)) = cliptoo_core::icon::rasterize_svg(bytes, FAVICON_MAX_DIM)
     {
         // resvg produces premultiplied alpha; convert to straight alpha so
         // the saved WebP renders without halo artifacts.
@@ -358,8 +382,10 @@ fn save_favicon(fav_path: &Path, bytes: &[u8]) -> bool {
                 px[2] = ((px[2] as u32 * 255) / a) as u8;
             }
         }
-        return image::RgbaImage::from_raw(w, h, straight)
-            .is_some_and(|img| img.save(fav_path).is_ok());
+        return image::RgbaImage::from_raw(w, h, straight).is_some_and(|img| {
+            let icon = image::DynamicImage::ImageRgba8(img);
+            cliptoo_core::image::save_atomic(&icon, fav_path, image::ImageFormat::WebP).is_ok()
+        });
     }
     false
 }
@@ -483,20 +509,19 @@ pub fn check_pending_favicons(ui: &crate::AppWindow, db: &Arc<DbPool>, favicons_
         .collect::<Vec<_>>()
         .await;
 
+        let mut outcomes = Vec::with_capacity(results.len());
         let mut reloaded_domains = HashSet::new();
         for (clip_id, domain, fetched) in results.into_iter().flatten() {
-            if fetched {
-                // Clear this clip's failure count and remember its domain: only
-                // rows showing that icon are reloaded, not the whole list.
-                favicon_failures::reset(&fav_dir, clip_id);
-                if let Some(domain) = domain {
-                    reloaded_domains.insert(domain);
-                }
-            } else {
-                // After the budget is exhausted the scan stops dispatching it.
-                favicon_failures::increment(&fav_dir, clip_id);
+            outcomes.push((clip_id, fetched));
+            // Remember the domains whose icon arrived: only rows showing that
+            // icon are reloaded, not the whole list.
+            if fetched && let Some(domain) = domain {
+                reloaded_domains.insert(domain);
             }
         }
+        // One read-modify-write for the whole batch; a per-clip update would be
+        // O(clips²) file writes.
+        favicon_failures::record(&fav_dir, &outcomes);
         if !reloaded_domains.is_empty() {
             let _ = weak.upgrade_in_event_loop(move |ui| {
                 crate::thumbnail_cache::reload_favicons_for(&ui, &fav_dir, &reloaded_domains);
@@ -615,9 +640,27 @@ mod tests {
     fn extracts_the_page_title() {
         assert_eq!(
             page_title("<html><head><title> Hello &amp; bye </title></head></html>"),
-            Some("Hello &amp; bye".to_string())
+            Some("Hello & bye".to_string())
+        );
+        assert_eq!(
+            page_title("<title>caf&#233;</title>"),
+            Some("café".to_string())
         );
         assert_eq!(page_title("<title></title>"), None);
         assert_eq!(page_title("<p>no title</p>"), None);
+    }
+
+    #[test]
+    fn probes_dark_icon_from_a_non_icon_base_href() {
+        // GitHub carries `data-base-href` on a stylesheet link, not an icon one;
+        // the probe must still be generated.
+        let html =
+            r#"<link data-base-href="https://github.com/foo/bar" rel="stylesheet" href="x.css">"#;
+        let (direct, probes) = find_dark_favicon_candidates(html, "https://github.com/");
+        assert!(direct.is_empty());
+        assert_eq!(
+            probes.first().map(String::as_str),
+            Some("https://github.com/foo/bar-dark.png")
+        );
     }
 }

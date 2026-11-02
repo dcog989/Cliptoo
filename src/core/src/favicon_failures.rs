@@ -53,26 +53,26 @@ fn save(favicons_dir: &Path, failures: &HashMap<i64, u32>) {
     let _ = std::fs::write(path(favicons_dir), out);
 }
 
-/// Count one failed fetch for `clip_id`, capped at [`MAX_FAVICON_FAILURES`].
-pub fn increment(favicons_dir: &Path, clip_id: i64) {
-    let _guard = ledger_lock()
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner());
-    let mut failures = load(favicons_dir);
-    let count = failures.entry(clip_id).or_insert(0);
-    *count = count.saturating_add(1).min(MAX_FAVICON_FAILURES);
-    save(favicons_dir, &failures);
-}
-
-/// Clear one clip's failures after a successful fetch.
-pub fn reset(favicons_dir: &Path, clip_id: i64) {
-    let _guard = ledger_lock()
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner());
-    let mut failures = load(favicons_dir);
-    if failures.remove(&clip_id).is_some() {
-        save(favicons_dir, &failures);
+/// Record one batch of fetch outcomes: a success clears the clip's count, a
+/// failure bumps it (capped). One load and one save for the whole batch, so a
+/// refresh with many dead domains is not O(clips²) file writes.
+pub fn record(favicons_dir: &Path, outcomes: &[(i64, bool)]) {
+    if outcomes.is_empty() {
+        return;
     }
+    let _guard = ledger_lock()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let mut failures = load(favicons_dir);
+    for &(clip_id, fetched) in outcomes {
+        if fetched {
+            failures.remove(&clip_id);
+        } else {
+            let count = failures.entry(clip_id).or_insert(0);
+            *count = count.saturating_add(1).min(MAX_FAVICON_FAILURES);
+        }
+    }
+    save(favicons_dir, &failures);
 }
 
 /// Whether `clip_id` has used up its fetch budget.
@@ -102,7 +102,7 @@ pub fn reset_all(favicons_dir: &Path) {
 
 #[cfg(test)]
 mod tests {
-    use super::{MAX_FAVICON_FAILURES, exhausted, increment, load, prune, reset, reset_all};
+    use super::{MAX_FAVICON_FAILURES, exhausted, load, prune, record, reset_all};
     use std::collections::HashSet;
 
     fn temp_dir() -> std::path::PathBuf {
@@ -124,18 +124,34 @@ mod tests {
         let fav_dir = dir.join("favicons");
 
         assert!(!exhausted(&load(&fav_dir), 42));
-        for _ in 0..MAX_FAVICON_FAILURES {
-            increment(&fav_dir, 42);
-        }
+        record(&fav_dir, &[(42, false); MAX_FAVICON_FAILURES as usize]);
         assert!(exhausted(&load(&fav_dir), 42));
 
         reset_all(&fav_dir);
         assert!(!exhausted(&load(&fav_dir), 42));
 
-        increment(&fav_dir, 7);
-        increment(&fav_dir, 7);
-        reset(&fav_dir, 7);
+        record(&fav_dir, &[(7, false), (7, false)]);
+        record(&fav_dir, &[(7, true)]);
         assert!(!exhausted(&load(&fav_dir), 7));
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn record_batches_failures_and_successes() {
+        let dir = temp_dir();
+        let fav_dir = dir.join("favicons");
+
+        record(&fav_dir, &[(1, false), (2, false), (3, true)]);
+        let failures = load(&fav_dir);
+        assert_eq!(failures.get(&1), Some(&1));
+        assert_eq!(failures.get(&2), Some(&1));
+        assert!(!failures.contains_key(&3));
+
+        record(&fav_dir, &[(1, true), (2, false)]);
+        let failures = load(&fav_dir);
+        assert!(!failures.contains_key(&1), "success clears the count");
+        assert_eq!(failures.get(&2), Some(&2));
 
         std::fs::remove_dir_all(&dir).unwrap();
     }
@@ -144,8 +160,7 @@ mod tests {
     fn prune_drops_counts_for_deleted_clips() {
         let dir = temp_dir();
         let fav_dir = dir.join("favicons");
-        increment(&fav_dir, 1);
-        increment(&fav_dir, 2);
+        record(&fav_dir, &[(1, false), (2, false)]);
 
         prune(&fav_dir, &HashSet::from([1]));
         let failures = load(&fav_dir);
