@@ -208,6 +208,9 @@ async fn main() -> Result<()> {
         is_dark,
         system_accent,
     );
+    // The editor can stay open while a theme change lands; re-fill its Theme
+    // global too so it doesn't keep the colours from the previous theme.
+    theme::register_edit_theme_filler(&theme_fillers, &edit_win.as_weak());
 
     let suppression = Arc::new(paste::PasteSuppressionSet::new());
     actions::setup_clip_actions(
