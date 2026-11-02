@@ -13,7 +13,9 @@ export component ToastNotification {
     in property <string> message:          "";
     in property <string> severity:         "info";
     // display-duration in milliseconds; the internal timer uses this.
-    in property <duration> display-duration: 3000ms;
+    // Long enough to read: the toast also carries the only feedback for a
+    // failed save or the two-step Delete confirmation.
+    in property <duration> display-duration: 6000ms;
 
     // The parent sets this to show the toast.
     in-out property <bool> active: false;
@@ -76,12 +78,19 @@ export component ToastNotification {
             }
 
             Text {
-                text: root.message;
+                // Empty while hidden, so assistive tech never sees a stale
+                // message from the previous toast.
+                text: root.active ? root.message : "";
                 color: text-color;
                 font-size: Theme.font-size;
                 wrap: word-wrap;
                 horizontal-alignment: left;
                 vertical-alignment: center;
+                // Announce feedback (delete confirmation, save errors) instead
+                // of leaving it visible-only. Errors interrupt; the rest wait.
+                accessible-live-region: root.severity == "error"
+                    ? AccessibleLiveness.assertive
+                    : AccessibleLiveness.polite;
             }
         }
     }

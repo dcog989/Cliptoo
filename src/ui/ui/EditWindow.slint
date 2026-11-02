@@ -56,14 +56,29 @@ export component EditWindow inherits Window {
         }
     }
 
+    function save() {
+        root.save-clicked(
+            root.clip-id,
+            content-edit.text,
+            tags-edit.text);
+    }
+
     // Keyboard focus scope: ESC closes through the same guard as Cancel. The
     // whole content lives inside so a focused TextInput's rejected keys bubble
     // up to it, mirroring the About/Settings windows.
     forward-focus: editor-focus;
     editor-focus := FocusScope {
+        // Focused programmatically on open; an invisible Tab stop adds nothing.
+        focus-on-tab-navigation: false;
         key-pressed(event) => {
             if (event.text == Key.Escape) {
                 root.request-cancel();
+                accept
+            } else if (event.modifiers.control
+                && (event.text.to-lowercase() == "s" || event.text == Key.Return)) {
+                // Save from anywhere in the editor: the Save button is a click
+                // target, so the keyboard needs its own path.
+                root.save();
                 accept
             } else {
                 reject
@@ -93,9 +108,30 @@ export component EditWindow inherits Window {
                     width: 28px;
                     height: 28px;
                     border-radius: 4px;
+                    border-width: toggle-focus.has-focus ? 1px : 0px;
+                    border-color: Theme.accent-primary;
                     background: root.editing ? Theme.accent-fill : Theme.bg-input;
+                    accessible-role: button;
+                    accessible-label: @tr("Toggle code preview");
+                    accessible-action-default => {
+                        root.toggle-mode();
+                    }
+
+                    toggle-focus := FocusScope {
+                        visible: root.clip-type == "code_snippet" || root.clip-type == "file_dev";
+                        key-pressed(event) => {
+                            if (event.text == Key.Return || event.text == " ") {
+                                root.toggle-mode();
+                                accept
+                            } else {
+                                reject
+                            }
+                        }
+                    }
+
                     TouchArea {
                         clicked => {
+                            toggle-focus.focus();
                             root.toggle-mode();
                         }
                         mouse-cursor: pointer;
@@ -141,6 +177,7 @@ export component EditWindow inherits Window {
                         single-line: false;
                         wrap: word-wrap;
                         page-height: edit-scroll.visible-height;
+                        accessible-label: @tr("Clip content");
                         edited => {
                             root.dirty = true;
                             root.confirm-cancel = false;
@@ -195,9 +232,16 @@ export component EditWindow inherits Window {
                                 color: Theme.fg-primary;
                                 font-size: Theme.font-size;
                                 vertical-alignment: center;
+                                accessible-label: @tr("Tags");
                                 edited => {
                                     root.dirty = true;
                                     root.confirm-cancel = false;
+                                }
+                                accepted => {
+                                    root.save-clicked(
+                                        root.clip-id,
+                                        content-edit.text,
+                                        tags-edit.text);
                                 }
                             }
                         }
@@ -217,7 +261,26 @@ export component EditWindow inherits Window {
                     width: 80px;
                     height: 30px;
                     border-radius: 6px;
+                    border-width: cancel-focus.has-focus ? 1px : 0px;
+                    border-color: Theme.accent-primary;
                     background: root.confirm-cancel ? Theme.danger-bg : Theme.bg-input;
+                    accessible-role: button;
+                    accessible-label: root.confirm-cancel ? @tr("Discard") : @tr("Cancel");
+                    accessible-action-default => {
+                        root.request-cancel();
+                    }
+
+                    cancel-focus := FocusScope {
+                        key-pressed(event) => {
+                            if (event.text == Key.Return || event.text == " ") {
+                                root.request-cancel();
+                                accept
+                            } else {
+                                reject
+                            }
+                        }
+                    }
+
                     Text {
                         text: root.confirm-cancel ? @tr("Discard?") : @tr("Cancel");
                         color: root.confirm-cancel ? Theme.danger-on-bg : Theme.fg-secondary;
@@ -228,6 +291,7 @@ export component EditWindow inherits Window {
 
                     TouchArea {
                         clicked => {
+                            cancel-focus.focus();
                             root.request-cancel();
                         }
                         mouse-cursor: pointer;
@@ -239,7 +303,28 @@ export component EditWindow inherits Window {
                     width: 80px;
                     height: 30px;
                     border-radius: 6px;
+                    // Accent ring on an accent fill is invisible; the save
+                    // button uses the primary foreground for its focus ring.
+                    border-width: save-focus.has-focus ? 1px : 0px;
+                    border-color: Theme.fg-primary;
                     background: Theme.accent-fill;
+                    accessible-role: button;
+                    accessible-label: @tr("Save");
+                    accessible-action-default => {
+                        root.save();
+                    }
+
+                    save-focus := FocusScope {
+                        key-pressed(event) => {
+                            if (event.text == Key.Return || event.text == " ") {
+                                root.save();
+                                accept
+                            } else {
+                                reject
+                            }
+                        }
+                    }
+
                     Text {
                         text: @tr("Save");
                         color: Theme.accent-fg;
@@ -250,10 +335,8 @@ export component EditWindow inherits Window {
 
                     TouchArea {
                         clicked => {
-                            root.save-clicked(
-                            root.clip-id,
-                            content-edit.text,
-                            tags-edit.text);
+                            save-focus.focus();
+                            root.save();
                         }
                         mouse-cursor: pointer;
                     }

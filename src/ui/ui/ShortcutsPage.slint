@@ -117,8 +117,18 @@ export component ShortcutsPage inherits ScrollView {
         }
 
         ShortcutRow {
+            keys: "Arrows / Enter";
+            action: @tr("Move through the filter grid and apply a filter");
+        }
+
+        ShortcutRow {
             keys: "Ctrl+Shift+M";
             action: @tr("Open the main menu");
+        }
+
+        ShortcutRow {
+            keys: "Shift+F10";
+            action: @tr("Open the clip menu (Format, Send To, Bookmark, Move)");
         }
 
         ShortcutRow {
@@ -159,6 +169,26 @@ export component ShortcutsPage inherits ScrollView {
         ShortcutRow {
             keys: "Esc";
             action: @tr("Clear the search, then close the window");
+        }
+
+        // ── Editor ───────────────────────────────────────────────────────
+        SectionHeader {
+            text: @tr("Editor");
+        }
+
+        ShortcutRow {
+            keys: "Ctrl+S";
+            action: @tr("Save the clip");
+        }
+
+        ShortcutRow {
+            keys: "Enter";
+            action: @tr("Save from the tags field");
+        }
+
+        ShortcutRow {
+            keys: "Esc";
+            action: @tr("Cancel (press twice to discard unsaved changes)");
         }
     }
 }

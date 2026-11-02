@@ -78,6 +78,10 @@ export component Toolbar {
                 height: 32px;
                 border-radius: 8px;
                 background: Theme.bg-input;
+                // Custom title bar: the frameless window is moved only by
+                // dragging this grip, so expose it as the title bar region.
+                accessible-role: window-title-bar;
+                accessible-label: @tr("Move window");
 
                 // Visual grip indicator: 2x3 dot grid
                 VerticalLayout {
@@ -221,35 +225,54 @@ export component Toolbar {
                 }
             }
 
-            // ── Current filter icon [4] ────────────────────────────
+            // ── Filter icon [4] ────────────────────────────────────
             Rectangle {
                 horizontal-stretch: 0;
                 width: 32px;
                 height: 32px;
                 border-radius: 8px;
                 background: root.active-filter == "all" ? Theme.bg-input : Theme.accent-fill;
+                border-width: filter-focus.has-focus ? 1px : 0px;
+                border-color: Theme.accent-primary;
 
-                Image {
-                    source: ClipTypeMap.icon-for(root.active-filter);
-                    // "All" sits on a neutral bg-input button (not the accent),
-                    // so it uses the neutral secondary foreground — accent-fg
-                    // goes black when the accent is light.
-                    colorize: root.active-filter == "all" ? Theme.fg-secondary : Theme.accent-fg;
-                    width: 20px;
-                    height: 20px;
-                    x: 6px;
-                    y: 6px;
-                }
-
-                TouchArea {
-                    Tooltip {
-                        text: @markdown("\{ root.filter-tooltip}");
-                    }
-
-                    clicked => {
+                filter-focus := FocusScope {
+                    accessible-role: button;
+                    accessible-label: root.filter-tooltip;
+                    accessible-action-default => {
                         root.toggle-filter-grid();
                     }
-                    mouse-cursor: pointer;
+                    key-pressed(event) => {
+                        if (event.text == Key.Return || event.text == " ") {
+                            root.toggle-filter-grid();
+                            accept
+                        } else {
+                            reject
+                        }
+                    }
+
+                    Image {
+                        source: ClipTypeMap.icon-for(root.active-filter);
+                        // "All" sits on a neutral bg-input button (not the accent),
+                        // so it uses the neutral secondary foreground — accent-fg
+                        // goes black when the accent is light.
+                        colorize: root.active-filter == "all" ? Theme.fg-secondary : Theme.accent-fg;
+                        width: 20px;
+                        height: 20px;
+                        x: 6px;
+                        y: 6px;
+                    }
+
+                    TouchArea {
+                        Tooltip {
+                            text: @markdown("\{ root.filter-tooltip}");
+                        }
+
+                        clicked => {
+                            filter-focus.focus();
+                            root.toggle-filter-grid();
+                        }
+                        mouse-cursor: pointer;
+                    }
                 }
             }
 
@@ -260,21 +283,40 @@ export component Toolbar {
                 height: 32px;
                 border-radius: 8px;
                 background: Theme.bg-input;
+                border-width: menu-focus.has-focus ? 1px : 0px;
+                border-color: Theme.accent-primary;
 
-                Image {
-                    source: @image-url("icons/menu.svg");
-                    colorize: Theme.fg-secondary;
-                    width: 20px;
-                    height: 20px;
-                    x: 6px;
-                    y: 6px;
-                }
-
-                TouchArea {
-                    clicked => {
+                menu-focus := FocusScope {
+                    accessible-role: button;
+                    accessible-label: @tr("Main menu");
+                    accessible-action-default => {
                         root.menu-clicked();
                     }
-                    mouse-cursor: pointer;
+                    key-pressed(event) => {
+                        if (event.text == Key.Return || event.text == " ") {
+                            root.menu-clicked();
+                            accept
+                        } else {
+                            reject
+                        }
+                    }
+
+                    Image {
+                        source: @image-url("icons/menu.svg");
+                        colorize: Theme.fg-secondary;
+                        width: 20px;
+                        height: 20px;
+                        x: 6px;
+                        y: 6px;
+                    }
+
+                    TouchArea {
+                        clicked => {
+                            menu-focus.focus();
+                            root.menu-clicked();
+                        }
+                        mouse-cursor: pointer;
+                    }
                 }
             }
         }

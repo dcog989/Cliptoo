@@ -18,6 +18,26 @@ export component SettingsHeader {
     private property <bool> on-sub-page: root.on-database-page || root.on-shortcuts-page;
     private property <string> sub-page-title: root.on-database-page ? @tr("Database") : @tr("Shortcuts");
 
+    function back() {
+        root.on-database-page = false;
+        root.on-shortcuts-page = false;
+    }
+
+    function toggle-shortcuts() {
+        root.on-shortcuts-page = !root.on-shortcuts-page;
+        if root.on-shortcuts-page {
+            root.on-database-page = false;
+        }
+    }
+
+    function toggle-database() {
+        root.on-database-page = !root.on-database-page;
+        if root.on-database-page {
+            root.on-shortcuts-page = false;
+            root.database-page-shown();
+        }
+    }
+
     height: 48px;
 
     Rectangle {
@@ -49,25 +69,42 @@ export component SettingsHeader {
                     width: 32px;
                     height: 32px;
                     border-radius: 8px;
-                    background: back-touch.has-hover ? Theme.bg-row-hover : Theme.bg-input;
+                    background: back-touch.has-hover || back-focus.has-focus ? Theme.bg-row-hover : Theme.bg-input;
                     border-width: 1px;
-                    border-color: back-touch.has-hover ? Theme.border-subtle : transparent;
+                    border-color: back-focus.has-focus ? Theme.accent-primary : back-touch.has-hover ? Theme.border-subtle : transparent;
                     animate background { duration: Theme.anim-fast; }
                     animate border-color { duration: Theme.anim-fast; }
-                    Image {
-                        source: @image-url("icons/arrow-left.svg");
-                        colorize: Theme.fg-secondary;
-                        width: 18px;
-                        height: 18px;
-                        x: (parent.width - 18px) / 2;
-                        y: (parent.height - 18px) / 2;
-                    }
 
-                    back-touch := TouchArea {
-                        mouse-cursor: pointer;
-                        clicked => {
-                            root.on-database-page = false;
-                            root.on-shortcuts-page = false;
+                    back-focus := FocusScope {
+                        accessible-role: button;
+                        accessible-label: root.tip-back;
+                        accessible-action-default => {
+                            root.back();
+                        }
+                        key-pressed(event) => {
+                            if (event.text == Key.Return || event.text == " ") {
+                                root.back();
+                                accept
+                            } else {
+                                reject
+                            }
+                        }
+
+                        Image {
+                            source: @image-url("icons/arrow-left.svg");
+                            colorize: Theme.fg-secondary;
+                            width: 18px;
+                            height: 18px;
+                            x: (parent.width - 18px) / 2;
+                            y: (parent.height - 18px) / 2;
+                        }
+
+                        back-touch := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                back-focus.focus();
+                                root.back();
+                            }
                         }
                     }
 
@@ -92,26 +129,43 @@ export component SettingsHeader {
                 height: 32px;
                 border-radius: 8px;
                 property <bool> hot: shortcuts-touch.has-hover && !root.on-shortcuts-page;
-                background: root.on-shortcuts-page ? Theme.accent-fill : hot ? Theme.bg-row-hover : Theme.bg-input;
+                background: root.on-shortcuts-page ? Theme.accent-fill : hot || shortcuts-focus.has-focus ? Theme.bg-row-hover : Theme.bg-input;
                 border-width: 1px;
-                border-color: hot ? Theme.border-subtle : transparent;
+                border-color: shortcuts-focus.has-focus ? Theme.accent-primary : hot ? Theme.border-subtle : transparent;
                 animate background { duration: Theme.anim-fast; }
                 animate border-color { duration: Theme.anim-fast; }
-                Image {
-                    source: @image-url("icons/keyboard.svg");
-                    colorize: root.on-shortcuts-page ? Theme.accent-fg : Theme.fg-secondary;
-                    width: 20px;
-                    height: 20px;
-                    x: 6px;
-                    y: 6px;
-                }
 
-                shortcuts-touch := TouchArea {
-                    mouse-cursor: pointer;
-                    clicked => {
-                        root.on-shortcuts-page = !root.on-shortcuts-page;
-                        if root.on-shortcuts-page {
-                            root.on-database-page = false;
+                shortcuts-focus := FocusScope {
+                    accessible-role: button;
+                    accessible-checkable: true;
+                    accessible-checked: root.on-shortcuts-page;
+                    accessible-label: root.tip-shortcuts;
+                    accessible-action-default => {
+                        root.toggle-shortcuts();
+                    }
+                    key-pressed(event) => {
+                        if (event.text == Key.Return || event.text == " ") {
+                            root.toggle-shortcuts();
+                            accept
+                        } else {
+                            reject
+                        }
+                    }
+
+                    Image {
+                        source: @image-url("icons/keyboard.svg");
+                        colorize: root.on-shortcuts-page ? Theme.accent-fg : Theme.fg-secondary;
+                        width: 20px;
+                        height: 20px;
+                        x: 6px;
+                        y: 6px;
+                    }
+
+                    shortcuts-touch := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            shortcuts-focus.focus();
+                            root.toggle-shortcuts();
                         }
                     }
                 }
@@ -128,27 +182,43 @@ export component SettingsHeader {
                 height: 32px;
                 border-radius: 8px;
                 property <bool> hot: database-touch.has-hover && !root.on-database-page;
-                background: root.on-database-page ? Theme.accent-fill : hot ? Theme.bg-row-hover : Theme.bg-input;
+                background: root.on-database-page ? Theme.accent-fill : hot || database-focus.has-focus ? Theme.bg-row-hover : Theme.bg-input;
                 border-width: 1px;
-                border-color: hot ? Theme.border-subtle : transparent;
+                border-color: database-focus.has-focus ? Theme.accent-primary : hot ? Theme.border-subtle : transparent;
                 animate background { duration: Theme.anim-fast; }
                 animate border-color { duration: Theme.anim-fast; }
-                Image {
-                    source: @image-url("icons/database.svg");
-                    colorize: root.on-database-page ? Theme.accent-fg : Theme.fg-secondary;
-                    width: 20px;
-                    height: 20px;
-                    x: 6px;
-                    y: 6px;
-                }
 
-                database-touch := TouchArea {
-                    mouse-cursor: pointer;
-                    clicked => {
-                        root.on-database-page = !root.on-database-page;
-                        if root.on-database-page {
-                            root.on-shortcuts-page = false;
-                            root.database-page-shown();
+                database-focus := FocusScope {
+                    accessible-role: button;
+                    accessible-checkable: true;
+                    accessible-checked: root.on-database-page;
+                    accessible-label: root.tip-database;
+                    accessible-action-default => {
+                        root.toggle-database();
+                    }
+                    key-pressed(event) => {
+                        if (event.text == Key.Return || event.text == " ") {
+                            root.toggle-database();
+                            accept
+                        } else {
+                            reject
+                        }
+                    }
+
+                    Image {
+                        source: @image-url("icons/database.svg");
+                        colorize: root.on-database-page ? Theme.accent-fg : Theme.fg-secondary;
+                        width: 20px;
+                        height: 20px;
+                        x: 6px;
+                        y: 6px;
+                    }
+
+                    database-touch := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            database-focus.focus();
+                            root.toggle-database();
                         }
                     }
                 }

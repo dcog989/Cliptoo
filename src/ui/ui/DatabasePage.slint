@@ -106,35 +106,57 @@ export component DatabasePage inherits ScrollView {
                 // takes the pale danger outline instead.
                 property <bool> hot: action-touch.has-hover;
                 property <bool> danger: action.key == "clear-history";
+                // Keyboard focus ring plus the click/hover states. The
+                // FocusScope inside is the accessible button.
+                property <bool> focused: action-focus.has-focus;
                 border-width: 1px;
-                border-color: hot
+                border-color: focused
+                    ? Theme.accent-primary
+                    : hot
                     ? (danger ? Theme.danger-on-bg : Theme.border-subtle)
                     : transparent;
                 background: danger
                     ? Theme.danger-bg
-                    : hot
+                    : hot || focused
                     ? Theme.bg-row-hover
                     : Theme.bg-input;
                 animate background { duration: Theme.anim-fast; }
                 animate border-color { duration: Theme.anim-fast; }
 
-                Text {
-                    text: action.label;
-                    color: danger ? Theme.danger-on-bg : Theme.fg-primary;
-                    horizontal-alignment: center;
-                    vertical-alignment: center;
-                    font-size: Theme.font-size;
-                }
-
-                action-touch := TouchArea {
-                    Tooltip {
-                        text: @markdown("\{action.tip}");
-                    }
-
-                    clicked => {
+                action-focus := FocusScope {
+                    accessible-role: button;
+                    accessible-label: action.label;
+                    accessible-description: action.tip;
+                    accessible-action-default => {
                         root.maintenance-action(action.key);
                     }
-                    mouse-cursor: pointer;
+                    key-pressed(e) => {
+                        if (e.text == Key.Return || e.text == " ") {
+                            root.maintenance-action(action.key);
+                            return accept;
+                        }
+                        reject
+                    }
+
+                    Text {
+                        text: action.label;
+                        color: danger ? Theme.danger-on-bg : Theme.fg-primary;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                        font-size: Theme.font-size;
+                    }
+
+                    action-touch := TouchArea {
+                        Tooltip {
+                            text: @markdown("\{action.tip}");
+                        }
+
+                        clicked => {
+                            action-focus.focus();
+                            root.maintenance-action(action.key);
+                        }
+                        mouse-cursor: pointer;
+                    }
                 }
             }
         }

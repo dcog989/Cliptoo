@@ -26,6 +26,13 @@ component AboutRow {
         if root.clickable: Rectangle {
             vertical-stretch: 0;
             horizontal-stretch: 0;
+            border-width: link-focus.has-focus ? 1px : 0px;
+            border-color: Theme.accent-primary;
+            accessible-role: button;
+            accessible-label: root.label + ": " + root.value;
+            accessible-action-default => {
+                root.value-clicked();
+            }
 
             value-text := Text {
                 text: root.value;
@@ -41,12 +48,26 @@ component AboutRow {
                 y: value-text.y + value-text.height;
                 height: 1px;
                 width: value-text.width;
-                background: Theme.link-fg;
+                background: link-focus.has-focus ? Theme.accent-primary : Theme.link-fg;
+            }
+
+            link-focus := FocusScope {
+                key-pressed(event) => {
+                    if (event.text == Key.Return || event.text == " ") {
+                        root.value-clicked();
+                        accept
+                    } else {
+                        reject
+                    }
+                }
             }
 
             TouchArea {
                 mouse-cursor: pointer;
-                clicked => { root.value-clicked(); }
+                clicked => {
+                    link-focus.focus();
+                    root.value-clicked();
+                }
             }
         }
 
@@ -89,6 +110,8 @@ export component AboutWindow inherits Window {
 
     forward-focus: about-focus;
     about-focus := FocusScope {
+        // Focused programmatically on open so Escape works; not a Tab stop.
+        focus-on-tab-navigation: false;
         key-pressed(event) => {
             if (event.text == Key.Escape) {
                 root.about-closing();

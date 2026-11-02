@@ -101,6 +101,8 @@ export component SettingsPage inherits ScrollView {
                 log-body := StepperRowBody {
                     leading-glyph: "‹";
                     trailing-glyph: "›";
+                    leading-label: @tr("Previous log level");
+                    trailing-label: @tr("Next log level");
                     glyph-offset: -2px;
                     step-back() => {
                         SettingsValues.s-log-level-idx = SettingsValues.s-log-level-idx == 0 ? root.log-levels.length - 1 : SettingsValues.s-log-level-idx - 1;

@@ -90,9 +90,25 @@ export component MainClipArea inherits Rectangle {
     }
 
     focus-scope := FocusScope {
+        // The window-level scope is focused programmatically on show; keeping it
+        // out of Tab traversal prevents an invisible, actionless Tab stop.
+        focus-on-tab-navigation: false;
         // Captured before the search field sees them, so the menus still open
         // while the field has focus.
         capture-key-pressed(e) => {
+            // Context menu without a pointer: the Menu key, plus Shift+F10
+            // which is the conventional keyboard binding on X11/Wayland.
+            if (e.text == Key.Menu || (e.text == Key.F10 && e.modifiers.shift)) {
+                if (root.has-selection()) {
+                    root.open-context-menu(
+                        root.clips[root.selected-index].id,
+                        8,
+                        clip-list.selected-row-y(),
+                        root.clips[root.selected-index].is-bookmarked,
+                        root.clips[root.selected-index].clip-type);
+                }
+                return accept;
+            }
             if (e.modifiers.control && e.modifiers.shift) {
                 if (e.text.to-lowercase() == "f") {
                     root.open-filter-popup();

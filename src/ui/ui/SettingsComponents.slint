@@ -62,6 +62,8 @@ export component SectionHeader {
 export component StepperButton inherits Rectangle {
     in property <string> text;
     in property <string> tooltip-text;
+    // Accessible name. The glyph alone ("−", "‹") is not descriptive.
+    in property <string> action-label: "";
     // Optical nudge for glyphs whose ink sits below the line's optical center
     // (guillemets ‹ ›); the math +/− glyphs need none.
     in property <length> glyph-offset: 0px;
@@ -73,24 +75,43 @@ export component StepperButton inherits Rectangle {
     // so the hover fill never covers the field outline.
     height: 26px;
     border-radius: 4px;
-    background: touch.has-hover ? Theme.bg-row-hover : transparent;
+    background: touch.has-hover || step-focus.has-focus ? Theme.bg-row-hover : transparent;
+    border-width: step-focus.has-focus ? 1px : 0px;
+    border-color: Theme.accent-primary;
     animate background { duration: Theme.anim-fast; }
 
-    Text {
-        text: root.text;
-        color: Theme.fg-primary;
-        font-size: 22px;
-        horizontal-alignment: center;
-        vertical-alignment: center;
-        width: parent.width;
-        height: parent.height;
-        y: root.glyph-offset;
+    accessible-role: button;
+    accessible-label: root.action-label != "" ? root.action-label : root.text;
+    accessible-action-default => {
+        root.clicked();
     }
 
-    touch := TouchArea {
-        mouse-cursor: pointer;
-        clicked => {
-            root.clicked();
+    step-focus := FocusScope {
+        key-pressed(e) => {
+            if (e.text == Key.Return || e.text == " ") {
+                root.clicked();
+                return accept;
+            }
+            reject
+        }
+
+        Text {
+            text: root.text;
+            color: Theme.fg-primary;
+            font-size: 22px;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+            width: parent.width;
+            height: parent.height;
+            y: root.glyph-offset;
+        }
+
+        touch := TouchArea {
+            mouse-cursor: pointer;
+            clicked => {
+                step-focus.focus();
+                root.clicked();
+            }
         }
     }
 
@@ -128,6 +149,7 @@ export component TextRow {
                         color: Theme.fg-primary;
                         font-size: Theme.font-size;
                         vertical-alignment: center;
+                        accessible-label: root.label;
                         // Commit as the text changes: hiding the window does not drop
                         // focus back to the page, so a blur-only commit lost edits.
                         edited => {
@@ -164,6 +186,7 @@ export component HotkeyRow {
                     color: Theme.fg-primary;
                     font-size: Theme.font-size;
                     vertical-alignment: center;
+                    accessible-label: root.label;
                     key-pressed(event) => {
                         if (event.text == Key.Escape) {
                             ti.clear-focus();
@@ -207,6 +230,9 @@ export component HotkeyRow {
 export component StepperRowBody {
     in property <string> leading-glyph: "−";
     in property <string> trailing-glyph: "+";
+    // Accessible names for the two buttons.
+    in property <string> leading-label: @tr("Decrease");
+    in property <string> trailing-label: @tr("Increase");
     in property <length> glyph-offset: 0px;
     callback step-back();
     callback step-forward();
@@ -221,6 +247,7 @@ export component StepperRowBody {
         cross-axis-alignment: center;
         prev := StepperButton {
             text: root.leading-glyph;
+            action-label: root.leading-label;
             glyph-offset: root.glyph-offset;
             clicked => {
                 root.step-back();
@@ -231,6 +258,7 @@ export component StepperRowBody {
 
         next := StepperButton {
             text: root.trailing-glyph;
+            action-label: root.trailing-label;
             glyph-offset: root.glyph-offset;
             clicked => {
                 root.step-forward();
@@ -333,6 +361,11 @@ export component SliderRow {
     // disables `horizontal-stretch`.)
     private property <length> track-min-width: 160px;
 
+    function set-value(v: int) {
+        root.value = Math.min(root.max-val, Math.max(root.min-val, v));
+        root.committed(root.value);
+    }
+
     SettingsRow {
         label: root.label;
         tooltip-text: root.tooltip-text;
@@ -340,6 +373,7 @@ export component SliderRow {
 
         InputBox {
             horizontal-stretch: 1;
+            hot: slider-focus.has-focus;
             hover: slider-touch.has-hover;
 
             HorizontalLayout {
@@ -351,6 +385,7 @@ export component SliderRow {
                     horizontal-stretch: 1;
                     min-width: root.track-min-width;
                     height: 28px;
+                    border-radius: 3px;
 
                     Rectangle {
                         height: 6px;
@@ -367,17 +402,51 @@ export component SliderRow {
                         }
                     }
 
-                    slider-touch := TouchArea {
-                        pointer-event(e) => {
-                            if (e.kind == PointerEventKind.down || (e.kind == PointerEventKind.move && self.pressed)) {
-                                let span = root.max-val - root.min-val;
-                                let frac = slider-touch.mouse-x / track.width;
-                                let raw = root.min-val + Math.round(Math.min(1.0, Math.max(0.0, frac)) * span);
-                                root.value = Math.min(root.max-val, Math.max(root.min-val, Math.round(raw / root.step) * root.step));
-                                root.committed(root.value);
+                    slider-focus := FocusScope {
+                        accessible-role: slider;
+                        accessible-label: root.label;
+                        accessible-value: "\{root.value}\{root.unit}";
+                        accessible-value-minimum: root.min-val * 1.0;
+                        accessible-value-maximum: root.max-val * 1.0;
+                        accessible-value-step: root.step * 1.0;
+                        accessible-action-increment => {
+                            root.set-value(root.value + root.step);
+                        }
+                        accessible-action-decrement => {
+                            root.set-value(root.value - root.step);
+                        }
+                        key-pressed(event) => {
+                            if (event.text == Key.LeftArrow || event.text == Key.DownArrow) {
+                                root.set-value(root.value - root.step);
+                                accept
+                            } else if (event.text == Key.RightArrow || event.text == Key.UpArrow) {
+                                root.set-value(root.value + root.step);
+                                accept
+                            } else if (event.text == Key.Home) {
+                                root.set-value(root.min-val);
+                                accept
+                            } else if (event.text == Key.End) {
+                                root.set-value(root.max-val);
+                                accept
+                            } else {
+                                reject
                             }
                         }
-                        mouse-cursor: pointer;
+
+                        slider-touch := TouchArea {
+                            pointer-event(e) => {
+                                if (e.kind == PointerEventKind.down || (e.kind == PointerEventKind.move && self.pressed)) {
+                                    if (e.kind == PointerEventKind.down) {
+                                        slider-focus.focus();
+                                    }
+                                    let span = root.max-val - root.min-val;
+                                    let frac = slider-touch.mouse-x / track.width;
+                                    let raw = root.min-val + Math.round(Math.min(1.0, Math.max(0.0, frac)) * span);
+                                    root.set-value(Math.round(raw / root.step) * root.step);
+                                }
+                            }
+                            mouse-cursor: pointer;
+                        }
                     }
                 }
 
@@ -408,6 +477,8 @@ export component DropRow {
             drop-body := StepperRowBody {
                 leading-glyph: "‹";
                 trailing-glyph: "›";
+                leading-label: @tr("Previous option");
+                trailing-label: @tr("Next option");
                 glyph-offset: -2px;
                 step-back() => {
                     root.index = root.index == 0 ? root.options.length - 1 : root.index - 1;
@@ -435,6 +506,11 @@ export component ToggleRow {
     in property <string> tooltip-text;
     callback committed(bool);
 
+    function toggle() {
+        root.value = !root.value;
+        root.committed(root.value);
+    }
+
     SettingsRow {
         label: root.label;
         tooltip-text: root.tooltip-text;
@@ -447,26 +523,48 @@ export component ToggleRow {
             HorizontalLayout {
                 cross-axis-alignment: center;
                 padding-left: 4px;
-                Rectangle {
+                toggle-focus := FocusScope {
                     width: 44px;
                     height: 22px;
-                    border-radius: 11px;
-                    background: root.value ? Theme.accent-fill : Theme.bg-track;
-                    animate background { duration: Theme.anim-fast; }
-                    Rectangle {
-                        width: 18px;
-                        height: 18px;
-                        border-radius: 9px;
-                        background: root.value ? Theme.accent-fg : white;
-                        x: root.value ? 24px : 2px;
-                        animate x { duration: Theme.anim-fast; }
+                    accessible-role: switch;
+                    accessible-checkable: true;
+                    accessible-checked: root.value;
+                    accessible-label: root.label;
+                    accessible-action-default => {
+                        root.toggle();
+                    }
+                    key-pressed(event) => {
+                        if (event.text == Key.Return || event.text == " ") {
+                            root.toggle();
+                            accept
+                        } else {
+                            reject
+                        }
                     }
 
-                    TouchArea {
-                        mouse-cursor: pointer;
-                        clicked => {
-                            root.value = !root.value;
-                            root.committed(root.value);
+                    Rectangle {
+                        width: 100%;
+                        height: 100%;
+                        border-radius: 11px;
+                        border-width: toggle-focus.has-focus ? 1px : 0px;
+                        border-color: Theme.accent-primary;
+                        background: root.value ? Theme.accent-fill : Theme.bg-track;
+                        animate background { duration: Theme.anim-fast; }
+                        Rectangle {
+                            width: 18px;
+                            height: 18px;
+                            border-radius: 9px;
+                            background: root.value ? Theme.accent-fg : white;
+                            x: root.value ? 24px : 2px;
+                            animate x { duration: Theme.anim-fast; }
+                        }
+
+                        TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                toggle-focus.focus();
+                                root.toggle();
+                            }
                         }
                     }
                 }

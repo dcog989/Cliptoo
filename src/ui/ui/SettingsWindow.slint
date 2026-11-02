@@ -46,6 +46,9 @@ export component SettingsWindow inherits Window {
     // focused child (e.g. a text field) bubble up to it. A sibling scope
     // only sees keys the focused widget rejected.
     settings-focus := FocusScope {
+        // Focused programmatically on open; not a Tab stop of its own, so Tab
+        // goes straight to the first control.
+        focus-on-tab-navigation: false;
         key-pressed(event) => {
             if (event.text == Key.Escape) {
                 root.settings-closing();

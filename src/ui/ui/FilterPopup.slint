@@ -54,6 +54,26 @@ export component FilterPopup {
                     root.close-all();
                     return accept;
                 }
+                if (e.text == Key.LeftArrow) {
+                    grid.move-selection(-1);
+                    return accept;
+                }
+                if (e.text == Key.RightArrow) {
+                    grid.move-selection(1);
+                    return accept;
+                }
+                if (e.text == Key.UpArrow) {
+                    grid.move-selection(-grid.columns);
+                    return accept;
+                }
+                if (e.text == Key.DownArrow) {
+                    grid.move-selection(grid.columns);
+                    return accept;
+                }
+                if (e.text == Key.Return) {
+                    grid.activate-selected();
+                    return accept;
+                }
                 reject
             }
 
@@ -71,6 +91,7 @@ export component FilterPopup {
             running: root.focus-armed;
             triggered() => {
                 esc-scope.focus();
+                grid.selected = -1;
                 root.focus-armed = false;
             }
         }

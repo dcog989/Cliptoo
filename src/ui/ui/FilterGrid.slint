@@ -3,8 +3,34 @@ import { ClipTypeMap } from "ClipTypes.slint";
 
 export component FilterGrid {
     in property <string> active-filter: "all";
+    // Keyboard selection: index into ClipTypeMap.filter-keys, -1 until an arrow
+    // key is pressed. Also exposed so the popup can drive it.
+    in-out property <int> selected: -1;
+    // Cells per row; shared with the popup's arrow-key delta.
+    in property <int> columns: 5;
 
     callback filter-chosen(string);
+
+    // Wrap around so Left/Down at the last cell lands on the first.
+    public function move-selection(delta: int) {
+        let count = ClipTypeMap.filter-keys.length;
+        if (count > 0) {
+            let next = root.selected + delta;
+            if (next < 0) {
+                root.selected = count - 1;
+            } else if (next >= count) {
+                root.selected = 0;
+            } else {
+                root.selected = next;
+            }
+        }
+    }
+
+    public function activate-selected() {
+        if (root.selected >= 0 && root.selected < ClipTypeMap.filter-keys.length) {
+            root.filter-chosen(ClipTypeMap.filter-keys[root.selected]);
+        }
+    }
 
     // Intrinsic grid extent, used by FilterPopup for popup anchor math.
     out property <length> grid-width: grid-root.preferred-width;
@@ -25,12 +51,24 @@ export component FilterGrid {
             spacing: root.grid-spacing;
 
             for key[idx] in ClipTypeMap.filter-keys: Rectangle {
-                row: Math.floor(idx / 5);
-                col: Math.mod(idx, 5);
+                row: Math.floor(idx / root.columns);
+                col: Math.mod(idx, root.columns);
                 width: root.cell-size;
                 height: root.cell-size;
                 border-radius: 5px;
+                border-width: root.selected == idx ? 1px : 0px;
+                border-color: Theme.accent-primary;
                 background: root.active-filter == key ? Theme.accent-fill : cell-touch.has-hover ? Theme.bg-row-hover : transparent;
+
+                // A single-choice filter, so expose each cell as a radio button
+                // that assistive tech can toggle without a pointer.
+                accessible-role: radio-button;
+                accessible-checkable: true;
+                accessible-checked: root.active-filter == key;
+                accessible-label: ClipTypeMap.label-for(key);
+                accessible-action-default => {
+                    root.filter-chosen(key);
+                }
 
                 animate background { duration: Theme.anim-fast; }
 
