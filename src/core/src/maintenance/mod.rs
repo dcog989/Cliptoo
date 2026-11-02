@@ -81,15 +81,21 @@ pub async fn run_scheduled(
     Ok(())
 }
 
+/// Quiet period after a retention change before the next pass starts, so
+/// holding the settings stepper does not run a full maintenance cycle per
+/// click.
+const RETENTION_DEBOUNCE: std::time::Duration = std::time::Duration::from_millis(800);
+
 /// Spawn the background maintenance task. Runs every `interval` seconds.
-/// Retention parameters are read from `retention_rx` at each pass, so a change
-/// made in the settings UI applies on the next run without a restart.
+/// Retention parameters are read from `retention_rx` at each pass, and a change
+/// published by the settings UI starts a pass after a short quiet period
+/// instead of waiting for the whole interval.
 pub fn spawn_scheduler(
     db: Arc<DbPool>,
     thumbnails_dir: PathBuf,
     favicons_dir: PathBuf,
     images_dir: PathBuf,
-    retention_rx: tokio::sync::watch::Receiver<RetentionConfig>,
+    mut retention_rx: tokio::sync::watch::Receiver<RetentionConfig>,
     interval_secs: u64,
 ) {
     tokio::spawn(async move {
@@ -98,7 +104,9 @@ pub fn spawn_scheduler(
         // otherwise never prune. Bounded by `interval_secs` so tests (and any
         // short interval) still get a first pass promptly.
         let first_delay = interval_secs.min(FIRST_PASS_DELAY_SECS);
-        tokio::time::sleep(std::time::Duration::from_secs(first_delay)).await;
+        if !wait_for_next_pass(&mut retention_rx, first_delay).await {
+            return;
+        }
         loop {
             let cfg = retention_rx.borrow().clone();
             if let Err(e) =
@@ -106,7 +114,75 @@ pub fn spawn_scheduler(
             {
                 warn!("scheduled maintenance error: {e}");
             }
-            tokio::time::sleep(std::time::Duration::from_secs(interval_secs)).await;
+            if !wait_for_next_pass(&mut retention_rx, interval_secs).await {
+                return;
+            }
         }
     });
+}
+
+/// Wait for the next scheduled pass, or for a retention change plus its quiet
+/// period. Returns false when the settings sender was dropped (shutdown).
+async fn wait_for_next_pass(
+    rx: &mut tokio::sync::watch::Receiver<RetentionConfig>,
+    delay_secs: u64,
+) -> bool {
+    tokio::select! {
+        _ = tokio::time::sleep(std::time::Duration::from_secs(delay_secs)) => return true,
+        changed = rx.changed() => {
+            if changed.is_err() {
+                return false;
+            }
+        }
+    }
+
+    // Restart the quiet period on every further change, so a held stepper
+    // yields one pass after the user stops clicking.
+    loop {
+        match tokio::time::timeout(RETENTION_DEBOUNCE, rx.changed()).await {
+            Err(_) => return true,
+            Ok(Err(_)) => return false,
+            Ok(Ok(())) => {}
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::{Duration, Instant};
+
+    fn config(max_clips: u32) -> RetentionConfig {
+        RetentionConfig {
+            max_clips,
+            max_age_days: 30,
+        }
+    }
+
+    #[tokio::test]
+    async fn retention_change_wakes_the_scheduler_early() {
+        let (tx, mut rx) = tokio::sync::watch::channel(config(1000));
+        let sender = tx.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_millis(10)).await;
+            let _ = sender.send(config(100));
+        });
+        // Keep the original sender alive: a closed channel means shutdown and
+        // would abort the quiet period the test is waiting for.
+        let _tx = tx;
+
+        let started = Instant::now();
+        assert!(wait_for_next_pass(&mut rx, 3600).await);
+        assert!(
+            started.elapsed() < Duration::from_secs(10),
+            "a retention change must not wait for the full interval"
+        );
+    }
+
+    #[tokio::test]
+    async fn scheduler_stops_when_the_settings_sender_is_dropped() {
+        let (tx, mut rx) = tokio::sync::watch::channel(config(1000));
+        drop(tx);
+        assert!(!wait_for_next_pass(&mut rx, 3600).await);
+    }
 }

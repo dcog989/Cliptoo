@@ -281,6 +281,14 @@ pub fn setup_manual_maintenance(
                 if need_refresh {
                     crate::helpers::refresh_clips_live(&db, &ui, &td2, &fd, None);
                 }
+                // The statistics section is on screen (this action came from
+                // it), so refresh it for every action that changed the DB.
+                if matches!(
+                    key.as_str(),
+                    "clear-history" | "deadhead" | "reclassify" | "import"
+                ) {
+                    crate::stats_ui::refresh(settings_win.clone(), db.clone(), db_path.clone());
+                }
             }
 
             Ok::<Option<String>, anyhow::Error>(None)
