@@ -19,9 +19,6 @@ export component ClipList {
     in property <int> quick-paste-slots: 9;
     in property <bool> is-searching: false;
     in-out property <int> selected-index: 0;
-    // Window-absolute Y of the top of this list component. Set from AppWindow
-    // so the hovered callback can produce a window-absolute popup-y coordinate.
-    in property <float> list-offset-y: 0.0;
     // Mirrors the window's popup state so rows end their hover session while a
     // menu owns the pointer (see ClipItem.popup-open).
     in property <bool> popup-open: false;
@@ -137,6 +134,7 @@ export component ClipList {
         y: root.list-padding;
         height: root.height - root.list-padding;
         vertical-scrollbar-policy: ScrollBarPolicy.always-off;
+        accessible-role: list;
         for clip[idx] in root.clips: ClipItem {
             clip-data: clip;
             is-selected: idx == root.selected-index;
@@ -151,10 +149,10 @@ export component ClipList {
                 root.click-row(idx);
             }
             right-clicked(x, y) => {
-                root.item-right-clicked(clip.id, x, idx * Theme.row-height / 1px + list-view.content-y / 1px + root.list-padding / 1px + y + root.list-offset-y, clip.is-bookmarked, clip.clip-type);
+                root.item-right-clicked(clip.id, x, idx * Theme.row-height / 1px + list-view.content-y / 1px + root.list-padding / 1px + y, clip.is-bookmarked, clip.clip-type);
             }
             hovered(mx, my) => {
-                root.request-preview(clip.id, mx, idx * Theme.row-height / 1px + list-view.content-y / 1px + root.list-padding / 1px + my + root.list-offset-y);
+                root.request-preview(clip.id, mx, idx * Theme.row-height / 1px + list-view.content-y / 1px + root.list-padding / 1px + my);
             }
             // Hover moves the cursor row, like a menu.
             hover-entered => {
@@ -183,7 +181,7 @@ export component ClipList {
         }
 
         Text {
-            text: "No Results";
+            text: @tr("No Results");
             color: Theme.fg-primary;
             font-size: 32px;
             horizontal-alignment: center;
