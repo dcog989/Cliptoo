@@ -4,9 +4,10 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use slint::{ComponentHandle, Model};
 
-/// Rows fetched per list page. Kept small so the first paint only decodes the
-/// thumbnails it shows; `load_more` appends the next page on scroll.
-const CLIP_PAGE_SIZE: i64 = 200;
+/// Rows fetched per list page. The window shows ~17 rows, so 100 is about six
+/// screens of headroom; a smaller page keeps the first paint's thumbnail
+/// decode short, and `load_more` appends the next page on scroll.
+const CLIP_PAGE_SIZE: i64 = 100;
 
 /// User agent sent with every page and favicon request.
 pub const USER_AGENT: &str = "Cliptoo/0.2";
