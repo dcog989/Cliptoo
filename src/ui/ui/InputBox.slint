@@ -13,7 +13,9 @@ export component InputBox inherits Rectangle {
     in property <bool> hover: false;
     in property <bool> bordered: true;
 
-    height: 28px;
+    // Preferred, not fixed: a stretched caller (the clip editor) must be able
+    // to grow.
+    preferred-height: 28px;
     border-radius: 5px;
     border-width: root.bordered ? 1px : 0px;
     border-color: root.hot
