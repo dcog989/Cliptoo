@@ -27,9 +27,9 @@ export component DatabasePage inherits ScrollView {
 
         IntRow {
             label: @tr("Max clips");
-            tooltip-text: @tr("Maximum number of non-bookmarked clips kept in history (up to 1000, the list limit)");
+            tooltip-text: @tr("Maximum number of non-bookmarked clips kept in history, 0 = keep all (the list shows up to 1000)");
             value <=> SettingsValues.s-max-clips;
-            min-val: 100;
+            min-val: 0;
             max-val: 1000;
             step: 100;
             committed(v) => {
@@ -39,9 +39,9 @@ export component DatabasePage inherits ScrollView {
 
         IntRow {
             label: @tr("Max age (days)");
-            tooltip-text: @tr("Automatically remove clips older than this many days");
+            tooltip-text: @tr("Automatically remove clips older than this many days. 0 = keep forever");
             value <=> SettingsValues.s-max-age-days;
-            min-val: 1;
+            min-val: 0;
             max-val: 3650;
             step: 5;
             committed(v) => {
@@ -97,8 +97,8 @@ export component DatabasePage inherits ScrollView {
                     tip: @tr("Load clips from a JSON backup file")
                 },
             ]: Rectangle {
-                row: Math.floor(idx / 4);
-                col: Math.mod(idx, 4);
+                row: Math.floor(idx / 2);
+                col: Math.mod(idx, 2);
                 height: 30px;
                 border-radius: 6px;
                 // Hover lift matches MenuRow: an accent-tinted surface with an
