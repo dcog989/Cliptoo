@@ -67,6 +67,9 @@ export component ClipItem {
     Rectangle {
         height: 100%;
         width: 100%;
+        accessible-role: list-item;
+        accessible-label: clip-data.preview-content;
+        accessible-description: ClipTypeMap.label-for(clip-data.clip-type);
 
         // Selected rows get the accent-tinted selection surface plus a dim
         // accent border. Hover moves the selection (see ClipList), so the

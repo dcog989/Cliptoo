@@ -55,9 +55,8 @@ export component MainClipArea inherits Rectangle {
     callback search-changed(string);
     callback search-backspace();
     callback search-word-backspace();
-    callback filter-changed(string);
     callback item-activated(int);
-    callback delete-clip(int);         // Delete key: remove the selected clip
+    callback request-delete(int);      // Delete key: arm, then confirm on a second press
     callback copy-clip(int);           // Ctrl+C: copy without pasting
     callback edit-clip(int);           // Ctrl+E: open the editor
     callback request-preview(int, float, float);  // id, x, y
@@ -91,6 +90,21 @@ export component MainClipArea inherits Rectangle {
     }
 
     focus-scope := FocusScope {
+        // Captured before the search field sees them, so the menus still open
+        // while the field has focus.
+        capture-key-pressed(e) => {
+            if (e.modifiers.control && e.modifiers.shift) {
+                if (e.text.to-lowercase() == "f") {
+                    root.open-filter-popup();
+                    return accept;
+                }
+                if (e.text.to-lowercase() == "m") {
+                    root.open-hamburger-menu();
+                    return accept;
+                }
+            }
+            reject
+        }
         key-pressed(e) => {
             // Track the quick-paste modifier key (encoded in e.text) for
             // the overlay. Only the modifier's own press flips it on, so a
@@ -154,9 +168,11 @@ export component MainClipArea inherits Rectangle {
             // ── Text input — only handled when LineEdit is NOT focused ──
             if (!toolbar.search-focused) {
                 // Held Delete would remove one clip per repeat, so it is
-                // restricted to discrete presses.
+                // restricted to discrete presses. The Rust side asks for a
+                // second press: Delete is one key away from Backspace and the
+                // delete cannot be undone.
                 if (e.text == Key.Delete && !e.repeat && root.has-selection()) {
-                    root.delete-clip(root.clips[root.selected-index].id);
+                    root.request-delete(root.clips[root.selected-index].id);
                     return accept;
                 }
                 if (e.modifiers.control && root.has-selection()) {
@@ -304,9 +320,6 @@ export component MainClipArea inherits Rectangle {
                 selected-index <=> root.selected-index;
                 horizontal-stretch: 1;
                 vertical-stretch: 1;
-                // Toolbar is at the bottom of the VerticalLayout, so the list
-                // top edge is at window Y=0 — no offset needed here.
-                list-offset-y: 0.0;
 
                 item-activated(id) => {
                     root.item-activated(id);
@@ -345,9 +358,6 @@ export component MainClipArea inherits Rectangle {
                 }
                 search-nav-page-down() => {
                     clip-list.nav-page-down();
-                }
-                filter-changed(f) => {
-                    root.filter-changed(f);
                 }
                 toggle-filter-grid() => {
                     root.open-filter-popup();

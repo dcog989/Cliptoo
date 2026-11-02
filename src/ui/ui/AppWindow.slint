@@ -68,7 +68,9 @@ export component AppWindow inherits Window {
     callback compare-set-left(int);             // remember id as compare-left
     callback compare-right(int);               // diff compare-left vs id
     callback maintenance-action(string);        // "clear-history" | "clear-caches" | "deadhead" | "reclassify" | "compact" | "export" | "export-bookmarks" | "import"
-    callback delete-clip(int);                 // delete clip by id
+    callback delete-clip(int);                 // delete clip by id (context menu)
+    callback request-delete(int);              // Delete key: arm, then confirm on a second press
+    callback refresh-clips();                  // window shown: re-query the current view
     callback copy-clip(int);                   // copy clip to clipboard without pasting
     callback toggle-bookmark(int, bool);        // id, current is-bookmarked (Slint passes current state; Rust flips it)
     callback move-to-top(int);                 // bump clip timestamp to top
@@ -211,14 +213,11 @@ export component AppWindow inherits Window {
         search-word-backspace() => {
             root.search-word-backspace();
         }
-        filter-changed(f) => {
-            root.filter-changed(f);
-        }
         item-activated(id) => {
             root.item-activated(id);
         }
-        delete-clip(id) => {
-            root.delete-clip(id);
+        request-delete(id) => {
+            root.request-delete(id);
         }
         copy-clip(id) => {
             root.copy-clip(id);

@@ -29,6 +29,18 @@ impl ClipDeps {
         )
         .await;
     }
+
+    /// Re-query the view the window shows right now. Used when the window is
+    /// shown again, so changes made while it was hidden appear at once.
+    fn refresh_live(&self) {
+        helpers::refresh_clips_live(
+            &self.db,
+            &self.ui,
+            &self.thumbs,
+            &self.favicons,
+            Some(&self.tag_prefix),
+        );
+    }
 }
 
 pub fn setup_clip_actions(
@@ -69,51 +81,45 @@ pub fn setup_clip_actions(
         tag_prefix: tag_prefix.clone(),
     };
 
-    // ── Delete clip ──────────────────────────────────────────────────────
+    // ── Delete clip (context menu) ───────────────────────────────────────
     {
         let del_deps = deps.clone();
         let del_cmp = compare_left_id.clone();
         ui.on_delete_clip(move |id: i32| {
-            // A deleted clip can no longer be the compare-left; drop a stale
-            // reference so a later compare doesn't target a missing row.
-            if del_cmp.get() == Some(id as i64) {
-                del_cmp.set(None);
-            }
-            let deps = del_deps.clone();
-            let view = helpers::current_view_state(&deps.ui);
-            // The row can be removed from the model in place when the model
-            // holds every row of the view; otherwise a re-query is needed to
-            // refill the truncated list. See helpers::model_is_complete.
-            let in_place = deps
-                .ui
-                .upgrade()
-                .is_some_and(|ui| helpers::model_is_complete(&ui));
-            tokio::spawn(async move {
-                let db_ok = deps
-                    .db
-                    .with(|conn| cliptoo_core::db::queries::delete_clip(conn, id as i64))
-                    .await
-                    .is_ok();
-                if in_place && db_ok {
-                    let deps2 = deps.clone();
-                    let _ = deps.ui.upgrade_in_event_loop(move |ui| {
-                        if !helpers::remove_rows_by_id(&ui, &[id]) {
-                            // The model changed since the click; re-query so the
-                            // deleted row cannot linger.
-                            helpers::refresh_clips_live(
-                                &deps2.db,
-                                &deps2.ui,
-                                &deps2.thumbs,
-                                &deps2.favicons,
-                                Some(&deps2.tag_prefix),
-                            );
-                        }
-                    });
-                } else {
-                    deps.refresh(&view).await;
-                }
-            });
+            delete_clip(del_deps.clone(), del_cmp.clone(), id);
         });
+    }
+
+    // ── Delete clip (Delete key) ─────────────────────────────────────────
+    // The key sits next to Backspace and the delete cannot be undone, so one
+    // press only arms the delete and says so; a second press on the same clip
+    // within DELETE_CONFIRM_WINDOW removes it.
+    {
+        let del_deps = deps.clone();
+        let del_cmp = compare_left_id.clone();
+        let pending: std::rc::Rc<std::cell::Cell<Option<(i32, std::time::Instant)>>> =
+            std::rc::Rc::new(std::cell::Cell::new(None));
+        ui.on_request_delete(move |id: i32| {
+            let now = std::time::Instant::now();
+            let confirmed = pending.get().is_some_and(|(armed, at)| {
+                armed == id && now.duration_since(at) <= DELETE_CONFIRM_WINDOW
+            });
+            pending.set(None);
+            if confirmed {
+                delete_clip(del_deps.clone(), del_cmp.clone(), id);
+            } else {
+                pending.set(Some((id, now)));
+                if let Some(ui) = del_deps.ui.upgrade() {
+                    show_main_toast(&ui, "Press Delete again to remove", "warn");
+                }
+            }
+        });
+    }
+
+    // ── Window shown again: pick up what changed while it was hidden ────
+    {
+        let refresh_deps = deps.clone();
+        ui.on_refresh_clips(move || refresh_deps.refresh_live());
     }
 
     // ── Toggle bookmark ──────────────────────────────────────────────────
@@ -527,6 +533,53 @@ pub fn setup_clip_actions(
     }
 }
 
+/// Remove one clip and mirror it in the list. Shared by the context menu (one
+/// click is deliberate) and the confirmed Delete key.
+fn delete_clip(
+    deps: ClipDeps,
+    compare_left_id: std::rc::Rc<std::cell::Cell<Option<i64>>>,
+    id: i32,
+) {
+    // A deleted clip can no longer be the compare-left; drop a stale reference
+    // so a later compare doesn't target a missing row.
+    if compare_left_id.get() == Some(id as i64) {
+        compare_left_id.set(None);
+    }
+    let view = helpers::current_view_state(&deps.ui);
+    // The row can be removed from the model in place when the model holds every
+    // row of the view; otherwise a re-query is needed to refill the truncated
+    // list. See helpers::model_is_complete.
+    let in_place = deps
+        .ui
+        .upgrade()
+        .is_some_and(|ui| helpers::model_is_complete(&ui));
+    tokio::spawn(async move {
+        let db_ok = deps
+            .db
+            .with(|conn| cliptoo_core::db::queries::delete_clip(conn, id as i64))
+            .await
+            .is_ok();
+        if in_place && db_ok {
+            let deps2 = deps.clone();
+            let _ = deps.ui.upgrade_in_event_loop(move |ui| {
+                if !helpers::remove_rows_by_id(&ui, &[id]) {
+                    // The model changed since the click; re-query so the
+                    // deleted row cannot linger.
+                    helpers::refresh_clips_live(
+                        &deps2.db,
+                        &deps2.ui,
+                        &deps2.thumbs,
+                        &deps2.favicons,
+                        Some(&deps2.tag_prefix),
+                    );
+                }
+            });
+        } else {
+            deps.refresh(&view).await;
+        }
+    });
+}
+
 /// Reorder a clip: the DB timestamp first, then the matching in-place model
 /// move (or a re-query when the view is filtered or paged). `copy_rich` is set
 /// for "move to top", which also loads the clip so Ctrl+V pastes it.
@@ -644,7 +697,7 @@ fn report_missing_clip(deps: &ClipDeps, id: i32, error: &anyhow::Error) {
 }
 
 /// Show a toast on the main window. Severity is "info" | "warn" | "error".
-fn show_main_toast(ui: &crate::AppWindow, message: &str, severity: &str) {
+pub(crate) fn show_main_toast(ui: &crate::AppWindow, message: &str, severity: &str) {
     ui.set_toast_visible(false);
     ui.set_toast_message(message.into());
     ui.set_toast_severity(severity.into());
@@ -684,3 +737,6 @@ fn load_text_file(path: &str) -> Option<(String, f64, u64)> {
 
 /// Largest file the editor loads, and the largest one Save may rewrite.
 const MAX_EDIT_FILE_BYTES: u64 = 16 * 1024 * 1024;
+
+/// How long the Delete key stays armed for the confirming second press.
+const DELETE_CONFIRM_WINDOW: std::time::Duration = std::time::Duration::from_secs(2);

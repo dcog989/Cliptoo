@@ -1,7 +1,7 @@
 // ShortcutsPage.slint — Settings > Shortcuts page: the editable global
 // hotkeys (moved here from General) above a read-only cheat sheet of the
-// main-window key bindings. Keep the cheat sheet in sync with the key-pressed
-// handler in MainClipArea.slint.
+// main-window key bindings. Keep the cheat sheet in sync with the key handlers
+// (key-pressed / capture-key-pressed) in MainClipArea.slint.
 
 import { Theme } from "Theme.slint";
 import { SettingsValues } from "SettingsValues.slint";
@@ -107,8 +107,18 @@ export component ShortcutsPage inherits ScrollView {
         }
 
         ShortcutRow {
-            keys: "Delete";
-            action: @tr("Delete the selected clip");
+            keys: "Delete ×2";
+            action: @tr("Delete the selected clip (press twice)");
+        }
+
+        ShortcutRow {
+            keys: "Ctrl+Shift+F";
+            action: @tr("Open the filter grid");
+        }
+
+        ShortcutRow {
+            keys: "Ctrl+Shift+M";
+            action: @tr("Open the main menu");
         }
 
         ShortcutRow {
