@@ -32,6 +32,10 @@ fn file_uri_to_path(uri: &str) -> Option<String> {
     Some(cliptoo_core::content::percent_decode_path(rest))
 }
 
+/// How long to wait for the portal's Response before giving up. A crashed or
+/// wedged portal otherwise leaves the action pending with no feedback at all.
+const DIALOG_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(300);
+
 /// Ask the user for a file path via the XDG portal FileChooser.
 /// `save = true` shows a Save dialog, `false` an Open dialog.
 /// Returns `None` if the user cancelled.
@@ -48,7 +52,10 @@ async fn pick_path(save: bool) -> anyhow::Result<Option<std::path::PathBuf>> {
 
     let mut options = HashMap::<&str, Value>::new();
     options.insert("handle_token", Value::from(next_handle_token()));
-    options.insert("current_name", Value::from("cliptoo-export.json"));
+    if save {
+        // `current_name` is a save-dialog option; an Open dialog ignores it.
+        options.insert("current_name", Value::from("cliptoo-export.json"));
+    }
 
     let request_handle: OwnedObjectPath = conn
         .call_method(
@@ -63,29 +70,33 @@ async fn pick_path(save: bool) -> anyhow::Result<Option<std::path::PathBuf>> {
         .deserialize()?;
 
     // Wait for the Response signal on the request handle.
-    while let Some(Ok(msg)) = stream.next().await {
-        let hdr = msg.header();
-        let on_path = hdr.path().is_some_and(|p| p == request_handle.as_str());
-        let on_iface = hdr.interface().is_some_and(|i| i.as_str() == REQUEST_IFACE);
-        let is_response = hdr.member().is_some_and(|m| m.as_str() == "Response");
-        if !(on_path && on_iface && is_response) {
-            continue;
+    tokio::time::timeout(DIALOG_TIMEOUT, async {
+        while let Some(Ok(msg)) = stream.next().await {
+            let hdr = msg.header();
+            let on_path = hdr.path().is_some_and(|p| p == request_handle.as_str());
+            let on_iface = hdr.interface().is_some_and(|i| i.as_str() == REQUEST_IFACE);
+            let is_response = hdr.member().is_some_and(|m| m.as_str() == "Response");
+            if !(on_path && on_iface && is_response) {
+                continue;
+            }
+
+            let (code, results): (u32, HashMap<String, OwnedValue>) = msg.body().deserialize()?;
+            if code != 0 {
+                return Ok(None);
+            }
+
+            let uris: Vec<String> = results
+                .get("uris")
+                .and_then(|v| v.clone().try_into().ok())
+                .unwrap_or_default();
+            let uri = uris.into_iter().next();
+            return Ok(uri.and_then(|u| file_uri_to_path(&u).map(std::path::PathBuf::from)));
         }
 
-        let (code, results): (u32, HashMap<String, OwnedValue>) = msg.body().deserialize()?;
-        if code != 0 {
-            return Ok(None);
-        }
-
-        let uris: Vec<String> = results
-            .get("uris")
-            .and_then(|v| v.clone().try_into().ok())
-            .unwrap_or_default();
-        let uri = uris.into_iter().next();
-        return Ok(uri.and_then(|u| file_uri_to_path(&u).map(std::path::PathBuf::from)));
-    }
-
-    anyhow::bail!("file chooser message stream ended unexpectedly")
+        anyhow::bail!("file chooser message stream ended unexpectedly")
+    })
+    .await
+    .map_err(|_| anyhow::anyhow!("file chooser did not answer within {DIALOG_TIMEOUT:?}"))?
 }
 
 /// Destructive actions need a second click on the same button within this
@@ -235,8 +246,8 @@ pub fn setup_manual_maintenance(
             .await;
 
             // Cancelled file dialog: nothing to do, keep the list as-is.
-            let cancelled =
-                matches!(&result, Ok(None)) && matches!(key.as_str(), "export" | "import");
+            let cancelled = matches!(&result, Ok(None))
+                && matches!(key.as_str(), "export" | "export-bookmarks" | "import");
 
             match &result {
                 Ok(Some(msg)) => crate::settings::show_toast(&settings_win, msg, "info"),
@@ -277,7 +288,12 @@ pub fn setup_manual_maintenance(
                     _ => {}
                 }
 
-                let need_refresh = key != "import" && key != "compact";
+                // Exports read the DB but change nothing; import refreshed the
+                // list above and compact refreshed the statistics.
+                let need_refresh = !matches!(
+                    key.as_str(),
+                    "import" | "compact" | "export" | "export-bookmarks"
+                );
                 if need_refresh {
                     crate::helpers::refresh_clips_live(&db, &ui, &td2, &fd, None);
                 }
@@ -290,8 +306,6 @@ pub fn setup_manual_maintenance(
                     crate::stats_ui::refresh(settings_win.clone(), db.clone(), db_path.clone());
                 }
             }
-
-            Ok::<Option<String>, anyhow::Error>(None)
         });
     });
 }
