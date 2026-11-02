@@ -6,6 +6,19 @@ use crate::icon;
 const THUMB_MAX_DIM: u32 = 36;
 pub const HASH_FILENAME_PREFIX_LEN: usize = 16;
 
+/// Largest SVG source file copied into the thumbnail cache. SVG is copied
+/// verbatim (Slint renders it), so an unbounded read would put an arbitrarily
+/// large file on the UI thread's decode path.
+const MAX_SVG_READ_BYTES: u64 = 8 * 1024 * 1024;
+
+/// The 16-char hash prefix used as a cache filename stem. `None` when the hash
+/// is empty, shorter than the prefix, or slicing would split a UTF-8 char: such
+/// a hash can never have named a real cache file.
+pub fn hash_key(hash: &str) -> Option<&str> {
+    let end = hash.len().min(HASH_FILENAME_PREFIX_LEN);
+    (end > 0 && hash.is_char_boundary(end)).then(|| &hash[..end])
+}
+
 /// Preview thumbnails are written at this multiple of the logical preview size:
 /// the popup is laid out in logical px but Slint rasterises it at device px, so
 /// a 1× preview is upscaled and blurred on a HiDPI display.
@@ -123,10 +136,12 @@ fn decode_vector_or_jxl(data: &[u8]) -> Result<image::DynamicImage> {
     Ok(image::DynamicImage::ImageRgba8(rgba))
 }
 
-fn resize_to(img: image::DynamicImage, max_dim: u32) -> image::DynamicImage {
+/// Downscale `img` to fit `max_dim`×`max_dim`, preserving aspect ratio. Returns
+/// an unchanged copy when it already fits.
+pub fn resize_to(img: &image::DynamicImage, max_dim: u32) -> image::DynamicImage {
     let (w, h) = (img.width(), img.height());
     if w.max(h) <= max_dim {
-        return img;
+        return img.clone();
     }
     // Aspect-preserving downscale that fits within max_dim × max_dim. Lanczos3
     // rather than `thumbnail`'s triangle filter: the preview is drawn at device
@@ -134,17 +149,63 @@ fn resize_to(img: image::DynamicImage, max_dim: u32) -> image::DynamicImage {
     img.resize(max_dim, max_dim, image::imageops::FilterType::Lanczos3)
 }
 
+/// Decode an image file without reading it into memory first. Raster formats
+/// stream under [`decode_limits`]; SVG/JXL have no streaming reader here and
+/// fall back to a capped read. A multi-gigabyte file must never be slurped
+/// whole just to make a thumbnail.
+fn decode_image_file(path: &Path) -> Result<image::DynamicImage> {
+    if let Ok(file) = image::ImageReader::open(path)
+        && let Ok(mut reader) = file.with_guessed_format()
+    {
+        reader.limits(decode_limits());
+        if let Ok(img) = reader.decode() {
+            return Ok(img);
+        }
+    }
+    decode_image(&read_capped(path, MAX_DECODE_ALLOC)?)
+}
+
+fn read_capped(path: &Path, cap: u64) -> Result<Vec<u8>> {
+    let len = std::fs::metadata(path)?.len();
+    if len > cap {
+        anyhow::bail!("file too large for preview: {len} bytes");
+    }
+    Ok(std::fs::read(path)?)
+}
+
+/// Write `img` to `path` as `format` through a temp file and a rename. A crash
+/// or a full disk must not leave a truncated file at the final name, because
+/// every caller treats "file exists" as "file is valid".
+pub fn save_atomic(
+    img: &image::DynamicImage,
+    path: &Path,
+    format: image::ImageFormat,
+) -> Result<()> {
+    let tmp = path.with_extension("tmp");
+    let written = (|| -> Result<()> {
+        let mut file = std::fs::File::create(&tmp)?;
+        img.write_to(&mut file, format)?;
+        Ok(())
+    })();
+    if let Err(e) = written {
+        let _ = std::fs::remove_file(&tmp);
+        return Err(e);
+    }
+    std::fs::rename(&tmp, path).with_context(|| format!("rename {tmp:?} to {path:?}"))
+}
+
 // ── Full-resolution store (PNG, images_dir) ───────────────────────────────────
 
 /// Store full-resolution clipboard image to disk as PNG, keyed by content-hash
 /// prefix. Writes to `images_dir`, which must be distinct from `thumbnails_dir`.
 pub fn store_image(dir: &Path, hash: &str, data: &[u8]) -> Result<PathBuf> {
-    let path = dir.join(format!("{}.png", &hash[..HASH_FILENAME_PREFIX_LEN]));
+    let key = hash_key(hash).context("invalid content hash")?;
+    let path = dir.join(format!("{key}.png"));
     if path.exists() {
         return Ok(path);
     }
     let img = decode_image(data)?;
-    img.save(&path)?;
+    save_atomic(&img, &path, image::ImageFormat::Png)?;
     Ok(path)
 }
 
@@ -161,15 +222,45 @@ fn write_thumbnails_pair(
     render: impl Fn(u32) -> image::DynamicImage,
 ) -> Result<()> {
     if !thumb_path.exists() {
-        let mut file = std::fs::File::create(thumb_path)?;
-        render(thumb_dim).write_to(&mut file, image::ImageFormat::WebP)?;
+        let img = render(thumb_dim);
+        save_atomic(&img, thumb_path, image::ImageFormat::WebP)?;
     }
     if !preview_path.exists() {
-        let mut file = std::fs::File::create(preview_path)?;
-        render(preview_dim.saturating_mul(PREVIEW_PIXEL_RATIO))
-            .write_to(&mut file, image::ImageFormat::WebP)?;
+        let img = render(preview_dim.saturating_mul(PREVIEW_PIXEL_RATIO));
+        save_atomic(&img, preview_path, image::ImageFormat::WebP)?;
     }
     Ok(())
+}
+
+/// Write both thumbnails from one already-decoded image.
+fn write_thumbnails_from(
+    thumb_path: &Path,
+    preview_path: &Path,
+    img: &image::DynamicImage,
+    preview_max_dim: u32,
+) -> Result<()> {
+    write_thumbnails_pair(
+        thumb_path,
+        preview_path,
+        THUMB_MAX_DIM,
+        preview_max_dim,
+        |dim| resize_to(img, dim),
+    )
+}
+
+/// Write the generic gradient placeholder as both thumbnails.
+fn write_placeholder_pair(
+    thumb_path: &Path,
+    preview_path: &Path,
+    preview_max_dim: u32,
+) -> Result<()> {
+    write_thumbnails_pair(
+        thumb_path,
+        preview_path,
+        THUMB_MAX_DIM,
+        preview_max_dim,
+        make_placeholder,
+    )
 }
 
 /// Decode once and write both list-cell (36px) and preview thumbnails
@@ -184,11 +275,9 @@ pub fn store_both_thumbnails(
     data: &[u8],
     preview_max_dim: u32,
 ) -> Result<()> {
-    let thumb_path = dir.join(format!("{}.webp", &hash[..HASH_FILENAME_PREFIX_LEN]));
-    let preview_path = dir.join(format!(
-        "{}_preview.webp",
-        &hash[..HASH_FILENAME_PREFIX_LEN]
-    ));
+    let key = hash_key(hash).context("invalid content hash")?;
+    let thumb_path = dir.join(format!("{key}.webp"));
+    let preview_path = dir.join(format!("{key}_preview.webp"));
 
     // Skip decoding entirely when both files already exist.
     if thumb_path.exists() && preview_path.exists() {
@@ -196,13 +285,7 @@ pub fn store_both_thumbnails(
     }
 
     let img = decode_image(data)?;
-    write_thumbnails_pair(
-        &thumb_path,
-        &preview_path,
-        THUMB_MAX_DIM,
-        preview_max_dim,
-        |dim| resize_to(img.clone(), dim),
-    )
+    write_thumbnails_from(&thumb_path, &preview_path, &img, preview_max_dim)
 }
 
 /// Drop cached preview thumbnails written at a different [`PREVIEW_PIXEL_RATIO`]
@@ -275,7 +358,7 @@ pub fn store_both_thumbnails_for_file(
     file_path: &Path,
     preview_max_dim: u32,
 ) -> Result<()> {
-    let prefix = &hash[..hash.len().min(HASH_FILENAME_PREFIX_LEN)];
+    let prefix = hash_key(hash).context("invalid content hash")?;
 
     let thumb_webp = dir.join(format!("{prefix}.webp"));
     let thumb_svg = dir.join(format!("{prefix}.svg"));
@@ -289,23 +372,19 @@ pub fn store_both_thumbnails_for_file(
 
     match ext.as_deref() {
         Some("svg") => {
-            let data = std::fs::read(file_path)?;
             // Copy a valid SVG verbatim so Slint renders it natively (crisp at
             // any size). A 0-byte or malformed file (e.g. an empty placeholder
             // committed by mistake) must not be cached: Slint would later fail
             // to load it with "document does not have a root node". Fall back
             // to the placeholder used for undecodable formats and drop any
             // stale invalid SVG pair so it can't shadow the placeholder.
+            let Ok(data) = read_capped(file_path, MAX_SVG_READ_BYTES) else {
+                return write_placeholder_pair(&thumb_webp, &preview_webp, preview_max_dim);
+            };
             if !icon::svg_is_valid(&data) {
                 let _ = std::fs::remove_file(&thumb_svg);
                 let _ = std::fs::remove_file(&preview_svg);
-                return write_thumbnails_pair(
-                    &thumb_webp,
-                    &preview_webp,
-                    THUMB_MAX_DIM,
-                    preview_max_dim,
-                    make_placeholder,
-                );
+                return write_placeholder_pair(&thumb_webp, &preview_webp, preview_max_dim);
             }
             if !thumb_svg.exists() {
                 std::fs::write(&thumb_svg, &data)?;
@@ -315,16 +394,15 @@ pub fn store_both_thumbnails_for_file(
             }
             Ok(())
         }
-        Some(e) if UNDECODABLE_IMAGE_EXTS.contains(&e) => write_thumbnails_pair(
-            &thumb_webp,
-            &preview_webp,
-            THUMB_MAX_DIM,
-            preview_max_dim,
-            make_placeholder,
-        ),
+        Some(e) if UNDECODABLE_IMAGE_EXTS.contains(&e) => {
+            write_placeholder_pair(&thumb_webp, &preview_webp, preview_max_dim)
+        }
         _ => {
-            let data = std::fs::read(file_path)?;
-            store_both_thumbnails(dir, hash, &data, preview_max_dim)
+            if thumb_webp.exists() && preview_webp.exists() {
+                return Ok(());
+            }
+            let img = decode_image_file(file_path)?;
+            write_thumbnails_from(&thumb_webp, &preview_webp, &img, preview_max_dim)
         }
     }
 }
@@ -401,6 +479,39 @@ mod tests {
         std::fs::write(&fresh, b"y").unwrap();
         migrate_preview_ratio(&dir);
         assert!(fresh.exists(), "fresh preview must survive a restart");
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn hash_key_truncates_to_prefix() {
+        assert_eq!(hash_key("abcdef1234567890xyz"), Some("abcdef1234567890"));
+    }
+
+    #[test]
+    fn hash_key_shorter_hash_stays_whole() {
+        assert_eq!(hash_key("abc"), Some("abc"));
+    }
+
+    #[test]
+    fn hash_key_exact_prefix_is_boundary() {
+        assert_eq!(hash_key("abcdef1234567890"), Some("abcdef1234567890"));
+    }
+
+    #[test]
+    fn hash_key_rejects_empty_and_split_hashes() {
+        assert_eq!(hash_key(""), None);
+        // 15 ASCII bytes followed by a 2-byte char: byte 16 splits it.
+        let split = "abcdefghijklmno\u{00e9}";
+        assert_eq!(split.len(), 17);
+        assert_eq!(hash_key(split), None);
+    }
+
+    #[test]
+    fn stores_reject_a_hash_that_cannot_name_a_cache_file() {
+        let dir = temp_dir("short_hash");
+        let split = "abcdefghijklmno\u{00e9}";
+        assert!(store_both_thumbnails(&dir, split, &png_bytes(2, 2), 300).is_err());
+        assert!(store_image(&dir, "", &png_bytes(2, 2)).is_err());
         std::fs::remove_dir_all(&dir).unwrap();
     }
 }

@@ -231,7 +231,7 @@ fn tag_name(tag: &str) -> &str {
 const MAX_ENTITY_LEN: usize = 32;
 
 /// Decode `&...;` character references (named and numeric) in `s`.
-fn decode_entities(s: &str) -> String {
+pub fn decode_entities(s: &str) -> String {
     let mut result = String::with_capacity(s.len());
     let mut i = 0;
     let bytes = s.as_bytes();

@@ -10,7 +10,7 @@ pub mod rtf;
 
 pub use classifier::ContentProcessor;
 pub use hash::{normalize_line_endings, sha256_hex, sha256_hex_and_prefix, sha256_u64};
-pub use html::strip_html;
+pub use html::{decode_entities, strip_html};
 pub use rtf::strip_rtf;
 
 /// True when `s` is SVG markup — an `<svg>` root element, optionally preceded
