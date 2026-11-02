@@ -2,6 +2,10 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
+/// Prefix that marks a tag search (`##work`). Not user-configurable; background
+/// refreshes with no settings handle must use the same one as the search box.
+pub const DEFAULT_TAG_PREFIX: &str = "##";
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SendToApp {
     pub name: String,
@@ -89,7 +93,7 @@ impl Default for Settings {
             quick_paste_modifier: "Right Alt".to_string(),
             max_clips: 1000,
             max_age_days: 30,
-            tag_prefix: "##".to_string(),
+            tag_prefix: DEFAULT_TAG_PREFIX.to_string(),
             compare_tool_path: String::new(),
             send_to_apps: vec![],
             blacklisted_apps: vec![],

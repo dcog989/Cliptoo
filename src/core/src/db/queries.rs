@@ -414,8 +414,10 @@ fn fts_projection(fts_col: i32, tokens: i32, cap_by_size: bool) -> String {
 /// Search clips by full-text query and/or type filter.
 ///
 /// `tag_prefix`: when the raw user query starts with this string, the search is
-/// routed to the FTS5 `Tags` column instead of `Content`.  Pass `None` (or `""`)
-/// to always search `Content`.
+/// routed to the FTS5 `Tags` column instead of `Content`. `None` means the
+/// caller has no settings handle (a background refresh) and falls back to
+/// [`crate::settings::DEFAULT_TAG_PREFIX`], so tag syntax never silently
+/// degrades into a content search. Pass `Some("")` to disable tags entirely.
 pub fn search_clips(
     conn: &Connection,
     query: &str,
@@ -427,8 +429,9 @@ pub fn search_clips(
     let ft = clip_type_filter(filter);
 
     // Determine whether this is a tag search and, if so, strip the prefix.
+    let prefix = tag_prefix.unwrap_or(crate::settings::DEFAULT_TAG_PREFIX);
     let (is_tag_search, effective_query) =
-        match tag_prefix.filter(|p| !p.is_empty() && query.starts_with(*p)) {
+        match (!prefix.is_empty() && query.starts_with(prefix)).then_some(prefix) {
             Some(pfx) => (true, query[pfx.len()..].trim()),
             None => (false, query),
         };

@@ -143,5 +143,16 @@ async fn tag_prefix_search_lists_and_matches_tags() {
     assert_eq!(by_tag.len(), 1);
     assert_eq!(by_tag[0].id, id);
 
+    // A background refresh has no settings handle and passes `None`; it must
+    // keep the tag semantics instead of falling back to a content search. A
+    // third clip whose *content* contains "work" catches that fallback.
+    common::insert_clip(&db, "workshop notes", "hash_three", "text").await;
+    let by_tag_default = db
+        .with(|conn| cliptoo_core::db::queries::search_clips(conn, "##work", "all", 10, 0, None))
+        .await
+        .unwrap();
+    assert_eq!(by_tag_default.len(), 1);
+    assert_eq!(by_tag_default[0].id, id);
+
     clean_up(&dir);
 }
