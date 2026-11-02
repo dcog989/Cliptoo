@@ -45,6 +45,10 @@ pub async fn read_body_capped(resp: reqwest::Response) -> Option<Vec<u8>> {
 /// at the user's own machine or LAN (a pasted URL, or a page that puts one on
 /// the clipboard); the preview must not probe those. Callers must apply this
 /// to redirect targets too.
+///
+/// shortcut: only the literal host is checked, so a public name that resolves
+/// to a private address still gets fetched; pin the resolved IP if this ever
+/// runs somewhere other than the user's own desktop.
 pub fn is_fetchable_url(url: &str) -> bool {
     let Ok(parsed) = url::Url::parse(url) else {
         return false;
