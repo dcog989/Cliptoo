@@ -4,7 +4,7 @@
 // a shown popup when its content is toggled between sub-views.
 
 import { Theme } from "Theme.slint";
-import { MenuRow } from "MenuRow.slint";
+import { MenuRow, MenuSeparator } from "MenuRow.slint";
 
 export component FormatMenu {
     callback back();
@@ -88,9 +88,7 @@ export component FormatMenu {
                 }
             }
 
-            MenuRow {
-                is-separator: true;
-            }
+            MenuSeparator { }
 
             MenuRow {
                 label: @tr("UPPER CASE");
@@ -137,9 +135,7 @@ export component FormatMenu {
                 }
             }
 
-            MenuRow {
-                is-separator: true;
-            }
+            MenuSeparator { }
 
             MenuRow {
                 label: @tr("kebab-case");
@@ -177,9 +173,7 @@ export component FormatMenu {
                 }
             }
 
-            MenuRow {
-                is-separator: true;
-            }
+            MenuSeparator { }
 
             MenuRow {
                 label: @tr("Trim Whitespace");

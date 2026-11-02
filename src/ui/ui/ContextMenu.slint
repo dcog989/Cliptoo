@@ -8,7 +8,7 @@
 
 import { Theme } from "Theme.slint";
 import { ClipTypeMap } from "ClipTypes.slint";
-import { MenuRow } from "MenuRow.slint";
+import { MenuRow, MenuSeparator } from "MenuRow.slint";
 
 export component ContextMenu {
     // Which clip this menu is acting on (set by ContextMenuHost before show()).
@@ -165,9 +165,7 @@ export component ContextMenu {
                 }
             }
 
-            if root.has-paste-block: MenuRow {
-                is-separator: true;
-            }
+            if root.has-paste-block: MenuSeparator { }
             if root.show-paste: MenuRow {
                 label: @tr("Paste as Plain Text");
                 icon: @image-url("icons/text.svg");
@@ -201,9 +199,7 @@ export component ContextMenu {
                     root.format-open();
                 }
             }
-            MenuRow {
-                is-separator: true;
-            }
+            MenuSeparator { }
 
             MenuRow {
                 label: @tr("Delete");
@@ -215,9 +211,7 @@ export component ContextMenu {
                 }
             }
 
-            MenuRow {
-                is-separator: true;
-            }
+            MenuSeparator { }
 
             MenuRow {
                 label: @tr("Move to Top");
@@ -255,9 +249,7 @@ export component ContextMenu {
                 }
             }
 
-            MenuRow {
-                is-separator: true;
-            }
+            MenuSeparator { }
 
             MenuRow {
                 label: root.clip-is-bookmarked ? @tr("Remove Bookmark") : @tr("Bookmark");
@@ -268,9 +260,7 @@ export component ContextMenu {
                 }
             }
 
-            if root.send-to-apps.length > 0: MenuRow {
-                is-separator: true;
-            }
+            if root.send-to-apps.length > 0: MenuSeparator { }
             if root.send-to-apps.length > 0: MenuRow {
                 label: @tr("Send To");
                 icon: @image-url("icons/send.svg");

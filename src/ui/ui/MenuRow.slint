@@ -1,8 +1,19 @@
 // MenuRow.slint — A single row for a popup menu: optional icon + label +
 // optional right-arrow, with selected/pressed accent styling and a hover tint.
 // Used by ContextMenu (32px rows) and HamburgerMenu (36px rows).
+// MenuSeparator is the divider variant: keeping it a separate component means
+// MenuRow always contributes its label width, which the popups size from.
 
 import { Theme } from "Theme.slint";
+
+export component MenuSeparator {
+    height: 9px;
+    Rectangle {
+        y: 4px;
+        height: 1px;
+        background: Theme.border-subtle;
+    }
+}
 
 export component MenuRow {
     in property <image> icon;
@@ -11,22 +22,12 @@ export component MenuRow {
     in property <bool> has-arrow: false;
     // Keyboard selection highlight, driven by the owning menu.
     in property <bool> selected: false;
-    // "…" submenu affordance, sits at the row's right edge.
-    in property <bool> is-separator: false;
     in property <length> row-height: 32px;
     callback clicked;
 
-    height: root.is-separator ? 9px : root.row-height;
+    height: root.row-height;
 
-    // Separator line. A conditional element keeps hidden rows out of the
-    // accessibility tree too (a `visible: false` row would still be exposed).
-    if root.is-separator: Rectangle {
-        y: 4px;
-        height: 1px;
-        background: Theme.border-subtle;
-    }
-
-    if !root.is-separator: content := Rectangle {
+    content := Rectangle {
         // Rows are keyboard-driven by the owning menu (arrow keys move
         // `selected`), so expose each one as a selectable list item and let
         // assistive tech activate the same callback as a click.

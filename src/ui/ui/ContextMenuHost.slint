@@ -9,7 +9,7 @@
 
 import { ContextMenu } from "ContextMenu.slint";
 import { FormatMenu } from "FormatMenu.slint";
-import { MenuRow } from "MenuRow.slint";
+import { MenuRow, MenuSeparator } from "MenuRow.slint";
 import { Theme } from "Theme.slint";
 
 export component ContextMenuHost {
@@ -379,9 +379,7 @@ export component ContextMenuHost {
                     }
                 }
 
-                MenuRow {
-                    is-separator: true;
-                }
+                MenuSeparator { }
 
                 for app-name[idx] in root.send-to-apps: MenuRow {
                     label: app-name;
