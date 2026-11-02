@@ -51,8 +51,9 @@ pub(super) fn setup_clear_accent(
                 |t| crate::theme::fill_theme(t, &snapshot, is_dark, system_accent),
             );
             if let Some(win) = sw.upgrade() {
-                win.global::<crate::SettingsValues>()
-                    .set_s_accent_color(swatch);
+                let g = win.global::<crate::SettingsValues>();
+                g.set_s_accent_color(swatch);
+                g.set_s_accent_custom(false);
             }
             // Save the live settings, not the snapshot: a change made while the
             // theme resolved must not be overwritten.
@@ -273,8 +274,9 @@ pub(super) fn setup_accent_picker(
                 crate::theme::fill_accent(t, &snapshot, is_dark, None)
             });
             if let Some(win) = sw.upgrade() {
-                win.global::<crate::SettingsValues>()
-                    .set_s_accent_color(crate::theme::accent_hex_to_color(&hex));
+                let g = win.global::<crate::SettingsValues>();
+                g.set_s_accent_color(crate::theme::accent_hex_to_color(&hex));
+                g.set_s_accent_custom(true);
             }
         }) {
             tracing::warn!("accent-picker: failed to schedule on the event loop: {e}");

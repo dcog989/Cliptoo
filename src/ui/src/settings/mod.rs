@@ -114,6 +114,7 @@ fn init_settings_properties(
     } else {
         crate::theme::accent_hex_to_color(&s.accent_color)
     });
+    v.set_s_accent_custom(!s.accent_color.trim().is_empty());
     v.set_s_font_family(s.font_family.as_str().into());
     v.set_s_font_size_hundredths((s.font_size * 100.0) as i32);
     v.set_s_preview_font_size_hundredths((s.preview_font_size * 100.0) as i32);

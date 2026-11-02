@@ -16,6 +16,8 @@ export global SettingsValues {
     // Visuals
     in-out property <int> s-theme-idx;
     in-out property <color> s-accent-color;
+    // False while accent-color follows the OS accent, which hides "Clear".
+    in-out property <bool> s-accent-custom;
     in-out property <string> s-font-family;
     in-out property <int> s-font-size-hundredths;
     in-out property <int> s-preview-font-size-hundredths;
