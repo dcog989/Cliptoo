@@ -72,6 +72,13 @@ pub(super) fn setup_setting_commit(
                         crate::autostart::remove_autostart()
                     };
                     if let Err(e) = result {
+                        // Do not keep a setting that does not match the disk:
+                        // the next launch would still not autostart.
+                        s.start_with_system = !enabled;
+                        if let Some(win) = sw.upgrade() {
+                            win.global::<crate::SettingsValues>()
+                                .set_s_start_with_system(!enabled);
+                        }
                         tracing::warn!("autostart: failed to update the desktop file: {e}");
                         super::show_toast(&sw, "Could not update autostart", "error");
                     }
