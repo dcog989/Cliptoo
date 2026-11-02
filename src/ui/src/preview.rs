@@ -100,11 +100,13 @@ struct PreviewContext<'a> {
 
 /// Place the preview next to the pointer. Coordinates are main-window-local;
 /// the preview is a Qt tooltip child of the main window, so Slint translates
-/// them to screen coordinates. Positioning is not clamped to the main window.
-fn position_preview(preview: &crate::PreviewWindow, x: f32, y: f32) {
+/// them to screen coordinates. Clamped to the screen afterwards so a window
+/// parked at an edge cannot open the preview mostly off-screen.
+fn position_preview(app: &crate::AppWindow, preview: &crate::PreviewWindow, x: f32, y: f32) {
     preview
         .window()
         .set_position(slint::LogicalPosition::new(x + POPUP_OFFSET_X, y));
+    crate::drag::clamp_tooltip(preview, app);
 }
 
 /// Preview for a code-snippet clip: the snippet text in a fixed-width popup.
@@ -599,7 +601,7 @@ pub fn setup_preview(
                     handler(&ctx);
                     // Position after the content is set so the window can size
                     // itself before it becomes visible.
-                    position_preview(&preview, x, y);
+                    position_preview(&app, &preview, x, y);
                     let _ = preview.show();
                 });
             }

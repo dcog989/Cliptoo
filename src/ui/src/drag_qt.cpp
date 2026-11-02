@@ -4,9 +4,52 @@
 #include <QMouseEvent>
 #include <QObject>
 #include <QPointingDevice>
+#include <QScreen>
 #include <QSet>
 #include <QWheelEvent>
 #include <QWidget>
+
+namespace {
+
+// Keep a parented tooltip inside the screen's available area. The preview is
+// sized from its content after the new clip is set, so clamping at the desired
+// position alone would use the previous size; this runs again on every resize.
+void clamp_tooltip(QWidget* child, QWidget* parent) {
+    QScreen* screen = parent->screen();
+    if (screen == nullptr) {
+        return;
+    }
+    const QRect avail = screen->availableGeometry();
+    const QPoint pos = child->pos();
+    const QSize size = child->size();
+    const int max_x = qMax(avail.left(), avail.right() - size.width() + 1);
+    const int max_y = qMax(avail.top(), avail.bottom() - size.height() + 1);
+    const QPoint clamped(qBound(avail.left(), pos.x(), max_x),
+                         qBound(avail.top(), pos.y(), max_y));
+    if (clamped != pos) {
+        child->move(clamped);
+    }
+}
+
+class TooltipClampFilter : public QObject {
+public:
+    TooltipClampFilter(QWidget* child, QWidget* parent)
+        : QObject(child), child(child), parent(parent) {}
+
+protected:
+    bool eventFilter(QObject*, QEvent* event) override {
+        if (event->type() == QEvent::Resize || event->type() == QEvent::Show) {
+            clamp_tooltip(child, parent);
+        }
+        return false;
+    }
+
+private:
+    QWidget* child;
+    QWidget* parent;
+};
+
+} // namespace
 
 // Raise and activate the window so the first click isn't consumed just
 // focusing it (e.g. the hamburger menu needing two clicks). On Wayland,
@@ -37,6 +80,14 @@ extern "C" void cliptoo_make_tooltip_window(void* child_ptr, void* parent_ptr) {
                                  | Qt::WindowDoesNotAcceptFocus);
     child->setAttribute(Qt::WA_TransparentForMouseEvents, true);
     child->setAttribute(Qt::WA_ShowWithoutActivating, true);
+    child->installEventFilter(new TooltipClampFilter(child, parent));
+}
+
+// Pull the tooltip back inside the screen's available area after a position
+// change. Slint already handled the coordinate space; this only reads the
+// resulting global geometry, so no scale conversion happens here.
+extern "C" void cliptoo_clamp_tooltip(void* child_ptr, void* parent_ptr) {
+    clamp_tooltip(static_cast<QWidget*>(child_ptr), static_cast<QWidget*>(parent_ptr));
 }
 
 // True while any of this application's top-level windows still holds OS

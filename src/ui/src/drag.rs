@@ -1,7 +1,7 @@
 // The only `unsafe` in the codebase — Qt FFI shims (drag_qt.cpp) for window
-// activation, tooltip parenting, the app-focus query, mouse-wheel delta
-// normalization, and an app-wide left-press hook, which Slint's public API
-// can't provide on the Qt backend.
+// activation, tooltip parenting and placement, the app-focus query, mouse-wheel
+// delta normalization, and an app-wide left-press hook, which Slint's public
+// API can't provide on the Qt backend.
 // Interactive window move is handled by the `WindowMoveArea` element in
 // Toolbar.slint.
 // Crate roots `#![deny(unsafe_code)]`; this module is the sole carve-out.
@@ -23,6 +23,7 @@ unsafe extern "C" {
     fn cliptoo_activate_window(widget: *mut std::ffi::c_void);
     fn cliptoo_minimize_window(widget: *mut std::ffi::c_void);
     fn cliptoo_make_tooltip_window(child: *mut std::ffi::c_void, parent: *mut std::ffi::c_void);
+    fn cliptoo_clamp_tooltip(child: *mut std::ffi::c_void, parent: *mut std::ffi::c_void);
     fn cliptoo_app_has_focus() -> bool;
     fn cliptoo_normalize_wheel_delta();
     fn cliptoo_repair_activation_clicks();
@@ -66,6 +67,22 @@ pub fn make_tooltip_window<C: slint::ComponentHandle, P: slint::ComponentHandle>
     if let (Some(child), Some(parent)) = (child, parent) {
         unsafe {
             cliptoo_make_tooltip_window(
+                child.as_ptr() as *mut std::ffi::c_void,
+                parent.as_ptr() as *mut std::ffi::c_void,
+            );
+        }
+    }
+}
+
+/// Pull the preview tooltip back inside the screen's available area after it
+/// was positioned. Reads the widget's current global geometry, so it adds no
+/// coordinate conversion of its own. Must run on the Qt GUI thread.
+pub fn clamp_tooltip<C: slint::ComponentHandle, P: slint::ComponentHandle>(child: &C, parent: &P) {
+    let child = slint::ComponentHandle::window(child).qt_widget_ptr();
+    let parent = slint::ComponentHandle::window(parent).qt_widget_ptr();
+    if let (Some(child), Some(parent)) = (child, parent) {
+        unsafe {
+            cliptoo_clamp_tooltip(
                 child.as_ptr() as *mut std::ffi::c_void,
                 parent.as_ptr() as *mut std::ffi::c_void,
             );
