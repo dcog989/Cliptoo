@@ -12,7 +12,9 @@ export component DatabasePage inherits ScrollView {
 
     vertical-scrollbar-policy: ScrollBarPolicy.as-needed;
 
-    VerticalLayout {
+    out property <length> content-preferred-height: content-layout.preferred-height;
+
+    content-layout := VerticalLayout {
         padding-left: 16px;
         padding-right: 16px;
         padding-top: 8px;

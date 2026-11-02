@@ -28,11 +28,11 @@ pub(crate) fn show_toast(win: &slint::Weak<crate::SettingsWindow>, message: &str
     });
 }
 
-/// Persist the settings window's current size into `Settings` so a resized
-/// window keeps its size across restarts, and update the window's own
-/// `stored-width`/`stored-height` so its `preferred-*` binding reflects the
-/// resized geometry (otherwise re-showing the window snaps back to the stale
-/// preferred size).
+/// Persist the settings window's current width into `Settings` so a resized
+/// window keeps its width across restarts, and update the window's own
+/// `stored-width` so its `preferred-width` binding reflects the resized
+/// geometry (otherwise re-showing the window snaps back to the stale preferred
+/// width). Height is not persisted: it always fits the page content.
 fn persist_window_size(
     win: &crate::SettingsWindow,
     settings: &std::rc::Rc<std::cell::RefCell<cliptoo_core::Settings>>,
@@ -40,10 +40,8 @@ fn persist_window_size(
 ) {
     let size = win.window().size();
     win.set_stored_width(size.width as f32);
-    win.set_stored_height(size.height as f32);
     let mut s = settings.borrow_mut();
     s.settings_window_width = size.width as f64;
-    s.settings_window_height = size.height as f64;
     let _ = s.save(path);
 }
 
@@ -102,7 +100,6 @@ fn init_settings_properties(
     }
 
     settings_win.set_stored_width(s.settings_window_width as f32);
-    settings_win.set_stored_height(s.settings_window_height as f32);
     let v = settings_win.global::<crate::SettingsValues>();
     v.set_s_hotkey(clean_hotkey_text(s.hotkey.as_str()).into());
     v.set_s_start_with_system(s.start_with_system);

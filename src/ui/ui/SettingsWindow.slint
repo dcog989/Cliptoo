@@ -12,12 +12,20 @@ import { ToastNotification } from "ToastNotification.slint";
 
 export component SettingsWindow inherits Window {
     title: @tr("Cliptoo Settings");
-    // Resizable via the WM frame; the size is persisted in Settings
-    // (settings_window_width/height) and restored here on open.
+    // Resizable via the WM frame; the width is persisted in Settings
+    // (settings_window_width) and restored here on open.
     in-out property <length> stored-width: 560px;
-    in-out property <length> stored-height: 540px;
-    in-out property <length> settings-content-height: Math.max(settings-page.content-preferred-height, shortcuts-page.content-preferred-height);
-    in-out property <length> desired-height: Math.max(root.min-height, Math.max(root.stored-height, 48px + root.settings-content-height + 20px));
+    // Tallest page decides the window height, so switching pages never resizes
+    // the window (a resize moves the title bar on Wayland).
+    in-out property <length> settings-content-height:
+        Math.max(
+            settings-page.content-preferred-height,
+            Math.max(shortcuts-page.content-preferred-height, database-page.content-preferred-height),
+        );
+    // Height fits the tallest page's content (header + page) so no dead space is
+    // left under the last row; shorter pages get some space, longer content
+    // scrolls.
+    in-out property <length> desired-height: Math.max(root.min-height, 48px + root.settings-content-height + 20px);
     preferred-width: root.stored-width;
     preferred-height: root.desired-height;
     min-width: 400px;

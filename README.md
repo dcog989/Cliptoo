@@ -58,26 +58,6 @@ Advanced Linux clipboard manager. Use your clip history as a library of things. 
 - **Tray and autostart.**
 - **App blacklist:** ignore selected applications.
 
-## Tech Stack
-
-| Component           | Technology                                       |
-|---------------------|--------------------------------------------------|
-| Language            | Rust (edition 2024)                              |
-| UI Framework        | Slint (Qt 6 backend)                             |
-| Wayland             | `wl-clipboard-rs`, `wayland-client`, wlr/ext data-control |
-| Database            | SQLite + FTS5 (`rusqlite`)                       |
-| Async Runtime       | Tokio                                            |
-| Image Processing    | `image`, `resvg` (SVG), `jxl-oxide` (JXL), `rqrr` (QR) |
-| Colour Science      | `palette` (Oklab / Oklch / Okhsl)                |
-| D-Bus / Portals     | `zbus`, `ashpd` (portal hotkeys)                 |
-| System Tray         | Slint `SystemTrayIcon`                           |
-| Input Emulation     | `evdev` virtual keyboard                         |
-| HTTP Client         | `reqwest` (rustls)                               |
-
-### LLM Use
-
-Large Language Models (LLMs) were used to assist with code generation, refactoring, and documentation. All AI output was subject to human code review, automated testing, manual testing, and adversarial reviews.
-
 ---
 
 ## Installation
@@ -107,12 +87,33 @@ Local Arch build: `make package && sudo pacman -U .pkg/cliptoo-*.pkg.tar.zst`.
 
 ### From source
 
-See [Prerequisites](#prerequisites). `make install` installs to `/usr/local`; `make uninstall` removes it.
-Data lives in `~/.local/share/Cliptoo/` (DB, images), config in `~/.config/Cliptoo/`, cache in `~/.cache/Cliptoo/`, logs in `~/.local/state/Cliptoo/Logs/`.
+See [Prerequisites](#prerequisites).
+
+```sh
+make install    # installs to `/usr/local`
+```
+
+`make uninstall` to remove it. Data lives in `~/.local/share/Cliptoo/` (DB, images), config in `~/.config/Cliptoo/`, cache in `~/.cache/Cliptoo/`, logs in `~/.local/state/Cliptoo/Logs/`.
 
 ---
 
 ## Development
+
+### Tech Stack
+
+| Component           | Technology                                       |
+|---------------------|--------------------------------------------------|
+| Language            | Rust (edition 2024)                              |
+| UI Framework        | Slint (Qt 6 backend)                             |
+| Wayland             | `wl-clipboard-rs`, `wayland-client`, wlr/ext data-control |
+| Database            | SQLite + FTS5 (`rusqlite`)                       |
+| Async Runtime       | Tokio                                            |
+| Image Processing    | `image`, `resvg` (SVG), `jxl-oxide` (JXL), `rqrr` (QR) |
+| Colour Science      | `palette` (Oklab / Oklch / Okhsl)                |
+| D-Bus / Portals     | `zbus`, `ashpd` (portal hotkeys)                 |
+| System Tray         | Slint `SystemTrayIcon`                           |
+| Input Emulation     | `evdev` virtual keyboard                         |
+| HTTP Client         | `reqwest` (rustls)                               |
 
 ### Prerequisites
 
@@ -164,6 +165,10 @@ cog changelog                 # changelog preview
 Commits must use [Conventional Commits](https://www.conventionalcommits.org/) — enforced on commit via `cog verify`.
 
 ---
+
+## LLM Use
+
+Large Language Models (LLMs) were used to assist with code generation, refactoring, and documentation. All AI output was subject to human code review, automated testing, manual testing, and adversarial reviews.
 
 ## License
 
