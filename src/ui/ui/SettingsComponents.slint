@@ -209,6 +209,9 @@ export component HotkeyRow {
                                 + event.text;
                             root.captured = true;
                             root.committed(root.value);
+                            // Release focus so the next key press does not
+                            // silently overwrite the hotkey just assigned.
+                            ti.clear-focus();
                             accept
                         }
                     }
