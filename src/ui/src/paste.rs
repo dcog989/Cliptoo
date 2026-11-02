@@ -327,3 +327,60 @@ fn simulate_ctrl_v() -> Result<()> {
 fn key_event(key: KeyCode, value: i32) -> InputEvent {
     InputEvent::new(EventType::KEY.0, key.code(), value)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn suppression_hash_is_consumed_once() {
+        let set = PasteSuppressionSet::new();
+        set.insert(7);
+        assert!(set.check_and_remove(7));
+        assert!(!set.check_and_remove(7));
+        assert!(!set.check_and_remove(8));
+    }
+
+    #[test]
+    fn html_registration_covers_raw_and_stripped_payloads() {
+        let raw = "<b>hello</b>";
+        let set = PasteSuppressionSet::new();
+        register_suppression(&set, raw, "html");
+        assert!(set.check_and_remove(sha256_u64(&normalize_line_endings(raw))));
+        let stripped = cliptoo_core::content::strip_html(raw);
+        assert!(set.check_and_remove(sha256_u64(&normalize_line_endings(&stripped))));
+    }
+
+    #[test]
+    fn rtf_registration_covers_raw_and_stripped_payloads() {
+        let raw = r"{\rtf1 hello}";
+        let set = PasteSuppressionSet::new();
+        register_suppression(&set, raw, "rtf");
+        assert!(set.check_and_remove(sha256_u64(&normalize_line_endings(raw))));
+        let stripped = cliptoo_core::content::strip_rtf(raw);
+        assert!(set.check_and_remove(sha256_u64(&normalize_line_endings(&stripped))));
+    }
+
+    #[test]
+    fn plain_text_registration_covers_only_the_payload() {
+        let set = PasteSuppressionSet::new();
+        register_suppression(&set, "hello", "text");
+        assert!(set.check_and_remove(sha256_u64(&normalize_line_endings("hello"))));
+    }
+
+    #[test]
+    fn uri_list_percent_encodes_paths_and_ends_with_crlf() {
+        assert_eq!(
+            build_uri_list("/tmp/a b\n/tmp/c"),
+            "file:///tmp/a%20b\r\nfile:///tmp/c\r\n"
+        );
+    }
+
+    #[test]
+    fn uri_list_skips_paths_that_are_not_absolute() {
+        assert_eq!(
+            build_uri_list("relative/path\n/tmp/ok"),
+            "file:///tmp/ok\r\n"
+        );
+    }
+}

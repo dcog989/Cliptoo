@@ -763,6 +763,37 @@ mod tests {
     use super::*;
 
     #[test]
+    fn live_blacklist_warns_once_when_the_source_is_unknown() {
+        let state = Arc::new(std::sync::Mutex::new(vec![String::from("konsole")]));
+        let mut warned = false;
+        assert!(is_blacklisted_live(&state, None, &mut warned));
+        assert!(warned);
+        // Still dropped, but the warning is not repeated.
+        assert!(is_blacklisted_live(&state, None, &mut warned));
+    }
+
+    #[test]
+    fn live_blacklist_accepts_unlisted_known_sources() {
+        let state = Arc::new(std::sync::Mutex::new(vec![String::from("konsole")]));
+        let mut warned = false;
+        assert!(!is_blacklisted_live(&state, Some("firefox"), &mut warned));
+        assert!(!warned);
+        assert!(is_blacklisted_live(
+            &state,
+            Some("org.kde.konsole"),
+            &mut warned
+        ));
+    }
+
+    #[test]
+    fn empty_live_blacklist_accepts_an_unknown_source_without_warning() {
+        let state = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let mut warned = false;
+        assert!(!is_blacklisted_live(&state, None, &mut warned));
+        assert!(!warned);
+    }
+
+    #[test]
     fn baseline_marks_non_text_selections_as_covered() {
         assert!(!baseline_covers_selection(&ClipboardPayload::Text {
             hash: String::new(),
