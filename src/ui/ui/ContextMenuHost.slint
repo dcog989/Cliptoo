@@ -18,6 +18,9 @@ export component ContextMenuHost {
     in property <[string]> send-to-apps: [];
     in property <length> window-width: 0px;
     in property <length> window-height: 0px;
+    // Set by AppWindow just before open-at: true when the right-click landed
+    // inside the multi-selection.
+    in property <bool> multi-selection: false;
 
     // Read-only for AppWindow: reflects whether any menu popup is open.
     out property <bool> popup-open: main-popup.is-open || format-popup.is-open || send-popup.is-open;
@@ -35,6 +38,8 @@ export component ContextMenuHost {
     callback move-down-one(int);
     callback send-to-clip(int, string);   // id, app name
     callback delete-clip(int);
+    callback delete-selection();          // multi-selection: delete every selected clip
+    callback merge-selection();           // multi-selection: merge into one clip
 
     property <int> ctx-clip-id: 0;
     property <bool> ctx-clip-is-bookmarked: false;
@@ -180,6 +185,7 @@ export component ContextMenuHost {
                 clip-is-bookmarked: root.ctx-clip-is-bookmarked;
                 clip-type: root.ctx-clip-type;
                 send-to-apps: root.send-to-apps;
+                multi-selection: root.multi-selection;
 
                 preview => {
                     root.preview-requested(root.ctx-clip-id, main-popup.x / 1px, main-popup.y / 1px);
@@ -229,6 +235,14 @@ export component ContextMenuHost {
                 }
                 delete => {
                     root.delete-clip(root.ctx-clip-id);
+                    main-popup.close();
+                }
+                delete-selection => {
+                    root.delete-selection();
+                    main-popup.close();
+                }
+                merge-selection => {
+                    root.merge-selection();
                     main-popup.close();
                 }
             }

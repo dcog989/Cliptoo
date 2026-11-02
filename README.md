@@ -39,6 +39,7 @@ Advanced Linux clipboard manager. Use your clip history as a library of things. 
 ### Organization & Tools
 
 - **Bookmarks:** exempt from auto-cleanup.
+- **Multi-select & Merge:** Ctrl+click, Shift+click, or Ctrl+A selects clips; Delete removes the set after a second press, and Ctrl+M (or right-click → Merge Selected) joins it into one clip.
 - **Reordering:** move clips up/down or to the top/bottom.
 - **Transforms:** `upper`, `lower`, `camel`, `kebab`, `snake`, `trim`, `timestamp`, and more.
 - **Send To / Compare:** open clips in an external app or a diff tool.

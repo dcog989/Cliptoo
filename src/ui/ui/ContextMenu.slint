@@ -16,6 +16,9 @@ export component ContextMenu {
     in property <bool> clip-is-bookmarked: false;
     in property <string> clip-type: "text";
     in property <[string]> send-to-apps: [];
+    // True when the right-click landed inside a multi-selection: Delete then
+    // applies to every selected clip.
+    in property <bool> multi-selection: false;
 
     callback preview();
     callback edit();
@@ -23,6 +26,8 @@ export component ContextMenu {
     callback paste();               // default paste for plain text clips
     callback paste-as(string);      // "rich" | "plain"
     callback delete();
+    callback delete-selection();    // multi-selection only
+    callback merge-selection();     // multi-selection only
     callback toggle-bookmark(int, bool);  // id, current is-bookmarked
     callback move-to-top();
     callback move-to-bottom();
@@ -59,7 +64,7 @@ export component ContextMenu {
         + (root.show-rich-paste ? 1 : 0)
         + (root.show-plain-paste ? 1 : 0);
     property <int> send-to-row: root.send-to-apps.length > 0 ? 1 : 0;
-    property <int> row-count: 8 + root.paste-count + (root.is-text-type ? 1 : 0) + root.send-to-row + (root.show-qr ? 1 : 0);
+    property <int> row-count: 8 + root.paste-count + (root.is-text-type ? 1 : 0) + root.send-to-row + (root.show-qr ? 1 : 0) + (root.multi-selection ? 1 : 0);
 
     // Row indices, in menu order. Conditional rows share an index with the row
     // that follows them when hidden, so activation always guards on the same
@@ -69,6 +74,9 @@ export component ContextMenu {
     property <int> idx-plain: root.idx-rich + (root.show-rich-paste ? 1 : 0);
     property <int> idx-format: root.idx-paste + root.paste-count;
     property <int> idx-delete: root.idx-format + (root.is-text-type ? 1 : 0);
+    // Merge sits right after Delete; the move rows shift down when it is shown.
+    property <int> idx-merge: root.idx-delete + 1;
+    property <int> idx-move-top: root.idx-delete + (root.multi-selection ? 2 : 1);
     property <int> idx-bookmark: root.row-count - 1 - root.send-to-row;
 
     // Wrap around so Down at the last row lands on the first.
@@ -97,7 +105,11 @@ export component ContextMenu {
     // First call arms, second call deletes.
     function request-delete() {
         if (root.delete-armed) {
-            root.delete();
+            if (root.multi-selection) {
+                root.delete-selection();
+            } else {
+                root.delete();
+            }
         } else {
             root.delete-armed = true;
         }
@@ -122,13 +134,15 @@ export component ContextMenu {
             root.format-open();
         } else if (i == root.idx-delete) {
             root.request-delete();
-        } else if (i == root.idx-delete + 1) {
+        } else if (root.multi-selection && i == root.idx-merge) {
+            root.merge-selection();
+        } else if (i == root.idx-move-top) {
             root.move-to-top();
-        } else if (i == root.idx-delete + 2) {
+        } else if (i == root.idx-move-top + 1) {
             root.move-to-bottom();
-        } else if (i == root.idx-delete + 3) {
+        } else if (i == root.idx-move-top + 2) {
             root.move-up-one();
-        } else if (i == root.idx-delete + 4) {
+        } else if (i == root.idx-move-top + 3) {
             root.move-down-one();
         } else if (i == root.idx-bookmark) {
             root.toggle-bookmark(root.clip-id, root.clip-is-bookmarked);
@@ -232,7 +246,11 @@ export component ContextMenu {
             MenuSeparator { }
 
             MenuRow {
-                label: root.delete-armed ? @tr("Confirm Delete!!") : @tr("Delete");
+                label: root.delete-armed
+                    ? @tr("Confirm Delete!!")
+                    : root.multi-selection
+                    ? @tr("Delete Selection")
+                    : @tr("Delete");
                 icon: @image-url("icons/trash-2.svg");
                 is-danger: true;
                 selected: root.selected == root.idx-delete;
@@ -241,12 +259,21 @@ export component ContextMenu {
                 }
             }
 
+            if root.multi-selection: MenuRow {
+                label: @tr("Merge Selected");
+                icon: @image-url("icons/merge.svg");
+                selected: root.selected == root.idx-merge;
+                clicked => {
+                    root.merge-selection();
+                }
+            }
+
             MenuSeparator { }
 
             MenuRow {
                 label: @tr("Move to Top");
                 icon: @image-url("icons/arrow-up-to-line.svg");
-                selected: root.selected == root.idx-delete + 1;
+                selected: root.selected == root.idx-move-top;
                 clicked => {
                     root.move-to-top();
                 }
@@ -255,7 +282,7 @@ export component ContextMenu {
             MenuRow {
                 label: @tr("Move to Bottom");
                 icon: @image-url("icons/arrow-down-to-line.svg");
-                selected: root.selected == root.idx-delete + 2;
+                selected: root.selected == root.idx-move-top + 1;
                 clicked => {
                     root.move-to-bottom();
                 }
@@ -264,7 +291,7 @@ export component ContextMenu {
             MenuRow {
                 label: @tr("Move Up One");
                 icon: @image-url("icons/chevron-up.svg");
-                selected: root.selected == root.idx-delete + 3;
+                selected: root.selected == root.idx-move-top + 2;
                 clicked => {
                     root.move-up-one();
                 }
@@ -273,7 +300,7 @@ export component ContextMenu {
             MenuRow {
                 label: @tr("Move Down One");
                 icon: @image-url("icons/chevron-down.svg");
-                selected: root.selected == root.idx-delete + 4;
+                selected: root.selected == root.idx-move-top + 3;
                 clicked => {
                     root.move-down-one();
                 }

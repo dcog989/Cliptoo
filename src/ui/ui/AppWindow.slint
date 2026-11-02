@@ -72,7 +72,10 @@ export component AppWindow inherits Window {
     callback compare-right(int);               // diff compare-left vs id
     callback maintenance-action(string);        // "clear-history" | "clear-caches" | "deadhead" | "reclassify" | "compact" | "export" | "export-bookmarks" | "import"
     callback delete-clip(int);                 // delete clip by id (context menu)
+    callback delete-selection(int, int, string, string);  // bulk delete from the context menu
     callback request-delete(int);              // Delete key: arm, then confirm on a second press
+    callback request-delete-selection(int, int, string, string);  // bulk delete: range + added/removed ids
+    callback merge-selection(int, int, string, string);           // merge selected: range + added/removed ids
     callback refresh-clips();                  // window shown: re-query the current view
     callback copy-clip(int);                   // copy clip to clipboard without pasting
     callback toggle-bookmark(int, bool);        // id, current is-bookmarked (Slint passes current state; Rust flips it)
@@ -234,6 +237,12 @@ export component AppWindow inherits Window {
         request-delete(id) => {
             root.request-delete(id);
         }
+        request-delete-selection(lo, hi, added, removed) => {
+            root.request-delete-selection(lo, hi, added, removed);
+        }
+        merge-selection(lo, hi, added, removed) => {
+            root.merge-selection(lo, hi, added, removed);
+        }
         copy-clip(id) => {
             root.copy-clip(id);
         }
@@ -264,6 +273,7 @@ export component AppWindow inherits Window {
             // over the clip the menu is for).
             root.dismiss-preview();
             root.popup-opening = true;
+            ctx-menu-host.multi-selection = main-clip-area.has-multi-selection();
             ctx-menu-host.open-at(id, x, y, bookmarked, ctype);
             root.popup-opening = false;
         }
@@ -332,6 +342,20 @@ export component AppWindow inherits Window {
         }
         delete-clip(id) => {
             root.delete-clip(id);
+        }
+        delete-selection() => {
+            root.delete-selection(
+                main-clip-area.selection-lo(),
+                main-clip-area.selection-hi(),
+                main-clip-area.selection-added(),
+                main-clip-area.selection-removed());
+        }
+        merge-selection() => {
+            root.merge-selection(
+                main-clip-area.selection-lo(),
+                main-clip-area.selection-hi(),
+                main-clip-area.selection-added(),
+                main-clip-area.selection-removed());
         }
     }
 

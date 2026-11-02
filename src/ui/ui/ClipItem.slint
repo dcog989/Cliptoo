@@ -33,7 +33,7 @@ export component ClipItem {
         }
     }
 
-    callback activated();
+    callback activated(bool, bool);  // ctrl, shift held on the click
     callback right-clicked(float, float);
     callback hovered(float, float);  // mouse-x, mouse-y in logical px relative to this row
     callback hover-exited;
@@ -41,6 +41,10 @@ export component ClipItem {
     // True after the preview timer fires; reset when the cursor leaves the row.
     // Prevents the Timer from re-firing every 300 ms while the hover continues.
     property <bool> preview-triggered: false;
+
+    // Modifiers captured on mouse-down; `clicked` carries no event argument.
+    property <bool> click-ctrl: false;
+    property <bool> click-shift: false;
 
     // Base body-text colour, before the deadhead/match overrides below. When
     // clip-type color coding is on, each type uses its own colour; plain text
@@ -82,7 +86,7 @@ export component ClipItem {
         accessible-item-index: root.row-index;
         accessible-item-selectable: true;
         accessible-item-selected: root.is-selected;
-        accessible-action-default => { root.activated(); }
+        accessible-action-default => { root.activated(false, false); }
 
         // Keyboard selection gets the accent-tinted selection surface plus a
         // dim accent border; pointer hover adds only a surface tint, so it
@@ -330,11 +334,16 @@ export component ClipItem {
         // Interaction
         touch := TouchArea {
             clicked => {
-                root.activated();
+                root.activated(root.click-ctrl, root.click-shift);
             }
             pointer-event(e) => {
-                if e.kind == PointerEventKind.down && e.button == PointerEventButton.right {
-                    root.right-clicked(self.mouse-x / 1px, self.mouse-y / 1px);
+                if e.kind == PointerEventKind.down {
+                    if e.button == PointerEventButton.right {
+                        root.right-clicked(self.mouse-x / 1px, self.mouse-y / 1px);
+                    } else if e.button == PointerEventButton.left {
+                        root.click-ctrl = e.modifiers.control;
+                        root.click-shift = e.modifiers.shift;
+                    }
                 }
             }
             mouse-cursor: pointer;

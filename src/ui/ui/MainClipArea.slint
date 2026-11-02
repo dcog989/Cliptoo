@@ -57,6 +57,9 @@ export component MainClipArea inherits Rectangle {
     callback search-word-backspace();
     callback item-activated(int);
     callback request-delete(int);      // Delete key: arm, then confirm on a second press
+    // Multi-selection bulk actions: row range plus ids added/removed from it.
+    callback request-delete-selection(int, int, string, string);
+    callback merge-selection(int, int, string, string);
     callback copy-clip(int);           // Ctrl+C: copy without pasting
     callback edit-clip(int);           // Ctrl+E: open the editor
     callback request-preview(int, float, float);  // id, x, y
@@ -88,6 +91,16 @@ export component MainClipArea inherits Rectangle {
     function has-selection() -> bool {
         return root.selected-index >= 0 && root.selected-index < root.clips.length;
     }
+
+    // Multi-selection spec, read by AppWindow when the context menu opens and
+    // when its bulk actions run.
+    public pure function has-multi-selection() -> bool {
+        return clip-list.has-multi-selection();
+    }
+    public pure function selection-lo() -> int { return clip-list.selection-lo(); }
+    public pure function selection-hi() -> int { return clip-list.selection-hi(); }
+    public pure function selection-added() -> string { return clip-list.selection-added(); }
+    public pure function selection-removed() -> string { return clip-list.selection-removed(); }
 
     focus-scope := FocusScope {
         // The window-level scope is focused programmatically on show; keeping it
@@ -183,12 +196,35 @@ export component MainClipArea inherits Rectangle {
 
             // ── Text input — only handled when the search field is NOT focused ──
             if (!toolbar.search-focused) {
+                if (e.modifiers.control && e.text.to-lowercase() == "a") {
+                    clip-list.select-all();
+                    return accept;
+                }
+                // Merge selected clips into one new clip.
+                if (e.modifiers.control && e.text.to-lowercase() == "m") {
+                    if (clip-list.has-multi-selection()) {
+                        root.merge-selection(
+                            clip-list.selection-lo(),
+                            clip-list.selection-hi(),
+                            clip-list.selection-added(),
+                            clip-list.selection-removed());
+                    }
+                    return accept;
+                }
                 // Held Delete would remove one clip per repeat, so it is
                 // restricted to discrete presses. The Rust side asks for a
                 // second press: Delete is one key away from Backspace and the
                 // delete cannot be undone.
                 if (e.text == Key.Delete && !e.repeat && root.has-selection()) {
-                    root.request-delete(root.clips[root.selected-index].id);
+                    if (clip-list.has-multi-selection()) {
+                        root.request-delete-selection(
+                            clip-list.selection-lo(),
+                            clip-list.selection-hi(),
+                            clip-list.selection-added(),
+                            clip-list.selection-removed());
+                    } else {
+                        root.request-delete(root.clips[root.selected-index].id);
+                    }
                     return accept;
                 }
                 if (e.modifiers.control && root.has-selection()) {

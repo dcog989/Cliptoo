@@ -5,6 +5,9 @@ use slint::Model;
 
 use crate::helpers;
 
+/// Armed-delete state: the clip ids and the time of the first Delete press.
+type PendingDelete = std::rc::Rc<std::cell::Cell<Option<(Vec<i32>, std::time::Instant)>>>;
+
 /// Handles shared by the clip actions, cloned per callback so each background
 /// task owns its copies.
 #[derive(Clone)]
@@ -86,34 +89,72 @@ pub fn setup_clip_actions(
         let del_deps = deps.clone();
         let del_cmp = compare_left_id.clone();
         ui.on_delete_clip(move |id: i32| {
-            delete_clip(del_deps.clone(), del_cmp.clone(), id);
+            delete_clips(del_deps.clone(), del_cmp.clone(), vec![id]);
         });
     }
 
     // ── Delete clip (Delete key) ─────────────────────────────────────────
     // The key sits next to Backspace and the delete cannot be undone, so one
-    // press only arms the delete and says so; a second press on the same clip
-    // within DELETE_CONFIRM_WINDOW removes it.
+    // press only arms the delete and says so; a second press on the same
+    // clip(s) within DELETE_CONFIRM_WINDOW removes them.
+    let pending_delete: PendingDelete = std::rc::Rc::new(std::cell::Cell::new(None));
     {
         let del_deps = deps.clone();
         let del_cmp = compare_left_id.clone();
-        let pending: std::rc::Rc<std::cell::Cell<Option<(i32, std::time::Instant)>>> =
-            std::rc::Rc::new(std::cell::Cell::new(None));
+        let del_pending = pending_delete.clone();
         ui.on_request_delete(move |id: i32| {
-            let now = std::time::Instant::now();
-            let confirmed = pending.get().is_some_and(|(armed, at)| {
-                armed == id && now.duration_since(at) <= DELETE_CONFIRM_WINDOW
-            });
-            pending.set(None);
-            if confirmed {
-                delete_clip(del_deps.clone(), del_cmp.clone(), id);
-            } else {
-                pending.set(Some((id, now)));
-                if let Some(ui) = del_deps.ui.upgrade() {
-                    show_main_toast(&ui, "Press Delete again to remove", "warn");
-                }
-            }
+            request_delete(
+                del_deps.clone(),
+                del_cmp.clone(),
+                del_pending.clone(),
+                vec![id],
+            );
         });
+    }
+
+    // ── Delete the multi-selection (Delete key) ──────────────────────────
+    // Same arm-then-confirm guard as a single delete; the selection is resolved
+    // against the model at key time so stale range indices cannot hit rows that
+    // moved or disappeared.
+    {
+        let del_deps = deps.clone();
+        let del_cmp = compare_left_id.clone();
+        let del_pending = pending_delete.clone();
+        ui.on_request_delete_selection(
+            move |lo: i32, hi: i32, added: slint::SharedString, removed: slint::SharedString| {
+                let ids = selection_ids(&del_deps.ui, lo, hi, &added, &removed);
+                request_delete(del_deps.clone(), del_cmp.clone(), del_pending.clone(), ids);
+            },
+        );
+    }
+
+    // ── Bulk delete from the context menu ────────────────────────────────
+    // The menu already armed the row on the first click, so this deletes at
+    // once instead of arming again in Rust.
+    {
+        let del_deps = deps.clone();
+        let del_cmp = compare_left_id.clone();
+        ui.on_delete_selection(
+            move |lo: i32, hi: i32, added: slint::SharedString, removed: slint::SharedString| {
+                let ids = selection_ids(&del_deps.ui, lo, hi, &added, &removed);
+                if !ids.is_empty() {
+                    delete_clips(del_deps.clone(), del_cmp.clone(), ids);
+                }
+            },
+        );
+    }
+
+    // ── Merge the multi-selection into one new clip (Ctrl+M) ────────────
+    {
+        let merge_deps = deps.clone();
+        ui.on_merge_selection(
+            move |lo: i32, hi: i32, added: slint::SharedString, removed: slint::SharedString| {
+                let ids = selection_ids(&merge_deps.ui, lo, hi, &added, &removed);
+                if ids.len() >= 2 {
+                    merge_clips(merge_deps.clone(), ids);
+                }
+            },
+        );
     }
 
     // ── Window shown again: pick up what changed while it was hidden ────
@@ -533,16 +574,88 @@ pub fn setup_clip_actions(
     }
 }
 
-/// Remove one clip and mirror it in the list. Shared by the context menu (one
-/// click is deliberate) and the confirmed Delete key.
-fn delete_clip(
+/// Arm a delete (first press) or run it (second press within
+/// `DELETE_CONFIRM_WINDOW` on the same ids). Shared by the single-row and
+/// multi-selection Delete paths.
+fn request_delete(
     deps: ClipDeps,
     compare_left_id: std::rc::Rc<std::cell::Cell<Option<i64>>>,
-    id: i32,
+    pending: PendingDelete,
+    ids: Vec<i32>,
+) {
+    if ids.is_empty() {
+        return;
+    }
+    let now = std::time::Instant::now();
+    let confirmed = pending
+        .take()
+        .is_some_and(|(armed, at)| armed == ids && now.duration_since(at) <= DELETE_CONFIRM_WINDOW);
+    if confirmed {
+        delete_clips(deps, compare_left_id, ids);
+    } else {
+        let message = if ids.len() == 1 {
+            "Press Delete again to remove".to_string()
+        } else {
+            format!("Press Delete again to remove {} clips", ids.len())
+        };
+        pending.set(Some((ids, now)));
+        if let Some(ui) = deps.ui.upgrade() {
+            show_main_toast(&ui, &message, "warn");
+        }
+    }
+}
+
+/// Resolve the ClipList selection spec (row range minus removed ids, plus
+/// added ids) against the current model. Model order is kept so a merge joins
+/// the clips in the order they appear in the list.
+fn selection_ids(
+    ui: &slint::Weak<crate::AppWindow>,
+    lo: i32,
+    hi: i32,
+    added: &str,
+    removed: &str,
+) -> Vec<i32> {
+    let Some(ui) = ui.upgrade() else {
+        return Vec::new();
+    };
+    if hi < 0 {
+        return Vec::new();
+    }
+    let parse = |tokens: &str| -> Vec<i32> {
+        tokens
+            .split(',')
+            .filter_map(|t| t.parse::<i32>().ok())
+            .collect()
+    };
+    let added = parse(added);
+    let removed = parse(removed);
+    let model = ui.get_clips();
+    let mut ids = Vec::new();
+    for index in 0..model.row_count() {
+        let Some(data) = model.row_data(index) else {
+            continue;
+        };
+        let in_range = index as i32 >= lo && index as i32 <= hi;
+        if (in_range && !removed.contains(&data.id)) || added.contains(&data.id) {
+            ids.push(data.id);
+        }
+    }
+    ids
+}
+
+/// Remove clips and mirror it in the list. Shared by the context menu (one
+/// click is deliberate) and the confirmed Delete key.
+fn delete_clips(
+    deps: ClipDeps,
+    compare_left_id: std::rc::Rc<std::cell::Cell<Option<i64>>>,
+    ids: Vec<i32>,
 ) {
     // A deleted clip can no longer be the compare-left; drop a stale reference
     // so a later compare doesn't target a missing row.
-    if compare_left_id.get() == Some(id as i64) {
+    if ids
+        .iter()
+        .any(|id| compare_left_id.get() == Some(*id as i64))
+    {
         compare_left_id.set(None);
     }
     let view = helpers::current_view_state(&deps.ui);
@@ -556,15 +669,22 @@ fn delete_clip(
     tokio::spawn(async move {
         let db_ok = deps
             .db
-            .with(|conn| cliptoo_core::db::queries::delete_clip(conn, id as i64))
+            .with(|conn| {
+                let tx = conn.unchecked_transaction()?;
+                for id in &ids {
+                    cliptoo_core::db::queries::delete_clip(&tx, *id as i64)?;
+                }
+                tx.commit()?;
+                Ok(())
+            })
             .await
             .is_ok();
         if in_place && db_ok {
             let deps2 = deps.clone();
             let _ = deps.ui.upgrade_in_event_loop(move |ui| {
-                if !helpers::remove_rows_by_id(&ui, &[id]) {
+                if !helpers::remove_rows_by_id(&ui, &ids) {
                     // The model changed since the click; re-query so the
-                    // deleted row cannot linger.
+                    // deleted rows cannot linger.
                     helpers::refresh_clips_live(
                         &deps2.db,
                         &deps2.ui,
@@ -576,6 +696,85 @@ fn delete_clip(
             });
         } else {
             deps.refresh(&view).await;
+        }
+    });
+}
+
+/// Join the selected clips into one new clip and refresh the list. Text clips
+/// are newline-joined; when every clip is a file clip the result is classified
+/// as a multi-file payload (path list) instead of plain text.
+fn merge_clips(deps: ClipDeps, ids: Vec<i32>) {
+    let view = helpers::current_view_state(&deps.ui);
+    let count = ids.len();
+    tokio::spawn(async move {
+        let mut parts = Vec::with_capacity(count);
+        let mut all_files = true;
+        for id in &ids {
+            match deps
+                .db
+                .with(|conn| cliptoo_core::db::queries::get_clip_type_and_content(conn, *id as i64))
+                .await
+            {
+                Ok((content, clip_type, _hash)) => {
+                    all_files &=
+                        cliptoo_core::db::models::ClipType::parse(&clip_type).is_file_clip();
+                    parts.push(content);
+                }
+                Err(e) => {
+                    tracing::warn!("merge: clip {id} is no longer in the database: {e}");
+                    let _ = deps.ui.upgrade_in_event_loop(|ui| {
+                        show_main_toast(&ui, "Clip no longer exists", "warn");
+                    });
+                    helpers::refresh_clips_live(
+                        &deps.db,
+                        &deps.ui,
+                        &deps.thumbs,
+                        &deps.favicons,
+                        Some(&deps.tag_prefix),
+                    );
+                    return;
+                }
+            }
+        }
+
+        let normalized = cliptoo_core::content::normalize_line_endings(&parts.join("\n"));
+        let Some(classified) =
+            cliptoo_core::content::ContentProcessor::process(&normalized, all_files)
+        else {
+            return;
+        };
+        let inserted = deps
+            .db
+            .with(|conn| {
+                cliptoo_core::db::queries::insert_or_bump(
+                    conn,
+                    &classified.content,
+                    &classified.preview_content,
+                    &classified.content_hash,
+                    classified.clip_type.as_str(),
+                    Some("Cliptoo"),
+                    classified.was_trimmed,
+                    classified.has_leading_whitespace,
+                    classified.is_multiline,
+                    classified.size_in_bytes,
+                    all_files,
+                )
+            })
+            .await;
+        match inserted {
+            Ok(_) => {
+                deps.refresh(&view).await;
+                let _ = deps.ui.upgrade_in_event_loop(move |ui| {
+                    let message = format!("Merged {count} clips");
+                    show_main_toast(&ui, &message, "info");
+                });
+            }
+            Err(e) => {
+                tracing::error!("merge insert failed: {e:#}");
+                let _ = deps.ui.upgrade_in_event_loop(move |ui| {
+                    show_main_toast(&ui, &format!("Merge failed: {e:#}"), "error");
+                });
+            }
         }
     });
 }

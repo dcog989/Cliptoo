@@ -4,6 +4,11 @@
 // roundtrips. Rust re-points it whenever the model is replaced: the same clip
 // stays selected when it is still in the view, otherwise the first row is.
 //
+// Multi-select (Ctrl+click, Shift+click range, Ctrl+A) is owned here: the
+// selection is the row range [sel-lo, sel-hi], minus the ids in sel-removed,
+// plus the ids in sel-added. An empty range (sel-hi < 0) means plain single
+// selection, tracked by selected-index alone.
+//
 // Keyboard navigation is driven entirely by the parent (AppWindow) via the
 // public nav-* functions below. ClipList holds no FocusScope of its own.
 
@@ -19,6 +24,14 @@ export component ClipList {
     in property <int> quick-paste-slots: 9;
     in property <bool> is-searching: false;
     in-out property <int> selected-index: 0;
+    // Multi-select state. Ids are kept as ",<id>," tokens in a string: Slint
+    // arrays can't be resized from here, and replace-all gives the per-row
+    // membership test the highlight needs.
+    private property <int> sel-anchor: -1;
+    private property <int> sel-lo: -1;
+    private property <int> sel-hi: -1;
+    private property <string> sel-added: "";
+    private property <string> sel-removed: "";
     // Mirrors the window's popup state so rows end their hover session while a
     // menu owns the pointer (see ClipItem.popup-open).
     in property <bool> popup-open: false;
@@ -32,14 +45,105 @@ export component ClipList {
     callback dismiss-preview;
     callback load-more;              // viewport neared the end of the loaded rows
 
-    // Collapses the selection to one cursor row (nav, click).
-    function set-cursor(idx: int) {
-        root.selected-index = idx;
+    // A new model (search, filter, ingest) drops the multi-selection; Rust
+    // re-points selected-index right after.
+    changed clips => {
+        root.reset-selection();
     }
 
-    function click-row(idx: int) {
-        root.set-cursor(idx);
-        root.item-activated(root.clips[idx].id);
+    pure function id-token(id: int) -> string {
+        return ",\{id},";
+    }
+
+    pure function has-id(ids: string, id: int) -> bool {
+        return ids.replace-all(root.id-token(id), "") != ids;
+    }
+
+    pure function in-range(idx: int) -> bool {
+        return root.sel-hi >= 0 && idx >= root.sel-lo && idx <= root.sel-hi;
+    }
+
+    pure function row-selected(id: int, idx: int) -> bool {
+        return root.has-id(root.sel-added, id) || (root.in-range(idx) && !root.has-id(root.sel-removed, id));
+    }
+
+    function reset-selection() {
+        root.sel-anchor = -1;
+        root.sel-lo = -1;
+        root.sel-hi = -1;
+        root.sel-added = "";
+        root.sel-removed = "";
+    }
+
+    // Collapses the selection to one cursor row (nav, hover, click).
+    function set-cursor(idx: int) {
+        root.selected-index = idx;
+        root.sel-anchor = idx;
+        root.sel-lo = -1;
+        root.sel-hi = -1;
+        root.sel-added = "";
+        root.sel-removed = "";
+    }
+
+    function toggle-row(idx: int) {
+        let id = root.clips[idx].id;
+        if (root.row-selected(id, idx)) {
+            if (root.in-range(idx)) {
+                root.sel-removed += root.id-token(id);
+            } else {
+                root.sel-added = root.sel-added.replace-all(root.id-token(id), "");
+            }
+        } else if (root.in-range(idx)) {
+            root.sel-removed = root.sel-removed.replace-all(root.id-token(id), "");
+        } else {
+            root.sel-added += root.id-token(id);
+        }
+    }
+
+    public function select-all() {
+        if (root.clips.length > 0) {
+            root.sel-anchor = root.selected-index;
+            root.sel-lo = 0;
+            root.sel-hi = root.clips.length - 1;
+            root.sel-added = "";
+            root.sel-removed = "";
+        }
+    }
+
+    // True while a multi-row selection exists; a single row is plain selection.
+    public pure function has-multi-selection() -> bool {
+        return root.sel-hi >= 0;
+    }
+
+    // Selection spec consumed by the key handler's bulk actions: the row range
+    // plus the ids added/removed from it. Rust resolves it against the current
+    // model so stale indices cannot act on the wrong rows.
+    public pure function selection-lo() -> int { return root.sel-lo; }
+    public pure function selection-hi() -> int { return root.sel-hi; }
+    public pure function selection-added() -> string { return root.sel-added; }
+    public pure function selection-removed() -> string { return root.sel-removed; }
+
+    function click-row(idx: int, ctrl: bool, shift: bool) {
+        if (shift) {
+            let anchor = root.sel-anchor >= 0 ? root.sel-anchor : root.selected-index;
+            root.sel-anchor = anchor;
+            root.sel-lo = min(anchor, idx);
+            root.sel-hi = max(anchor, idx);
+            root.sel-added = "";
+            root.sel-removed = "";
+            root.selected-index = idx;
+        } else if (ctrl) {
+            if (root.sel-hi < 0) {
+                root.sel-lo = root.selected-index;
+                root.sel-hi = root.selected-index;
+            }
+            root.sel-anchor = idx;
+            root.toggle-row(idx);
+            root.selected-index = idx;
+        } else {
+            root.set-cursor(idx);
+            root.item-activated(root.clips[idx].id);
+        }
     }
 
     public function ensure-visible() {
@@ -147,7 +251,7 @@ export component ClipList {
         accessible-item-count: root.clips.length;
         for clip[idx] in root.clips: ClipItem {
             clip-data: clip;
-            is-selected: idx == root.selected-index;
+            is-selected: root.sel-hi < 0 ? idx == root.selected-index : root.row-selected(clip.id, idx);
             row-index: idx;
             is-alt-row: mod(idx, 2) == 1;
             quick-paste-active: root.quick-paste-active;
@@ -155,13 +259,16 @@ export component ClipList {
             is-searching: root.is-searching;
             popup-open: root.popup-open;
 
-            activated => {
-                root.click-row(idx);
+            activated(ctrl, shift) => {
+                root.click-row(idx, ctrl, shift);
             }
             right-clicked(x, y) => {
-                // Right-click moves the selection to the row under the pointer
-                // so the menu acts on (and highlights) that clip.
-                root.set-cursor(idx);
+                // Right-click inside the multi-selection keeps it, so the menu
+                // acts on the whole selection. Outside it, move the selection
+                // to the row under the pointer first.
+                if (!root.row-selected(clip.id, idx)) {
+                    root.set-cursor(idx);
+                }
                 root.item-right-clicked(clip.id, x, idx * Theme.row-height / 1px + list-view.content-y / 1px + root.list-padding / 1px + y, clip.is-bookmarked, clip.clip-type);
             }
             hovered(mx, my) => {

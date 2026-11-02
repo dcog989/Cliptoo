@@ -132,6 +132,26 @@ export component ShortcutsPage inherits ScrollView {
         }
 
         ShortcutRow {
+            keys: "Ctrl+Click";
+            action: @tr("Add or remove a clip from the selection");
+        }
+
+        ShortcutRow {
+            keys: "Shift+Click";
+            action: @tr("Select a range from the last clicked clip");
+        }
+
+        ShortcutRow {
+            keys: "Ctrl+A";
+            action: @tr("Select all visible clips");
+        }
+
+        ShortcutRow {
+            keys: "Ctrl+M";
+            action: @tr("Merge the selected clips into one");
+        }
+
+        ShortcutRow {
             keys: "Ctrl+C";
             action: @tr("Copy the selected clip without pasting");
         }

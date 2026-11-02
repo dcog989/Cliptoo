@@ -11,7 +11,7 @@
 - `src/core/src/` — cliptoo-core: `content/` parser + classifier, `db/` (schema, queries, pool), `settings.rs`, `logger.rs`, `maintenance/`, `color/`, `export.rs`, `transform.rs`.
 - `src/ui/src/` — binary and OS integration: `main.rs` (wiring), `hotkeys.rs` (portal), `drag.rs` (only `unsafe`), `clipboard/`, `settings/`, `theme/`.
 - `src/ui/ui/*.slint` — windows and components; Rust types come from `build.rs` (`include_modules!`).
-- `src/ui/lang/en/LC_MESSAGES/cliptoo.po` — translations; regenerate with `make translations`.
+- `src/ui/lang/en/LC_MESSAGES/cliptoo.po` — translations; edit by hand (see Gotchas: never run `make translations`).
 - `src/core/tests/` — integration tests (temp dirs, no fixtures).
 - `packaging/PKGBUILD`, `Makefile`, `lefthook.yml`, `cog.toml`, `scripts/sync_version.sh`.
 
@@ -37,6 +37,7 @@
 - `#![deny(unsafe_code)]` in both crates; the sole exception is `src/ui/src/drag.rs` (Qt FFI).
 - `reqwest` uses `rustls-no-provider`: `main.rs` installs the ring provider before any client is built.
 - `zbus` is pinned to 5 to match `ashpd`; bump both together.
+- **Never run `make translations` or `slint-tr-extractor`.** The extractor exhausts RAM and swap (a 2 GB memory cap still thrashes) and the Makefile truncates `cliptoo.po` before extraction, so a killed run leaves the catalog at 0 bytes. Add or update `.po` entries by hand. Only consider the extractor again after confirming a fixed version and running it against a copy with an explicit memory cap.
 
 ### Tools
 

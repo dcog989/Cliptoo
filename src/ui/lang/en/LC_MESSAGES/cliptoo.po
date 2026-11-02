@@ -646,6 +646,16 @@ msgctxt "ContextMenu"
 msgid "Delete"
 msgstr ""
 
+#: src/ui/ui/ContextMenu.slint:246
+msgctxt "ContextMenu"
+msgid "Delete Selection"
+msgstr ""
+
+#: src/ui/ui/ContextMenu.slint:263
+msgctxt "ContextMenu"
+msgid "Merge Selected"
+msgstr ""
+
 #: src/ui/ui/ContextMenu.slint:234
 msgctxt "ContextMenu"
 msgid "Confirm Delete!!"
@@ -1365,65 +1375,85 @@ msgstr ""
 
 #: src/ui/ui/ShortcutsPage.slint:136
 msgctxt "ShortcutsPage"
-msgid "Copy the selected clip without pasting"
+msgid "Add or remove a clip from the selection"
 msgstr ""
 
 #: src/ui/ui/ShortcutsPage.slint:141
 msgctxt "ShortcutsPage"
-msgid "Edit the selected clip"
+msgid "Select a range from the last clicked clip"
 msgstr ""
 
 #: src/ui/ui/ShortcutsPage.slint:146
 msgctxt "ShortcutsPage"
-msgid "Quick-paste that clip"
+msgid "Select all visible clips"
 msgstr ""
 
 #: src/ui/ui/ShortcutsPage.slint:151
 msgctxt "ShortcutsPage"
-msgid "Search"
-msgstr ""
-
-#: src/ui/ui/ShortcutsPage.slint:155
-msgctxt "ShortcutsPage"
-msgid "Typing"
+msgid "Merge the selected clips into one"
 msgstr ""
 
 #: src/ui/ui/ShortcutsPage.slint:156
 msgctxt "ShortcutsPage"
-msgid "Search — no need to click the field first"
+msgid "Copy the selected clip without pasting"
 msgstr ""
 
 #: src/ui/ui/ShortcutsPage.slint:161
 msgctxt "ShortcutsPage"
-msgid "Delete the last search character"
+msgid "Edit the selected clip"
 msgstr ""
 
 #: src/ui/ui/ShortcutsPage.slint:166
 msgctxt "ShortcutsPage"
-msgid "Delete the last search word"
+msgid "Quick-paste that clip"
 msgstr ""
 
 #: src/ui/ui/ShortcutsPage.slint:171
 msgctxt "ShortcutsPage"
-msgid "Clear the search, then close the window"
+msgid "Search"
+msgstr ""
+
+#: src/ui/ui/ShortcutsPage.slint:175
+msgctxt "ShortcutsPage"
+msgid "Typing"
 msgstr ""
 
 #: src/ui/ui/ShortcutsPage.slint:176
 msgctxt "ShortcutsPage"
-msgid "Editor"
+msgid "Search — no need to click the field first"
 msgstr ""
 
 #: src/ui/ui/ShortcutsPage.slint:181
 msgctxt "ShortcutsPage"
-msgid "Save the clip"
+msgid "Delete the last search character"
 msgstr ""
 
 #: src/ui/ui/ShortcutsPage.slint:186
 msgctxt "ShortcutsPage"
-msgid "Save from the tags field"
+msgid "Delete the last search word"
 msgstr ""
 
 #: src/ui/ui/ShortcutsPage.slint:191
+msgctxt "ShortcutsPage"
+msgid "Clear the search, then close the window"
+msgstr ""
+
+#: src/ui/ui/ShortcutsPage.slint:196
+msgctxt "ShortcutsPage"
+msgid "Editor"
+msgstr ""
+
+#: src/ui/ui/ShortcutsPage.slint:201
+msgctxt "ShortcutsPage"
+msgid "Save the clip"
+msgstr ""
+
+#: src/ui/ui/ShortcutsPage.slint:206
+msgctxt "ShortcutsPage"
+msgid "Save from the tags field"
+msgstr ""
+
+#: src/ui/ui/ShortcutsPage.slint:211
 msgctxt "ShortcutsPage"
 msgid "Cancel (press twice to discard unsaved changes)"
 msgstr ""
