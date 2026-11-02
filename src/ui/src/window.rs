@@ -11,7 +11,8 @@ const SUMMON_REMAP_DELAY: Duration = Duration::from_millis(50);
 pub fn hide_window(ui: &crate::AppWindow) {
     ui.set_window_visible(false);
     // Closing to tray clears any active search so the next show() reopens the
-    // full list rather than a stale filtered set with an empty search box.
+    // results for the current type filter rather than a stale search result set
+    // with an empty search box.
     if !ui.get_search_text().is_empty() {
         ui.set_search_text("".into());
         ui.invoke_search_changed("".into());
@@ -44,6 +45,9 @@ pub fn show_window(ui: &crate::AppWindow) -> Result<(), slint::PlatformError> {
         // Always start the clip list at the top on show, rather than
         // wherever it was last scrolled to.
         ui.invoke_reset_scroll();
+        // Ingests are ignored while the window is hidden
+        // (see helpers::refresh_clips_live), so rebuild the list once here.
+        ui.invoke_refresh_clips();
     }
     result
 }
@@ -258,7 +262,11 @@ pub fn setup_window_active_poll(ui: &crate::AppWindow) -> slint::Timer {
         Duration::from_millis(200),
         move || {
             if let Some(ui) = weak.upgrade() {
-                ui.set_window_active(crate::drag::app_has_focus());
+                // The value is only read while the window is visible (the Slint
+                // focus poll); skip the Qt query while it sits in the tray.
+                if ui.get_window_visible() {
+                    ui.set_window_active(crate::drag::app_has_focus());
+                }
             }
         },
     );

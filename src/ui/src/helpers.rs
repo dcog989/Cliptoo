@@ -138,6 +138,10 @@ pub fn current_view_state(ui: &slint::Weak<crate::AppWindow>) -> ViewState {
 /// Re-query using the view (query/filter) the window shows right now. The live
 /// Slint properties are read in an event-loop callback, so a background ingest
 /// can never apply results for a view the user has already left.
+///
+/// A hidden window is not rebuilt: every copy used to re-query and reconvert
+/// the whole loaded list (up to `max_clips`) while the app sat in the tray. The
+/// show path (`AppWindow.refresh-clips`) refreshes once when it opens again.
 pub fn refresh_clips_live(
     db: &Arc<cliptoo_core::db::DbPool>,
     ui: &slint::Weak<crate::AppWindow>,
@@ -151,6 +155,9 @@ pub fn refresh_clips_live(
     let prefix = tag_prefix.map(str::to_string);
     let weak = ui.clone();
     let _ = weak.upgrade_in_event_loop(move |ui| {
+        if !ui.get_window_visible() {
+            return;
+        }
         let view = current_view_state(&ui.as_weak());
         let ui = ui.as_weak();
         tokio::spawn(async move {
@@ -198,9 +205,7 @@ pub async fn refresh_clips(
             view.filter
         );
         let _ = ui.upgrade_in_event_loop(|ui| {
-            ui.set_toast_message("Search failed; see the log".into());
-            ui.set_toast_severity("error".into());
-            ui.set_toast_visible(true);
+            crate::actions::show_main_toast(&ui, "Search failed; see the log", "error");
         });
     }
     if let Ok(clips) = result {

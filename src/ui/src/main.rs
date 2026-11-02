@@ -255,17 +255,9 @@ async fn main() -> Result<()> {
         watcher_connected,
     );
 
-    // Populate the clip list from history on startup. The listener no longer
-    // ingests the pre-existing clipboard at launch (it seeds the change-detection
-    // baseline instead), so that startup read no longer doubles as the initial
-    // list refresh; without this the list stays empty until the first new copy.
-    {
-        let db = db.clone();
-        let ui_weak = ui.as_weak();
-        let td = dirs.thumbnails_dir.clone();
-        let fd = dirs.favicons_dir.clone();
-        helpers::refresh_clips_live(&db, &ui_weak, &td, &fd, None);
-    }
+    // The clip list is populated by `show_window` (AppWindow `refresh-clips`):
+    // background refreshes are skipped while the window is hidden, so the show
+    // path is the one that fills the list from history.
 
     // ── Global shortcuts ───────────────────────────────────────────────
     {
