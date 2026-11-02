@@ -51,7 +51,7 @@ export component SettingsHeader {
                     border-radius: 8px;
                     background: back-touch.has-hover ? Theme.bg-row-hover : Theme.bg-input;
                     border-width: 1px;
-                    border-color: back-touch.has-hover ? Theme.accent-primary : transparent;
+                    border-color: back-touch.has-hover ? Theme.border-subtle : transparent;
                     animate background { duration: Theme.anim-fast; }
                     animate border-color { duration: Theme.anim-fast; }
                     Image {
@@ -94,7 +94,7 @@ export component SettingsHeader {
                 property <bool> hot: shortcuts-touch.has-hover && !root.on-shortcuts-page;
                 background: root.on-shortcuts-page ? Theme.accent-fill : hot ? Theme.bg-row-hover : Theme.bg-input;
                 border-width: 1px;
-                border-color: hot ? Theme.accent-primary : transparent;
+                border-color: hot ? Theme.border-subtle : transparent;
                 animate background { duration: Theme.anim-fast; }
                 animate border-color { duration: Theme.anim-fast; }
                 Image {
@@ -130,7 +130,7 @@ export component SettingsHeader {
                 property <bool> hot: database-touch.has-hover && !root.on-database-page;
                 background: root.on-database-page ? Theme.accent-fill : hot ? Theme.bg-row-hover : Theme.bg-input;
                 border-width: 1px;
-                border-color: hot ? Theme.accent-primary : transparent;
+                border-color: hot ? Theme.border-subtle : transparent;
                 animate background { duration: Theme.anim-fast; }
                 animate border-color { duration: Theme.anim-fast; }
                 Image {

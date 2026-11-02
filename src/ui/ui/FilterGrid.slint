@@ -41,11 +41,11 @@ export component FilterGrid {
                     height: 24px;
                     source: ClipTypeMap.icon-for(key);
                     // The active cell is a solid accent shape, so it takes the
-                    // contrast foreground. A hovered cell only gets the tinted
-                    // surface, which is too light for `fg-muted`, so its icon
-                    // lifts to `fg-clip-list`; when color coding is on the clip
-                    // type's tint stands in. The bookmark cell always keeps the
-                    // bookmark colour, like the bookmark icon on a row.
+                    // contrast foreground. A hovered cell gets the neutral hover
+                    // surface, where `fg-muted` is too dim, so its icon lifts to
+                    // `fg-clip-list`; when color coding is on the clip type's tint
+                    // stands in. The bookmark cell always keeps the bookmark
+                    // colour, like the bookmark icon on a row.
                     colorize: root.active-filter == key
                         ? Theme.accent-fg
                         : key == "bookmarked"

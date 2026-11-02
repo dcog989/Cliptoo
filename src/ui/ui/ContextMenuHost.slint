@@ -342,10 +342,6 @@ export component ContextMenuHost {
                     label: @tr("Back");
                     icon: @image-url("icons/arrow-left.svg");
                     selected: root.send-selected == 0;
-                    hover-highlight: false;
-                    hovered => {
-                        root.send-selected = 0;
-                    }
                     clicked => {
                         root.show-main();
                     }
@@ -358,10 +354,6 @@ export component ContextMenuHost {
                 for app-name[idx] in root.send-to-apps: MenuRow {
                     label: app-name;
                     selected: root.send-selected == idx + 1;
-                    hover-highlight: false;
-                    hovered => {
-                        root.send-selected = idx + 1;
-                    }
                     clicked => {
                         root.send-to-clip(root.ctx-clip-id, app-name);
                         send-popup.close();

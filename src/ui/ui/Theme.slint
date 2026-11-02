@@ -5,14 +5,18 @@
 // Components reference Theme.* rather than hardcoding values.
 
 export global Theme {
+    // True when the resolved theme is dark. Filled from Rust so hover/emphasis
+    // directions follow the actual mode instead of assuming dark.
+    in property <bool> dark: true;
+
     // ── Colors (populated by Rust in theme::fill_theme) ─────────────────────
     // Accent palette derived from settings.accent_color (or the OS accent),
     // with the border tint derived in OKLCH. Defaults are fallbacks used only
     // until Rust applies the real values.
     in property <color> accent-primary:    #7C6EE6;
-    // Filled accent shapes: toggle tracks, slider thumbs, pills, badges and
-    // hovered rows. Derived with a lower APCA floor than `accent-primary` so
-    // the picked color survives instead of being lightened into a pastel.
+    // Filled accent shapes: toggle tracks, slider thumbs, pills and badges.
+    // Derived with a lower APCA floor than `accent-primary` so the picked
+    // color survives instead of being lightened into a pastel.
     in property <color> accent-fill:       #7C6EE6;
     in property <color> border-accent:     #5A5A5A;
     // Foreground for FTS search-match spans. Calibrated from the accent's hue
@@ -27,15 +31,12 @@ export global Theme {
     in property <color> bg-primary:        #181818;
     in property <color> bg-header:         #121212;
     in property <color> bg-row-alt:        #1C1C1C;
-    // Hovered-row surface: a low-chroma tint of the accent at a fixed lightness
-    // (filled from Rust). Body text keeps its normal foreground; content that
-    // is muted at rest lifts to `fg-clip-list`. Only solid `accent-fill`
-    // surfaces switch to `accent-fg`.
-    in property <color> bg-row-hover:      #49408B;
-    // Selected-row surface: the accent hue one step darker than `bg-row-hover`,
-    // so muted at-rest icons/text stay legible on it (filled from Rust). Both
-    // row tints keep the accent's C/L ratio, so the darker surface is not
-    // relatively more colorful.
+    // Hovered-row surface: a neutral step away from the page colour (lighter
+    // in dark mode, darker in light mode), never the accent. Filled from Rust.
+    in property <color> bg-row-hover:      #2D2D2D;
+    // Selected-row surface: the accent hue at a low lightness, so muted
+    // at-rest icons/text stay legible on it (filled from Rust). Keyboard
+    // selection keeps the accent; pointer hover never does.
     in property <color> bg-row-selected:   #30295F;
     in property <color> bg-input:          #242424;
 

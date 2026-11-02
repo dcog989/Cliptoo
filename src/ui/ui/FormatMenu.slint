@@ -75,10 +75,6 @@ export component FormatMenu {
                 label: @tr("Back");
                 icon: @image-url("icons/arrow-left.svg");
                 selected: root.selected == 0;
-                hover-highlight: false;
-                hovered => {
-                    root.selected = 0;
-                }
                 clicked => {
                     root.back();
                 }
@@ -92,10 +88,6 @@ export component FormatMenu {
                 label: @tr("UPPER CASE");
                 icon: @image-url("icons/case-upper.svg");
                 selected: root.selected == 1;
-                hover-highlight: false;
-                hovered => {
-                    root.selected = 1;
-                }
                 clicked => {
                     root.format("upper");
                 }
@@ -105,10 +97,6 @@ export component FormatMenu {
                 label: @tr("lower case");
                 icon: @image-url("icons/case-lower.svg");
                 selected: root.selected == 2;
-                hover-highlight: false;
-                hovered => {
-                    root.selected = 2;
-                }
                 clicked => {
                     root.format("lower");
                 }
@@ -118,10 +106,6 @@ export component FormatMenu {
                 label: @tr("Capitalize Words");
                 icon: @image-url("icons/case-sensitive.svg");
                 selected: root.selected == 3;
-                hover-highlight: false;
-                hovered => {
-                    root.selected = 3;
-                }
                 clicked => {
                     root.format("capitalize");
                 }
@@ -131,10 +115,6 @@ export component FormatMenu {
                 label: @tr("Sentence case");
                 icon: @image-url("icons/case-sensitive.svg");
                 selected: root.selected == 4;
-                hover-highlight: false;
-                hovered => {
-                    root.selected = 4;
-                }
                 clicked => {
                     root.format("sentence");
                 }
@@ -144,10 +124,6 @@ export component FormatMenu {
                 label: @tr("iNVERT cASE");
                 icon: @image-url("icons/case-sensitive.svg");
                 selected: root.selected == 5;
-                hover-highlight: false;
-                hovered => {
-                    root.selected = 5;
-                }
                 clicked => {
                     root.format("invert");
                 }
@@ -161,10 +137,6 @@ export component FormatMenu {
                 label: @tr("kebab-case");
                 icon: @image-url("icons/text.svg");
                 selected: root.selected == 6;
-                hover-highlight: false;
-                hovered => {
-                    root.selected = 6;
-                }
                 clicked => {
                     root.format("kebab");
                 }
@@ -174,10 +146,6 @@ export component FormatMenu {
                 label: @tr("snake_case");
                 icon: @image-url("icons/text.svg");
                 selected: root.selected == 7;
-                hover-highlight: false;
-                hovered => {
-                    root.selected = 7;
-                }
                 clicked => {
                     root.format("snake");
                 }
@@ -187,10 +155,6 @@ export component FormatMenu {
                 label: @tr("camelCase");
                 icon: @image-url("icons/text.svg");
                 selected: root.selected == 8;
-                hover-highlight: false;
-                hovered => {
-                    root.selected = 8;
-                }
                 clicked => {
                     root.format("camel");
                 }
@@ -200,10 +164,6 @@ export component FormatMenu {
                 label: @tr("De-slug");
                 icon: @image-url("icons/text.svg");
                 selected: root.selected == 9;
-                hover-highlight: false;
-                hovered => {
-                    root.selected = 9;
-                }
                 clicked => {
                     root.format("deslug");
                 }
@@ -217,10 +177,6 @@ export component FormatMenu {
                 label: @tr("Trim Whitespace");
                 icon: @image-url("icons/scissors.svg");
                 selected: root.selected == 10;
-                hover-highlight: false;
-                hovered => {
-                    root.selected = 10;
-                }
                 clicked => {
                     root.format("trim");
                 }
@@ -230,10 +186,6 @@ export component FormatMenu {
                 label: @tr("Remove Line Breaks");
                 icon: @image-url("icons/text-wrap.svg");
                 selected: root.selected == 11;
-                hover-highlight: false;
-                hovered => {
-                    root.selected = 11;
-                }
                 clicked => {
                     root.format("remove_lf");
                 }
@@ -243,10 +195,6 @@ export component FormatMenu {
                 label: @tr("Normalize LF");
                 icon: @image-url("icons/text-wrap.svg");
                 selected: root.selected == 12;
-                hover-highlight: false;
-                hovered => {
-                    root.selected = 12;
-                }
                 clicked => {
                     root.format("lf1");
                 }
@@ -256,10 +204,6 @@ export component FormatMenu {
                 label: @tr("Add Timestamp");
                 icon: @image-url("icons/clock.svg");
                 selected: root.selected == 13;
-                hover-highlight: false;
-                hovered => {
-                    root.selected = 13;
-                }
                 clicked => {
                     root.format("timestamp");
                 }

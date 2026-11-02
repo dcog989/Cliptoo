@@ -1,5 +1,5 @@
 // MenuRow.slint — A single row for a popup menu: optional icon + label +
-// optional right-arrow, with hover/press accent styling.
+// optional right-arrow, with selected/pressed accent styling and a hover tint.
 // Used by ContextMenu (32px rows) and HamburgerMenu (36px rows).
 
 import { Theme } from "Theme.slint";
@@ -11,26 +11,12 @@ export component MenuRow {
     in property <bool> has-arrow: false;
     // Keyboard selection highlight, driven by the owning menu.
     in property <bool> selected: false;
-    // Whether pointer hover lights the row. Menus that move `selected` from
-    // hover turn this off, so only one row is ever highlighted.
-    in property <bool> hover-highlight: true;
-    // Raised when the pointer starts hovering this row, so a menu can move its
-    // keyboard highlight to follow the mouse.
-    callback hovered();
     // "…" submenu affordance, sits at the row's right edge.
     in property <bool> is-separator: false;
     in property <length> row-height: 32px;
     callback clicked;
 
     height: root.is-separator ? 9px : root.row-height;
-
-    // `changed` only accepts a bare property name, not an element property path.
-    property <bool> hovering: touch.has-hover;
-    changed hovering => {
-        if (root.hovering) {
-            root.hovered();
-        }
-    }
 
     // Separator line; only visible for separator rows. Always instantiated so
     // the row keeps a content-based preferred size (if-conditional children
@@ -46,18 +32,21 @@ export component MenuRow {
         visible: !root.is-separator;
         border-radius: 5px;
         border-width: 1px;
-        // A destructive row (Delete) swaps the accent hover for a red fill,
-        // a pale outline and pale content.
-        property <bool> hot: root.selected || (touch.has-hover && root.hover-highlight);
-        property <bool> danger-hot: root.is-danger && (touch.pressed || hot);
-        border-color: touch.pressed || hot
+        // A destructive row (Delete) swaps the hover fill for a red fill and
+        // pale content, plus a pale outline while active.
+        // Keyboard selection keeps the accent outline; pointer hover is only a
+        // surface tint, so it never reads as the row Enter will activate.
+        property <bool> active: root.selected || touch.pressed;
+        property <bool> hover-only: touch.has-hover && !active;
+        property <bool> danger-hot: root.is-danger && (active || hover-only);
+        border-color: active
             ? (root.is-danger ? Theme.danger-on-bg : Theme.accent-primary)
             : transparent;
         background: danger-hot
             ? Theme.danger-bg
-            : touch.pressed
+            : active
             ? Theme.bg-row-selected
-            : hot
+            : hover-only
             ? Theme.bg-row-hover
             : transparent;
 

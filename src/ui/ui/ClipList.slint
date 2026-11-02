@@ -32,7 +32,7 @@ export component ClipList {
     callback dismiss-preview;
     callback load-more;              // viewport neared the end of the loaded rows
 
-    // Collapses the selection to one cursor row (nav, hover, click).
+    // Collapses the selection to one cursor row (nav, click).
     function set-cursor(idx: int) {
         root.selected-index = idx;
     }
@@ -153,10 +153,6 @@ export component ClipList {
             }
             hovered(mx, my) => {
                 root.request-preview(clip.id, mx, idx * Theme.row-height / 1px + list-view.content-y / 1px + root.list-padding / 1px + my);
-            }
-            // Hover moves the cursor row, like a menu.
-            hover-entered => {
-                root.selected-index = idx;
             }
             hover-exited => {
                 root.dismiss-preview();

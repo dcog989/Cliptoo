@@ -101,14 +101,14 @@ export component DatabasePage inherits ScrollView {
                 col: Math.mod(idx, 2);
                 height: 30px;
                 border-radius: 6px;
-                // Hover lift matches MenuRow: an accent-tinted surface with an
-                // accent outline; the destructive action keeps its danger fill
-                // and takes the pale danger outline instead.
+                // Hover lift matches MenuRow: a neutral surface with a subtle
+                // outline; the destructive action keeps its danger fill and
+                // takes the pale danger outline instead.
                 property <bool> hot: action-touch.has-hover;
                 property <bool> danger: action.key == "clear-history";
                 border-width: 1px;
                 border-color: hot
-                    ? (danger ? Theme.danger-on-bg : Theme.accent-primary)
+                    ? (danger ? Theme.danger-on-bg : Theme.border-subtle)
                     : transparent;
                 background: danger
                     ? Theme.danger-bg

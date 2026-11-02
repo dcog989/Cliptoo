@@ -143,10 +143,6 @@ export component ContextMenu {
                 label: @tr("Preview");
                 icon: @image-url("icons/eye.svg");
                 selected: root.selected == 0;
-                hover-highlight: false;
-                hovered => {
-                    root.selected = 0;
-                }
                 clicked => {
                     root.preview();
                 }
@@ -156,10 +152,6 @@ export component ContextMenu {
                 label: @tr("Edit");
                 icon: @image-url("icons/pencil.svg");
                 selected: root.selected == 1;
-                hover-highlight: false;
-                hovered => {
-                    root.selected = 1;
-                }
                 clicked => {
                     root.edit();
                 }
@@ -172,10 +164,6 @@ export component ContextMenu {
                 label: @tr("Paste as Plain Text");
                 icon: @image-url("icons/text.svg");
                 selected: root.selected == root.idx-paste;
-                hover-highlight: false;
-                hovered => {
-                    root.selected = root.idx-paste;
-                }
                 clicked => {
                     root.paste();
                 }
@@ -184,10 +172,6 @@ export component ContextMenu {
                 label: @tr("Paste as Rich Text");
                 icon: @image-url("icons/text-initial.svg");
                 selected: root.selected == root.idx-rich;
-                hover-highlight: false;
-                hovered => {
-                    root.selected = root.idx-rich;
-                }
                 clicked => {
                     root.paste-as("rich");
                 }
@@ -196,10 +180,6 @@ export component ContextMenu {
                 label: @tr("Paste as Plain Text");
                 icon: @image-url("icons/text.svg");
                 selected: root.selected == root.idx-plain;
-                hover-highlight: false;
-                hovered => {
-                    root.selected = root.idx-plain;
-                }
                 clicked => {
                     root.paste-as("plain");
                 }
@@ -209,10 +189,6 @@ export component ContextMenu {
                 icon: @image-url("icons/pencil-line.svg");
                 has-arrow: true;
                 selected: root.selected == root.idx-format;
-                hover-highlight: false;
-                hovered => {
-                    root.selected = root.idx-format;
-                }
                 clicked => {
                     root.format-open();
                 }
@@ -226,10 +202,6 @@ export component ContextMenu {
                 icon: @image-url("icons/trash-2.svg");
                 is-danger: true;
                 selected: root.selected == root.idx-delete;
-                hover-highlight: false;
-                hovered => {
-                    root.selected = root.idx-delete;
-                }
                 clicked => {
                     root.delete();
                 }
@@ -243,10 +215,6 @@ export component ContextMenu {
                 label: @tr("Move to Top");
                 icon: @image-url("icons/arrow-up-to-line.svg");
                 selected: root.selected == root.idx-delete + 1;
-                hover-highlight: false;
-                hovered => {
-                    root.selected = root.idx-delete + 1;
-                }
                 clicked => {
                     root.move-to-top();
                 }
@@ -256,10 +224,6 @@ export component ContextMenu {
                 label: @tr("Move to Bottom");
                 icon: @image-url("icons/arrow-down-to-line.svg");
                 selected: root.selected == root.idx-delete + 2;
-                hover-highlight: false;
-                hovered => {
-                    root.selected = root.idx-delete + 2;
-                }
                 clicked => {
                     root.move-to-bottom();
                 }
@@ -269,10 +233,6 @@ export component ContextMenu {
                 label: @tr("Move Up One");
                 icon: @image-url("icons/chevron-up.svg");
                 selected: root.selected == root.idx-delete + 3;
-                hover-highlight: false;
-                hovered => {
-                    root.selected = root.idx-delete + 3;
-                }
                 clicked => {
                     root.move-up-one();
                 }
@@ -282,10 +242,6 @@ export component ContextMenu {
                 label: @tr("Move Down One");
                 icon: @image-url("icons/chevron-down.svg");
                 selected: root.selected == root.idx-delete + 4;
-                hover-highlight: false;
-                hovered => {
-                    root.selected = root.idx-delete + 4;
-                }
                 clicked => {
                     root.move-down-one();
                 }
@@ -299,10 +255,6 @@ export component ContextMenu {
                 label: root.clip-is-bookmarked ? @tr("Remove Bookmark") : @tr("Bookmark");
                 icon: root.clip-is-bookmarked ? @image-url("icons/bookmark-x.svg") : @image-url("icons/bookmark-plus.svg");
                 selected: root.selected == root.idx-bookmark;
-                hover-highlight: false;
-                hovered => {
-                    root.selected = root.idx-bookmark;
-                }
                 clicked => {
                     root.toggle-bookmark(root.clip-id, root.clip-is-bookmarked);
                 }
@@ -316,10 +268,6 @@ export component ContextMenu {
                 icon: @image-url("icons/send.svg");
                 has-arrow: true;
                 selected: root.selected == root.idx-bookmark + 1;
-                hover-highlight: false;
-                hovered => {
-                    root.selected = root.idx-bookmark + 1;
-                }
                 clicked => {
                     root.send-to-open();
                 }

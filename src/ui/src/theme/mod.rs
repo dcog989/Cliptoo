@@ -79,7 +79,7 @@ pub(crate) fn default_accent_color() -> Color {
 }
 
 /// Apply only the accent-derived tokens (accent, its foregrounds, and the
-/// hover background) to a `Theme` global, leaving the rest of the palette
+/// selected-row surface) to a `Theme` global, leaving the rest of the palette
 /// untouched. Used by the settings accent picker so a live preview updates
 /// just the accent instead of recomputing the whole theme.
 pub fn fill_accent(
@@ -89,14 +89,8 @@ pub fn fill_accent(
     system_accent: Option<(u8, u8, u8)>,
 ) {
     let border_accent_l = if is_dark { 0.54 } else { 0.40 };
-    // Hovered-row surface. The accent's hue at a fixed OKLCH lightness well
-    // above the other row states (page 0.21 / alt 0.25 / selected 0.32), at a
-    // step (≈2:1) well under the 4:1 block the solid accent gave. Muted
-    // content lifts to `fg-clip-list` on hover; `fg-muted` only reaches 1.7:1
-    // here.
-    let row_hover_l = if is_dark { 0.42 } else { 0.84 };
-    // Selected-row surface: the same accent hue, one step darker than the hover
-    // tint so at-rest muted icons/text stay legible on it.
+    // Selected-row surface: the accent hue at a fixed OKLCH lightness that
+    // keeps at-rest muted icons/text legible on it.
     let row_selected_l = if is_dark { 0.32 } else { 0.88 };
 
     // Worst surface the accent text is drawn on: the lightest in dark mode,
@@ -143,11 +137,6 @@ pub fn fill_accent(
             accent_c
         }
     };
-    t.set_bg_row_hover(accent_sibling(
-        accent_h,
-        tint_chroma(row_hover_l),
-        row_hover_l,
-    ));
     t.set_bg_row_selected(accent_sibling(
         accent_h,
         tint_chroma(row_selected_l),
@@ -166,6 +155,7 @@ pub fn fill_theme(
     is_dark: bool,
     system_accent: Option<(u8, u8, u8)>,
 ) {
+    t.set_dark(is_dark);
     fill_accent(t, settings, is_dark, system_accent);
 
     let (bg_r, bg_g, bg_b) = bg_primary(is_dark);
@@ -174,6 +164,7 @@ pub fn fill_theme(
         t.set_bg_primary(Color::from_rgb_u8(bg_r, bg_g, bg_b));
         t.set_bg_header(Color::from_rgb_u8(0x12, 0x12, 0x12));
         t.set_bg_row_alt(Color::from_rgb_u8(0x1C, 0x1C, 0x1C));
+        t.set_bg_row_hover(Color::from_rgb_u8(0x2D, 0x2D, 0x2D));
         t.set_bg_input(Color::from_rgb_u8(0x24, 0x24, 0x24));
         t.set_bg_track(Color::from_rgb_u8(0x55, 0x55, 0x55));
         t.set_fg_primary(Color::from_rgb_u8(0xE4, 0xE4, 0xE4));
@@ -189,6 +180,7 @@ pub fn fill_theme(
         t.set_bg_primary(Color::from_rgb_u8(bg_r, bg_g, bg_b));
         t.set_bg_header(Color::from_rgb_u8(0xE8, 0xE8, 0xE8));
         t.set_bg_row_alt(Color::from_rgb_u8(0xEE, 0xEE, 0xEE));
+        t.set_bg_row_hover(Color::from_rgb_u8(0xE2, 0xE2, 0xE2));
         t.set_bg_input(Color::from_rgb_u8(0xFF, 0xFF, 0xFF));
         // Slider / toggle-off track. Must be set per mode (the `Theme.slint`
         // default is the dark value). #C4C4C4 only reached Lc 26 against the

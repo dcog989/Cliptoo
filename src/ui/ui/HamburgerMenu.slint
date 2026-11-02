@@ -59,10 +59,6 @@ export component HamburgerMenu {
                 icon: @image-url("icons/info.svg");
                 row-height: 36px;
                 selected: root.selected == 0;
-                hover-highlight: false;
-                hovered => {
-                    root.selected = 0;
-                }
                 clicked => {
                     root.menu-about();
                 }
@@ -73,10 +69,6 @@ export component HamburgerMenu {
                 icon: @image-url("icons/settings.svg");
                 row-height: 36px;
                 selected: root.selected == 1;
-                hover-highlight: false;
-                hovered => {
-                    root.selected = 1;
-                }
                 clicked => {
                     root.menu-settings();
                 }
@@ -87,10 +79,6 @@ export component HamburgerMenu {
                 icon: @image-url("icons/minimize-2.svg");
                 row-height: 36px;
                 selected: root.selected == 2;
-                hover-highlight: false;
-                hovered => {
-                    root.selected = 2;
-                }
                 clicked => {
                     root.menu-close-to-tray();
                 }
