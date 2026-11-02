@@ -327,9 +327,9 @@ msgctxt "DatabasePage"
 msgid "Total clips"
 msgstr ""
 
-#: src/ui/ui/DatabasePage.slint:208
+#: src/ui/ui/DatabasePage.slint:216
 msgctxt "DatabasePage"
-msgid "Copies / Pastes"
+msgid "Unique clips ever / Pastes"
 msgstr ""
 
 #: src/ui/ui/DatabasePage.slint:215
