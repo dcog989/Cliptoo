@@ -1,6 +1,6 @@
 use std::path::Path;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use slint::{ComponentHandle, Model};
 
@@ -10,7 +10,7 @@ use slint::{ComponentHandle, Model};
 const CLIP_PAGE_SIZE: i64 = 100;
 
 /// User agent sent with every page and favicon request.
-pub const USER_AGENT: &str = "Cliptoo/0.2";
+pub const USER_AGENT: &str = concat!("Cliptoo/", env!("CARGO_PKG_VERSION"));
 
 /// Largest page or icon body accepted for a link preview. A page can be
 /// arbitrarily large, and any app can put a URL on the clipboard, so the body
@@ -78,19 +78,47 @@ pub fn is_fetchable_url(url: &str) -> bool {
     }
 }
 
-/// Snapshot the list's active search query and filter on the UI thread, so a
-/// background refresh triggered by a mutation (delete, move, paste bump, edit
-/// save) keeps the user's current view instead of resetting to "all" while the
-/// toolbar's filter icon and search box still show the old state. Call from a
-/// UI-thread callback (Slint handlers), then pass the pair to `refresh_clips`.
-pub fn current_view_state(ui: &slint::Weak<crate::AppWindow>) -> (String, String) {
+/// Bumped whenever the clip model is replaced or changed in place. A background
+/// query takes it before reading the DB and drops its result when the model
+/// moved on, so a slow refresh cannot re-add a deleted row or append a page
+/// that belongs to the previous list.
+static MODEL_GENERATION: AtomicU64 = AtomicU64::new(0);
+
+fn model_generation() -> u64 {
+    MODEL_GENERATION.load(Ordering::Relaxed)
+}
+
+fn model_changed() {
+    MODEL_GENERATION.fetch_add(1, Ordering::Relaxed);
+}
+
+/// Snapshot of the visible list for a background requery: the active query and
+/// filter, how many rows the model already holds (so a refresh keeps the pages
+/// the user scrolled through), and whether the selection belongs to the old
+/// view (a new search or filter starts at the first row).
+#[derive(Clone, Default)]
+pub struct ViewState {
+    pub query: String,
+    pub filter: String,
+    pub loaded_rows: i64,
+    pub reset_selection: bool,
+}
+
+/// Snapshot the list's view on the UI thread, so a background refresh triggered
+/// by a mutation (delete, move, paste bump, edit save) keeps the user's current
+/// view instead of resetting to "all" while the toolbar's filter icon and search
+/// box still show the old state. Call from a UI-thread callback (Slint
+/// handlers), then pass it to [`refresh_clips`].
+pub fn current_view_state(ui: &slint::Weak<crate::AppWindow>) -> ViewState {
     let Some(ui) = ui.upgrade() else {
-        return (String::new(), String::new());
+        return ViewState::default();
     };
-    (
-        ui.get_search_text().to_string(),
-        ui.get_active_filter().to_string(),
-    )
+    ViewState {
+        query: ui.get_search_text().to_string(),
+        filter: ui.get_active_filter().to_string(),
+        loaded_rows: ui.get_clips().row_count() as i64,
+        reset_selection: false,
+    }
 }
 
 /// Re-query using the view (query/filter) the window shows right now. The live
@@ -109,32 +137,38 @@ pub fn refresh_clips_live(
     let prefix = tag_prefix.map(str::to_string);
     let weak = ui.clone();
     let _ = weak.upgrade_in_event_loop(move |ui| {
-        let query = ui.get_search_text().to_string();
-        let filter = ui.get_active_filter().to_string();
+        let view = current_view_state(&ui.as_weak());
         let ui = ui.as_weak();
         tokio::spawn(async move {
-            refresh_clips(&db, &ui, &td, &fd, &query, &filter, prefix.as_deref()).await;
+            refresh_clips(&db, &ui, &td, &fd, &view, prefix.as_deref()).await;
         });
     });
 }
 
 /// Query the DB for clips and replace the UI model.
+///
+/// Fetches at least one page and never fewer rows than the model already holds,
+/// so a refresh triggered by a new copy keeps the pages the user scrolled
+/// through instead of truncating the list back to the first page.
 pub async fn refresh_clips(
     db: &Arc<cliptoo_core::db::DbPool>,
     ui: &slint::Weak<crate::AppWindow>,
     td: &Path,
     fd: &Path,
-    query: &str,
-    filter: &str,
+    view: &ViewState,
     tag_prefix: Option<&str>,
 ) {
+    let limit = view.loaded_rows.max(CLIP_PAGE_SIZE);
+    // Taken before the query: a mutation that lands while it runs bumps the
+    // generation, and this now-stale snapshot is dropped instead of undoing it.
+    let generation = model_generation();
     let result = db
         .with(|conn| {
             cliptoo_core::db::queries::search_clips(
                 conn,
-                query,
-                filter,
-                CLIP_PAGE_SIZE,
+                &view.query,
+                &view.filter,
+                limit,
                 0,
                 tag_prefix,
             )
@@ -146,8 +180,8 @@ pub async fn refresh_clips(
         // keeping the previous list.
         tracing::error!(
             "refresh_clips: query {:?}/{:?} failed: {e:#}",
-            query,
-            filter
+            view.query,
+            view.filter
         );
         let _ = ui.upgrade_in_event_loop(|ui| {
             ui.set_toast_message("Search failed; see the log".into());
@@ -156,25 +190,31 @@ pub async fn refresh_clips(
         });
     }
     if let Ok(clips) = result {
-        // A full page means older rows exist beyond it; the list appends the
+        // A full result means older rows exist beyond it; the list appends the
         // next one as it nears the end (see `load_more_clips_live`).
-        let has_more = clips.len() as i64 >= CLIP_PAGE_SIZE;
+        let has_more = clips.len() as i64 >= limit;
         let db2 = db.clone();
         let td = td.to_path_buf();
         let fd = fd.to_path_buf();
         // Snapshot the view so a result built for a query/filter the user has
         // since left is dropped instead of overwriting the newer list.
-        let query = query.to_string();
-        let filter = filter.to_string();
+        let query = view.query.clone();
+        let filter = view.filter.clone();
+        let reset_selection = view.reset_selection;
         let _ = ui.upgrade_in_event_loop(move |ui| {
+            if model_generation() != generation {
+                return;
+            }
             if ui.get_search_text().as_str() != query || ui.get_active_filter().as_str() != filter {
                 return;
             }
             // Capture the currently selected clip so a background refresh
             // (e.g. a new clipboard ingest) doesn't yank the user's selection
-            // and scroll position. If the clip is still in the new model it
-            // stays selected; otherwise the selection falls back to the top.
-            let prev_selected = {
+            // and scroll position. A new query/filter starts at the first row
+            // instead, matching the scroll-to-top the search handler does.
+            let prev_selected = if reset_selection {
+                None
+            } else {
                 let idx = ui.get_selected_index();
                 if idx >= 0 {
                     ui.get_clips().row_data(idx as usize).map(|d| d.id)
@@ -190,6 +230,7 @@ pub async fn refresh_clips(
                 (0..model.row_count()).find(|&i| model.row_data(i).is_some_and(|d| d.id == id))
             });
             ui.set_selected_index(new_idx.map(|i| i as i32).unwrap_or(0));
+            model_changed();
             crate::favicon::check_pending_favicons(&ui, &db2, &fd);
         });
     }
@@ -218,6 +259,7 @@ pub fn load_more_clips_live(
     let offset = window.get_clips().row_count() as i64;
     let query = window.get_search_text().to_string();
     let filter = window.get_active_filter().to_string();
+    let generation = model_generation();
     drop(window);
 
     let db = db.clone();
@@ -251,9 +293,13 @@ pub fn load_more_clips_live(
         let done = pending.clone();
         let sent = ui.upgrade_in_event_loop(move |ui| {
             done.store(false, Ordering::Relaxed);
-            // Drop a page built for a view the user has since left; mixing it
-            // into the new model would interleave two result sets.
-            if ui.get_search_text().as_str() != query || ui.get_active_filter().as_str() != filter {
+            // Drop a page built for a view the user has since left, or for a
+            // model that has since been replaced: mixing it into the new model
+            // would interleave two result sets (or skip rows).
+            if model_generation() != generation
+                || ui.get_search_text().as_str() != query
+                || ui.get_active_filter().as_str() != filter
+            {
                 return;
             }
             ui.set_clips_has_more(has_more);
@@ -264,6 +310,7 @@ pub fn load_more_clips_live(
                     break;
                 }
             }
+            model_changed();
         });
         if sent.is_err() {
             pending.store(false, Ordering::Relaxed);
@@ -287,9 +334,17 @@ pub enum RowMove {
 /// and rebuilding it (`search_clips` orders filtered or full-text results
 /// differently, so those must re-query).
 pub fn model_is_timestamp_ordered(ui: &crate::AppWindow) -> bool {
-    ui.get_search_text().is_empty()
-        && ui.get_active_filter().as_str() == "all"
-        && model_is_complete(ui)
+    is_full_unfiltered_view(
+        ui.get_search_text().as_str(),
+        ui.get_active_filter().as_str(),
+        ui.get_clips_has_more(),
+    )
+}
+
+/// The guard behind [`model_is_timestamp_ordered`], split out so it can be
+/// tested without a window.
+fn is_full_unfiltered_view(search: &str, filter: &str, has_more: bool) -> bool {
+    search.is_empty() && filter == "all" && !has_more
 }
 
 /// Whether the model holds every row of the current view, so removing one row in
@@ -341,26 +396,38 @@ pub fn apply_row_move(ui: &crate::AppWindow, id: i32, how: RowMove) {
         RowMove::Down if index < last => swap_rows(&model, index, index + 1),
         _ => {}
     }
-    restore_selection(ui, previous_selection);
+    model_changed();
+    restore_selection(ui, previous_selection, 0);
 }
 
-/// Remove a clip row from the UI model in place, keeping the selected clip
-/// selected. Does nothing unless [`model_is_complete`] still holds when the
-/// mutation runs.
-pub fn remove_row_by_id(ui: &crate::AppWindow, id: i32) {
-    if !model_is_complete(ui) {
-        return;
+/// Remove clip rows from the UI model in place, keeping the selected clip
+/// selected and otherwise landing on the position of the first removed row.
+/// Returns false when the model is not the full view or a row is missing, so
+/// the caller re-queries instead of showing rows the DB already deleted.
+pub fn remove_rows_by_id(ui: &crate::AppWindow, ids: &[i32]) -> bool {
+    if !model_is_complete(ui) || ids.is_empty() {
+        return false;
     }
     let model = ui.get_clips();
-    let Some(index) = row_index_of(&model, id) else {
-        return;
-    };
-    let previous_selection = selected_clip_id(ui);
-    if let Err(e) = model.remove_row(index) {
-        tracing::warn!("remove_row_by_id: remove row {index} failed: {e}");
-        return;
+    let mut indexes: Vec<usize> = Vec::with_capacity(ids.len());
+    for id in ids {
+        match row_index_of(&model, *id) {
+            Some(index) => indexes.push(index),
+            None => return false,
+        }
     }
-    restore_selection(ui, previous_selection);
+    indexes.sort_unstable();
+    let fallback = indexes[0];
+    let previous_selection = selected_clip_id(ui);
+    for index in indexes.into_iter().rev() {
+        if let Err(e) = model.remove_row(index) {
+            tracing::warn!("remove_rows_by_id: remove row {index} failed: {e}");
+            return false;
+        }
+    }
+    model_changed();
+    restore_selection(ui, previous_selection, fallback);
+    true
 }
 
 fn row_index_of(model: &slint::ModelRc<crate::ClipData>, id: i32) -> Option<usize> {
@@ -375,12 +442,16 @@ fn selected_clip_id(ui: &crate::AppWindow) -> Option<i32> {
     ui.get_clips().row_data(index as usize).map(|d| d.id)
 }
 
-/// Re-point `selected-index` at `previous`'s new row, or fall back to the top
-/// when it is gone. Mirrors the selection restore in [`refresh_clips`].
-fn restore_selection(ui: &crate::AppWindow, previous: Option<i32>) {
+/// Re-point `selected-index` at `previous`'s new row, or at `fallback` (clamped
+/// to the model) when it is gone. `fallback` 0 keeps the old top-of-list
+/// behaviour; a removal passes the removed row's index so the selection stays
+/// where the user was instead of jumping to an off-screen first row.
+fn restore_selection(ui: &crate::AppWindow, previous: Option<i32>, fallback: usize) {
     let model = ui.get_clips();
-    let index = previous.and_then(|id| row_index_of(&model, id));
-    ui.set_selected_index(index.map(|i| i as i32).unwrap_or(0));
+    let index = previous
+        .and_then(|id| row_index_of(&model, id))
+        .unwrap_or_else(|| fallback.min(model.row_count().saturating_sub(1)));
+    ui.set_selected_index(index as i32);
 }
 
 fn swap_rows(model: &slint::ModelRc<crate::ClipData>, a: usize, b: usize) {
@@ -392,7 +463,15 @@ fn swap_rows(model: &slint::ModelRc<crate::ClipData>, a: usize, b: usize) {
 
 #[cfg(test)]
 mod tests {
-    use super::is_fetchable_url;
+    use super::{is_fetchable_url, is_full_unfiltered_view};
+
+    #[test]
+    fn only_the_unfiltered_full_list_is_timestamp_ordered() {
+        assert!(is_full_unfiltered_view("", "all", false));
+        assert!(!is_full_unfiltered_view("foo", "all", false));
+        assert!(!is_full_unfiltered_view("", "text", false));
+        assert!(!is_full_unfiltered_view("", "all", true));
+    }
 
     #[test]
     fn accepts_public_hosts() {

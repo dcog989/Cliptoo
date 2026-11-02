@@ -141,7 +141,7 @@ pub fn setup_edit_window(
                 let main_ui = edit_main_ui.clone();
                 let content = content.to_string();
                 let tags = tags.to_string();
-                let (query, filter) = helpers::current_view_state(&ui);
+                let view = helpers::current_view_state(&ui);
                 let pfx = tag_prefix.clone();
                 tokio::spawn(async move {
                     // Save the edited content. Any failure keeps the editor open
@@ -275,7 +275,7 @@ pub fn setup_edit_window(
                         return;
                     }
 
-                    helpers::refresh_clips(&db, &ui, &td, &fd, &query, &filter, Some(&pfx)).await;
+                    helpers::refresh_clips(&db, &ui, &td, &fd, &view, Some(&pfx)).await;
                     let _ = win.upgrade_in_event_loop(move |win| {
                         let _ = win.hide();
                         if let Some(ui) = main_ui.upgrade() {

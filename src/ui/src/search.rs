@@ -99,7 +99,12 @@ pub fn setup_search(
             })
             .unwrap_or_default();
         let pfx = tag_prefix.clone();
-        let query = query.to_string();
+        let view = crate::helpers::ViewState {
+            query: query.to_string(),
+            filter: current_filter,
+            loaded_rows: 0,
+            reset_selection: true,
+        };
         // A newer keystroke invalidates this timer's work.
         let generation = search_generation.fetch_add(1, Ordering::Relaxed) + 1;
         let generation_cell = search_generation.clone();
@@ -108,51 +113,42 @@ pub fn setup_search(
                 return;
             }
             tokio::spawn(async move {
-                crate::helpers::refresh_clips(
-                    &db,
-                    &ui,
-                    &td,
-                    &fd,
-                    &query,
-                    &current_filter,
-                    Some(&pfx),
-                )
-                .await;
+                crate::helpers::refresh_clips(&db, &ui, &td, &fd, &view, Some(&pfx)).await;
             });
         });
     });
 
     let backspace_ui = ui.as_weak();
-    ui.on_search_backspace(move || {
-        let ui = backspace_ui.clone();
-        let _ = ui.upgrade_in_event_loop(move |ui| {
-            let text = ui.get_search_text();
-            if !text.is_empty() {
-                let mut graphemes =
-                    unicode_segmentation::UnicodeSegmentation::graphemes(text.as_str(), true);
-                graphemes.next_back();
-                let new_text: String = graphemes.collect();
-                ui.set_search_text(new_text.clone().into());
-                ui.invoke_search_changed(new_text.into());
-            }
-        });
-    });
+    ui.on_search_backspace(move || delete_search_text(&backspace_ui, without_last_grapheme));
 
     // Ctrl+Backspace from the app-level FocusScope (when the LineEdit isn't
     // focused). Deletes the trailing word, mirroring Slint's own LineEdit
     // word-boundary logic (prev_word_boundary via unicode_word_indices).
     let word_backspace_ui = ui.as_weak();
-    ui.on_search_word_backspace(move || {
-        let ui = word_backspace_ui.clone();
-        let _ = ui.upgrade_in_event_loop(move |ui| {
-            let text = ui.get_search_text();
-            if !text.is_empty() {
-                let new_text = without_last_word(text.as_str());
-                ui.set_search_text(new_text.clone().into());
-                ui.invoke_search_changed(new_text.into());
-            }
-        });
+    ui.on_search_word_backspace(move || delete_search_text(&word_backspace_ui, without_last_word));
+}
+
+/// Remove the last item from the search text, then re-run the search. Shared by
+/// Backspace and Ctrl+Backspace so both update the list the same way.
+fn delete_search_text(ui: &slint::Weak<crate::AppWindow>, cut: fn(&str) -> String) {
+    let ui = ui.clone();
+    let _ = ui.upgrade_in_event_loop(move |ui| {
+        let text = ui.get_search_text();
+        if text.is_empty() {
+            return;
+        }
+        let new_text = cut(text.as_str());
+        ui.set_search_text(new_text.clone().into());
+        ui.invoke_search_changed(new_text.into());
     });
+}
+
+/// Drop the last grapheme from `text`, so a multi-codepoint emoji is removed in
+/// one keypress.
+fn without_last_grapheme(text: &str) -> String {
+    let mut graphemes = unicode_segmentation::UnicodeSegmentation::graphemes(text, true);
+    graphemes.next_back();
+    graphemes.collect()
 }
 
 pub fn setup_filter(
@@ -174,9 +170,14 @@ pub fn setup_filter(
             u.set_is_searching(false);
             u.set_search_text("".into());
         }
-        let f = filter.to_string();
+        let view = crate::helpers::ViewState {
+            query: String::new(),
+            filter: filter.to_string(),
+            loaded_rows: 0,
+            reset_selection: true,
+        };
         tokio::spawn(async move {
-            crate::helpers::refresh_clips(&db, &ui, &td, &fd, "", &f, None).await;
+            crate::helpers::refresh_clips(&db, &ui, &td, &fd, &view, None).await;
         });
     });
 }

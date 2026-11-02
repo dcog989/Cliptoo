@@ -131,13 +131,14 @@ export component AppWindow inherits Window {
     in property <length> min-window-height: 240px;
     property <length> toolbar-height: Theme.toolbar-height;
     in-out property <string> active-filter: "all";
-    in-out property <int> selected-index: 0;  // reset by Rust on search/filter change
+    in-out property <int> selected-index: 0;  // re-pointed by Rust when the model is replaced
     // search-text is owned jointly: Slint appends printable chars, Rust handles
     // Backspace (via search-backspace callback) and resets on filter/search change.
     in-out property <string> search-text: "";
 
     // ── Context menu state ────────────────────────────────────────────────────
-    // Populated by Rust from settings.send_to_apps before each show().
+    // Populated by Rust from settings.send_to_apps, and rebuilt when that
+    // setting changes.
     in property <[string]> ctx-send-to-apps: [];
 
     // Re-anchors keyboard focus to the clip area's focus-scope. forward-focus
@@ -154,9 +155,9 @@ export component AppWindow inherits Window {
     public function reset-scroll() {
         main-clip-area.reset-scroll();
     }
-    // Jumps the clip list back to the first row without moving the selection.
-    // Called from Rust whenever the search text changes, so results always
-    // start at #1 even if the previous list was scrolled down.
+    // Jumps the clip list back to the first row. Called from Rust whenever the
+    // search text changes, so results always start at #1 even if the previous
+    // list was scrolled down; the refreshed result also selects that first row.
     public function scroll-to-top() {
         main-clip-area.scroll-to-top();
     }

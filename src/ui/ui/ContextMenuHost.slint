@@ -13,7 +13,8 @@ import { MenuRow } from "MenuRow.slint";
 import { Theme } from "Theme.slint";
 
 export component ContextMenuHost {
-    // Populated by Rust from settings.send_to_apps before each show().
+    // Populated by Rust from settings.send_to_apps, and rebuilt when that
+    // setting changes.
     in property <[string]> send-to-apps: [];
     in property <length> window-width: 0px;
     in property <length> window-height: 0px;
