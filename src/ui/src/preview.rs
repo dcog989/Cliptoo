@@ -242,13 +242,16 @@ fn show_image_preview(ctx: &PreviewContext) {
     let content = ctx.content;
     let content_hash = ctx.content_hash;
     let td = ctx.td;
+    // A multi-selection image clip stores one path per line; the thumbnail and
+    // file info describe the first file.
+    let first_path = content.lines().next().unwrap_or(content).to_string();
     // A legacy/corrupt row can carry a hash too short (or not on a char
     // boundary) for the filename prefix; do not slice it blindly.
     let Some(prefix) = crate::thumbnail_cache::hash_key(content_hash) else {
         preview.set_preview_clip_type("file_image".into());
         preview.set_preview_text(content.into());
         preview.set_preview_file_info("".into());
-        spawn_file_info(ctx, content.to_string());
+        spawn_file_info(ctx, first_path);
         return;
     };
     let prefix = prefix.to_string();
@@ -261,7 +264,7 @@ fn show_image_preview(ctx: &PreviewContext) {
         let img = slint::Image::load_from_path(&preview_svg).unwrap_or_default();
         preview.set_preview_image(img);
     } else {
-        let file_path = content.to_string();
+        let file_path = first_path.clone();
         let store_td = td.to_path_buf();
         let td2 = td.to_path_buf();
         let hash2 = content_hash.to_string();
@@ -307,7 +310,7 @@ fn show_image_preview(ctx: &PreviewContext) {
     preview.set_preview_text(content.into());
     // The caption is the stored path; add the size/date line below it.
     ctx.preview.set_preview_file_info("".into());
-    spawn_file_info(ctx, content.to_string());
+    spawn_file_info(ctx, first_path);
 }
 
 /// Preview for a folder clip: the path plus an entry count, total size and the

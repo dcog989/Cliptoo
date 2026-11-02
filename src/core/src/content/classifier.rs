@@ -250,10 +250,11 @@ impl ContentProcessor {
     /// ready to store as `Content`. A single existing path gets its precise
     /// type (`Folder` or a `file_*`); a single path-like path that no longer
     /// exists falls back to `FileGeneric`. A multi-path payload (a
-    /// multi-selection copy) is `Folder` only when every path is an existing
-    /// directory, otherwise `FileGeneric`, and is rejected entirely when
-    /// *none* of its paths exist — a real uri-list comes from files the user
-    /// just selected, while a text block that merely looks like paths does not.
+    /// multi-selection copy) is `Folder` when every path is an existing
+    /// directory, `FileImage` when every path is an existing image, otherwise
+    /// `FileGeneric`, and is rejected entirely when *none* of its paths exist —
+    /// a real uri-list comes from files the user just selected, while a text
+    /// block that merely looks like paths does not.
     /// Missing single paths need no existence check: they become deadheads via
     /// maintenance.
     fn classify_path(s: &str) -> Option<(ClipType, String)> {
@@ -302,22 +303,37 @@ impl ContentProcessor {
         // text/uri-list) and must stay Text instead of becoming a file clip.
         let mut any_exists = false;
         let mut all_dirs = true;
+        let mut all_images = true;
         for line in &decoded {
             match std::fs::metadata(line.as_str()) {
-                Ok(meta) => {
+                Ok(meta) if meta.is_dir() => {
                     any_exists = true;
-                    if !meta.is_dir() {
-                        all_dirs = false;
+                    all_images = false;
+                }
+                Ok(_) => {
+                    any_exists = true;
+                    all_dirs = false;
+                    if crate::content::filetype::FileTypeClassifier::classify(Path::new(line))
+                        != ClipType::FileImage
+                    {
+                        all_images = false;
                     }
                 }
-                Err(_) => all_dirs = false,
+                Err(_) => {
+                    all_dirs = false;
+                    all_images = false;
+                }
             }
         }
         if !any_exists {
             return None;
         }
+        // A selection of only images keeps the image type so the list shows a
+        // thumbnail; preview and thumbnail generation use the first path.
         let clip_type = if all_dirs {
             ClipType::Folder
+        } else if all_images {
+            ClipType::FileImage
         } else {
             ClipType::FileGeneric
         };
@@ -421,6 +437,27 @@ mod tests {
         let c = ContentProcessor::process(&content, true).unwrap();
         assert_eq!(c.clip_type, ClipType::FileGeneric);
         assert!(c.is_multiline);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn multi_selection_all_images_is_file_image() {
+        let dir = temp_dir("images");
+        std::fs::create_dir_all(&dir).unwrap();
+        let a = dir.join("a.png");
+        let b = dir.join("b.webp");
+        std::fs::write(&a, b"x").unwrap();
+        std::fs::write(&b, b"x").unwrap();
+        let content = format!("{}\n{}", a.display(), b.display());
+        let c = ContentProcessor::process(&content, true).unwrap();
+        assert_eq!(c.clip_type, ClipType::FileImage);
+        assert!(c.is_multiline);
+        // One non-image file in the selection keeps the generic type.
+        let txt = dir.join("c.txt");
+        std::fs::write(&txt, b"x").unwrap();
+        let mixed = format!("{}\n{}", a.display(), txt.display());
+        let c = ContentProcessor::process(&mixed, true).unwrap();
+        assert_eq!(c.clip_type, ClipType::FileGeneric);
         std::fs::remove_dir_all(&dir).unwrap();
     }
 

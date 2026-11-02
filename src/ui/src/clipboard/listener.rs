@@ -531,7 +531,10 @@ pub async fn run_listener(
                             // new copies. Runs on a bump too: the row may have
                             // been a `file_path` clip from a text copy of the
                             // same path, and a bump does not create new files.
-                            let path = std::path::Path::new(&c.content).to_owned();
+                            let path = std::path::Path::new(
+                                c.content.lines().next().unwrap_or(&c.content),
+                            )
+                            .to_owned();
                             let hash_c = c.content_hash.clone();
                             let td = thumbnails_dir.clone();
                             let db2 = db.clone();

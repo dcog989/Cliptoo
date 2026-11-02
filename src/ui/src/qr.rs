@@ -86,7 +86,10 @@ pub fn setup_qr(
                 return;
             }
             let decoded = tokio::task::spawn_blocking(move || {
-                cliptoo_core::qr::decode_path(std::path::Path::new(&content))
+                // A multi-selection image clip stores one path per line; decode
+                // the first file.
+                let first = content.lines().next().unwrap_or(&content);
+                cliptoo_core::qr::decode_path(std::path::Path::new(first))
             })
             .await;
             let (codes, error) = match decoded {
