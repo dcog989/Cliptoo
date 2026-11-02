@@ -125,10 +125,12 @@ fn restrict_to_owner(dir: &Path) {
 }
 
 /// Move a single file to `new` when the source exists and the destination does
-/// not. Prefers an atomic rename; falls back to copy + remove when the two
+/// not. Prefers an atomic rename; falls back to copy + rename when the two
 /// directories sit on different filesystems (`rename` then fails with `EXDEV`),
-/// so non-regenerable files such as the clip DB are not stranded. Best-effort,
-/// like `migrate_dir`.
+/// so non-regenerable files such as the clip DB are not stranded. The copy goes
+/// to a temporary name beside the destination and is renamed into place, so a
+/// crash mid-copy cannot leave a truncated file that the next start uses.
+/// Best-effort, like `migrate_dir`.
 fn migrate_file(old: &Path, new: &Path) {
     if old == new || !old.is_file() || new.exists() {
         return;
@@ -136,14 +138,31 @@ fn migrate_file(old: &Path, new: &Path) {
     if std::fs::rename(old, new).is_ok() {
         return;
     }
-    match std::fs::copy(old, new) {
-        Ok(_) => {
-            if let Err(e) = std::fs::remove_file(old) {
-                tracing::warn!("app_dirs: copied {:?} but cannot remove source: {e}", old);
-            }
-        }
-        Err(e) => tracing::warn!("app_dirs: cannot migrate {:?} -> {:?}: {e}", old, new),
+    let tmp = temp_sibling(new);
+    if let Err(e) = std::fs::copy(old, &tmp) {
+        let _ = std::fs::remove_file(&tmp);
+        tracing::warn!("app_dirs: cannot migrate {:?} -> {:?}: {e}", old, new);
+        return;
     }
+    if let Err(e) = std::fs::File::open(&tmp)
+        .and_then(|f| f.sync_all())
+        .and_then(|()| std::fs::rename(&tmp, new))
+    {
+        let _ = std::fs::remove_file(&tmp);
+        tracing::warn!("app_dirs: cannot move {:?} -> {:?}: {e}", old, new);
+        return;
+    }
+    if let Err(e) = std::fs::remove_file(old) {
+        tracing::warn!("app_dirs: copied {:?} but cannot remove source: {e}", old);
+    }
+}
+
+/// `new` plus a `.migrating` suffix: same directory, so the final rename is
+/// atomic.
+fn temp_sibling(new: &Path) -> PathBuf {
+    let mut name = new.file_name().unwrap_or_default().to_os_string();
+    name.push(".migrating");
+    new.with_file_name(name)
 }
 
 /// Move the contents of `old` into `new`, skipping entries that already exist
@@ -161,17 +180,9 @@ fn migrate_dir(old: &Path, new: &Path) {
         }
     };
     for entry in entries.filter_map(|e| e.ok()) {
-        let dest = new.join(entry.file_name());
-        if dest.exists() {
-            continue;
-        }
-        if let Err(e) = std::fs::rename(entry.path(), &dest) {
-            tracing::warn!(
-                "app_dirs: cannot migrate {:?} -> {:?}: {e}",
-                entry.path(),
-                dest
-            );
-        }
+        // Same move as a single file, so a cross-filesystem cache directory
+        // (EXDEV) is copied instead of being left behind with a warning.
+        migrate_file(&entry.path(), &new.join(entry.file_name()));
     }
     let is_empty = std::fs::read_dir(old)
         .map(|mut i| i.next().is_none())
@@ -181,5 +192,41 @@ fn migrate_dir(old: &Path, new: &Path) {
     }
     if let Err(e) = std::fs::remove_dir(old) {
         tracing::warn!("app_dirs: cannot remove emptied {:?}: {e}", old);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::migrate_file;
+
+    fn temp_dir(name: &str) -> std::path::PathBuf {
+        let dir =
+            std::env::temp_dir().join(format!("cliptoo_app_dirs_{name}_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    /// The clip DB is the one file here that cannot be regenerated: a move must
+    /// land the data at the new path, and must never overwrite a live file.
+    #[test]
+    fn migrate_file_moves_the_source_but_never_overwrites_the_destination() {
+        let dir = temp_dir("migrate");
+        let old = dir.join("clips.db");
+        let new = dir.join("data").join("clips.db");
+        std::fs::create_dir_all(new.parent().unwrap()).unwrap();
+
+        std::fs::write(&old, b"history").unwrap();
+        migrate_file(&old, &new);
+        assert!(!old.exists(), "a moved source is removed");
+        assert_eq!(std::fs::read(&new).unwrap(), b"history");
+
+        std::fs::write(&old, b"stale").unwrap();
+        std::fs::write(&new, b"live").unwrap();
+        migrate_file(&old, &new);
+        assert!(old.exists(), "the source stays when the destination exists");
+        assert_eq!(std::fs::read(&new).unwrap(), b"live");
+
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
