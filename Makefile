@@ -1,5 +1,6 @@
 BINARY  := target/release/cliptoo
 DESKTOP := packaging/cliptoo.desktop
+ICON    := src/ui/assets/cliptoo.svg
 PKGDIR  := .pkg
 
 VERSION := $(shell sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml)
@@ -27,9 +28,10 @@ install: build
 	# Install under /usr/local so a local `make install` never drops unowned
 	# files into /usr/share and blocks a later `pacman -U` with file conflicts.
 	sudo install -Dm644 $(DESKTOP) /usr/local/share/applications/cliptoo.desktop
+	sudo install -Dm644 $(ICON) /usr/local/share/icons/hicolor/scalable/apps/cliptoo.svg
 
 uninstall:
-	sudo rm -f /usr/local/bin/cliptoo /usr/local/share/applications/cliptoo.desktop
+	sudo rm -f /usr/local/bin/cliptoo /usr/local/share/applications/cliptoo.desktop /usr/local/share/icons/hicolor/scalable/apps/cliptoo.svg
 
 clean:
 	cargo clean -p cliptoo
