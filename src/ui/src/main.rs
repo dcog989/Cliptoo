@@ -286,7 +286,12 @@ async fn main() -> Result<()> {
             // Quit via the event loop so `main` returns cleanly: the log
             // guard is flushed on drop and the "Cliptoo exiting" line is
             // emitted, instead of a hard exit that skips teardown.
+            let quit_settings = settings.clone();
+            let quit_settings_path = dirs.settings_path.clone();
             tray.on_quit_app(move || {
+                // Flush the debounced settings write before the event loop
+                // stops, or the last edit is lost when quitting from the tray.
+                let _ = quit_settings.borrow().save(&quit_settings_path);
                 let _ = slint::quit_event_loop();
             });
 
