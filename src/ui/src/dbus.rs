@@ -8,15 +8,31 @@
 //! same `Connection` (which is cheaply `Clone`, backed by an `Arc`
 //! internally) avoids paying that setup cost repeatedly.
 
-use tokio::sync::OnceCell;
+use std::sync::Mutex;
 use zbus::Connection;
 
-static SESSION_CONNECTION: OnceCell<Connection> = OnceCell::const_new();
+static SESSION_CONNECTION: Mutex<Option<Connection>> = Mutex::new(None);
 
-/// The shared session-bus connection, connecting on first use only.
+/// The shared session-bus connection, connecting on first use only, and
+/// reconnecting after the bus it was connected to has gone away (a
+/// dbus-broker restart would otherwise leave every later call on a dead
+/// socket).
 pub async fn session() -> zbus::Result<Connection> {
-    let conn = SESSION_CONNECTION
-        .get_or_try_init(Connection::session)
-        .await?;
-    Ok(conn.clone())
+    // Blocking lock is fine: it is only held for a field check or a clone,
+    // never across an await.
+    let cached = SESSION_CONNECTION
+        .lock()
+        .expect("dbus connection mutex poisoned")
+        .as_ref()
+        .filter(|conn| !conn.is_closed())
+        .cloned();
+    if let Some(conn) = cached {
+        return Ok(conn);
+    }
+
+    let conn = Connection::session().await?;
+    *SESSION_CONNECTION
+        .lock()
+        .expect("dbus connection mutex poisoned") = Some(conn.clone());
+    Ok(conn)
 }
