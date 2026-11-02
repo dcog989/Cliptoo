@@ -47,6 +47,20 @@ pub fn register_preview_window(window: &crate::PreviewWindow) {
     PREVIEW_WINDOW.with(|slot| *slot.borrow_mut() = Some(window.as_weak()));
 }
 
+/// Release the tooltip's payload and park it off-screen instead of hiding it.
+/// Hiding a Wayland surface and showing it again allocates a fresh shm buffer
+/// per hover; keeping it mapped reuses one.
+fn park_preview(window: &crate::PreviewWindow) {
+    window.set_preview_text("".into());
+    window.set_preview_image(slint::Image::default());
+    window.set_preview_favicon(slint::Image::default());
+    window.set_preview_web_title("".into());
+    window.set_preview_file_info("".into());
+    window
+        .window()
+        .set_position(slint::LogicalPosition::new(-10000.0, -10000.0));
+}
+
 /// Hide the hover preview without a window handle. Called when the main window
 /// hides, so a stale preview can't reappear orphaned on the next show.
 pub fn hide_preview() {
@@ -55,7 +69,7 @@ pub fn hide_preview() {
     PREVIEW_GENERATION.fetch_add(1, Ordering::Relaxed);
     PREVIEW_WINDOW.with(|slot| {
         if let Some(window) = slot.borrow().as_ref().and_then(|w| w.upgrade()) {
-            let _ = window.hide();
+            park_preview(&window);
         }
     });
 }
@@ -386,11 +400,29 @@ fn show_file_preview(ctx: &PreviewContext) {
     spawn_file_info(ctx, ctx.content.to_string());
 }
 
+/// Longest text handed to the hover tooltip. Slint lays out the whole string;
+/// a multi-MB HTML clip otherwise allocates tens of MB for a tooltip.
+const PREVIEW_TEXT_MAX_BYTES: usize = 4096;
+
+fn bounded_preview(text: &str) -> String {
+    if text.len() <= PREVIEW_TEXT_MAX_BYTES {
+        return text.to_string();
+    }
+    let end = text
+        .char_indices()
+        .take_while(|(i, c)| *i + c.len_utf8() <= PREVIEW_TEXT_MAX_BYTES)
+        .last()
+        .map(|(i, c)| i + c.len_utf8())
+        .unwrap_or(0);
+    format!("{}…", &text[..end])
+}
+
 /// Preview for every other clip type (plain text, paths copied as text): show
 /// the text and no file info.
 fn show_text_preview(ctx: &PreviewContext) {
     ctx.preview.set_preview_clip_type(ctx.clip_type.into());
-    ctx.preview.set_preview_text(ctx.content.into());
+    ctx.preview
+        .set_preview_text(bounded_preview(ctx.content).into());
 }
 
 /// Preview for a color clip: the parsed colour as a full-size swatch plus the
@@ -399,7 +431,8 @@ fn show_text_preview(ctx: &PreviewContext) {
 /// parse failure, mirroring the list-row swatch in thumbnail_cache::convert.
 fn show_color_preview(ctx: &PreviewContext) {
     ctx.preview.set_preview_clip_type("color".into());
-    ctx.preview.set_preview_text(ctx.content.into());
+    ctx.preview
+        .set_preview_text(bounded_preview(ctx.content).into());
     let color = cliptoo_core::color::ColorParser::try_parse(ctx.content)
         .map(|c| slint::Color::from_argb_u8(c.a, c.r, c.g, c.b))
         .unwrap_or(slint::Color::from_argb_u8(0, 0, 0, 0));
@@ -410,14 +443,16 @@ fn show_color_preview(ctx: &PreviewContext) {
 fn show_rtf_preview(ctx: &PreviewContext) {
     ctx.preview.set_preview_clip_type(ctx.clip_type.into());
     let stripped = cliptoo_core::content::strip_rtf(ctx.content);
-    ctx.preview.set_preview_text(stripped.into());
+    ctx.preview
+        .set_preview_text(bounded_preview(&stripped).into());
 }
 
 /// Preview for HTML clips: show the stripped plain text, not raw markup.
 fn show_html_preview(ctx: &PreviewContext) {
     ctx.preview.set_preview_clip_type(ctx.clip_type.into());
     let stripped = cliptoo_core::content::strip_html(ctx.content);
-    ctx.preview.set_preview_text(stripped.into());
+    ctx.preview
+        .set_preview_text(bounded_preview(&stripped).into());
 }
 
 /// Preview for a copied file that is expected to hold text (code, config,
@@ -620,7 +655,7 @@ pub fn setup_dismiss_preview(app: &crate::AppWindow, preview: &crate::PreviewWin
         // it (e.g. the pointer has already moved to the search box).
         PREVIEW_GENERATION.fetch_add(1, Ordering::Relaxed);
         if let Some(preview) = preview.upgrade() {
-            let _ = preview.hide();
+            park_preview(&preview);
         }
     });
 }

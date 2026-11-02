@@ -56,9 +56,27 @@ fn close_settings(
 ) {
     if let Some(win) = win.upgrade() {
         persist_window_size(&win, settings, path);
+        // Shrink while still mapped so Qt commits a small buffer. Hiding
+        // immediately keeps the large Wayland buffer alive for the life of
+        // the process; the timer below hides after the resize is committed.
+        win.window().set_size(slint::LogicalSize::new(1.0, 1.0));
     }
     if let Some(ui) = main_ui.upgrade() {
         ui.set_settings_open(false);
+    }
+    {
+        let win = win.clone();
+        let main_ui = main_ui.clone();
+        slint::Timer::single_shot(std::time::Duration::from_millis(50), move || {
+            if let Some(ui) = main_ui.upgrade()
+                && ui.get_settings_open()
+            {
+                return;
+            }
+            if let Some(win) = win.upgrade() {
+                let _ = win.hide();
+            }
+        });
     }
 }
 
@@ -76,7 +94,9 @@ fn setup_close_persistence(
     let p = settings_path.to_path_buf();
     settings_win.window().on_close_requested(move || {
         close_settings(&sw, &main_ui, &s, &p);
-        slint::CloseRequestResponse::HideWindow
+        // The close path hides after shrinking the window so Qt releases the
+        // large Wayland buffer.
+        slint::CloseRequestResponse::KeepWindowShown
     });
 }
 

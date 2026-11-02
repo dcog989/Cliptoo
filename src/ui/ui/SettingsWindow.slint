@@ -59,7 +59,6 @@ export component SettingsWindow inherits Window {
         key-pressed(event) => {
             if (event.text == Key.Escape) {
                 root.settings-closing();
-                root.hide();
                 accept
             } else {
                 reject
