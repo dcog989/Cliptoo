@@ -39,6 +39,18 @@ export component HamburgerMenuHost {
         popup.close();
     }
 
+    // Keeps the guard armed for a moment after the popup closes. The popup's
+    // close moves keyboard focus back to the main window asynchronously, so
+    // clearing the flag in the same callback (as before) meant no observer ever
+    // saw it true and the guard in MainClipArea did nothing.
+    close-guard-timer := Timer {
+        interval: 250ms;
+        running: root.popup-just-closed;
+        triggered => {
+            root.popup-just-closed = false;
+        }
+    }
+
     // Content-driven but explicit width/height — the Qt backend won't render a
     // PopupWindow without explicit sizes.
     popup := PopupWindow {
@@ -81,19 +93,16 @@ export component HamburgerMenuHost {
                     root.menu-settings();
                     root.popup-just-closed = true;
                     popup.close();
-                    root.popup-just-closed = false;
                 }
                 menu-about => {
                     root.menu-about();
                     root.popup-just-closed = true;
                     popup.close();
-                    root.popup-just-closed = false;
                 }
                 menu-close-to-tray => {
                     root.menu-close-to-tray();
                     root.popup-just-closed = true;
                     popup.close();
-                    root.popup-just-closed = false;
                 }
             }
         }
