@@ -10,6 +10,48 @@ export component FormatMenu {
     callback back();
     callback format(string);        // transform key
 
+    // Keyboard selection: index of the highlighted row, -1 until the first
+    // arrow key. Back is 0; the transform rows follow in `transform-keys` order.
+    in-out property <int> selected: -1;
+    property <[string]> transform-keys: [
+        "upper",
+        "lower",
+        "capitalize",
+        "sentence",
+        "invert",
+        "kebab",
+        "snake",
+        "camel",
+        "deslug",
+        "trim",
+        "remove_lf",
+        "lf1",
+        "timestamp",
+    ];
+    // Separators are not counted.
+    property <int> row-count: 1 + root.transform-keys.length;
+
+    // Wrap around so Down at the last row lands on the first.
+    public function move-selection(delta: int) {
+        let next = root.selected + delta;
+        if (next < 0) {
+            root.selected = root.row-count - 1;
+        } else if (next >= root.row-count) {
+            root.selected = 0;
+        } else {
+            root.selected = next;
+        }
+    }
+
+    // Enter: run the highlighted row's action.
+    public function activate-selected() {
+        if (root.selected == 0) {
+            root.back();
+        } else if (root.selected > 0 && root.selected <= root.transform-keys.length) {
+            root.format(root.transform-keys[root.selected - 1]);
+        }
+    }
+
     // Intrinsic popup size used by ContextMenuHost. All rows are unconditional
     // so the height is a fixed count; the width comes from the widest label.
     out property <length> menu-width: menu-root.preferred-width;
@@ -32,6 +74,11 @@ export component FormatMenu {
             MenuRow {
                 label: @tr("Back");
                 icon: @image-url("icons/arrow-left.svg");
+                selected: root.selected == 0;
+                hover-highlight: false;
+                hovered => {
+                    root.selected = 0;
+                }
                 clicked => {
                     root.back();
                 }
@@ -44,6 +91,11 @@ export component FormatMenu {
             MenuRow {
                 label: @tr("UPPER CASE");
                 icon: @image-url("icons/case-upper.svg");
+                selected: root.selected == 1;
+                hover-highlight: false;
+                hovered => {
+                    root.selected = 1;
+                }
                 clicked => {
                     root.format("upper");
                 }
@@ -52,6 +104,11 @@ export component FormatMenu {
             MenuRow {
                 label: @tr("lower case");
                 icon: @image-url("icons/case-lower.svg");
+                selected: root.selected == 2;
+                hover-highlight: false;
+                hovered => {
+                    root.selected = 2;
+                }
                 clicked => {
                     root.format("lower");
                 }
@@ -60,6 +117,11 @@ export component FormatMenu {
             MenuRow {
                 label: @tr("Capitalize Words");
                 icon: @image-url("icons/case-sensitive.svg");
+                selected: root.selected == 3;
+                hover-highlight: false;
+                hovered => {
+                    root.selected = 3;
+                }
                 clicked => {
                     root.format("capitalize");
                 }
@@ -68,6 +130,11 @@ export component FormatMenu {
             MenuRow {
                 label: @tr("Sentence case");
                 icon: @image-url("icons/case-sensitive.svg");
+                selected: root.selected == 4;
+                hover-highlight: false;
+                hovered => {
+                    root.selected = 4;
+                }
                 clicked => {
                     root.format("sentence");
                 }
@@ -76,6 +143,11 @@ export component FormatMenu {
             MenuRow {
                 label: @tr("iNVERT cASE");
                 icon: @image-url("icons/case-sensitive.svg");
+                selected: root.selected == 5;
+                hover-highlight: false;
+                hovered => {
+                    root.selected = 5;
+                }
                 clicked => {
                     root.format("invert");
                 }
@@ -88,6 +160,11 @@ export component FormatMenu {
             MenuRow {
                 label: @tr("kebab-case");
                 icon: @image-url("icons/text.svg");
+                selected: root.selected == 6;
+                hover-highlight: false;
+                hovered => {
+                    root.selected = 6;
+                }
                 clicked => {
                     root.format("kebab");
                 }
@@ -96,6 +173,11 @@ export component FormatMenu {
             MenuRow {
                 label: @tr("snake_case");
                 icon: @image-url("icons/text.svg");
+                selected: root.selected == 7;
+                hover-highlight: false;
+                hovered => {
+                    root.selected = 7;
+                }
                 clicked => {
                     root.format("snake");
                 }
@@ -104,6 +186,11 @@ export component FormatMenu {
             MenuRow {
                 label: @tr("camelCase");
                 icon: @image-url("icons/text.svg");
+                selected: root.selected == 8;
+                hover-highlight: false;
+                hovered => {
+                    root.selected = 8;
+                }
                 clicked => {
                     root.format("camel");
                 }
@@ -112,6 +199,11 @@ export component FormatMenu {
             MenuRow {
                 label: @tr("De-slug");
                 icon: @image-url("icons/text.svg");
+                selected: root.selected == 9;
+                hover-highlight: false;
+                hovered => {
+                    root.selected = 9;
+                }
                 clicked => {
                     root.format("deslug");
                 }
@@ -124,6 +216,11 @@ export component FormatMenu {
             MenuRow {
                 label: @tr("Trim Whitespace");
                 icon: @image-url("icons/scissors.svg");
+                selected: root.selected == 10;
+                hover-highlight: false;
+                hovered => {
+                    root.selected = 10;
+                }
                 clicked => {
                     root.format("trim");
                 }
@@ -132,6 +229,11 @@ export component FormatMenu {
             MenuRow {
                 label: @tr("Remove Line Breaks");
                 icon: @image-url("icons/text-wrap.svg");
+                selected: root.selected == 11;
+                hover-highlight: false;
+                hovered => {
+                    root.selected = 11;
+                }
                 clicked => {
                     root.format("remove_lf");
                 }
@@ -140,6 +242,11 @@ export component FormatMenu {
             MenuRow {
                 label: @tr("Normalize LF");
                 icon: @image-url("icons/text-wrap.svg");
+                selected: root.selected == 12;
+                hover-highlight: false;
+                hovered => {
+                    root.selected = 12;
+                }
                 clicked => {
                     root.format("lf1");
                 }
@@ -148,6 +255,11 @@ export component FormatMenu {
             MenuRow {
                 label: @tr("Add Timestamp");
                 icon: @image-url("icons/clock.svg");
+                selected: root.selected == 13;
+                hover-highlight: false;
+                hovered => {
+                    root.selected = 13;
+                }
                 clicked => {
                     root.format("timestamp");
                 }

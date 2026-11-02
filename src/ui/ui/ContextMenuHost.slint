@@ -42,12 +42,15 @@ export component ContextMenuHost {
     // the popup's own size.
     property <length> ctx-menu-x: 0px;
     property <length> ctx-menu-anchor-y: 0px;
-    // Armed by every show function just before popup.show(); the shown popup's
-    // focus-timer consumes it (flips it back to false) once its key-handling
-    // scope has focus. Gives that scope focus on every open so it receives
-    // keys (ESC to close) — a popup with no focused item drops them before
-    // any item sees them.
-    in-out property <bool> focus-armed: false;
+    // Armed by each show function just before popup.show(); that popup's
+    // focus-timer consumes its own flag (flips it back to false) once its
+    // key-handling scope has focus. One flag per popup: a shared flag let the
+    // closing popup's timer consume the one the newly-opened submenu armed.
+    in-out property <bool> main-focus-armed: false;
+    in-out property <bool> format-focus-armed: false;
+    in-out property <bool> send-focus-armed: false;
+    // Keyboard selection in the Send To popup. 0 is Back, 1..N are the apps.
+    property <int> send-selected: -1;
 
     // Called by AppWindow from the ClipList right-click callback before the
     // main popup opens.
@@ -57,28 +60,53 @@ export component ContextMenuHost {
         root.ctx-clip-type = clip-type;
         root.ctx-menu-x = x * 1px;
         root.ctx-menu-anchor-y = y * 1px;
-        root.focus-armed = true;
+        root.main-focus-armed = true;
         main-popup.show();
     }
 
     // Submenu navigation: close the current popup and open the requested one.
     public function show-format() {
         main-popup.close();
-        root.focus-armed = true;
+        root.format-focus-armed = true;
         format-popup.show();
     }
 
     public function show-send() {
         main-popup.close();
-        root.focus-armed = true;
+        root.send-focus-armed = true;
         send-popup.show();
     }
 
     public function show-main() {
         format-popup.close();
         send-popup.close();
-        root.focus-armed = true;
+        root.main-focus-armed = true;
         main-popup.show();
+    }
+
+    // Keyboard selection in the Send To popup; separators are not counted.
+    function send-row-count() -> int {
+        return 1 + root.send-to-apps.length;
+    }
+
+    function send-move-selection(delta: int) {
+        let next = root.send-selected + delta;
+        if (next < 0) {
+            root.send-selected = root.send-row-count() - 1;
+        } else if (next >= root.send-row-count()) {
+            root.send-selected = 0;
+        } else {
+            root.send-selected = next;
+        }
+    }
+
+    function send-activate-selected() {
+        if (root.send-selected == 0) {
+            root.show-main();
+        } else if (root.send-selected > 0 && root.send-selected <= root.send-to-apps.length) {
+            root.send-to-clip(root.ctx-clip-id, root.send-to-apps[root.send-selected - 1]);
+            send-popup.close();
+        }
     }
 
     // Closes every popup in this host at once. Called from AppWindow's
@@ -196,11 +224,11 @@ export component ContextMenuHost {
         // inside a PopupWindow, so the reset happens here, inside it.
         main-focus-timer := Timer {
             interval: 1ms;
-            running: root.focus-armed;
+            running: root.main-focus-armed;
             triggered() => {
                 main-esc-scope.focus();
                 ctx-menu.selected = -1;
-                root.focus-armed = false;
+                root.main-focus-armed = false;
             }
         }
     }
@@ -219,6 +247,18 @@ export component ContextMenuHost {
             key-pressed(e) => {
                 if (e.text == Key.Escape) {
                     root.close-all();
+                    return accept;
+                }
+                if (e.text == Key.UpArrow) {
+                    fmt-menu.move-selection(-1);
+                    return accept;
+                }
+                if (e.text == Key.DownArrow) {
+                    fmt-menu.move-selection(1);
+                    return accept;
+                }
+                if (e.text == Key.Return) {
+                    fmt-menu.activate-selected();
                     return accept;
                 }
                 reject
@@ -246,10 +286,11 @@ export component ContextMenuHost {
 
         format-focus-timer := Timer {
             interval: 1ms;
-            running: root.focus-armed;
+            running: root.format-focus-armed;
             triggered() => {
                 fmt-esc-scope.focus();
-                root.focus-armed = false;
+                fmt-menu.selected = -1;
+                root.format-focus-armed = false;
             }
         }
     }
@@ -272,6 +313,18 @@ export component ContextMenuHost {
                     root.close-all();
                     return accept;
                 }
+                if (e.text == Key.UpArrow) {
+                    root.send-move-selection(-1);
+                    return accept;
+                }
+                if (e.text == Key.DownArrow) {
+                    root.send-move-selection(1);
+                    return accept;
+                }
+                if (e.text == Key.Return) {
+                    root.send-activate-selected();
+                    return accept;
+                }
                 reject
             }
 
@@ -288,6 +341,11 @@ export component ContextMenuHost {
                 MenuRow {
                     label: @tr("Back");
                     icon: @image-url("icons/arrow-left.svg");
+                    selected: root.send-selected == 0;
+                    hover-highlight: false;
+                    hovered => {
+                        root.send-selected = 0;
+                    }
                     clicked => {
                         root.show-main();
                     }
@@ -297,8 +355,13 @@ export component ContextMenuHost {
                     is-separator: true;
                 }
 
-                for app-name in root.send-to-apps: MenuRow {
+                for app-name[idx] in root.send-to-apps: MenuRow {
                     label: app-name;
+                    selected: root.send-selected == idx + 1;
+                    hover-highlight: false;
+                    hovered => {
+                        root.send-selected = idx + 1;
+                    }
                     clicked => {
                         root.send-to-clip(root.ctx-clip-id, app-name);
                         send-popup.close();
@@ -309,10 +372,11 @@ export component ContextMenuHost {
 
         send-focus-timer := Timer {
             interval: 1ms;
-            running: root.focus-armed;
+            running: root.send-focus-armed;
             triggered() => {
                 send-esc-scope.focus();
-                root.focus-armed = false;
+                root.send-selected = -1;
+                root.send-focus-armed = false;
             }
         }
     }
