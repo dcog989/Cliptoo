@@ -15,7 +15,7 @@
 
 import { Theme } from "Theme.slint";
 import { ClipTypeMap } from "ClipTypes.slint";
-import { LineEdit } from "std-widgets.slint";
+import { InputBox } from "InputBox.slint";
 
 export component Toolbar {
     callback toggle-filter-grid();
@@ -151,47 +151,58 @@ export component Toolbar {
             }
 
             // ── Search field (stretches) ────────────────────────────
-            Rectangle {
+            InputBox {
                 horizontal-stretch: 1;
                 height: 32px;
                 border-radius: 8px;
-                border-width: 1px;
-                border-color: search-input.has-focus ? Theme.accent-primary : Theme.border-accent;
-                background: Theme.bg-input;
                 clip: true;
-                animate border-color { duration: Theme.anim-fast; }
+                hot: search-input.has-focus;
+                hover: search-touch.has-hover;
 
-                search-input := LineEdit {
+                // Enclosing TouchArea: TextInput swallows pointer moves, so a
+                // sibling hover area never sees them.
+                search-touch := TouchArea {
                     width: 100%;
                     height: 100%;
-                    font-size: Theme.font-size;
-                    // The placeholder below is hidden from assistive tech
-                    // (accessible-role: none), so name the field explicitly and
-                    // mark it as a search field.
-                    input-type: InputType.search;
-                    accessible-label: @tr("Search clips");
-                    text <=> root.search-text;
-                    edited => {
-                        root.search-changed(self.text);
-                    }
-                    accepted => {
-                        root.accepted();
-                    }
-                    key-pressed(event) => {
-                        if (event.text == Key.UpArrow) {
-                            root.search-nav-up();
-                            accept
-                        } else if (event.text == Key.DownArrow) {
-                            root.search-nav-down();
-                            accept
-                        } else if (event.text == Key.PageUp) {
-                            root.search-nav-page-up();
-                            accept
-                        } else if (event.text == Key.PageDown) {
-                            root.search-nav-page-down();
-                            accept
-                        } else {
-                            reject
+
+                    // Plain TextInput: the std-widgets LineEdit draws its own
+                    // focus underline, which fights the accent border above.
+                    search-input := TextInput {
+                        x: 12px;
+                        width: parent.width - 20px;
+                        height: 100%;
+                        color: Theme.fg-primary;
+                        font-family: Theme.font-family;
+                        font-size: Theme.font-size;
+                        vertical-alignment: center;
+                        // The placeholder below is hidden from assistive tech
+                        // (accessible-role: none), so name the field explicitly and
+                        // mark it as a search field.
+                        input-type: InputType.search;
+                        accessible-label: @tr("Search clips");
+                        text <=> root.search-text;
+                        edited => {
+                            root.search-changed(self.text);
+                        }
+                        accepted => {
+                            root.accepted();
+                        }
+                        key-pressed(event) => {
+                            if (event.text == Key.UpArrow) {
+                                root.search-nav-up();
+                                accept
+                            } else if (event.text == Key.DownArrow) {
+                                root.search-nav-down();
+                                accept
+                            } else if (event.text == Key.PageUp) {
+                                root.search-nav-page-up();
+                                accept
+                            } else if (event.text == Key.PageDown) {
+                                root.search-nav-page-down();
+                                accept
+                            } else {
+                                reject
+                            }
                         }
                     }
                 }

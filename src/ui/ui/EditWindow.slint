@@ -5,6 +5,7 @@
 // Supports syntax-highlighted view mode for code_snippet clips.
 
 import { Theme } from "Theme.slint";
+import { InputBox } from "InputBox.slint";
 import { ScrollView } from "std-widgets.slint";
 import { ToastNotification } from "ToastNotification.slint";
 
@@ -111,13 +112,13 @@ export component EditWindow inherits Window {
             }
 
             // Content editor — dual mode
-        Rectangle {
+        InputBox {
                 vertical-stretch: 1;
                 border-radius: Theme.border-radius;
-                border-width: 1px;
-                border-color: root.editing ? Theme.border-subtle : transparent;
+                bordered: root.editing;
                 background: root.editing ? Theme.bg-input : transparent;
                 clip: true;
+                hot: content-edit.has-focus;
 
                 // Edit mode: plain text input. Wrapped in a ScrollView so a long
             // document scrolls instead of growing the layout and pushing the
@@ -176,27 +177,28 @@ export component EditWindow inherits Window {
                     vertical-alignment: center;
                 }
 
-                Rectangle {
+                InputBox {
                     horizontal-stretch: 1;
                     height: 32px;
                     border-radius: Theme.border-radius;
-                    border-width: 1px;
-                    border-color: tags-edit.has-focus ? Theme.accent-primary : Theme.border-accent;
-                    background: Theme.bg-input;
                     clip: true;
-                    HorizontalLayout {
-                        padding-left: 8px;
-                        padding-right: 8px;
-                        tags-edit := TextInput {
-                        // Two-way: Rust seeds it before each open; user edits write back.
-                        // Rust must NOT mutate initial-tags while the window is open.
-                        text <=> root.initial-tags;
-                            color: Theme.fg-primary;
-                            font-size: Theme.font-size;
-                            vertical-alignment: center;
-                            edited => {
-                                root.dirty = true;
-                                root.confirm-cancel = false;
+                    hot: tags-edit.has-focus;
+                    hover: tags-touch.has-hover;
+                    tags-touch := TouchArea {
+                        HorizontalLayout {
+                            padding-left: 8px;
+                            padding-right: 8px;
+                            tags-edit := TextInput {
+                            // Two-way: Rust seeds it before each open; user edits write back.
+                            // Rust must NOT mutate initial-tags while the window is open.
+                            text <=> root.initial-tags;
+                                color: Theme.fg-primary;
+                                font-size: Theme.font-size;
+                                vertical-alignment: center;
+                                edited => {
+                                    root.dirty = true;
+                                    root.confirm-cancel = false;
+                                }
                             }
                         }
                     }

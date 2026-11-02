@@ -165,7 +165,7 @@ export component MainClipArea inherits Rectangle {
                 return accept;
             }
 
-            // ── Text input — only handled when LineEdit is NOT focused ──
+            // ── Text input — only handled when the search field is NOT focused ──
             if (!toolbar.search-focused) {
                 // Held Delete would remove one clip per repeat, so it is
                 // restricted to discrete presses. The Rust side asks for a

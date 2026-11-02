@@ -1,27 +1,8 @@
 import { Theme } from "Theme.slint";
-
-// Bordered surface shared by settings inputs and buttons: neutral at rest,
-// accent-outlined while hovered or `hot` (a child input holds focus). The
-// hover TouchArea precedes @children, so a child control that swallows pointer
-// events must feed its own hover into `hot`.
-export component FieldBox inherits Rectangle {
-    in property <bool> hot: false;
-    in property <bool> bordered: true;
-
-    height: 28px;
-    border-radius: 5px;
-    border-width: root.bordered ? 1px : 0px;
-    border-color: root.hot || field-touch.has-hover ? Theme.accent-primary : Theme.border-accent;
-    background: Theme.bg-input;
-    animate border-color { duration: Theme.anim-fast; }
-
-    field-touch := TouchArea { }
-
-    @children
-}
+import { InputBox } from "InputBox.slint";
 
 // Row scaffolding shared by every settings row: fixed-width label column +
-// the caller's cells, normally a single `FieldBox`. `fill` lets the field take
+// the caller's cells, normally a single `InputBox`. `fill` lets the field take
 // the row's remaining width; otherwise cells keep their preferred size, so a
 // row can also place a trailing action after the field.
 export component SettingsRow {
@@ -129,10 +110,11 @@ export component TextRow {
         tooltip-text: root.tooltip-text;
         fill: true;
 
-        FieldBox {
+        InputBox {
             horizontal-stretch: 1;
             min-width: 300px;
-            hot: ti.has-focus || input-touch.has-hover;
+            hot: ti.has-focus;
+            hover: input-touch.has-hover;
 
             // The TextInput consumes pointer moves, so a sibling hover area
             // never sees them. An enclosing TouchArea does: its filter runs
@@ -170,8 +152,9 @@ export component HotkeyRow {
         label: root.label;
         tooltip-text: root.tooltip-text;
 
-        FieldBox {
-            hot: ti.has-focus || hotkey-touch.has-hover;
+        InputBox {
+            hot: ti.has-focus;
+            hover: hotkey-touch.has-hover;
 
             HorizontalLayout {
                 padding-left: 8px;
@@ -270,8 +253,8 @@ export component IntRow {
         label: root.label;
         tooltip-text: root.tooltip-text;
 
-        FieldBox {
-            hot: int-body.prev-hover || int-body.next-hover;
+        InputBox {
+            hover: int-body.prev-hover || int-body.next-hover;
 
             int-body := StepperRowBody {
                 step-back() => {
@@ -307,8 +290,8 @@ export component FloatRow {
         label: root.label;
         tooltip-text: root.tooltip-text;
 
-        FieldBox {
-            hot: float-body.prev-hover || float-body.next-hover;
+        InputBox {
+            hover: float-body.prev-hover || float-body.next-hover;
 
             float-body := StepperRowBody {
                 step-back() => {
@@ -355,9 +338,9 @@ export component SliderRow {
         tooltip-text: root.tooltip-text;
         fill: true;
 
-        FieldBox {
+        InputBox {
             horizontal-stretch: 1;
-            hot: slider-touch.has-hover;
+            hover: slider-touch.has-hover;
 
             HorizontalLayout {
                 cross-axis-alignment: center;
@@ -419,8 +402,8 @@ export component DropRow {
         label: root.label;
         tooltip-text: root.tooltip-text;
 
-        FieldBox {
-            hot: drop-body.prev-hover || drop-body.next-hover;
+        InputBox {
+            hover: drop-body.prev-hover || drop-body.next-hover;
 
             drop-body := StepperRowBody {
                 leading-glyph: "‹";
@@ -457,7 +440,7 @@ export component ToggleRow {
         tooltip-text: root.tooltip-text;
         fill: true;
 
-        FieldBox {
+        InputBox {
             horizontal-stretch: 1;
             bordered: false;
 

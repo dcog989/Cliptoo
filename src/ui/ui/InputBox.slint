@@ -1,0 +1,28 @@
+// InputBox.slint — chrome shared by every text field in the app: neutral
+// border at rest, brighter while hovered, accent while focused (`hot`).
+// Defaults match the compact settings rows; callers override height,
+// border-radius and clip for their own field.
+import { Theme } from "Theme.slint";
+
+export component InputBox inherits Rectangle {
+    // Set when a child input holds focus.
+    in property <bool> hot: false;
+    // Pointer hover, for callers whose child swallows pointer events (a
+    // TextInput does). The TouchArea below precedes @children, so it only sees
+    // hover the child does not consume.
+    in property <bool> hover: false;
+    in property <bool> bordered: true;
+
+    height: 28px;
+    border-radius: 5px;
+    border-width: root.bordered ? 1px : 0px;
+    border-color: root.hot
+        ? Theme.accent-primary
+        : (root.hover || field-touch.has-hover ? Theme.fg-muted : Theme.border-subtle);
+    background: Theme.bg-input;
+    animate border-color { duration: Theme.anim-fast; }
+
+    field-touch := TouchArea { }
+
+    @children
+}

@@ -12,9 +12,9 @@ import {
     SliderRow,
     SectionHeader,
     SettingsRow,
-    FieldBox,
     StepperRowBody,
 } from "SettingsComponents.slint";
+import { InputBox } from "InputBox.slint";
 import { ScrollView } from "std-widgets.slint";
 
 export component SettingsPage inherits ScrollView {
@@ -95,8 +95,8 @@ export component SettingsPage inherits ScrollView {
             label: @tr("Log level");
             tooltip-text: root.tip-log-level;
 
-            FieldBox {
-                hot: log-body.prev-hover || log-body.next-hover;
+            InputBox {
+                hover: log-body.prev-hover || log-body.next-hover;
 
                 log-body := StepperRowBody {
                     leading-glyph: "‹";
@@ -165,10 +165,10 @@ export component SettingsPage inherits ScrollView {
             label: @tr("Accent color");
             tooltip-text: root.tip-accent-picker;
 
-            FieldBox {
+            InputBox {
                 width: 28px;
                 background: SettingsValues.s-accent-color;
-                hot: accent-touch.has-hover;
+                hover: accent-touch.has-hover;
 
                 accent-touch := TouchArea {
                     mouse-cursor: pointer;
@@ -196,8 +196,8 @@ export component SettingsPage inherits ScrollView {
             label: @tr("Font family");
             tooltip-text: root.tip-font-family;
 
-            FieldBox {
-                hot: font-touch.has-hover;
+            InputBox {
+                hover: font-touch.has-hover;
                 HorizontalLayout {
                     padding-left: 8px;
                     padding-right: 8px;
