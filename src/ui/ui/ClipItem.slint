@@ -230,7 +230,11 @@ export component ClipItem {
 
                 // Plain text (not searching, or no match-context available)
                 // Width leaves room for bookmark icon when bookmarked.
-                if !root.is-searching || clip-data.match-context == "": Text {
+                // Declared unconditionally (hidden, not conditional) so the
+                // hover-preview gate below can compare its preferred width
+                // against its laid-out width to detect elision.
+                preview-text := Text {
+                    visible: !root.is-searching || clip-data.match-context == "";
                     x: clip-data.has-leading-whitespace ? 22px : 0px;
                     width: parent.width - self.x - (clip-data.is-bookmarked ? 22px : 0px);
                     height: 100%;
@@ -328,12 +332,24 @@ export component ClipItem {
             mouse-cursor: pointer;
         }
 
+        // A single-line plain-text clip whose row already shows the whole
+        // string gets no hover preview: it would only repeat the row. Elided
+        // text, multiline content, search-highlight rows and every richer clip
+        // type keep theirs. `preferred-width` stays the full one-line text
+        // width even with `overflow: elide`, so comparing it to the laid-out
+        // width detects elision.
+        private property <bool> preview-offered:
+            clip-data.is-multiline
+            || clip-data.clip-type != "text"
+            || (root.is-searching && clip-data.match-context != "")
+            || preview-text.preferred-width > preview-text.width;
+
         // Fires once, after hover-preview-delay. The latch prevents re-firing
         // on subsequent ticks while the cursor stays on the row. A popup menu
         // owns the pointer, so no hover preview is requested over it.
         Timer {
             interval: Theme.hover-preview-delay;
-            running: touch.has-hover && !root.preview-triggered && !root.popup-open && Theme.hover-preview-delay > 0ms;
+            running: touch.has-hover && !root.preview-triggered && !root.popup-open && preview-offered && Theme.hover-preview-delay > 0ms;
             triggered => {
                 root.preview-triggered = true;
                 root.hovered(touch.mouse-x / 1px, touch.mouse-y / 1px);
