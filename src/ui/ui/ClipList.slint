@@ -159,6 +159,9 @@ export component ClipList {
                 root.click-row(idx);
             }
             right-clicked(x, y) => {
+                // Right-click moves the selection to the row under the pointer
+                // so the menu acts on (and highlights) that clip.
+                root.set-cursor(idx);
                 root.item-right-clicked(clip.id, x, idx * Theme.row-height / 1px + list-view.content-y / 1px + root.list-padding / 1px + y, clip.is-bookmarked, clip.clip-type);
             }
             hovered(mx, my) => {
