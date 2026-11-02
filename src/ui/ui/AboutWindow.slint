@@ -32,6 +32,9 @@ component AboutRow {
                 color: Theme.link-fg;
                 font-size: Theme.font-size;
                 horizontal-alignment: left;
+                // A deep install/data path must not stretch the window off-screen.
+                max-width: 700px;
+                overflow: elide;
             }
 
             Rectangle {
@@ -53,6 +56,8 @@ component AboutRow {
             font-size: Theme.font-size;
             horizontal-alignment: left;
             vertical-alignment: center;
+            max-width: 700px;
+            overflow: elide;
         }
     }
 }
@@ -75,7 +80,7 @@ export component AboutWindow inherits Window {
     in property <string> cache-path: "";
     in property <string> logs-folder-path: "";
 
-    in-out property <length> content-width: Math.max(560px, content-layout.preferred-width + 40px);
+    in-out property <length> content-width: Math.min(900px, Math.max(560px, content-layout.preferred-width + 40px));
     in-out property <length> content-height: Math.max(360px, content-layout.preferred-height);
 
     callback about-closing();
@@ -116,14 +121,14 @@ export component AboutWindow inherits Window {
         }
 
         Text {
-            text: "The advanced clipboard manager";
+            text: @tr("The advanced clipboard manager");
             color: Theme.fg-secondary;
             font-size: Theme.font-size;
             horizontal-alignment: center;
         }
 
         Text {
-            text: "\"Klaatu barada nikto!\"";
+            text: @tr("\"Klaatu barada nikto!\"");
             color: Theme.brand-gold;
             font-size: 18px;
             font-italic: true;
@@ -140,43 +145,43 @@ export component AboutWindow inherits Window {
             spacing: 8px;
 
             AboutRow {
-                label: "Version";
+                label: @tr("Version");
                 value: root.version;
                 clickable: false;
             }
 
             AboutRow {
-                label: "Install";
+                label: @tr("Install");
                 value: root.install-path;
                 value-clicked => { root.open-folder(root.install-path); }
             }
 
             AboutRow {
-                label: "Config";
+                label: @tr("Config");
                 value: root.config-path;
                 value-clicked => { root.open-folder(root.config-path); }
             }
 
             AboutRow {
-                label: "Data";
+                label: @tr("Data");
                 value: root.data-path;
                 value-clicked => { root.open-folder(root.data-path); }
             }
 
             AboutRow {
-                label: "Cache";
+                label: @tr("Cache");
                 value: root.cache-path;
                 value-clicked => { root.open-folder(root.cache-path); }
             }
 
             AboutRow {
-                label: "Logs";
+                label: @tr("Logs");
                 value: root.logs-folder-path;
                 value-clicked => { root.open-folder(root.logs-folder-path); }
             }
 
             AboutRow {
-                label: "Source";
+                label: @tr("Source");
                 value: "https://github.com/dcog989/Cliptoo";
                 value-clicked => { root.open-repo(); }
             }
@@ -186,7 +191,7 @@ export component AboutWindow inherits Window {
             padding-top: 14px;
 
             Text {
-                text: "Cliptoo © since 2025. GPL-3.0 License.";
+                text: @tr("Cliptoo © since 2025. GPL-3.0 License.");
                 color: Theme.fg-muted;
                 font-size: Theme.font-size - 2px;
                 horizontal-alignment: center;
