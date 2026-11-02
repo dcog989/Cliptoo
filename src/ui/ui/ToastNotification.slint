@@ -20,11 +20,11 @@ export component ToastNotification {
 
     callback dismissed;
 
-    // Resolve per-severity colours. The info variant is a filled accent shape
-    // (like a toggle or badge), so it uses `accent-fill` — the picked color —
-    // rather than the text-grade `accent-primary`.
+    // The mix factor weights the colour it is called on, so 0.85 keeps the
+    // warning a strong amber fill (15% page) that the white `warn-fg` text can
+    // clear in both modes. A small factor leaves white text on a pale tint.
     property <color> bg-color:
-        severity == "error" ? Theme.danger-bg : severity == "warn" ? Theme.warn-base.mix(Theme.bg-primary, 0.15) : Theme.accent-fill.mix(Theme.bg-primary, 0.25);
+        severity == "error" ? Theme.danger-bg : severity == "warn" ? Theme.warn-base.mix(Theme.bg-primary, 0.85) : Theme.accent-fill.mix(Theme.bg-primary, 0.25);
 
     property <color> border-color:
         severity == "error" ? Theme.danger-bg : severity == "warn" ? Theme.warn-base : Theme.accent-fill;

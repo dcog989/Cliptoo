@@ -43,8 +43,6 @@ export global Theme {
     in property <color> fg-secondary:      #A1A1A1;
     in property <color> fg-clip-list:      #B4B4B4;
     in property <color> fg-muted:          #636363;
-    in property <color> fg-success:        #2ECC71;
-    in property <color> fg-warning:        #F39C12;
     in property <color> fg-bookmarked:     #E5B567;
     // The logo's gold stroke (`assets/cliptoo.svg`), used for the About
     // window's tagline. Static in both theme modes.
@@ -80,9 +78,9 @@ export global Theme {
     in property <color> link-fg:        #4C9EFF;  // link blue, readable on any background
     in property <color> bg-track:       #555555;  // slider track / toggle-off background
 
-    // Destructive/error palette, identical in both theme modes and never mixed
-    // with the page background. Every danger element uses these three: the
-    // Delete menu row, destructive buttons, and the error toast.
+    // Destructive/error palette. `danger-fg` is set per theme mode by
+    // `theme::fill_theme` so it clears the same text floor as the rest of the
+    // page text; the fill and on-fill pair stay static.
     in property <color> danger-fg:      #e24b39;  // red foreground / accent
     in property <color> danger-bg:      #9c2a1e;  // filled destructive surface
     in property <color> danger-on-bg:   #fdd9d3;  // content on a danger fill
@@ -111,6 +109,5 @@ export global Theme {
 
     // ── Timing ────────────────────────────────────────────────────────────────
     in property <duration> anim-fast:       120ms;
-    in property <duration> anim-normal:     200ms;
     in property <duration> hover-preview-delay: 400ms;
 }

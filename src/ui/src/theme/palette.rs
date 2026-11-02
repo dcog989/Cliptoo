@@ -12,7 +12,7 @@ use cliptoo_core::color::oklch_to_srgb_bytes;
 
 /// The three OKLCH lightness levels, dark then light. Alternating the level
 /// across a family keeps same-hue neighbours distinguishable.
-const DARK_LEVELS: [f64; 3] = [0.64, 0.74, 0.84];
+const DARK_LEVELS: [f64; 3] = [0.66, 0.74, 0.84];
 const LIGHT_LEVELS: [f64; 3] = [0.38, 0.45, 0.52];
 
 /// OKLCH chroma, per mode. Low-chroma roles scale this down.
@@ -118,18 +118,27 @@ const ALL: [(&str, TypeColor); 16] = [
 #[cfg(test)]
 mod tests {
     use super::ALL;
-    use crate::theme::contrast::apca_contrast;
+    use crate::theme::contrast::{
+        BG_PRIMARY_DARK, BG_PRIMARY_LIGHT, BG_ROW_ALT_DARK, BG_ROW_ALT_LIGHT, BG_ROW_SELECTED_DARK,
+        BG_ROW_SELECTED_LIGHT, apca_contrast,
+    };
 
-    const DARK_BG: (u8, u8, u8) = (0x18, 0x18, 0x18);
-    const LIGHT_BG: (u8, u8, u8) = (0xF5, 0xF5, 0xF5);
-    /// Floor matching the palette's own weakest role (deep red at Lc ≈ 38 on
+    /// Floor matching the palette's own weakest role (deep red at Lc ≈ 39 on
     /// the dark row surface).
     const MIN_LC: f64 = 35.0;
 
     #[test]
-    fn every_type_color_clears_the_row_surface() {
+    fn every_type_color_clears_the_surfaces_it_is_drawn_on() {
+        let surfaces = [
+            (true, BG_PRIMARY_DARK),
+            (true, BG_ROW_ALT_DARK),
+            (true, BG_ROW_SELECTED_DARK),
+            (false, BG_PRIMARY_LIGHT),
+            (false, BG_ROW_ALT_LIGHT),
+            (false, BG_ROW_SELECTED_LIGHT),
+        ];
         for (name, role) in ALL {
-            for (is_dark, bg) in [(true, DARK_BG), (false, LIGHT_BG)] {
+            for (is_dark, bg) in surfaces {
                 let [r, g, b] = role.rgb(is_dark);
                 let lc = apca_contrast((r, g, b), bg).abs();
                 assert!(lc >= MIN_LC, "{name} on {bg:?}: Lc {lc:.1} < {MIN_LC}");

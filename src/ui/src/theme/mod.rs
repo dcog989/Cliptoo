@@ -13,6 +13,7 @@ use std::sync::Mutex;
 
 use self::contrast::{
     FILL_MIN_LC, TEXT_MIN_LC, accent_sibling, bg_primary, contrast_safe_accent, match_highlight,
+    text_surface,
 };
 
 mod contrast;
@@ -33,6 +34,18 @@ const SHADOW_ALPHA: u8 = 0x30;
 /// OKLCH chroma fraction of the accent kept by the accent border. Low so the
 /// border reads as a tint rather than a second block of the accent.
 const BORDER_CHROMA_SCALE: f64 = 0.40;
+
+/// Page text colours that are not accent-derived. They are mode-specific so
+/// they can clear the same APCA text floor as `accent-primary`.
+const DANGER_FG_DARK: (u8, u8, u8) = (0xFF, 0x9A, 0x8A);
+const DANGER_FG_LIGHT: (u8, u8, u8) = (0xC9, 0x38, 0x26);
+const LINK_FG_DARK: (u8, u8, u8) = (0x8F, 0xBE, 0xFF);
+const LINK_FG_LIGHT: (u8, u8, u8) = (0x2F, 0x6F, 0xC9);
+
+/// Convert 0–255 channels to a Slint colour.
+fn rgb((r, g, b): (u8, u8, u8)) -> Color {
+    Color::from_rgb_u8(r, g, b)
+}
 
 /// Parse a `#RRGGBB` hex string (leading `#` optional) into `(r, g, b)`.
 /// Returns `DEFAULT_ACCENT` for malformed input.
@@ -86,9 +99,10 @@ pub fn fill_accent(
     // tint so at-rest muted icons/text stay legible on it.
     let row_selected_l = if is_dark { 0.32 } else { 0.88 };
 
-    // Surface the accent is applied on; the accent must keep a minimum
-    // APCA contrast against it in both theme modes.
-    let bg = bg_primary(is_dark);
+    // Worst surface the accent text is drawn on: the lightest in dark mode,
+    // the darkest in light mode. Adjusting against it keeps the text grade
+    // above the floor on the page, the header, the alternate row and inputs.
+    let bg = text_surface(is_dark);
 
     // Base accent: the system accent in "System" theme mode, otherwise the
     // user-picked color.
@@ -145,7 +159,7 @@ pub fn fill_accent(
 }
 
 /// Apply pre-resolved theme tokens to any `Theme` global handle.
-/// Used by the window, the tray, and any other component with `Theme`.
+/// Used by every window and any other component with `Theme`.
 pub fn fill_theme(
     t: &Theme,
     settings: &Settings,
@@ -166,9 +180,9 @@ pub fn fill_theme(
         t.set_fg_secondary(Color::from_rgb_u8(0xA1, 0xA1, 0xA1));
         t.set_fg_clip_list(Color::from_rgb_u8(0xB4, 0xB4, 0xB4));
         t.set_fg_muted(Color::from_rgb_u8(0x63, 0x63, 0x63));
-        t.set_fg_success(Color::from_rgb_u8(0x2E, 0xCC, 0x71));
-        t.set_fg_warning(Color::from_rgb_u8(0xF3, 0x9C, 0x12));
         t.set_fg_bookmarked(Color::from_rgb_u8(0xE5, 0xB5, 0x67));
+        t.set_danger_fg(rgb(DANGER_FG_DARK));
+        t.set_link_fg(rgb(LINK_FG_DARK));
         t.set_border_subtle(Color::from_rgb_u8(0x44, 0x44, 0x44));
         t.set_shadow(Color::from_argb_u8(SHADOW_ALPHA, 0x00, 0x00, 0x00));
     } else {
@@ -184,9 +198,9 @@ pub fn fill_theme(
         t.set_fg_secondary(Color::from_rgb_u8(0x55, 0x55, 0x55));
         t.set_fg_clip_list(Color::from_rgb_u8(0x55, 0x55, 0x55));
         t.set_fg_muted(Color::from_rgb_u8(0x99, 0x99, 0x99));
-        t.set_fg_success(Color::from_rgb_u8(0x27, 0xAE, 0x60));
-        t.set_fg_warning(Color::from_rgb_u8(0xE6, 0x7E, 0x22));
         t.set_fg_bookmarked(Color::from_rgb_u8(0xB8, 0x86, 0x0B));
+        t.set_danger_fg(rgb(DANGER_FG_LIGHT));
+        t.set_link_fg(rgb(LINK_FG_LIGHT));
         t.set_border_subtle(Color::from_rgb_u8(0xD0, 0xD0, 0xD0));
         t.set_shadow(Color::from_argb_u8(SHADOW_ALPHA, 0x00, 0x00, 0x00));
     }
@@ -235,7 +249,7 @@ type ResolvedTheme = (bool, Option<(u8, u8, u8)>);
 /// global must be filled individually with the same values.
 static RESOLVED_THEME: Mutex<Option<ResolvedTheme>> = Mutex::new(None);
 
-fn cache_resolved_theme(is_dark: bool, system_accent: Option<(u8, u8, u8)>) {
+pub(crate) fn cache_resolved_theme(is_dark: bool, system_accent: Option<(u8, u8, u8)>) {
     // A poisoned lock still holds a valid value; recover it so a panic while
     // holding the guard never drops the freshly resolved theme.
     let mut cached = RESOLVED_THEME
@@ -253,23 +267,29 @@ pub fn cached_resolved_theme() -> ResolvedTheme {
 }
 
 /// Resolve the dark-mode and system-accent context for the given settings.
-/// Side-effect: caches the result for `cached_resolved_theme`.
+/// The caller writes [`cache_resolved_theme`] after deciding the result is the
+/// newest one, so a slow older resolve cannot replace a newer cached value.
 pub async fn resolve_theme(settings: &Settings) -> ResolvedTheme {
-    let is_dark = match settings.theme.as_str() {
-        "Light" => false,
-        "Dark" => true,
-        _ => detect_system_dark().await.unwrap_or(true),
+    // The two portal reads are independent; run them together so a portal that
+    // stops replying costs one 2-second timeout, not two.
+    let dark = async {
+        match settings.theme.as_str() {
+            "Light" => false,
+            "Dark" => true,
+            _ => detect_system_dark().await.unwrap_or(true),
+        }
     };
-    // Follow the OS accent only when no custom accent has been chosen
-    // (empty accent_color = "use OS default"). A user-picked accent always
-    // wins, regardless of theme mode; theme mode only controls dark vs light.
-    let system_accent = if settings.accent_color.trim().is_empty() {
-        detect_system_accent().await
-    } else {
-        None
+    let accent = async {
+        // Follow the OS accent only when no custom accent has been chosen
+        // (empty accent_color = "use OS default"). A user-picked accent always
+        // wins, regardless of theme mode; theme mode only controls dark vs light.
+        if settings.accent_color.trim().is_empty() {
+            detect_system_accent().await
+        } else {
+            None
+        }
     };
-    cache_resolved_theme(is_dark, system_accent);
-    (is_dark, system_accent)
+    tokio::join!(dark, accent)
 }
 
 /// Apply theme tokens to the Slint UI global `Theme` of the main window.
@@ -277,6 +297,7 @@ pub async fn resolve_theme(settings: &Settings) -> ResolvedTheme {
 /// other windows' `Theme` globals with the same values.
 pub async fn apply_theme(ui: &crate::AppWindow, settings: &Settings) -> ResolvedTheme {
     let (is_dark, system_accent) = resolve_theme(settings).await;
+    cache_resolved_theme(is_dark, system_accent);
     fill_theme(&ui.global::<Theme>(), settings, is_dark, system_accent);
     (is_dark, system_accent)
 }
@@ -332,4 +353,28 @@ macro_rules! register_theme_filler {
 
 register_theme_filler!(register_about_theme_filler, crate::AboutWindow);
 register_theme_filler!(register_preview_theme_filler, crate::PreviewWindow);
-register_theme_filler!(register_tray_theme_filler, crate::CliptooTray);
+
+#[cfg(test)]
+mod tests {
+    use super::contrast::{
+        BG_HEADER_DARK, BG_HEADER_LIGHT, TEXT_MIN_LC, apca_contrast, bg_primary,
+    };
+    use super::{DANGER_FG_DARK, DANGER_FG_LIGHT, LINK_FG_DARK, LINK_FG_LIGHT};
+
+    #[test]
+    fn page_status_colours_clear_the_text_floor() {
+        for (fg, bg) in [
+            (DANGER_FG_DARK, bg_primary(true)),
+            (DANGER_FG_DARK, BG_HEADER_DARK),
+            (LINK_FG_DARK, bg_primary(true)),
+            (LINK_FG_DARK, BG_HEADER_DARK),
+            (DANGER_FG_LIGHT, bg_primary(false)),
+            (DANGER_FG_LIGHT, BG_HEADER_LIGHT),
+            (LINK_FG_LIGHT, bg_primary(false)),
+            (LINK_FG_LIGHT, BG_HEADER_LIGHT),
+        ] {
+            let lc = apca_contrast(fg, bg).abs();
+            assert!(lc >= TEXT_MIN_LC - 0.1, "{fg:?} on {bg:?}: Lc {lc}");
+        }
+    }
+}

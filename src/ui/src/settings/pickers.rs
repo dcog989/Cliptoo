@@ -39,6 +39,7 @@ pub(super) fn setup_clear_accent(
         if let Err(e) = slint::spawn_local(async move {
             let snapshot = s.borrow().clone();
             let (is_dark, system_accent) = crate::theme::resolve_theme(&snapshot).await;
+            crate::theme::cache_resolved_theme(is_dark, system_accent);
             let swatch = crate::theme::default_accent_color();
             fill_every_window(
                 &settings_ui,
@@ -264,6 +265,10 @@ pub(super) fn setup_accent_picker(
             }
             let snapshot = s.borrow().clone();
             let (is_dark, _) = crate::theme::cached_resolved_theme();
+            // The resolved cache still holds the old OS accent when the previous
+            // accent was empty. Replace it with the picked colour, or the editor
+            // (which re-fills from the cache on open) shows the OS accent.
+            crate::theme::cache_resolved_theme(is_dark, None);
             fill_every_window(&settings_ui, &sw, &snapshot, is_dark, None, &fillers, |t| {
                 crate::theme::fill_accent(t, &snapshot, is_dark, None)
             });

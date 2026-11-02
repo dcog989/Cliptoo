@@ -159,6 +159,15 @@ async fn main() -> Result<()> {
         system_accent,
     );
 
+    // Follow live OS appearance changes (KDE/XDG portal `SettingChanged`).
+    settings::theme_apply::watch_system_theme(
+        ui.as_weak(),
+        settings_win.as_weak(),
+        settings.clone(),
+        dirs.favicons_dir.clone(),
+        theme_fillers.clone(),
+    );
+
     let about_win = about::setup_about_window(&ui, &dirs);
     theme::fill_theme(
         &about_win.global::<crate::Theme>(),
@@ -270,15 +279,6 @@ async fn main() -> Result<()> {
     let mut _tray = None;
     match CliptooTray::new() {
         Ok(tray) => {
-            // SystemTrayIcon has its own global scope; init Theme on it too.
-            theme::fill_theme(
-                &tray.global::<crate::Theme>(),
-                &settings.borrow(),
-                is_dark,
-                system_accent,
-            );
-            theme::register_tray_theme_filler(&theme_fillers, &tray.as_weak());
-
             {
                 let win = ui.as_weak();
                 tray.on_toggle_window(move || {

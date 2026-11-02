@@ -11,7 +11,7 @@ use self::parse::{
 mod commit;
 mod parse;
 mod pickers;
-mod theme_apply;
+pub(crate) mod theme_apply;
 
 /// Show a toast on the settings window (its bottom overlay). Severity is
 /// "info" | "warn" | "error". Shared so every action reports failures the
