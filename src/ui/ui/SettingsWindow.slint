@@ -38,7 +38,6 @@ export component SettingsWindow inherits Window {
     callback accent-picker();
     callback font-picker();
     callback database-page-shown();
-    callback open-log();
 
     forward-focus: settings-focus;
     // Keyboard focus scope. Its `key-pressed` handles ESC to close the window;
@@ -100,9 +99,6 @@ export component SettingsWindow inherits Window {
                     }
                     font-picker() => {
                         root.font-picker();
-                    }
-                    open-log() => {
-                        root.open-log();
                     }
                 }
 

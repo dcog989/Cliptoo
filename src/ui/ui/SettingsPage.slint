@@ -12,7 +12,6 @@ import {
     SliderRow,
     SectionHeader,
     SettingsRow,
-    StepperRowBody,
 } from "SettingsComponents.slint";
 import { InputBox } from "InputBox.slint";
 import { ScrollView } from "std-widgets.slint";
@@ -22,13 +21,9 @@ export component SettingsPage inherits ScrollView {
     callback clear-accent-color();
     callback accent-picker();
     callback font-picker();
-    callback open-log();
 
     // Tooltip text for inline controls (Tooltip.text is styled-text, so @tr is
     // bound here and interpolated through @markdown at the use site).
-    private property <string> tip-open-log: @tr("Open the most recent log file in your default viewer");
-    private property <string> tip-log-level: @tr("Verbosity of messages written to the log file");
-    private property <[string]> log-levels: ["Debug", "Info", "Warn", "Error"];
     private property <string> tip-accent-picker: @tr("Pick a custom accent color");
     private property <string> tip-font-family: @tr("Font family used for the clip list. Click to pick a font");
 
@@ -88,55 +83,6 @@ export component SettingsPage inherits ScrollView {
             value <=> SettingsValues.s-paste-moves-to-top;
             committed(v) => {
                 root.setting-changed("paste_moves_to_top", v ? "true" : "false");
-            }
-        }
-
-        SettingsRow {
-            label: @tr("Log level");
-            tooltip-text: root.tip-log-level;
-
-            InputBox {
-                hover: log-body.prev-hover || log-body.next-hover;
-
-                log-body := StepperRowBody {
-                    leading-glyph: "‹";
-                    trailing-glyph: "›";
-                    leading-label: @tr("Previous log level");
-                    trailing-label: @tr("Next log level");
-                    glyph-offset: -2px;
-                    step-back() => {
-                        SettingsValues.s-log-level-idx = SettingsValues.s-log-level-idx == 0 ? root.log-levels.length - 1 : SettingsValues.s-log-level-idx - 1;
-                        root.setting-changed("logging_level", root.log-levels[SettingsValues.s-log-level-idx]);
-                    }
-                    step-forward() => {
-                        SettingsValues.s-log-level-idx = Math.mod(SettingsValues.s-log-level-idx + 1, root.log-levels.length);
-                        root.setting-changed("logging_level", root.log-levels[SettingsValues.s-log-level-idx]);
-                    }
-
-                    Text {
-                        text: root.log-levels[SettingsValues.s-log-level-idx];
-                        color: Theme.fg-primary;
-                        font-size: Theme.font-size;
-                        horizontal-alignment: center;
-                    }
-                }
-            }
-
-            Text {
-                text: @tr("Open latest log");
-                color: Theme.link-fg;
-                font-size: Theme.font-size;
-                vertical-alignment: center;
-                TouchArea {
-                    mouse-cursor: pointer;
-                    Tooltip {
-                        text: @markdown("\{root.tip-open-log}");
-                    }
-
-                    clicked => {
-                        root.open-log();
-                    }
-                }
             }
         }
 

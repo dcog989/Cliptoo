@@ -169,7 +169,7 @@ async fn main() -> Result<()> {
         theme_fillers.clone(),
     );
 
-    let about_win = about::setup_about_window(&ui, &dirs);
+    let about_win = about::setup_about_window(&ui, &dirs, &settings);
     theme::fill_theme(
         &about_win.global::<crate::Theme>(),
         &settings.borrow(),

@@ -3,9 +3,10 @@
 
 use slint::ComponentHandle;
 
+pub(crate) use self::parse::{LOG_LEVELS, idx_of};
 use self::parse::{
-    LOG_LEVELS, QUICK_PASTE_MODIFIERS, ROW_PADDINGS, THEMES, clean_hotkey_text,
-    format_send_to_apps, idx_of, normalize_choice,
+    QUICK_PASTE_MODIFIERS, ROW_PADDINGS, THEMES, clean_hotkey_text, format_send_to_apps,
+    normalize_choice,
 };
 
 mod commit;
@@ -107,7 +108,6 @@ fn init_settings_properties(
     v.set_s_start_with_system(s.start_with_system);
     v.set_s_always_close_to_tray(s.always_close_to_tray);
     v.set_s_quick_paste_mod_idx(idx_of(&s.quick_paste_modifier, &QUICK_PASTE_MODIFIERS));
-    v.set_s_log_level_idx(idx_of(&s.logging_level, &LOG_LEVELS));
     v.set_s_theme_idx(idx_of(&s.theme, &THEMES));
     v.set_s_accent_color(if s.accent_color.trim().is_empty() {
         crate::theme::default_accent_color()
@@ -138,18 +138,6 @@ fn setup_maintenance_forwarding(settings_win: &crate::SettingsWindow, main_ui: &
         if let Some(ui) = main_ui.upgrade() {
             ui.invoke_maintenance_action(key);
         }
-    });
-}
-
-/// Open the latest log file via the system default viewer.
-fn setup_open_log(settings_win: &crate::SettingsWindow, logs_dir: &std::path::Path) {
-    let logs_dir = logs_dir.to_path_buf();
-    settings_win.on_open_log(move || {
-        let Some(latest) = cliptoo_core::logger::latest_log_path(&logs_dir) else {
-            tracing::warn!("open-log: no log file yet in {}", logs_dir.display());
-            return;
-        };
-        crate::helpers::open_with_default(&latest.to_string_lossy());
     });
 }
 
@@ -224,7 +212,6 @@ pub fn setup_settings_window(
         &dirs.settings_path,
         theme_fillers.clone(),
     );
-    setup_open_log(&settings_win, &dirs.logs_dir);
     setup_settings_closing(&settings_win, ui, settings, &dirs.settings_path);
     pickers::setup_accent_picker(
         &settings_win,

@@ -2,6 +2,8 @@
 // Shown from the hamburger menu → About.
 
 import { Theme } from "Theme.slint";
+import { InputBox } from "InputBox.slint";
+import { StepperRowBody } from "SettingsComponents.slint";
 
 component AboutRow {
     in property <string> label;
@@ -100,6 +102,7 @@ export component AboutWindow inherits Window {
     in property <string> data-path: "";
     in property <string> cache-path: "";
     in property <string> logs-folder-path: "";
+    in property <string> log-level: "";
 
     in-out property <length> content-width: Math.min(900px, Math.max(560px, content-layout.preferred-width + 40px));
     in-out property <length> content-height: Math.max(360px, content-layout.preferred-height);
@@ -107,6 +110,8 @@ export component AboutWindow inherits Window {
     callback about-closing();
     callback open-repo();
     callback open-folder(string);
+    callback log-level-step(int);
+    callback open-latest-log();
 
     forward-focus: about-focus;
     about-focus := FocusScope {
@@ -201,6 +206,47 @@ export component AboutWindow inherits Window {
                 label: @tr("Logs");
                 value: root.logs-folder-path;
                 value-clicked => { root.open-folder(root.logs-folder-path); }
+            }
+
+            HorizontalLayout {
+                spacing: 32px;
+                alignment: start;
+
+                Text {
+                    width: 64px;
+                    text: @tr("Log level");
+                    color: Theme.fg-muted;
+                    font-size: Theme.font-size;
+                    horizontal-alignment: left;
+                    vertical-alignment: center;
+                }
+
+                InputBox {
+                    hover: log-body.prev-hover || log-body.next-hover;
+
+                    log-body := StepperRowBody {
+                        leading-glyph: "‹";
+                        trailing-glyph: "›";
+                        leading-label: @tr("Previous log level");
+                        trailing-label: @tr("Next log level");
+                        glyph-offset: -2px;
+                        step-back() => { root.log-level-step(-1); }
+                        step-forward() => { root.log-level-step(1); }
+
+                        Text {
+                            text: root.log-level;
+                            color: Theme.fg-primary;
+                            font-size: Theme.font-size;
+                            horizontal-alignment: center;
+                        }
+                    }
+                }
+            }
+
+            AboutRow {
+                label: @tr("Log file");
+                value: @tr("Open latest log");
+                value-clicked => { root.open-latest-log(); }
             }
 
             AboutRow {

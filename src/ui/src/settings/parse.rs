@@ -7,7 +7,7 @@
 /// `needle` is not in the list (a hand-edit or a value removed between
 /// versions) but logs a warning so the mismatch is visible instead of silently
 /// showing the first option.
-pub(super) fn idx_of(needle: &str, haystack: &[&str]) -> i32 {
+pub(crate) fn idx_of(needle: &str, haystack: &[&str]) -> i32 {
     match haystack
         .iter()
         .position(|&s| s.eq_ignore_ascii_case(needle))
@@ -26,7 +26,7 @@ pub(super) fn idx_of(needle: &str, haystack: &[&str]) -> i32 {
 /// normalisation. Keep each list in the same order as the `options:` array in
 /// the matching Slint row.
 pub(super) const QUICK_PASTE_MODIFIERS: [&str; 3] = ["Right Alt", "Left Alt", "Control"];
-pub(super) const LOG_LEVELS: [&str; 4] = ["Debug", "Info", "Warn", "Error"];
+pub(crate) const LOG_LEVELS: [&str; 4] = ["Debug", "Info", "Warn", "Error"];
 pub(super) const THEMES: [&str; 3] = ["System", "Light", "Dark"];
 pub(super) const ROW_PADDINGS: [&str; 3] = ["Compact", "Standard", "Luxury"];
 

@@ -5,6 +5,7 @@ use std::time::Duration;
 pub fn setup_about_window(
     ui: &crate::AppWindow,
     dirs: &crate::app_dirs::AppDirs,
+    settings: &std::rc::Rc<std::cell::RefCell<cliptoo_core::Settings>>,
 ) -> crate::AboutWindow {
     let about_win = crate::AboutWindow::new().expect("AboutWindow creation");
     about_win.set_version(env!("CARGO_PKG_VERSION").into());
@@ -13,6 +14,45 @@ pub fn setup_about_window(
     about_win.set_data_path(dirs.data_dir.display().to_string().into());
     about_win.set_cache_path(dirs.cache_dir.display().to_string().into());
     about_win.set_logs_folder_path(dirs.logs_dir.display().to_string().into());
+    about_win.set_log_level(
+        crate::settings::LOG_LEVELS[crate::settings::idx_of(
+            &settings.borrow().logging_level,
+            &crate::settings::LOG_LEVELS,
+        ) as usize]
+            .into(),
+    );
+
+    // Log level lives here rather than in Settings. A step wraps around, is
+    // applied live (the file logger reads an atomic), and is saved at once.
+    {
+        let aw = about_win.as_weak();
+        let s = settings.clone();
+        let p = dirs.settings_path.clone();
+        about_win.on_log_level_step(move |delta: i32| {
+            let mut s = s.borrow_mut();
+            let count = crate::settings::LOG_LEVELS.len() as i32;
+            let current = crate::settings::idx_of(&s.logging_level, &crate::settings::LOG_LEVELS);
+            let next = (current + delta).rem_euclid(count);
+            let level = crate::settings::LOG_LEVELS[next as usize];
+            s.logging_level = level.to_string();
+            cliptoo_core::logger::set_level(s.log_level_filter());
+            let _ = s.save(&p);
+            if let Some(win) = aw.upgrade() {
+                win.set_log_level(level.into());
+            }
+        });
+    }
+
+    // Open the newest log file in the default viewer.
+    {
+        let logs_dir = dirs.logs_dir.clone();
+        about_win.on_open_latest_log(move || {
+            match cliptoo_core::logger::latest_log_path(&logs_dir) {
+                Some(latest) => crate::helpers::open_with_default(&latest.to_string_lossy()),
+                None => tracing::warn!("open-log: no log file yet in {}", logs_dir.display()),
+            }
+        });
+    }
 
     // Open the project repository in the default browser.
     about_win.on_open_repo(|| {

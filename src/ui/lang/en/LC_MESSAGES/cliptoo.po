@@ -12,57 +12,57 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
 
-#: src/ui/ui/AboutWindow.slint:87
+#: src/ui/ui/AboutWindow.slint:87 src/ui/ui/AboutWindow.slint:89
 msgctxt "AboutWindow"
 msgid "About Cliptoo"
 msgstr ""
 
-#: src/ui/ui/AboutWindow.slint:147
+#: src/ui/ui/AboutWindow.slint:147 src/ui/ui/AboutWindow.slint:152
 msgctxt "AboutWindow"
 msgid "The advanced clipboard manager"
 msgstr ""
 
-#: src/ui/ui/AboutWindow.slint:154
+#: src/ui/ui/AboutWindow.slint:154 src/ui/ui/AboutWindow.slint:159
 msgctxt "AboutWindow"
 msgid "\"Klaatu barada nikto!\""
 msgstr ""
 
-#: src/ui/ui/AboutWindow.slint:171
+#: src/ui/ui/AboutWindow.slint:171 src/ui/ui/AboutWindow.slint:176
 msgctxt "AboutWindow"
 msgid "Version"
 msgstr ""
 
-#: src/ui/ui/AboutWindow.slint:177
+#: src/ui/ui/AboutWindow.slint:177 src/ui/ui/AboutWindow.slint:182
 msgctxt "AboutWindow"
 msgid "Install"
 msgstr ""
 
-#: src/ui/ui/AboutWindow.slint:183
+#: src/ui/ui/AboutWindow.slint:183 src/ui/ui/AboutWindow.slint:188
 msgctxt "AboutWindow"
 msgid "Config"
 msgstr ""
 
-#: src/ui/ui/AboutWindow.slint:189
+#: src/ui/ui/AboutWindow.slint:189 src/ui/ui/AboutWindow.slint:194
 msgctxt "AboutWindow"
 msgid "Data"
 msgstr ""
 
-#: src/ui/ui/AboutWindow.slint:195
+#: src/ui/ui/AboutWindow.slint:195 src/ui/ui/AboutWindow.slint:200
 msgctxt "AboutWindow"
 msgid "Cache"
 msgstr ""
 
-#: src/ui/ui/AboutWindow.slint:201
+#: src/ui/ui/AboutWindow.slint:201 src/ui/ui/AboutWindow.slint:206
 msgctxt "AboutWindow"
 msgid "Logs"
 msgstr ""
 
-#: src/ui/ui/AboutWindow.slint:207
+#: src/ui/ui/AboutWindow.slint:207 src/ui/ui/AboutWindow.slint:253
 msgctxt "AboutWindow"
 msgid "Source"
 msgstr ""
 
-#: src/ui/ui/AboutWindow.slint:217
+#: src/ui/ui/AboutWindow.slint:217 src/ui/ui/AboutWindow.slint:263
 msgctxt "AboutWindow"
 msgid "Cliptoo © since 2025. GPL-3.0 License."
 msgstr ""
@@ -218,7 +218,8 @@ msgid "Edit"
 msgstr ""
 
 #: src/ui/ui/ContextMenu.slint:170 src/ui/ui/ContextMenu.slint:186
-#: src/ui/ui/ContextMenu.slint:170 src/ui/ui/ContextMenu.slint:186 src/ui/ui/ContextMenu.slint:200
+#: src/ui/ui/ContextMenu.slint:170 src/ui/ui/ContextMenu.slint:186 src/ui/ui/ContextMenu.slint:186
+#: src/ui/ui/ContextMenu.slint:170 src/ui/ui/ContextMenu.slint:186 src/ui/ui/ContextMenu.slint:186 src/ui/ui/ContextMenu.slint:184
 msgctxt "ContextMenu"
 msgid "Paste as Plain Text"
 msgstr ""
@@ -608,211 +609,181 @@ msgid "Settings"
 msgstr ""
 
 #. bound here and interpolated through @markdown at the use site).
-#: src/ui/ui/SettingsPage.slint:29
-msgctxt "SettingsPage"
-msgid "Open the most recent log file in your default viewer"
-msgstr ""
-
-#: src/ui/ui/SettingsPage.slint:30
-msgctxt "SettingsPage"
-msgid "Verbosity of messages written to the log file"
-msgstr ""
-
-#: src/ui/ui/SettingsPage.slint:32
+#: src/ui/ui/SettingsPage.slint:32 src/ui/ui/SettingsPage.slint:27
 msgctxt "SettingsPage"
 msgid "Pick a custom accent color"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:33
+#: src/ui/ui/SettingsPage.slint:33 src/ui/ui/SettingsPage.slint:28
 msgctxt "SettingsPage"
 msgid "Font family used for the clip list. Click to pick a font"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:54
+#: src/ui/ui/SettingsPage.slint:54 src/ui/ui/SettingsPage.slint:49
 msgctxt "SettingsPage"
 msgid "General"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:59
+#: src/ui/ui/SettingsPage.slint:59 src/ui/ui/SettingsPage.slint:54
 msgctxt "SettingsPage"
 msgid "Start with system"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:60
+#: src/ui/ui/SettingsPage.slint:60 src/ui/ui/SettingsPage.slint:55
 msgctxt "SettingsPage"
 msgid "Launch Cliptoo automatically when you log in"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:68
+#: src/ui/ui/SettingsPage.slint:68 src/ui/ui/SettingsPage.slint:63
 msgctxt "SettingsPage"
 msgid "Always close to tray"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:69
+#: src/ui/ui/SettingsPage.slint:69 src/ui/ui/SettingsPage.slint:64
 msgctxt "SettingsPage"
 msgid "Hide to the system tray when the window loses focus"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:77
+#: src/ui/ui/SettingsPage.slint:77 src/ui/ui/SettingsPage.slint:72
 msgctxt "SettingsPage"
 msgid "Paste as plain text"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:78
+#: src/ui/ui/SettingsPage.slint:78 src/ui/ui/SettingsPage.slint:73
 msgctxt "SettingsPage"
 msgid ""
 "Strip formatting when pasting text, and paste file paths as text instead of "
 "attaching the file"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:86
+#: src/ui/ui/SettingsPage.slint:86 src/ui/ui/SettingsPage.slint:81
 msgctxt "SettingsPage"
 msgid "Paste moves clip to top"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:87
+#: src/ui/ui/SettingsPage.slint:87 src/ui/ui/SettingsPage.slint:82
 msgctxt "SettingsPage"
 msgid "Move a clip to the top of the list when you paste it"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:95
-msgctxt "SettingsPage"
-msgid "Log level"
-msgstr ""
-
-#: src/ui/ui/SettingsPage.slint:104
-msgctxt "SettingsPage"
-msgid "Previous log level"
-msgstr ""
-
-#: src/ui/ui/SettingsPage.slint:105
-msgctxt "SettingsPage"
-msgid "Next log level"
-msgstr ""
-
-#: src/ui/ui/SettingsPage.slint:126
-msgctxt "SettingsPage"
-msgid "Open latest log"
-msgstr ""
-
-#: src/ui/ui/SettingsPage.slint:145
+#: src/ui/ui/SettingsPage.slint:145 src/ui/ui/SettingsPage.slint:91
 msgctxt "SettingsPage"
 msgid "Appearance"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:149
+#: src/ui/ui/SettingsPage.slint:149 src/ui/ui/SettingsPage.slint:95
 msgctxt "SettingsPage"
 msgid "Theme"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:158
+#: src/ui/ui/SettingsPage.slint:158 src/ui/ui/SettingsPage.slint:104
 msgctxt "SettingsPage"
 msgid "Color code clip types"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:159
+#: src/ui/ui/SettingsPage.slint:159 src/ui/ui/SettingsPage.slint:105
 msgctxt "SettingsPage"
 msgid "Colorise each clip type a different hue"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:167
+#: src/ui/ui/SettingsPage.slint:167 src/ui/ui/SettingsPage.slint:113
 msgctxt "SettingsPage"
 msgid "Accent color"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:184
+#: src/ui/ui/SettingsPage.slint:184 src/ui/ui/SettingsPage.slint:130
 msgctxt "SettingsPage"
 msgid "Clear"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:198
+#: src/ui/ui/SettingsPage.slint:198 src/ui/ui/SettingsPage.slint:145
 msgctxt "SettingsPage"
 msgid "Font family"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:225
+#: src/ui/ui/SettingsPage.slint:225 src/ui/ui/SettingsPage.slint:172
 msgctxt "SettingsPage"
 msgid "Clip list font size"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:226
+#: src/ui/ui/SettingsPage.slint:226 src/ui/ui/SettingsPage.slint:173
 msgctxt "SettingsPage"
 msgid "Font size of clip entries in the main list"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:238
+#: src/ui/ui/SettingsPage.slint:238 src/ui/ui/SettingsPage.slint:185
 msgctxt "SettingsPage"
 msgid "Preview font size"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:239
+#: src/ui/ui/SettingsPage.slint:239 src/ui/ui/SettingsPage.slint:186
 msgctxt "SettingsPage"
 msgid "Font size used for code and color previews"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:251
+#: src/ui/ui/SettingsPage.slint:251 src/ui/ui/SettingsPage.slint:198
 msgctxt "SettingsPage"
 msgid "Row padding"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:252
+#: src/ui/ui/SettingsPage.slint:252 src/ui/ui/SettingsPage.slint:199
 msgctxt "SettingsPage"
 msgid "Vertical padding of items in the clip list"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:261
+#: src/ui/ui/SettingsPage.slint:261 src/ui/ui/SettingsPage.slint:208
 msgctxt "SettingsPage"
 msgid "Preview hover delay"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:262
+#: src/ui/ui/SettingsPage.slint:262 src/ui/ui/SettingsPage.slint:209
 msgctxt "SettingsPage"
 msgid "Delay before the hover preview appears"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:275
+#: src/ui/ui/SettingsPage.slint:275 src/ui/ui/SettingsPage.slint:222
 msgctxt "SettingsPage"
 msgid "Preview size"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:276
+#: src/ui/ui/SettingsPage.slint:276 src/ui/ui/SettingsPage.slint:223
 msgctxt "SettingsPage"
 msgid "Maximum width/height of hover previews"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:289
+#: src/ui/ui/SettingsPage.slint:289 src/ui/ui/SettingsPage.slint:236
 msgctxt "SettingsPage"
 msgid "External Apps"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:293
+#: src/ui/ui/SettingsPage.slint:293 src/ui/ui/SettingsPage.slint:240
 msgctxt "SettingsPage"
 msgid "Diff tool path"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:294
+#: src/ui/ui/SettingsPage.slint:294 src/ui/ui/SettingsPage.slint:241
 msgctxt "SettingsPage"
 msgid "Command used to compare two text clips"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:302
+#: src/ui/ui/SettingsPage.slint:302 src/ui/ui/SettingsPage.slint:249
 msgctxt "SettingsPage"
 msgid "Send To apps"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:303
+#: src/ui/ui/SettingsPage.slint:303 src/ui/ui/SettingsPage.slint:250
 msgctxt "SettingsPage"
 msgid ""
 "Comma-separated list of apps that can open a clip. 'Name: command'. "
 "Arguments cannot contain commas"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:311
+#: src/ui/ui/SettingsPage.slint:311 src/ui/ui/SettingsPage.slint:258
 msgctxt "SettingsPage"
 msgid "Blacklist apps"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:312
+#: src/ui/ui/SettingsPage.slint:312 src/ui/ui/SettingsPage.slint:259
 msgctxt "SettingsPage"
 msgid "Comma-separated list of apps excluded from clipboard capture"
 msgstr ""
@@ -1046,4 +1017,29 @@ msgstr ""
 #: src/ui/ui/QrWindow.slint:171
 msgctxt "QrWindow"
 msgid "Close"
+msgstr ""
+
+#: src/ui/ui/AboutWindow.slint:217
+msgctxt "AboutWindow"
+msgid "Log level"
+msgstr ""
+
+#: src/ui/ui/AboutWindow.slint:230
+msgctxt "AboutWindow"
+msgid "Previous log level"
+msgstr ""
+
+#: src/ui/ui/AboutWindow.slint:231
+msgctxt "AboutWindow"
+msgid "Next log level"
+msgstr ""
+
+#: src/ui/ui/AboutWindow.slint:247
+msgctxt "AboutWindow"
+msgid "Log file"
+msgstr ""
+
+#: src/ui/ui/AboutWindow.slint:248
+msgctxt "AboutWindow"
+msgid "Open latest log"
 msgstr ""
