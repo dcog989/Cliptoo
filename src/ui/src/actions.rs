@@ -432,6 +432,7 @@ pub fn setup_clip_actions(
                     .await
                     {
                         tracing::error!("Transform paste error (key={key}): {e}");
+                        show_paste_error(&ui, &e);
                     }
                 }
             });
@@ -594,6 +595,7 @@ pub fn setup_clip_actions(
                         .await
                         {
                             tracing::error!("Paste error: {e}");
+                            show_paste_error(&ui, &e);
                         }
                     }
                     // A retention pass can delete a row while the window still
@@ -660,6 +662,7 @@ pub fn setup_clip_actions(
                         .await
                         {
                             tracing::error!("Paste-as ({paste_plain}) error: {e}");
+                            show_paste_error(&ui, &e);
                         }
                     }
                     Err(e) => {
@@ -695,6 +698,18 @@ fn show_main_toast(ui: &crate::AppWindow, message: &str, severity: &str) {
     ui.set_toast_message(message.into());
     ui.set_toast_severity(severity.into());
     ui.set_toast_visible(true);
+}
+
+/// A paste failed, likely after the window was already hidden for it. Bring
+/// the window back and show the error; a log line alone leaves the user with a
+/// vanished window and no paste.
+fn show_paste_error(ui: &slint::Weak<crate::AppWindow>, error: &anyhow::Error) {
+    let message = format!("Paste failed: {error:#}");
+    let ui = ui.clone();
+    let _ = ui.upgrade_in_event_loop(move |ui| {
+        crate::window::summon_window(&ui);
+        show_main_toast(&ui, &message, "error");
+    });
 }
 
 /// Read a clip's file for the editor. Only regular files up to

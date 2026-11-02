@@ -3,9 +3,9 @@ use cliptoo_core::content::hash::{normalize_line_endings, sha256_u64};
 use cliptoo_core::db::models::ClipType;
 use evdev::uinput::VirtualDevice;
 use evdev::{AttributeSet, EventType, InputEvent, KeyCode};
-use std::collections::HashSet;
-use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::collections::HashMap;
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
 use wl_clipboard_rs::copy::{ClipboardType, MimeSource, MimeType, Options, Seat, Source};
 
 /// How long a paste-suppression hash stays valid after `insert`. Must
@@ -13,39 +13,39 @@ use wl_clipboard_rs::copy::{ClipboardType, MimeSource, MimeType, Options, Seat, 
 /// `clipboard/listener.rs`): if the entry expires before the listener reads
 /// back our own paste, the content is re-ingested as a new clip. The multi-poll
 /// margin also covers the listener being mid-ingest of a large clip when the
-/// paste lands.
+/// paste lands. A later `insert` of the same hash refreshes the deadline.
 const SUPPRESSION_TTL: Duration = Duration::from_secs(2);
 
+/// How long to wait for the compositor to move keyboard focus off Cliptoo
+/// before injecting Ctrl+V, and the poll step used to check it.
+const FOCUS_LOSS_TIMEOUT: Duration = Duration::from_millis(500);
+const FOCUS_POLL_INTERVAL: Duration = Duration::from_millis(20);
+
 pub struct PasteSuppressionSet {
-    inner: Arc<Mutex<HashSet<u64>>>,
-    handle: tokio::runtime::Handle,
+    inner: Mutex<HashMap<u64, Instant>>,
 }
 
 impl PasteSuppressionSet {
     pub fn new() -> Self {
         Self {
-            inner: Arc::new(Mutex::new(HashSet::new())),
-            handle: tokio::runtime::Handle::current(),
+            inner: Mutex::new(HashMap::new()),
         }
     }
 
     pub fn insert(&self, hash: u64) {
-        let set = self.inner.clone();
-        {
-            let mut guard = set.lock().expect("PasteSuppressionSet lock");
-            guard.insert(hash);
-        }
-        let set2 = set.clone();
-        self.handle.spawn(async move {
-            tokio::time::sleep(SUPPRESSION_TTL).await;
-            let mut guard = set2.lock().expect("PasteSuppressionSet lock");
-            guard.remove(&hash);
-        });
+        let mut guard = self.inner.lock().expect("PasteSuppressionSet lock");
+        let now = Instant::now();
+        // Expired entries would otherwise only be dropped on a later lookup;
+        // the set only ever holds the last couple of pastes.
+        guard.retain(|_, deadline| *deadline > now);
+        guard.insert(hash, now + SUPPRESSION_TTL);
     }
 
     pub fn check_and_remove(&self, hash: u64) -> bool {
         let mut guard = self.inner.lock().expect("PasteSuppressionSet lock");
-        guard.remove(&hash)
+        guard
+            .remove(&hash)
+            .is_some_and(|deadline| deadline > Instant::now())
     }
 }
 
@@ -62,20 +62,43 @@ pub async fn paste_content(
     write_content_to_clipboard(content, clip_type, !paste_as_plain_text).await?;
 
     let (tx, rx) = tokio::sync::oneshot::channel::<()>();
-    let _ = window.upgrade_in_event_loop(move |ui| {
-        // Focus has to leave the window before the injected Ctrl+V, or the
-        // paste lands in Cliptoo. Close-to-tray hides; otherwise minimize, so
-        // the window stays reachable and the hotkey re-maps it.
-        if keep_window_open {
-            crate::window::minimize_for_paste(&ui);
-        } else {
-            crate::window::hide_window(&ui);
-        }
-        let _ = tx.send(());
-    });
-    rx.await.ok();
+    window
+        .upgrade_in_event_loop(move |ui| {
+            // Focus has to leave the window before the injected Ctrl+V, or the
+            // paste lands in Cliptoo. Close-to-tray hides; otherwise minimize,
+            // so the window stays reachable and the hotkey re-maps it.
+            if keep_window_open {
+                crate::window::minimize_for_paste(&ui);
+            } else {
+                crate::window::hide_window(&ui);
+            }
+            let _ = tx.send(());
+        })
+        .context("hiding the window before paste")?;
+    rx.await.context("window event loop closed before hiding")?;
 
-    tokio::time::sleep(Duration::from_millis(80)).await;
+    // Wayland moves focus asynchronously. Injecting as soon as hide() returns
+    // would paste into Cliptoo's own search field under load, so wait until the
+    // app reports no activation (bounded, in case focus is held elsewhere).
+    let deadline = Instant::now() + FOCUS_LOSS_TIMEOUT;
+    loop {
+        let (tx, rx) = tokio::sync::oneshot::channel::<bool>();
+        window
+            .upgrade_in_event_loop(move |_| {
+                let _ = tx.send(crate::drag::app_has_focus());
+            })
+            .context("querying app focus")?;
+        if !rx
+            .await
+            .context("window event loop closed while waiting for focus")?
+        {
+            break;
+        }
+        if Instant::now() >= deadline {
+            anyhow::bail!("Cliptoo kept keyboard focus; paste cancelled");
+        }
+        tokio::time::sleep(FOCUS_POLL_INTERVAL).await;
+    }
 
     // Key injection sleeps between press and release; keep it off the async
     // worker it would otherwise block.
