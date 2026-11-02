@@ -12,7 +12,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
 
-#: src/ui/ui/AboutWindow.slint:61
+#: src/ui/ui/AboutWindow.slint:61 src/ui/ui/AboutWindow.slint:66
 msgctxt "AboutWindow"
 msgid "About Cliptoo"
 msgstr ""
@@ -132,7 +132,7 @@ msgctxt "ClipTypeMap"
 msgid "Other File"
 msgstr ""
 
-#: src/ui/ui/ContextMenuHost.slint:289
+#: src/ui/ui/ContextMenuHost.slint:289 src/ui/ui/ContextMenuHost.slint:342
 msgctxt "ContextMenuHost"
 msgid "Back"
 msgstr ""
@@ -349,92 +349,92 @@ msgctxt "EditWindow"
 msgid "Edit Clip"
 msgstr ""
 
-#: src/ui/ui/EditWindow.slint:168
+#: src/ui/ui/EditWindow.slint:168 src/ui/ui/EditWindow.slint:173
 msgctxt "EditWindow"
 msgid "Tags:"
 msgstr ""
 
-#: src/ui/ui/EditWindow.slint:216
+#: src/ui/ui/EditWindow.slint:216 src/ui/ui/EditWindow.slint:220
 msgctxt "EditWindow"
 msgid "Discard?"
 msgstr ""
 
-#: src/ui/ui/EditWindow.slint:216
+#: src/ui/ui/EditWindow.slint:216 src/ui/ui/EditWindow.slint:220
 msgctxt "EditWindow"
 msgid "Cancel"
 msgstr ""
 
-#: src/ui/ui/EditWindow.slint:238
+#: src/ui/ui/EditWindow.slint:238 src/ui/ui/EditWindow.slint:242
 msgctxt "EditWindow"
 msgid "Save"
 msgstr ""
 
-#: src/ui/ui/FormatMenu.slint:33
+#: src/ui/ui/FormatMenu.slint:33 src/ui/ui/FormatMenu.slint:75
 msgctxt "FormatMenu"
 msgid "Back"
 msgstr ""
 
-#: src/ui/ui/FormatMenu.slint:45
+#: src/ui/ui/FormatMenu.slint:45 src/ui/ui/FormatMenu.slint:92
 msgctxt "FormatMenu"
 msgid "UPPER CASE"
 msgstr ""
 
-#: src/ui/ui/FormatMenu.slint:53
+#: src/ui/ui/FormatMenu.slint:53 src/ui/ui/FormatMenu.slint:105
 msgctxt "FormatMenu"
 msgid "lower case"
 msgstr ""
 
-#: src/ui/ui/FormatMenu.slint:61
+#: src/ui/ui/FormatMenu.slint:61 src/ui/ui/FormatMenu.slint:118
 msgctxt "FormatMenu"
 msgid "Capitalize Words"
 msgstr ""
 
-#: src/ui/ui/FormatMenu.slint:69
+#: src/ui/ui/FormatMenu.slint:69 src/ui/ui/FormatMenu.slint:131
 msgctxt "FormatMenu"
 msgid "Sentence case"
 msgstr ""
 
-#: src/ui/ui/FormatMenu.slint:77
+#: src/ui/ui/FormatMenu.slint:77 src/ui/ui/FormatMenu.slint:144
 msgctxt "FormatMenu"
 msgid "iNVERT cASE"
 msgstr ""
 
-#: src/ui/ui/FormatMenu.slint:89
+#: src/ui/ui/FormatMenu.slint:89 src/ui/ui/FormatMenu.slint:161
 msgctxt "FormatMenu"
 msgid "kebab-case"
 msgstr ""
 
-#: src/ui/ui/FormatMenu.slint:97
+#: src/ui/ui/FormatMenu.slint:97 src/ui/ui/FormatMenu.slint:174
 msgctxt "FormatMenu"
 msgid "snake_case"
 msgstr ""
 
-#: src/ui/ui/FormatMenu.slint:105
+#: src/ui/ui/FormatMenu.slint:105 src/ui/ui/FormatMenu.slint:187
 msgctxt "FormatMenu"
 msgid "camelCase"
 msgstr ""
 
-#: src/ui/ui/FormatMenu.slint:113
+#: src/ui/ui/FormatMenu.slint:113 src/ui/ui/FormatMenu.slint:200
 msgctxt "FormatMenu"
 msgid "De-slug"
 msgstr ""
 
-#: src/ui/ui/FormatMenu.slint:125
+#: src/ui/ui/FormatMenu.slint:125 src/ui/ui/FormatMenu.slint:217
 msgctxt "FormatMenu"
 msgid "Trim Whitespace"
 msgstr ""
 
-#: src/ui/ui/FormatMenu.slint:133
+#: src/ui/ui/FormatMenu.slint:133 src/ui/ui/FormatMenu.slint:230
 msgctxt "FormatMenu"
 msgid "Remove Line Breaks"
 msgstr ""
 
-#: src/ui/ui/FormatMenu.slint:141
+#: src/ui/ui/FormatMenu.slint:141 src/ui/ui/FormatMenu.slint:243
 msgctxt "FormatMenu"
 msgid "Normalize LF"
 msgstr ""
 
-#: src/ui/ui/FormatMenu.slint:149
+#: src/ui/ui/FormatMenu.slint:149 src/ui/ui/FormatMenu.slint:256
 msgctxt "FormatMenu"
 msgid "Add Timestamp"
 msgstr ""
@@ -459,6 +459,7 @@ msgctxt "PreviewWindow"
 msgid "Cliptoo Preview"
 msgstr ""
 
+#: src/ui/ui/SettingsComponents.slint:407
 #: src/ui/ui/SettingsComponents.slint:407
 msgctxt "SliderRow"
 msgid "Off"
@@ -824,4 +825,66 @@ msgstr ""
 #: src/ui/ui/Toolbar.slint:201
 msgctxt "Toolbar"
 msgid "Search…"
+msgstr ""
+
+#: src/ui/ui/AboutWindow.slint:124
+msgctxt "AboutWindow"
+msgid "The advanced clipboard manager"
+msgstr ""
+
+#: src/ui/ui/AboutWindow.slint:131
+msgctxt "AboutWindow"
+msgid "\"Klaatu barada nikto!\""
+msgstr ""
+
+#: src/ui/ui/AboutWindow.slint:148
+msgctxt "AboutWindow"
+msgid "Version"
+msgstr ""
+
+#: src/ui/ui/AboutWindow.slint:154
+msgctxt "AboutWindow"
+msgid "Install"
+msgstr ""
+
+#: src/ui/ui/AboutWindow.slint:160
+msgctxt "AboutWindow"
+msgid "Config"
+msgstr ""
+
+#: src/ui/ui/AboutWindow.slint:166
+msgctxt "AboutWindow"
+msgid "Data"
+msgstr ""
+
+#: src/ui/ui/AboutWindow.slint:172
+msgctxt "AboutWindow"
+msgid "Cache"
+msgstr ""
+
+#: src/ui/ui/AboutWindow.slint:178
+msgctxt "AboutWindow"
+msgid "Logs"
+msgstr ""
+
+#: src/ui/ui/AboutWindow.slint:184
+msgctxt "AboutWindow"
+msgid "Source"
+msgstr ""
+
+#: src/ui/ui/AboutWindow.slint:194
+msgctxt "AboutWindow"
+msgid "Cliptoo © since 2025. GPL-3.0 License."
+msgstr ""
+
+#: src/ui/ui/DatabasePage.slint:30
+msgctxt "DatabasePage"
+msgid ""
+"Maximum number of non-bookmarked clips kept in history, 0 = keep all (the "
+"list shows up to 1000)"
+msgstr ""
+
+#: src/ui/ui/DatabasePage.slint:42
+msgctxt "DatabasePage"
+msgid "Automatically remove clips older than this many days. 0 = keep forever"
 msgstr ""
