@@ -2,6 +2,7 @@
 // (General | Appearance | External Apps).
 
 import { Theme } from "Theme.slint";
+import { SettingsValues } from "SettingsValues.slint";
 import {
     TextRow,
     IntRow,
@@ -17,25 +18,6 @@ import {
 import { ScrollView } from "std-widgets.slint";
 
 export component SettingsPage inherits ScrollView {
-    // ── Row values ────────────────────────────────────────────────────────────
-    in-out property <bool> s-start-with-system:    true;
-    in-out property <bool> s-always-close-to-tray: true;
-    in-out property <int> s-log-level-idx:        1;  // Debug/Info/Warn/Error
-    in-out property <int> s-theme-idx:            0;  // System/Light/Dark
-    in-out property <color> s-accent-color:       #7C6EE6;
-    in-out property <string> s-font-family:          "Inter";
-    in-out property <int> s-font-size-hundredths: 1300;  // 13.00 pt
-    in-out property <int> s-preview-font-size-hundredths: 1200;
-    in-out property <int> s-row-padding-idx:      1;  // Compact/Standard/Luxury
-    in-out property <int> hover-delay:            400;
-    in-out property <int> s-image-preview-size:   300;
-    in-out property <bool> s-color-code-clip-types: false;
-    in-out property <bool> s-paste-as-plain-text:  false;
-    in-out property <bool> s-paste-moves-to-top:   true;
-    in-out property <string> s-diff-tool-path:       "";
-    in-out property <string> s-send-to-apps:         "";
-    in-out property <string> s-blacklist-apps:       "";
-
     callback setting-changed(string, string);
     callback clear-accent-color();
     callback accent-picker();
@@ -76,7 +58,7 @@ export component SettingsPage inherits ScrollView {
         ToggleRow {
             label: @tr("Start with system");
             tooltip-text: @tr("Launch Cliptoo automatically when you log in");
-            value <=> root.s-start-with-system;
+            value <=> SettingsValues.s-start-with-system;
             committed(v) => {
                 root.setting-changed("start_with_system", v ? "true" : "false");
             }
@@ -85,7 +67,7 @@ export component SettingsPage inherits ScrollView {
         ToggleRow {
             label: @tr("Always close to tray");
             tooltip-text: @tr("Hide to the system tray when the window loses focus");
-            value <=> root.s-always-close-to-tray;
+            value <=> SettingsValues.s-always-close-to-tray;
             committed(v) => {
                 root.setting-changed("always_close_to_tray", v ? "true" : "false");
             }
@@ -94,7 +76,7 @@ export component SettingsPage inherits ScrollView {
         ToggleRow {
             label: @tr("Paste as plain text");
             tooltip-text: @tr("Strip formatting when pasting text, and paste file paths as text instead of attaching the file");
-            value <=> root.s-paste-as-plain-text;
+            value <=> SettingsValues.s-paste-as-plain-text;
             committed(v) => {
                 root.setting-changed("paste_as_plain_text", v ? "true" : "false");
             }
@@ -103,7 +85,7 @@ export component SettingsPage inherits ScrollView {
         ToggleRow {
             label: @tr("Paste moves clip to top");
             tooltip-text: @tr("Move a clip to the top of the list when you paste it");
-            value <=> root.s-paste-moves-to-top;
+            value <=> SettingsValues.s-paste-moves-to-top;
             committed(v) => {
                 root.setting-changed("paste_moves_to_top", v ? "true" : "false");
             }
@@ -121,16 +103,16 @@ export component SettingsPage inherits ScrollView {
                     trailing-glyph: "›";
                     glyph-offset: -2px;
                     step-back() => {
-                        root.s-log-level-idx = root.s-log-level-idx == 0 ? root.log-levels.length - 1 : root.s-log-level-idx - 1;
-                        root.setting-changed("logging_level", root.log-levels[root.s-log-level-idx]);
+                        SettingsValues.s-log-level-idx = SettingsValues.s-log-level-idx == 0 ? root.log-levels.length - 1 : SettingsValues.s-log-level-idx - 1;
+                        root.setting-changed("logging_level", root.log-levels[SettingsValues.s-log-level-idx]);
                     }
                     step-forward() => {
-                        root.s-log-level-idx = Math.mod(root.s-log-level-idx + 1, root.log-levels.length);
-                        root.setting-changed("logging_level", root.log-levels[root.s-log-level-idx]);
+                        SettingsValues.s-log-level-idx = Math.mod(SettingsValues.s-log-level-idx + 1, root.log-levels.length);
+                        root.setting-changed("logging_level", root.log-levels[SettingsValues.s-log-level-idx]);
                     }
 
                     Text {
-                        text: root.log-levels[root.s-log-level-idx];
+                        text: root.log-levels[SettingsValues.s-log-level-idx];
                         color: Theme.fg-primary;
                         font-size: Theme.font-size;
                         horizontal-alignment: center;
@@ -163,7 +145,7 @@ export component SettingsPage inherits ScrollView {
 
         DropRow {
             label: @tr("Theme");
-            index <=> root.s-theme-idx;
+            index <=> SettingsValues.s-theme-idx;
             options: ["System", "Light", "Dark"];
             committed(v) => {
                 root.setting-changed("theme", v);
@@ -173,7 +155,7 @@ export component SettingsPage inherits ScrollView {
         ToggleRow {
             label: @tr("Color code clip types");
             tooltip-text: @tr("Colorise each clip type a different hue");
-            value <=> root.s-color-code-clip-types;
+            value <=> SettingsValues.s-color-code-clip-types;
             committed(v) => {
                 root.setting-changed("color_code_clip_types", v ? "true" : "false");
             }
@@ -185,7 +167,7 @@ export component SettingsPage inherits ScrollView {
 
             FieldBox {
                 width: 28px;
-                background: root.s-accent-color;
+                background: SettingsValues.s-accent-color;
                 hot: accent-touch.has-hover;
 
                 accent-touch := TouchArea {
@@ -220,7 +202,7 @@ export component SettingsPage inherits ScrollView {
                     padding-left: 8px;
                     padding-right: 8px;
                     Text {
-                        text: root.s-font-family;
+                        text: SettingsValues.s-font-family;
                         color: Theme.fg-primary;
                         font-size: Theme.font-size;
                         vertical-alignment: center;
@@ -240,7 +222,7 @@ export component SettingsPage inherits ScrollView {
         FloatRow {
             label: @tr("Clip list font size");
             tooltip-text: @tr("Font size of clip entries in the main list");
-            value-hundredths <=> root.s-font-size-hundredths;
+            value-hundredths <=> SettingsValues.s-font-size-hundredths;
             min-hundredths: 800;
             max-hundredths: 2400;
             step-hundredths: 100;
@@ -253,7 +235,7 @@ export component SettingsPage inherits ScrollView {
         FloatRow {
             label: @tr("Preview font size");
             tooltip-text: @tr("Font size used for code and color previews");
-            value-hundredths <=> root.s-preview-font-size-hundredths;
+            value-hundredths <=> SettingsValues.s-preview-font-size-hundredths;
             min-hundredths: 800;
             max-hundredths: 2400;
             step-hundredths: 100;
@@ -266,7 +248,7 @@ export component SettingsPage inherits ScrollView {
         DropRow {
             label: @tr("Row padding");
             tooltip-text: @tr("Vertical padding of items in the clip list");
-            index <=> root.s-row-padding-idx;
+            index <=> SettingsValues.s-row-padding-idx;
             options: ["Compact", "Standard", "Luxury"];
             committed(v) => {
                 root.setting-changed("clip_item_padding", v);
@@ -276,7 +258,7 @@ export component SettingsPage inherits ScrollView {
         SliderRow {
             label: @tr("Preview hover delay");
             tooltip-text: @tr("Delay before the hover preview appears");
-            value <=> root.hover-delay;
+            value <=> SettingsValues.hover-delay;
             min-val: 0;
             max-val: 2000;
             step: 50;
@@ -290,7 +272,7 @@ export component SettingsPage inherits ScrollView {
         IntRow {
             label: @tr("Preview size");
             tooltip-text: @tr("Maximum width/height of hover previews");
-            value <=> root.s-image-preview-size;
+            value <=> SettingsValues.s-image-preview-size;
             min-val: 100;
             max-val: 800;
             step: 50;
@@ -308,7 +290,7 @@ export component SettingsPage inherits ScrollView {
         TextRow {
             label: @tr("Diff tool path");
             tooltip-text: @tr("Command used to compare two text clips");
-            value <=> root.s-diff-tool-path;
+            value <=> SettingsValues.s-diff-tool-path;
             committed(v) => {
                 root.setting-changed("compare_tool_path", v);
             }
@@ -316,8 +298,8 @@ export component SettingsPage inherits ScrollView {
 
         TextRow {
             label: @tr("Send To apps");
-            tooltip-text: @tr("Comma-separated list of apps that can open a clip. 'Name: command'");
-            value <=> root.s-send-to-apps;
+            tooltip-text: @tr("Comma-separated list of apps that can open a clip. 'Name: command'. Arguments cannot contain commas");
+            value <=> SettingsValues.s-send-to-apps;
             committed(v) => {
                 root.setting-changed("send_to_apps", v);
             }
@@ -326,7 +308,7 @@ export component SettingsPage inherits ScrollView {
         TextRow {
             label: @tr("Blacklist apps");
             tooltip-text: @tr("Comma-separated list of apps excluded from clipboard capture");
-            value <=> root.s-blacklist-apps;
+            value <=> SettingsValues.s-blacklist-apps;
             committed(v) => {
                 root.setting-changed("blacklisted_apps", v);
             }

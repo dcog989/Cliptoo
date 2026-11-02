@@ -2,9 +2,16 @@
 //! child process (python3/PyQt6 for fonts, kdialog for colors) and applies the
 //! result to settings and the live theme.
 
+use std::sync::atomic::{AtomicU64, Ordering};
+
 use slint::ComponentHandle;
 
-use super::theme_apply::apply_theme_to_windows;
+use super::theme_apply::{apply_theme_to_windows, fill_every_window};
+
+/// Bumped when an accent dialog opens. A dialog result is applied only when it
+/// is still the newest request, so closing two overlapping dialogs cannot let
+/// the older one win.
+static ACCENT_PICKER_REQUEST: AtomicU64 = AtomicU64::new(0);
 
 /// Clear accent: empty accent_color means "use the OS default accent".
 pub(super) fn setup_clear_accent(
@@ -33,24 +40,18 @@ pub(super) fn setup_clear_accent(
             let snapshot = s.borrow().clone();
             let (is_dark, system_accent) = crate::theme::resolve_theme(&snapshot).await;
             let swatch = crate::theme::default_accent_color();
-            if let Some(ui) = settings_ui.upgrade() {
-                crate::theme::fill_theme(
-                    &ui.global::<crate::Theme>(),
-                    &snapshot,
-                    is_dark,
-                    system_accent,
-                );
-            }
+            fill_every_window(
+                &settings_ui,
+                &sw,
+                &snapshot,
+                is_dark,
+                system_accent,
+                &fillers,
+                |t| crate::theme::fill_theme(t, &snapshot, is_dark, system_accent),
+            );
             if let Some(win) = sw.upgrade() {
-                crate::theme::fill_theme(
-                    &win.global::<crate::Theme>(),
-                    &snapshot,
-                    is_dark,
-                    system_accent,
-                );
-                // Re-fill the tray and About window globals too.
-                crate::theme::apply_theme_fillers(&fillers, &snapshot, is_dark, system_accent);
-                win.set_s_accent_color(swatch);
+                win.global::<crate::SettingsValues>()
+                    .set_s_accent_color(swatch);
             }
             // Save the live settings, not the snapshot: a change made while the
             // theme resolved must not be overwritten.
@@ -150,7 +151,8 @@ if ok:
                 t.set_font_family(family.as_str().into());
             });
             if let Some(win) = sw.upgrade() {
-                win.set_s_font_family(family.as_str().into());
+                win.global::<crate::SettingsValues>()
+                    .set_s_font_family(family.as_str().into());
             }
         }) {
             tracing::warn!("font-picker: failed to schedule on the event loop: {e}");
@@ -198,9 +200,10 @@ pub(super) fn setup_accent_picker(
         // active this is the resolved OS/default accent, so the dialog still
         // opens on the colour the user actually sees.
         let current = sw.upgrade().map(|win| {
-            let c = win.get_s_accent_color();
+            let c = win.global::<crate::SettingsValues>().get_s_accent_color();
             format!("#{:02X}{:02X}{:02X}", c.red(), c.green(), c.blue())
         });
+        let request = ACCENT_PICKER_REQUEST.fetch_add(1, Ordering::Relaxed) + 1;
         if let Err(e) = slint::spawn_local(async move {
             let result = tokio::task::spawn_blocking(move || {
                 let mut cmd = std::process::Command::new("kdialog");
@@ -248,21 +251,25 @@ pub(super) fn setup_accent_picker(
                 }
                 return;
             };
+            // A newer dialog replaced this one while it was open; its result is
+            // the one the user is waiting for.
+            if ACCENT_PICKER_REQUEST.load(Ordering::Relaxed) != request {
+                return;
+            }
 
             {
                 let mut settings = s.borrow_mut();
                 settings.accent_color.clone_from(&hex);
                 let _ = settings.save(&p);
             }
+            let snapshot = s.borrow().clone();
             let (is_dark, _) = crate::theme::cached_resolved_theme();
-            if let Some(ui) = settings_ui.upgrade() {
-                crate::theme::fill_accent(&ui.global::<crate::Theme>(), &s.borrow(), is_dark, None);
-            }
+            fill_every_window(&settings_ui, &sw, &snapshot, is_dark, None, &fillers, |t| {
+                crate::theme::fill_accent(t, &snapshot, is_dark, None)
+            });
             if let Some(win) = sw.upgrade() {
-                win.set_s_accent_color(crate::theme::accent_hex_to_color(&hex));
-                let s = s.borrow();
-                crate::theme::fill_accent(&win.global::<crate::Theme>(), &s, is_dark, None);
-                crate::theme::apply_theme_fillers(&fillers, &s, is_dark, None);
+                win.global::<crate::SettingsValues>()
+                    .set_s_accent_color(crate::theme::accent_hex_to_color(&hex));
             }
         }) {
             tracing::warn!("accent-picker: failed to schedule on the event loop: {e}");

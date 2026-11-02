@@ -1,10 +1,20 @@
 //! Persist setting changes from the settings window and apply their live
 //! effects (theme, fonts, hotkey, retention, blacklist).
 
+use std::time::Duration;
+
 use slint::ComponentHandle;
 
 use super::parse::{clean_hotkey_text, parse_blacklist, parse_send_to_apps};
 use super::theme_apply::{apply_theme_to_windows, invalidate_image_previews, reapply_theme};
+
+/// Delay between the last edit and the settings write. Text fields commit on
+/// every keystroke; writing the whole file in the callback stalled the UI.
+const SETTINGS_SAVE_DEBOUNCE: Duration = Duration::from_millis(500);
+
+/// Quiet period before the preview cache is dropped, so holding the size
+/// stepper does not walk the thumbnail directory once per step.
+const PREVIEW_INVALIDATE_DEBOUNCE: Duration = Duration::from_millis(500);
 
 /// Handle setting changes: persist each key/value into `Settings` and re-apply
 /// live effects (theme, fonts, hotkeys).
@@ -29,10 +39,15 @@ pub(super) fn setup_setting_commit(
     let fillers = fillers.clone();
     let image_preview_size = image_preview_size.clone();
     let thumbnails_dir = thumbnails_dir.clone();
+    let save_timer = std::rc::Rc::new(slint::Timer::default());
+    let invalidate_timer = std::rc::Rc::new(slint::Timer::default());
     settings_win.on_setting_changed(
         move |key: slint::SharedString, value: slint::SharedString| {
             let key = key.to_string();
             let value = value.to_string();
+            let s_saved = s.clone();
+            let p_saved = p.clone();
+            let save_timer = save_timer.clone();
             let mut s = s.borrow_mut();
 
             match key.as_str() {
@@ -43,17 +58,22 @@ pub(super) fn setup_setting_commit(
                     let cleaned = clean_hotkey_text(&value);
                     s.hotkey = cleaned.clone();
                     if let Some(win) = sw.upgrade() {
-                        win.set_s_hotkey(cleaned.into());
+                        win.global::<crate::SettingsValues>()
+                            .set_s_hotkey(cleaned.into());
                     }
                     let _ = hotkey_tx.send(s.hotkey.clone());
                 }
                 "start_with_system" => {
                     let enabled = value == "true";
                     s.start_with_system = enabled;
-                    if enabled {
-                        let _ = crate::autostart::ensure_autostart();
+                    let result = if enabled {
+                        crate::autostart::ensure_autostart()
                     } else {
-                        let _ = crate::autostart::remove_autostart();
+                        crate::autostart::remove_autostart()
+                    };
+                    if let Err(e) = result {
+                        tracing::warn!("autostart: failed to update the desktop file: {e}");
+                        super::show_toast(&sw, "Could not update autostart", "error");
                     }
                 }
                 "always_close_to_tray" => s.always_close_to_tray = value == "true",
@@ -113,18 +133,21 @@ pub(super) fn setup_setting_commit(
                     if let Ok(v) = value.parse::<u32>() {
                         s.hover_image_preview_size = v;
                         // The clipboard listener reads this shared value per
-                        // thumbnail generation, and the preview popup reads the
-                        // Theme token, so the change applies live.
+                        // thumbnail generation, and the preview window's Theme
+                        // token is updated by apply_theme_to_windows.
                         image_preview_size.store(v, std::sync::atomic::Ordering::Relaxed);
                         apply_theme_to_windows(&settings_ui, &sw, |t| {
                             t.set_preview_size(v as f32);
                         });
-                        // The preview window has its own per-window Theme global
-                        // that apply_theme_to_windows does not reach.
-                        crate::preview::set_preview_size(v as f32);
-                        // Drop cached hover previews so the next hover rebuilds
-                        // them at the new size instead of upscaling the old one.
-                        invalidate_image_previews(thumbnails_dir.clone());
+                        // Drop cached hover previews once the stepper settles,
+                        // so holding it does not rescan the cache per step.
+                        let td = thumbnails_dir.clone();
+                        let timer = invalidate_timer.clone();
+                        timer.start(
+                            slint::TimerMode::SingleShot,
+                            PREVIEW_INVALIDATE_DEBOUNCE,
+                            move || invalidate_image_previews(td.clone()),
+                        );
                     }
                 }
                 "color_code_clip_types" => {
@@ -179,8 +202,6 @@ pub(super) fn setup_setting_commit(
                 _ => {}
             }
 
-            let _ = s.save(&p);
-
             // Publish retention changes so the scheduled maintenance task picks
             // them up on its next pass without a restart.
             if matches!(key.as_str(), "max_clips" | "max_age_days") {
@@ -189,6 +210,18 @@ pub(super) fn setup_setting_commit(
                     max_age_days: s.max_age_days,
                 });
             }
+
+            // Coalesce text-field edits: a write per keystroke serialized the
+            // whole file and blocked the UI thread. Closing the window saves
+            // synchronously through the close handlers.
+            drop(s);
+            save_timer.start(
+                slint::TimerMode::SingleShot,
+                SETTINGS_SAVE_DEBOUNCE,
+                move || {
+                    let _ = s_saved.borrow().save(&p_saved);
+                },
+            );
         },
     );
 }

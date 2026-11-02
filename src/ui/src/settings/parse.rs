@@ -22,6 +22,28 @@ pub(super) fn idx_of(needle: &str, haystack: &[&str]) -> i32 {
     }
 }
 
+/// Combo-box option lists shared by the index seeding and the value
+/// normalisation. Keep each list in the same order as the `options:` array in
+/// the matching Slint row.
+pub(super) const QUICK_PASTE_MODIFIERS: [&str; 3] = ["Right Alt", "Left Alt", "Control"];
+pub(super) const LOG_LEVELS: [&str; 4] = ["Debug", "Info", "Warn", "Error"];
+pub(super) const THEMES: [&str; 3] = ["System", "Light", "Dark"];
+pub(super) const ROW_PADDINGS: [&str; 3] = ["Compact", "Standard", "Luxury"];
+
+/// Replace `value` with the canonical spelling of its option, so the dropdown
+/// index and the behaviour that reads the stored string can never disagree.
+/// Returns true when the value was rewritten.
+pub(super) fn normalize_choice(value: &mut String, options: &[&str]) -> bool {
+    let idx = idx_of(value, options);
+    let canonical = options[idx as usize];
+    if value == canonical {
+        return false;
+    }
+    value.clear();
+    value.push_str(canonical);
+    true
+}
+
 /// Derive a display name from a bare path (the file name without extension),
 /// falling back to the whole path when there is no stem.
 fn derive_app_name(path: &str) -> String {
@@ -283,5 +305,20 @@ mod tests {
             0
         );
         assert_eq!(idx_of("", &["Debug", "Info", "Warn", "Error"]), 0);
+    }
+
+    #[test]
+    fn normalize_choice_rewrites_case_and_unknown_values() {
+        let mut theme = "dark".to_string();
+        assert!(normalize_choice(&mut theme, &THEMES));
+        assert_eq!(theme, "Dark");
+
+        let mut unknown = "Super Key".to_string();
+        assert!(normalize_choice(&mut unknown, &QUICK_PASTE_MODIFIERS));
+        assert_eq!(unknown, "Right Alt");
+
+        let mut valid = "Standard".to_string();
+        assert!(!normalize_choice(&mut valid, &ROW_PADDINGS));
+        assert_eq!(valid, "Standard");
     }
 }

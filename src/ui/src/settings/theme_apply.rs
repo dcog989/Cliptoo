@@ -10,9 +10,10 @@ use slint::ComponentHandle;
 const PREVIEW_WEBP_SUFFIX: &str = "_preview.webp";
 const PREVIEW_SVG_SUFFIX: &str = "_preview.svg";
 
-/// Update a single `Theme` token on both the main window and the settings
-/// window globals. Slint globals are per-window-instance, so live previews
-/// need each window's `Theme` global updated.
+/// Update a single `Theme` token on every window that shows it: the main
+/// window, the settings window and the hover-preview window. Slint globals are
+/// per-window-instance, so live previews need each window's `Theme` global
+/// updated.
 pub(super) fn apply_theme_to_windows(
     main_ui: &slint::Weak<crate::AppWindow>,
     settings_win_ui: &slint::Weak<crate::SettingsWindow>,
@@ -24,27 +25,55 @@ pub(super) fn apply_theme_to_windows(
     if let Some(win) = settings_win_ui.upgrade() {
         apply(&win.global::<crate::Theme>());
     }
+    crate::preview::apply_theme(&apply);
+}
+
+/// Fan a theme change out to the main window, the settings window and every
+/// registered filler (tray, About, preview). Slint globals are per-window
+/// instance, so each one has to be filled separately.
+#[allow(clippy::too_many_arguments)]
+pub(super) fn fill_every_window(
+    main_ui: &slint::Weak<crate::AppWindow>,
+    settings_win_ui: &slint::Weak<crate::SettingsWindow>,
+    settings: &cliptoo_core::Settings,
+    is_dark: bool,
+    system_accent: Option<(u8, u8, u8)>,
+    fillers: &crate::theme::ThemeFillers,
+    fill: impl Fn(&crate::Theme),
+) {
+    if let Some(ui) = main_ui.upgrade() {
+        fill(&ui.global::<crate::Theme>());
+    }
+    if let Some(win) = settings_win_ui.upgrade() {
+        fill(&win.global::<crate::Theme>());
+    }
+    crate::theme::apply_theme_fillers(fillers, settings, is_dark, system_accent);
+}
+
+/// Delete the cached hover-preview images under `thumbnails_dir`, leaving the
+/// 36px list-cell thumbnails and unrelated files alone.
+fn remove_preview_files(thumbnails_dir: &std::path::Path) {
+    let Ok(entries) = std::fs::read_dir(thumbnails_dir) else {
+        return;
+    };
+    for entry in entries.filter_map(|e| e.ok()) {
+        let name = entry.file_name();
+        let name = name.to_string_lossy();
+        if !name.ends_with(PREVIEW_WEBP_SUFFIX) && !name.ends_with(PREVIEW_SVG_SUFFIX) {
+            continue;
+        }
+        if let Err(e) = std::fs::remove_file(entry.path()) {
+            tracing::warn!("invalidate_image_previews: {:?}: {e}", entry.path());
+        }
+    }
 }
 
 /// Delete cached hover-preview images so the next hover regenerates them at the
-/// new `hover_image_preview_size`. The 36px list-cell thumbnails are left
-/// alone. Best-effort and off the UI thread; a failure only leaves a stale
-/// (possibly upscaled) preview in place until the next cache clear.
+/// new `hover_image_preview_size`. Best-effort and off the UI thread; a failure
+/// only leaves a stale (possibly upscaled) preview until the next cache clear.
 pub(super) fn invalidate_image_previews(thumbnails_dir: std::path::PathBuf) {
     std::mem::drop(tokio::task::spawn_blocking(move || {
-        let Ok(entries) = std::fs::read_dir(&thumbnails_dir) else {
-            return;
-        };
-        for entry in entries.filter_map(|e| e.ok()) {
-            let name = entry.file_name();
-            let name = name.to_string_lossy();
-            if !name.ends_with(PREVIEW_WEBP_SUFFIX) && !name.ends_with(PREVIEW_SVG_SUFFIX) {
-                continue;
-            }
-            if let Err(e) = std::fs::remove_file(entry.path()) {
-                tracing::warn!("invalidate_image_previews: {:?}: {e}", entry.path());
-            }
-        }
+        remove_preview_files(&thumbnails_dir);
     }));
 }
 
@@ -90,4 +119,32 @@ pub(super) fn reapply_theme(
             crate::theme::apply_theme_fillers(&fillers, &s_snap, is_dark, system_accent);
         });
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::remove_preview_files;
+
+    #[test]
+    fn preview_invalidation_keeps_list_thumbnails_and_other_files() {
+        let dir =
+            std::env::temp_dir().join(format!("cliptoo_preview_invalidate_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        for name in [
+            "abc.webp",
+            "abc_preview.webp",
+            "abc_preview.svg",
+            "notes.txt",
+        ] {
+            std::fs::write(dir.join(name), b"x").unwrap();
+        }
+
+        remove_preview_files(&dir);
+
+        assert!(dir.join("abc.webp").is_file(), "list thumbnail must stay");
+        assert!(dir.join("notes.txt").is_file(), "unrelated file must stay");
+        assert!(!dir.join("abc_preview.webp").exists());
+        assert!(!dir.join("abc_preview.svg").exists());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }

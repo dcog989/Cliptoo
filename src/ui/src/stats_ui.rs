@@ -87,16 +87,17 @@ pub fn refresh(
 
         let _ = win.upgrade_in_event_loop(move |win| match stats_result {
             Ok(s) => {
-                win.set_s_total_clips(s.total.to_string().into());
-                win.set_s_db_created(
+                let v = win.global::<crate::SettingsValues>();
+                v.set_s_total_clips(s.total.to_string().into());
+                v.set_s_db_created(
                     s.created
                         .as_deref()
                         .map(format_created)
                         .unwrap_or_default()
                         .into(),
                 );
-                win.set_s_db_size(format_size(size).into());
-                win.set_s_copies(
+                v.set_s_db_size(format_size(size).into());
+                v.set_s_copies(
                     s.copies
                         .as_deref()
                         .and_then(|v| v.parse().ok())
@@ -104,7 +105,7 @@ pub fn refresh(
                         .to_string()
                         .into(),
                 );
-                win.set_s_pastes(
+                v.set_s_pastes(
                     s.pastes
                         .as_deref()
                         .and_then(|v| v.parse().ok())

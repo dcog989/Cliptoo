@@ -1,0 +1,45 @@
+// SettingsValues.slint — the settings window's persisted values.
+//
+// Declared once as a global so the window and its pages bind to the same
+// properties instead of passing every value through a chain of `<=>` bindings.
+// Rust seeds them from `Settings` before the window is first shown; the values
+// have no defaults here so `Settings::default()` stays the single source.
+
+export global SettingsValues {
+    // General
+    in-out property <string> s-hotkey;
+    in-out property <bool> s-start-with-system;
+    in-out property <bool> s-always-close-to-tray;
+    in-out property <int> s-quick-paste-mod-idx;
+    in-out property <int> s-log-level-idx;
+
+    // Visuals
+    in-out property <int> s-theme-idx;
+    in-out property <color> s-accent-color;
+    in-out property <string> s-font-family;
+    in-out property <int> s-font-size-hundredths;
+    in-out property <int> s-preview-font-size-hundredths;
+    in-out property <int> s-row-padding-idx;
+    in-out property <int> hover-delay;
+    in-out property <int> s-image-preview-size;
+    in-out property <bool> s-color-code-clip-types;
+    in-out property <bool> s-paste-as-plain-text;
+    in-out property <bool> s-paste-moves-to-top;
+
+    // External Apps
+    in-out property <string> s-diff-tool-path;
+    in-out property <string> s-send-to-apps;
+    in-out property <string> s-blacklist-apps;
+
+    // Data
+    in-out property <int> s-max-clips;
+    in-out property <int> s-max-age-days;
+
+    // Read-only statistics, refreshed from Rust each time the Database page
+    // opens.
+    in-out property <string> s-total-clips;
+    in-out property <string> s-db-created;
+    in-out property <string> s-db-size;
+    in-out property <string> s-copies;
+    in-out property <string> s-pastes;
+}

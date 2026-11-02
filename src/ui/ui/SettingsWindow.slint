@@ -1,7 +1,7 @@
 // SettingsWindow.slint — Single-window settings interface (shell).
 // The header, the settings page, and the database page live in separate
 // components; this file owns the window, the cross-page state, and the toast
-// overlay.
+// overlay. Persisted values live in the SettingsValues global.
 
 import { Theme } from "Theme.slint";
 import { SettingsHeader } from "SettingsHeader.slint";
@@ -30,41 +30,6 @@ export component SettingsWindow inherits Window {
     in-out property <bool> toast-visible:   false;
     in-out property <string> toast-message:   "";
     in-out property <string> toast-severity:  "info";
-
-    // General
-    in-out property <string> s-hotkey:               "Ctrl+Alt+Q";
-    in-out property <bool> s-start-with-system:    true;
-    in-out property <bool> s-always-close-to-tray: true;
-    in-out property <int> s-quick-paste-mod-idx: 0;  // Right Alt/Left Alt/Control
-    in-out property <int> s-log-level-idx:        1;  // Debug/Info/Warn/Error
-
-    // Visuals
-    in-out property <int> s-theme-idx:            0;  // System/Light/Dark
-    in-out property <color> s-accent-color:       #7C6EE6;
-    in-out property <string> s-font-family:          "Inter";
-    in-out property <int> s-font-size-hundredths: 1300;  // 13.00 pt
-    in-out property <int> s-preview-font-size-hundredths: 1200;
-    in-out property <int> s-row-padding-idx:      1;  // Compact/Standard/Luxury
-    in-out property <int> hover-delay:            400;
-    in-out property <int> s-image-preview-size:   300;
-    in-out property <bool> s-color-code-clip-types: false;
-    in-out property <bool> s-paste-as-plain-text:  false;
-    in-out property <bool> s-paste-moves-to-top:   true;
-
-    // External Apps
-    in-out property <string> s-diff-tool-path:       "";
-    in-out property <string> s-send-to-apps:         "";
-    in-out property <string> s-blacklist-apps:       "";
-
-    // Data
-    in-out property <int> s-max-clips:            1000;
-    in-out property <int> s-max-age-days:         90;
-    // Read-only statistics, refreshed from Rust each time the Database page opens.
-    in-out property <string> s-total-clips: "";
-    in-out property <string> s-db-created:  "";
-    in-out property <string> s-db-size:     "";
-    in-out property <string> s-copies:      "";
-    in-out property <string> s-pastes:      "";
 
     callback settings-closing();
     callback setting-changed(string, string);
@@ -121,24 +86,6 @@ export component SettingsWindow inherits Window {
                     height: 100%;
                     visible: !root.on-database-page && !root.on-shortcuts-page;
 
-                    s-start-with-system <=> root.s-start-with-system;
-                    s-always-close-to-tray <=> root.s-always-close-to-tray;
-                    s-log-level-idx <=> root.s-log-level-idx;
-                    s-theme-idx <=> root.s-theme-idx;
-                    s-accent-color <=> root.s-accent-color;
-                    s-font-family <=> root.s-font-family;
-                    s-font-size-hundredths <=> root.s-font-size-hundredths;
-                    s-preview-font-size-hundredths <=> root.s-preview-font-size-hundredths;
-                    s-row-padding-idx <=> root.s-row-padding-idx;
-                    hover-delay <=> root.hover-delay;
-                    s-image-preview-size <=> root.s-image-preview-size;
-                    s-color-code-clip-types <=> root.s-color-code-clip-types;
-                    s-paste-as-plain-text <=> root.s-paste-as-plain-text;
-                    s-paste-moves-to-top <=> root.s-paste-moves-to-top;
-                    s-diff-tool-path <=> root.s-diff-tool-path;
-                    s-send-to-apps <=> root.s-send-to-apps;
-                    s-blacklist-apps <=> root.s-blacklist-apps;
-
                     setting-changed(k, v) => {
                         root.setting-changed(k, v);
                     }
@@ -164,9 +111,6 @@ export component SettingsWindow inherits Window {
                     height: 100%;
                     visible: root.on-shortcuts-page;
 
-                    s-hotkey <=> root.s-hotkey;
-                    s-quick-paste-mod-idx <=> root.s-quick-paste-mod-idx;
-
                     setting-changed(k, v) => {
                         root.setting-changed(k, v);
                     }
@@ -179,14 +123,6 @@ export component SettingsWindow inherits Window {
                     width: 100%;
                     height: 100%;
                     visible: root.on-database-page;
-
-                    s-max-clips <=> root.s-max-clips;
-                    s-max-age-days <=> root.s-max-age-days;
-                    s-total-clips: root.s-total-clips;
-                    s-db-created: root.s-db-created;
-                    s-db-size: root.s-db-size;
-                    s-copies: root.s-copies;
-                    s-pastes: root.s-pastes;
 
                     setting-changed(k, v) => {
                         root.setting-changed(k, v);

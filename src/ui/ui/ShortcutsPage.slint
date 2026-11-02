@@ -4,6 +4,7 @@
 // handler in MainClipArea.slint.
 
 import { Theme } from "Theme.slint";
+import { SettingsValues } from "SettingsValues.slint";
 import { DropRow, HotkeyRow, SectionHeader } from "SettingsComponents.slint";
 import { ScrollView } from "std-widgets.slint";
 
@@ -36,13 +37,10 @@ component ShortcutRow {
 }
 
 export component ShortcutsPage inherits ScrollView {
-    in-out property <string> s-hotkey: "Ctrl+Alt+Q";
-    in-out property <int> s-quick-paste-mod-idx: 0;  // Right Alt/Left Alt/Control
-
     callback setting-changed(string, string);
 
     // Right Alt is AltGr, which reaches the app as the Alt modifier.
-    private property <string> quick-paste-keys: ((root.s-quick-paste-mod-idx == 2) ? "Ctrl" : "Alt") + "+1…9";
+    private property <string> quick-paste-keys: ((SettingsValues.s-quick-paste-mod-idx == 2) ? "Ctrl" : "Alt") + "+1…9";
 
     vertical-scrollbar-policy: ScrollBarPolicy.as-needed;
 
@@ -67,7 +65,7 @@ export component ShortcutsPage inherits ScrollView {
         HotkeyRow {
             label: @tr("Launch hotkey");
             tooltip-text: @tr("Global hotkey to toggle the Cliptoo window");
-            value <=> root.s-hotkey;
+            value <=> SettingsValues.s-hotkey;
             committed(v) => {
                 root.setting-changed("hotkey", v);
             }
@@ -76,7 +74,7 @@ export component ShortcutsPage inherits ScrollView {
         DropRow {
             label: @tr("Quick-paste modifier");
             tooltip-text: @tr("Modifier key to hold for the quick-paste number overlay");
-            index <=> root.s-quick-paste-mod-idx;
+            index <=> SettingsValues.s-quick-paste-mod-idx;
             options: ["Right Alt", "Left Alt", "Control"];
             committed(v) => {
                 root.setting-changed("quick_paste_modifier", v);

@@ -2,19 +2,11 @@
 // maintenance buttons, and read-only statistics.
 
 import { Theme } from "Theme.slint";
+import { SettingsValues } from "SettingsValues.slint";
 import { IntRow, SectionHeader } from "SettingsComponents.slint";
 import { ScrollView } from "std-widgets.slint";
 
 export component DatabasePage inherits ScrollView {
-    in-out property <int> s-max-clips:            1000;
-    in-out property <int> s-max-age-days:         90;
-    // Read-only statistics, refreshed from Rust each time this page opens.
-    in property <string> s-total-clips: "";
-    in property <string> s-db-created:  "";
-    in property <string> s-db-size:     "";
-    in property <string> s-copies:      "";
-    in property <string> s-pastes:      "";
-
     callback setting-changed(string, string);
     callback maintenance-action(string);
 
@@ -36,7 +28,7 @@ export component DatabasePage inherits ScrollView {
         IntRow {
             label: @tr("Max clips");
             tooltip-text: @tr("Maximum number of non-bookmarked clips kept in history (up to 1000, the list limit)");
-            value <=> root.s-max-clips;
+            value <=> SettingsValues.s-max-clips;
             min-val: 100;
             max-val: 1000;
             step: 100;
@@ -48,7 +40,7 @@ export component DatabasePage inherits ScrollView {
         IntRow {
             label: @tr("Max age (days)");
             tooltip-text: @tr("Automatically remove clips older than this many days");
-            value <=> root.s-max-age-days;
+            value <=> SettingsValues.s-max-age-days;
             min-val: 1;
             max-val: 3650;
             step: 5;
@@ -168,7 +160,7 @@ export component DatabasePage inherits ScrollView {
                 }
 
                 Text {
-                    text: root.s-db-created;
+                    text: SettingsValues.s-db-created;
                     color: Theme.fg-secondary;
                     font-size: Theme.font-size;
                     vertical-alignment: center;
@@ -188,7 +180,7 @@ export component DatabasePage inherits ScrollView {
                 }
 
                 Text {
-                    text: root.s-db-size;
+                    text: SettingsValues.s-db-size;
                     color: Theme.fg-secondary;
                     font-size: Theme.font-size;
                     vertical-alignment: center;
@@ -208,7 +200,7 @@ export component DatabasePage inherits ScrollView {
                 }
 
                 Text {
-                    text: root.s-total-clips;
+                    text: SettingsValues.s-total-clips;
                     color: Theme.fg-secondary;
                     font-size: Theme.font-size;
                     vertical-alignment: center;
@@ -228,7 +220,7 @@ export component DatabasePage inherits ScrollView {
                 }
 
                 Text {
-                    text: @tr("{} / {}", root.s-copies, root.s-pastes);
+                    text: @tr("{} / {}", SettingsValues.s-copies, SettingsValues.s-pastes);
                     color: Theme.fg-secondary;
                     font-size: Theme.font-size;
                     vertical-alignment: center;

@@ -3,7 +3,10 @@
 
 use slint::ComponentHandle;
 
-use self::parse::{clean_hotkey_text, format_send_to_apps, idx_of};
+use self::parse::{
+    LOG_LEVELS, QUICK_PASTE_MODIFIERS, ROW_PADDINGS, THEMES, clean_hotkey_text,
+    format_send_to_apps, idx_of, normalize_choice,
+};
 
 mod commit;
 mod parse;
@@ -28,7 +31,7 @@ pub(crate) fn show_toast(win: &slint::Weak<crate::SettingsWindow>, message: &str
 /// window keeps its size across restarts, and update the window's own
 /// `stored-width`/`stored-height` so its `preferred-*` binding reflects the
 /// resized geometry (otherwise re-showing the window snaps back to the stale
-/// preferred size). Called on both close paths.
+/// preferred size).
 fn persist_window_size(
     win: &crate::SettingsWindow,
     settings: &std::rc::Rc<std::cell::RefCell<cliptoo_core::Settings>>,
@@ -43,9 +46,25 @@ fn persist_window_size(
     let _ = s.save(path);
 }
 
-/// Reset settings-open and persist the window size when the settings window
-/// is closed via the window manager (ESC is handled by the settings-closing
-/// callback).
+/// Shared close path: persist the window size, then let the main window drop
+/// its blur-to-tray guard for the settings window. Used by the window manager
+/// close and the in-window close (ESC).
+fn close_settings(
+    win: &slint::Weak<crate::SettingsWindow>,
+    main_ui: &slint::Weak<crate::AppWindow>,
+    settings: &std::rc::Rc<std::cell::RefCell<cliptoo_core::Settings>>,
+    path: &std::path::Path,
+) {
+    if let Some(win) = win.upgrade() {
+        persist_window_size(&win, settings, path);
+    }
+    if let Some(ui) = main_ui.upgrade() {
+        ui.set_settings_open(false);
+    }
+}
+
+/// Handle the window manager's close request. The in-window close (ESC) goes
+/// through `setup_settings_closing`; both share `close_settings`.
 fn setup_close_persistence(
     settings_win: &crate::SettingsWindow,
     main_ui: &crate::AppWindow,
@@ -57,12 +76,7 @@ fn setup_close_persistence(
     let s = settings.clone();
     let p = settings_path.to_path_buf();
     settings_win.window().on_close_requested(move || {
-        if let Some(win) = sw.upgrade() {
-            persist_window_size(&win, &s, &p);
-        }
-        if let Some(ui) = main_ui.upgrade() {
-            ui.set_settings_open(false);
-        }
+        close_settings(&sw, &main_ui, &s, &p);
         slint::CloseRequestResponse::HideWindow
     });
 }
@@ -71,44 +85,49 @@ fn setup_close_persistence(
 fn init_settings_properties(
     settings_win: &crate::SettingsWindow,
     settings: &std::rc::Rc<std::cell::RefCell<cliptoo_core::Settings>>,
+    settings_path: &std::path::Path,
 ) {
-    let s = settings.borrow();
+    let mut s = settings.borrow_mut();
+    // A stored value that no longer matches its option list (hand edit, or an
+    // option renamed between versions) is rewritten to the fallback option, so
+    // the dropdown and the behaviour that reads the string cannot disagree.
+    let mut rewritten = false;
+    rewritten |= normalize_choice(&mut s.quick_paste_modifier, &QUICK_PASTE_MODIFIERS);
+    rewritten |= normalize_choice(&mut s.logging_level, &LOG_LEVELS);
+    rewritten |= normalize_choice(&mut s.theme, &THEMES);
+    rewritten |= normalize_choice(&mut s.clip_item_padding, &ROW_PADDINGS);
+    if rewritten {
+        let _ = s.save(settings_path);
+    }
+
     settings_win.set_stored_width(s.settings_window_width as f32);
     settings_win.set_stored_height(s.settings_window_height as f32);
-    settings_win.set_s_hotkey(clean_hotkey_text(s.hotkey.as_str()).into());
-    settings_win.set_s_start_with_system(s.start_with_system);
-    settings_win.set_s_always_close_to_tray(s.always_close_to_tray);
-    settings_win.set_s_quick_paste_mod_idx(idx_of(
-        &s.quick_paste_modifier,
-        &["Right Alt", "Left Alt", "Control"],
-    ));
-    settings_win.set_s_log_level_idx(idx_of(
-        &s.logging_level,
-        &["Debug", "Info", "Warn", "Error"],
-    ));
-    settings_win.set_s_theme_idx(idx_of(&s.theme, &["System", "Light", "Dark"]));
-    settings_win.set_s_accent_color(if s.accent_color.trim().is_empty() {
+    let v = settings_win.global::<crate::SettingsValues>();
+    v.set_s_hotkey(clean_hotkey_text(s.hotkey.as_str()).into());
+    v.set_s_start_with_system(s.start_with_system);
+    v.set_s_always_close_to_tray(s.always_close_to_tray);
+    v.set_s_quick_paste_mod_idx(idx_of(&s.quick_paste_modifier, &QUICK_PASTE_MODIFIERS));
+    v.set_s_log_level_idx(idx_of(&s.logging_level, &LOG_LEVELS));
+    v.set_s_theme_idx(idx_of(&s.theme, &THEMES));
+    v.set_s_accent_color(if s.accent_color.trim().is_empty() {
         crate::theme::default_accent_color()
     } else {
         crate::theme::accent_hex_to_color(&s.accent_color)
     });
-    settings_win.set_s_font_family(s.font_family.as_str().into());
-    settings_win.set_s_font_size_hundredths((s.font_size * 100.0) as i32);
-    settings_win.set_s_preview_font_size_hundredths((s.preview_font_size * 100.0) as i32);
-    settings_win.set_s_row_padding_idx(idx_of(
-        &s.clip_item_padding,
-        &["Compact", "Standard", "Luxury"],
-    ));
-    settings_win.set_hover_delay(s.hover_preview_delay as i32);
-    settings_win.set_s_image_preview_size(s.hover_image_preview_size as i32);
-    settings_win.set_s_color_code_clip_types(s.color_code_clip_types);
-    settings_win.set_s_paste_as_plain_text(s.paste_as_plain_text);
-    settings_win.set_s_paste_moves_to_top(s.paste_moves_clip_to_top);
-    settings_win.set_s_diff_tool_path(s.compare_tool_path.as_str().into());
-    settings_win.set_s_send_to_apps(format_send_to_apps(&s.send_to_apps).into());
-    settings_win.set_s_blacklist_apps(s.blacklisted_apps.join(", ").into());
-    settings_win.set_s_max_clips(s.max_clips as i32);
-    settings_win.set_s_max_age_days(s.max_age_days as i32);
+    v.set_s_font_family(s.font_family.as_str().into());
+    v.set_s_font_size_hundredths((s.font_size * 100.0) as i32);
+    v.set_s_preview_font_size_hundredths((s.preview_font_size * 100.0) as i32);
+    v.set_s_row_padding_idx(idx_of(&s.clip_item_padding, &ROW_PADDINGS));
+    v.set_hover_delay(s.hover_preview_delay as i32);
+    v.set_s_image_preview_size(s.hover_image_preview_size as i32);
+    v.set_s_color_code_clip_types(s.color_code_clip_types);
+    v.set_s_paste_as_plain_text(s.paste_as_plain_text);
+    v.set_s_paste_moves_to_top(s.paste_moves_clip_to_top);
+    v.set_s_diff_tool_path(s.compare_tool_path.as_str().into());
+    v.set_s_send_to_apps(format_send_to_apps(&s.send_to_apps).into());
+    v.set_s_blacklist_apps(s.blacklisted_apps.join(", ").into());
+    v.set_s_max_clips(s.max_clips as i32);
+    v.set_s_max_age_days(s.max_age_days as i32);
 }
 
 /// Forward maintenance actions from the settings window to the main window.
@@ -138,8 +157,9 @@ fn setup_open_log(settings_win: &crate::SettingsWindow, logs_dir: &std::path::Pa
     });
 }
 
-/// When the settings window closes, reset settings-open so ESC and blur-to-tray
-/// work again on the main window, and persist the size.
+/// When the settings window closes from inside the window (ESC), reset
+/// settings-open so ESC and blur-to-tray work again on the main window, and
+/// persist the size.
 fn setup_settings_closing(
     settings_win: &crate::SettingsWindow,
     main_ui: &crate::AppWindow,
@@ -151,12 +171,7 @@ fn setup_settings_closing(
     let s = settings.clone();
     let p = settings_path.to_path_buf();
     settings_win.on_settings_closing(move || {
-        if let Some(win) = sw.upgrade() {
-            persist_window_size(&win, &s, &p);
-        }
-        if let Some(ui) = main_ui.upgrade() {
-            ui.set_settings_open(false);
-        }
+        close_settings(&sw, &main_ui, &s, &p);
     });
 }
 
@@ -204,7 +219,7 @@ pub fn setup_settings_window(
     let settings_win = crate::SettingsWindow::new().expect("SettingsWindow creation");
 
     setup_close_persistence(&settings_win, ui, settings, &dirs.settings_path);
-    init_settings_properties(&settings_win, settings);
+    init_settings_properties(&settings_win, settings, &dirs.settings_path);
     setup_maintenance_forwarding(&settings_win, ui);
     pickers::setup_clear_accent(
         &settings_win,

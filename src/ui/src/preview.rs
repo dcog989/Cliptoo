@@ -60,12 +60,12 @@ pub fn hide_preview() {
     });
 }
 
-/// Update the preview window's image-size `Theme` token. The preview window has
-/// its own per-window global, which `apply_theme_to_windows` does not reach.
-pub fn set_preview_size(size: f32) {
+/// Run `apply` on the preview window's own `Theme` global. Slint globals are
+/// per-window instance; UI-thread only.
+pub fn apply_theme(apply: &dyn Fn(&crate::Theme)) {
     PREVIEW_WINDOW.with(|slot| {
         if let Some(window) = slot.borrow().as_ref().and_then(|w| w.upgrade()) {
-            window.global::<crate::Theme>().set_preview_size(size);
+            apply(&window.global::<crate::Theme>());
         }
     });
 }
