@@ -2,11 +2,12 @@
 //!
 //! `zbus::Connection::session()` opens a fresh socket and runs the SASL
 //! handshake on every call — it is not cached internally by zbus. Several
-//! call sites need a session-bus connection (`source_app::spawn_active_window_tracker`
-//! for the resident KWin script callbacks; `theme::detect_system_dark` and
-//! `theme::detect_system_accent`), so establishing it once and reusing the
-//! same `Connection` (which is cheaply `Clone`, backed by an `Arc`
-//! internally) avoids paying that setup cost repeatedly.
+//! call sites need a session-bus connection (`theme::detect_system_dark`,
+//! `theme::detect_system_accent`, and the settings theme preview), so
+//! establishing it once and reusing the same `Connection` (which is cheaply
+//! `Clone`, backed by an `Arc` internally) avoids paying that setup cost
+//! repeatedly. The active-window tracker owns its own connection instead:
+//! it needs a well-known name and an object server.
 
 use std::sync::Mutex;
 use zbus::Connection;

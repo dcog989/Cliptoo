@@ -6,10 +6,8 @@
 //! the active window's application is the KWin scripting interface
 //! (`org.kde.KWin` at `/Scripting`). A resident script subscribes to
 //! `workspace.windowActivated` and pushes the active window's `resourceClass`
-//! back to us with `callDBus` on every focus change; the callbacks arrive on
-//! the shared session connection via a `MessageStream` match rule (zbus
-//! broadcasts every incoming message to all matching subscribers, so this
-//! doesn't disturb the object server).
+//! back to us with `callDBus` on every focus change; the callbacks arrive on a
+//! dedicated session connection via a `MessageStream` match rule.
 //!
 //! A fresh on-demand query at ingest time is always stale: the listener
 //! notices a copy up to one poll interval late, by which point focus may have
@@ -33,14 +31,23 @@ const KW_SCRIPT_IFACE: &str = "org.kde.kwin.Script";
 const SCRIPT_TIMEOUT: Duration = Duration::from_secs(2);
 // The D-Bus member the tracker script calls back on for every focus change.
 const SCRIPT_MEMBER: &str = "activeWindow";
-// Fixed (not pid-suffixed) so a fresh process unloads the resident script a
-// crashed or killed previous instance left behind; otherwise one script would
-// leak into KWin per restart, calling a dead bus name on every focus change.
-const SCRIPT_NAME: &str = "cliptoo-activewindow";
+// Prefix for the per-process script name (see `install_tracker`). The suffix
+// must differ on every start: KWin only runs a script under a name it has not
+// loaded before.
+const SCRIPT_NAME_PREFIX: &str = "cliptoo-activewindow";
+// Bus name the script calls back on. Fixed, unlike the connection's unique
+// name: KWin does not reliably replace the resident script on restart, so the
+// loaded script may still be the previous process's — a fixed name makes it
+// reach the running instance anyway.
+const TRACKER_SERVICE: &str = "org.cliptoo.Cliptoo";
 // Re-install cadence when the script can't be loaded or the stream dies
 // (e.g. KWin restarted underneath us). The cache keeps its last value during
 // the outage, which is better than nothing.
 const RETRY_DELAY: Duration = Duration::from_secs(30);
+// A first install right after startup can still fail for a transient reason
+// (e.g. KWin busy while the session is coming up). Retry quickly once so a
+// non-empty blacklist does not drop every clip for the full 30 s.
+const FIRST_RETRY_DELAY: Duration = Duration::from_secs(2);
 
 /// Shared cache of the active window's app id (`resourceClass`), kept current
 /// by a resident KWin script. `None` while unknown (no KWin, scripting
@@ -72,7 +79,12 @@ pub fn spawn_active_window_tracker() -> ActiveWindowCache {
                     consecutive_failures = consecutive_failures.saturating_add(1);
                 }
             }
-            tokio::time::sleep(RETRY_DELAY).await;
+            tokio::time::sleep(if consecutive_failures <= 1 {
+                FIRST_RETRY_DELAY
+            } else {
+                RETRY_DELAY
+            })
+            .await;
         }
     });
     cache
@@ -86,14 +98,19 @@ pub fn current_active_app(cache: &ActiveWindowCache) -> Option<String> {
 /// Load the resident KWin script, subscribe to its callbacks, and keep the
 /// cache current until the stream ends.
 async fn install_tracker(cache: &ActiveWindowCache) -> anyhow::Result<()> {
-    let conn = crate::dbus::session().await?;
-    let our_name = conn
-        .unique_name()
-        .ok_or_else(|| anyhow::anyhow!("no unique D-Bus name available"))?
-        .to_string();
+    // Dedicated connection for the fixed callback name, so a script left over
+    // from an earlier process still reaches this instance (KWin does not
+    // reliably replace the resident script, and the connection's unique name
+    // changes on every restart). Start the object server before owning the
+    // name: zbus warns that calls can be lost otherwise.
+    let conn = zbus::connection::Builder::session()?.build().await?;
+    conn.object_server();
+    conn.request_name(TRACKER_SERVICE)
+        .await
+        .map_err(|e| anyhow::anyhow!("failed to own {TRACKER_SERVICE}: {e}"))?;
 
     // Subscribe before loading the script so a fast initial `report()` can't
-    // race ahead of us. The callback is a method call to our unique name with
+    // race ahead of us. The callback is a method call to `TRACKER_SERVICE` with
     // member "activeWindow".
     let rule = MatchRule::builder()
         .msg_type(Type::MethodCall)
@@ -105,27 +122,45 @@ async fn install_tracker(cache: &ActiveWindowCache) -> anyhow::Result<()> {
         .await
         .map_err(|e| anyhow::anyhow!("failed to subscribe to KWin callbacks: {e}"))?;
 
-    // KWin rejects a second script under the same name, and a previous
-    // instance may have left its resident script loaded (crash/kill), so
-    // unload first and let the failure fall through.
-    let script_path = cliptoo_core::temp::ensure_runtime_dir()
-        .await?
-        .join(format!("{SCRIPT_NAME}.js"));
+    // per-process script name: KWin only executes a script the first time a
+    // given name is loaded in its session. Reusing one name makes every start
+    // after the first a silent no-op (the old handler keeps running), which is
+    // exactly what killed tracking across restarts. Leftover scripts from
+    // earlier processes keep reporting to the same fixed TRACKER_SERVICE, so
+    // they are harmless duplicates until the next start unloads them.
+    // shortcut: a crash before the name is recorded below leaks one inert
+    // script until KWin restarts.
+    let script_name = format!("{SCRIPT_NAME_PREFIX}-{}", std::process::id());
+    let runtime_dir = cliptoo_core::temp::ensure_runtime_dir().await?;
+    let script_path = runtime_dir.join(format!("{script_name}.js"));
 
-    let _ = tokio::time::timeout(
-        SCRIPT_TIMEOUT,
-        conn.call_method(
-            Some(KW_SCRIPTING_SERVICE),
-            KW_SCRIPTING_PATH,
-            Some(KW_SCRIPTING_IFACE),
-            "unloadScript",
-            &(SCRIPT_NAME,),
-        ),
-    )
-    .await;
+    // KWin cannot list loaded scripts, so the previous run's script can only be
+    // removed by the name it was loaded under. Remember it in the runtime dir
+    // (same lifetime as KWin's script engine) and unload it before loading this
+    // process's script.
+    let previous_path = runtime_dir.join(format!("{SCRIPT_NAME_PREFIX}.previous"));
+    if let Ok(previous) = std::fs::read_to_string(&previous_path) {
+        let previous = previous.trim();
+        if !previous.is_empty() && previous != script_name {
+            let _ = tokio::time::timeout(
+                SCRIPT_TIMEOUT,
+                conn.call_method(
+                    Some(KW_SCRIPTING_SERVICE),
+                    KW_SCRIPTING_PATH,
+                    Some(KW_SCRIPTING_IFACE),
+                    "unloadScript",
+                    &(previous,),
+                ),
+            )
+            .await;
+        }
+    }
+    if let Err(e) = std::fs::write(&previous_path, &script_name) {
+        tracing::warn!("tracker: cannot record script name {previous_path:?}: {e}");
+    }
 
     let script = format!(
-        "function report() {{ var w = workspace.activeWindow; if (w) {{ callDBus(\"{our_name}\", \"/\", \"\", \"{SCRIPT_MEMBER}\", w.resourceClass || w.resourceName || \"\"); }} }}\n\
+        "function report() {{ var w = workspace.activeWindow; if (w) {{ callDBus(\"{TRACKER_SERVICE}\", \"/\", \"\", \"{SCRIPT_MEMBER}\", w.resourceClass || w.resourceName || \"\"); }} }}\n\
          workspace.windowActivated.connect(report);\n\
          report();"
     );
@@ -140,7 +175,7 @@ async fn install_tracker(cache: &ActiveWindowCache) -> anyhow::Result<()> {
             KW_SCRIPTING_PATH,
             Some(KW_SCRIPTING_IFACE),
             "loadScript",
-            &(script_path.to_string_lossy().as_ref(), SCRIPT_NAME),
+            &(script_path.to_string_lossy().as_ref(), script_name.as_str()),
         ),
     )
     .await
@@ -191,39 +226,13 @@ async fn install_tracker(cache: &ActiveWindowCache) -> anyhow::Result<()> {
     // engine once `run` completes, so the file is safe to clean up only now.
     let _ = std::fs::remove_file(&script_path);
 
-    // The script's initial `report()` must arrive promptly. A wedged script
-    // from a previous process (it happened: the resident script survived every
-    // restart, KWin kept it loaded, and the new one never ran) or a `run` that
-    // silently failed leaves this stream with no callbacks forever, which used
-    // to hang here with no log while every clip was attributed to no app.
-    // Time out so the retry loop installs a fresh script instead.
-    match tokio::time::timeout(SCRIPT_TIMEOUT, stream.next()).await {
-        Ok(Some(Ok(msg))) => apply_callback(cache, msg),
-        Ok(Some(Err(e))) => return Err(anyhow::anyhow!("tracker stream error: {e}")),
-        Ok(None) => return Ok(()),
-        Err(_) => {
-            // Drop the wedged script so the next attempt is not poisoned by it.
-            let _ = tokio::time::timeout(
-                SCRIPT_TIMEOUT,
-                conn.call_method(
-                    Some(KW_SCRIPTING_SERVICE),
-                    KW_SCRIPTING_PATH,
-                    Some(KW_SCRIPTING_IFACE),
-                    "unloadScript",
-                    &(SCRIPT_NAME,),
-                ),
-            )
-            .await;
-            return Err(anyhow::anyhow!(
-                "tracker script loaded but never reported the active window"
-            ));
-        }
-    }
+    // A never-used script name runs immediately and its opening `report()`
+    // arrives (verified with a probe script), so the cache already holds the
+    // current app before the first copy.
     debug!("active-window tracker installed");
 
-    // The script now reports every focus change; block on the stream until it
-    // dies. There is no timeout here: an idle session legitimately produces no
-    // callbacks for a long stretch.
+    // Block on the stream until it dies. There is no timeout here: an idle
+    // session legitimately produces no callbacks for a long stretch.
     loop {
         match stream.next().await {
             Some(Ok(msg)) => apply_callback(cache, msg),
