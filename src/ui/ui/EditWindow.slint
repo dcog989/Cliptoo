@@ -10,14 +10,19 @@ import { ToastNotification } from "ToastNotification.slint";
 
 export component EditWindow inherits Window {
     title: @tr("Edit Clip");
-    width: 520px;
-    height: 420px;
+    preferred-width: 520px;
+    preferred-height: 420px;
+    min-width: 360px;
+    min-height: 300px;
     background: Theme.bg-primary;
     default-font-size: Theme.font-size;
 
     in property <int> clip-id: 0;
     in-out property <string> edit-content: "";
-    in property <string> initial-tags: "";
+    // Two-way: Rust writes the clip's tags before every open, and the user's
+    // edits write back. A one-way init would be broken by the first edit and
+    // then leak the previous clip's tags into the next one.
+    in-out property <string> initial-tags: "";
     in property <string> clip-type: "text";
     in property <string> meta-info: "";   // "1.4 KB · 320 chars" etc.
     in property <bool> editing: true;
@@ -183,10 +188,9 @@ export component EditWindow inherits Window {
                         padding-left: 8px;
                         padding-right: 8px;
                         tags-edit := TextInput {
-                        // One-way initialisation: binding breaks on first user edit, which
-                        // is the desired behaviour. Rust must NOT mutate initial-tags after
-                        // the window opens, or the field will re-sync and discard user input.
-                        text: root.initial-tags;
+                        // Two-way: Rust seeds it before each open; user edits write back.
+                        // Rust must NOT mutate initial-tags while the window is open.
+                        text <=> root.initial-tags;
                             color: Theme.fg-primary;
                             font-size: Theme.font-size;
                             vertical-alignment: center;
