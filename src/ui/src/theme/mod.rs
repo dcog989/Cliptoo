@@ -170,7 +170,10 @@ pub fn fill_theme(
         t.set_fg_primary(Color::from_rgb_u8(0xE4, 0xE4, 0xE4));
         t.set_fg_secondary(Color::from_rgb_u8(0xA1, 0xA1, 0xA1));
         t.set_fg_clip_list(Color::from_rgb_u8(0xB4, 0xB4, 0xB4));
-        t.set_fg_muted(Color::from_rgb_u8(0x63, 0x63, 0x63));
+        // Muted text (placeholders, metadata, deadhead rows). #636363 only
+        // reached APCA Lc 21 on #181818; #999999 clears the Lc 45 floor while
+        // staying dimmer than fg-secondary.
+        t.set_fg_muted(Color::from_rgb_u8(0x99, 0x99, 0x99));
         t.set_fg_bookmarked(Color::from_rgb_u8(0xE5, 0xB5, 0x67));
         t.set_danger_fg(rgb(DANGER_FG_DARK));
         t.set_link_fg(rgb(LINK_FG_DARK));
