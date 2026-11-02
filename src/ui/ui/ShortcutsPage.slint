@@ -124,11 +124,6 @@ export component ShortcutsPage inherits ScrollView {
         }
 
         ShortcutRow {
-            keys: "Ctrl+A";
-            action: @tr("Select all clips");
-        }
-
-        ShortcutRow {
             keys: root.quick-paste-keys;
             action: @tr("Quick-paste that clip");
         }
