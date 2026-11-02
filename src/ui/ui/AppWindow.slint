@@ -135,6 +135,16 @@ export component AppWindow inherits Window {
     in-out property <bool> about-open: false;
     in-out property <bool> edit-open: false;
     in-out property <bool> qr-open: false;
+    // A child window takes activation, which makes Slint drop this window's
+    // focused item. Re-anchor it when the last child window closes, or the
+    // focus poll treats every tick as a blur and keeps hiding hover previews
+    // until the next show().
+    private property <bool> child-window-open: root.settings-open || root.about-open || root.edit-open || root.qr-open;
+    changed child-window-open => {
+        if (!root.child-window-open) {
+            root.reset-focus();
+        }
+    }
 
     in property <length> min-window-width: 320px;
     in property <length> min-window-height: 240px;

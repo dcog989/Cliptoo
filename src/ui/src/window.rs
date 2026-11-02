@@ -201,18 +201,17 @@ pub fn setup_close_handlers(
         let p = path;
         let weak = ui.as_weak();
         ui.on_blur_closed(move || {
-            // The hover preview is its own always-on-top window: dismiss it on
-            // any blur, or it keeps hovering over whatever took focus next.
-            crate::preview::hide_preview();
-
-            // A Slint-rendered popup the app doesn't track — the search field's
-            // built-in `LineEdit` context menu — is its own top-level window, so
-            // the main window reports a blur while that menu still holds this
-            // process's activation. Only a blur to another application closes
-            // the window; while any of our windows is active, just ignore it.
+            // A blur while one of our own windows still holds activation (the
+            // Settings/About/Edit/QR windows) is not a loss of focus for the
+            // app: keep the hover preview. Only a real blur dismisses it below.
             if crate::drag::app_has_focus() {
                 return;
             }
+
+            // The hover preview is its own always-on-top window: dismiss it once
+            // activation really leaves the app, or it keeps hovering over
+            // whatever took focus next.
+            crate::preview::hide_preview();
 
             let Some(guard) = CloseGuard::try_acquire(&guard) else {
                 return;
