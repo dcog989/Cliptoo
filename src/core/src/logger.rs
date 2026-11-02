@@ -8,7 +8,7 @@ use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
 /// Fixed number of days to keep rotated log files. Not user-configurable.
-pub const LOG_RETENTION_DAYS: u32 = 10;
+const LOG_RETENTION_DAYS: u32 = 10;
 
 // ── Runtime log level ─────────────────────────────────────────────────────────
 //
@@ -264,5 +264,29 @@ mod tests {
         set_level(LevelFilter::ERROR);
         assert!(file_level_allows("app", tracing::Level::ERROR));
         assert!(!file_level_allows("app", tracing::Level::WARN));
+    }
+
+    /// Log cleanup deletes files, so it must only ever touch its own rotated
+    /// logs: a user file in the log dir and the bare `cliptoo.log` stay put.
+    #[test]
+    fn cleanup_old_logs_removes_only_stale_cliptoo_logs() {
+        let dir = std::env::temp_dir().join(format!("cliptoo_logs_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        for name in ["cliptoo.2026-01-01.log", "cliptoo.log", "notes.txt"] {
+            std::fs::write(dir.join(name), b"x").unwrap();
+        }
+
+        cleanup_old_logs(&dir, 0);
+        assert!(!dir.join("cliptoo.2026-01-01.log").exists());
+        assert!(dir.join("cliptoo.log").exists(), "bare name is user data");
+        assert!(dir.join("notes.txt").exists(), "unrelated files are kept");
+
+        // A file written just now survives a normal retention pass.
+        std::fs::write(dir.join("cliptoo.2026-11-02.log"), b"x").unwrap();
+        cleanup_old_logs(&dir, LOG_RETENTION_DAYS);
+        assert!(dir.join("cliptoo.2026-11-02.log").exists());
+
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
