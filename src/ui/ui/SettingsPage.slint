@@ -24,7 +24,7 @@ export component SettingsPage inherits ScrollView {
 
     // Tooltip text for inline controls (Tooltip.text is styled-text, so @tr is
     // bound here and interpolated through @markdown at the use site).
-    private property <string> tip-accent-picker: @tr("Pick a custom accent color");
+    private property <string> tip-accent-picker: @tr("Color used for highlights, selections, and focus outlines");
     private property <string> tip-font-family: @tr("Font family used for the clip list. Click to pick a font");
 
     vertical-scrollbar-policy: ScrollBarPolicy.as-needed;
@@ -86,13 +86,27 @@ export component SettingsPage inherits ScrollView {
             }
         }
 
+        SliderRow {
+            label: @tr("Preview hover delay");
+            tooltip-text: @tr("Delay before the hover preview appears");
+            value <=> SettingsValues.hover-delay;
+            min-val: 0;
+            max-val: 2000;
+            step: 50;
+            unit: " ms";
+            zero-is-off: true;
+            committed(v) => {
+                root.setting-changed("hover_preview_delay", "\{v}");
+            }
+        }
+
         // ── Appearance ───────────────────────────────────────────────────
         SectionHeader {
             text: @tr("Appearance");
         }
 
         DropRow {
-            label: @tr("Theme");
+            label: @tr("Theme Mode");
             index <=> SettingsValues.s-theme-idx;
             options: ["System", "Light", "Dark"];
             committed(v) => {
@@ -183,7 +197,7 @@ export component SettingsPage inherits ScrollView {
 
         FloatRow {
             label: @tr("Preview font size");
-            tooltip-text: @tr("Font size used for code and color previews");
+            tooltip-text: @tr("Font size used for preview window content");
             value-hundredths <=> SettingsValues.s-preview-font-size-hundredths;
             min-hundredths: 800;
             max-hundredths: 2400;
@@ -195,26 +209,12 @@ export component SettingsPage inherits ScrollView {
         }
 
         DropRow {
-            label: @tr("Row padding");
-            tooltip-text: @tr("Vertical padding of items in the clip list");
+            label: @tr("Row Height");
+            tooltip-text: @tr("Height of each clip row in the list");
             index <=> SettingsValues.s-row-padding-idx;
             options: ["Compact", "Standard", "Luxury"];
             committed(v) => {
                 root.setting-changed("clip_item_padding", v);
-            }
-        }
-
-        SliderRow {
-            label: @tr("Preview hover delay");
-            tooltip-text: @tr("Delay before the hover preview appears");
-            value <=> SettingsValues.hover-delay;
-            min-val: 0;
-            max-val: 2000;
-            step: 50;
-            unit: " ms";
-            zero-is-off: true;
-            committed(v) => {
-                root.setting-changed("hover_preview_delay", "\{v}");
             }
         }
 
