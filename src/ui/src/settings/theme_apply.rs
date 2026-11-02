@@ -165,6 +165,9 @@ pub(crate) fn watch_system_theme(
         let Ok(mut stream) = zbus::MessageStream::for_match_rule(rule, &conn, Some(1)).await else {
             return;
         };
+        // shortcut: the stream ends if the session bus restarts; live follow
+        // resumes on the next launch. Add a reconnect loop if broker restarts
+        // become common.
         while stream.next().await.is_some() {
             let snapshot = settings.borrow().clone();
             // A custom accent with an explicit light/dark mode ignores OS
