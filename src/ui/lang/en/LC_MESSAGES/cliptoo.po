@@ -1,8 +1,8 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: cliptoo 2.22.0\n"
-"POT-Creation-Date: 2026-10-25 11:02+0000\n"
+"Project-Id-Version: cliptoo 2.23.0\n"
+"POT-Creation-Date: 2026-11-02 09:06+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -15,6 +15,11 @@ msgstr ""
 #: src/ui/ui/AboutWindow.slint:61
 msgctxt "AboutWindow"
 msgid "About Cliptoo"
+msgstr ""
+
+#: src/ui/ui/ClipList.slint:184
+msgctxt "ClipList"
+msgid "No Results"
 msgstr ""
 
 #: src/ui/ui/CliptooTray.slint:3
@@ -32,102 +37,102 @@ msgctxt "CliptooTray"
 msgid "Quit"
 msgstr ""
 
-#: src/ui/ui/ClipTypes.slint:124
+#: src/ui/ui/ClipTypes.slint:123
 msgctxt "ClipTypeMap"
 msgid "All"
 msgstr ""
 
-#: src/ui/ui/ClipTypes.slint:125
+#: src/ui/ui/ClipTypes.slint:124
 msgctxt "ClipTypeMap"
 msgid "Plain Text"
 msgstr ""
 
-#: src/ui/ui/ClipTypes.slint:126
+#: src/ui/ui/ClipTypes.slint:125
 msgctxt "ClipTypeMap"
 msgid "Image File"
 msgstr ""
 
-#: src/ui/ui/ClipTypes.slint:127
+#: src/ui/ui/ClipTypes.slint:126
 msgctxt "ClipTypeMap"
 msgid "Bookmarked"
 msgstr ""
 
-#: src/ui/ui/ClipTypes.slint:128
+#: src/ui/ui/ClipTypes.slint:127
 msgctxt "ClipTypeMap"
 msgid "URL"
 msgstr ""
 
-#: src/ui/ui/ClipTypes.slint:129
+#: src/ui/ui/ClipTypes.slint:128
 msgctxt "ClipTypeMap"
 msgid "File path"
 msgstr ""
 
-#: src/ui/ui/ClipTypes.slint:130
+#: src/ui/ui/ClipTypes.slint:129
 msgctxt "ClipTypeMap"
 msgid "Code"
 msgstr ""
 
-#: src/ui/ui/ClipTypes.slint:131
+#: src/ui/ui/ClipTypes.slint:130
 msgctxt "ClipTypeMap"
 msgid "Color"
 msgstr ""
 
-#: src/ui/ui/ClipTypes.slint:132
+#: src/ui/ui/ClipTypes.slint:131
 msgctxt "ClipTypeMap"
 msgid "Folder"
 msgstr ""
 
-#: src/ui/ui/ClipTypes.slint:133
+#: src/ui/ui/ClipTypes.slint:132
 msgctxt "ClipTypeMap"
 msgid "Danger File"
 msgstr ""
 
-#: src/ui/ui/ClipTypes.slint:134
+#: src/ui/ui/ClipTypes.slint:133
 msgctxt "ClipTypeMap"
 msgid "Data File"
 msgstr ""
 
-#: src/ui/ui/ClipTypes.slint:135
+#: src/ui/ui/ClipTypes.slint:134
 msgctxt "ClipTypeMap"
 msgid "Dev File"
 msgstr ""
 
-#: src/ui/ui/ClipTypes.slint:136
+#: src/ui/ui/ClipTypes.slint:135
 msgctxt "ClipTypeMap"
 msgid "Audio File"
 msgstr ""
 
-#: src/ui/ui/ClipTypes.slint:137
+#: src/ui/ui/ClipTypes.slint:136
 msgctxt "ClipTypeMap"
 msgid "Video File"
 msgstr ""
 
-#: src/ui/ui/ClipTypes.slint:138
+#: src/ui/ui/ClipTypes.slint:137
 msgctxt "ClipTypeMap"
 msgid "Archive File"
 msgstr ""
 
-#: src/ui/ui/ClipTypes.slint:139
+#: src/ui/ui/ClipTypes.slint:138
 msgctxt "ClipTypeMap"
 msgid "Document File"
 msgstr ""
 
-#: src/ui/ui/ClipTypes.slint:140
+#: src/ui/ui/ClipTypes.slint:139
 msgctxt "ClipTypeMap"
 msgid "Text File"
 msgstr ""
 
-#: src/ui/ui/ClipTypes.slint:141
+#: src/ui/ui/ClipTypes.slint:140
 msgctxt "ClipTypeMap"
 msgid "Rich Text"
 msgstr ""
 
-#: src/ui/ui/ClipTypes.slint:142
+#: src/ui/ui/ClipTypes.slint:141
 msgctxt "ClipTypeMap"
 msgid "Other File"
 msgstr ""
 
-#: src/ui/ui/ContextMenuHost.slint:288
+#: src/ui/ui/ContextMenuHost.slint:289
 msgctxt "ContextMenuHost"
 msgid "Back"
 msgstr ""
@@ -197,132 +202,134 @@ msgctxt "ContextMenu"
 msgid "Send To"
 msgstr ""
 
-#: src/ui/ui/DatabasePage.slint:32
+#: src/ui/ui/DatabasePage.slint:24
 msgctxt "DatabasePage"
 msgid "Retention"
 msgstr ""
 
-#: src/ui/ui/DatabasePage.slint:37
+#: src/ui/ui/DatabasePage.slint:29
 msgctxt "DatabasePage"
 msgid "Max clips"
 msgstr ""
 
-#: src/ui/ui/DatabasePage.slint:38
+#: src/ui/ui/DatabasePage.slint:30
 msgctxt "DatabasePage"
-msgid "Maximum number of non-bookmarked clips kept in history"
+msgid ""
+"Maximum number of non-bookmarked clips kept in history (up to 1000, the list "
+"limit)"
 msgstr ""
 
-#: src/ui/ui/DatabasePage.slint:49
+#: src/ui/ui/DatabasePage.slint:41
 msgctxt "DatabasePage"
 msgid "Max age (days)"
 msgstr ""
 
-#: src/ui/ui/DatabasePage.slint:50
+#: src/ui/ui/DatabasePage.slint:42
 msgctxt "DatabasePage"
 msgid "Automatically remove clips older than this many days"
 msgstr ""
 
-#: src/ui/ui/DatabasePage.slint:61
+#: src/ui/ui/DatabasePage.slint:53
 msgctxt "DatabasePage"
 msgid "Maintenance"
 msgstr ""
 
-#: src/ui/ui/DatabasePage.slint:69
+#: src/ui/ui/DatabasePage.slint:61
 msgctxt "DatabasePage"
 msgid "Clear History"
 msgstr ""
 
-#: src/ui/ui/DatabasePage.slint:70
+#: src/ui/ui/DatabasePage.slint:62
 msgctxt "DatabasePage"
 msgid "Delete all clips from the clipboard history"
 msgstr ""
 
-#: src/ui/ui/DatabasePage.slint:74
+#: src/ui/ui/DatabasePage.slint:66
 msgctxt "DatabasePage"
 msgid "Clear Caches"
 msgstr ""
 
-#: src/ui/ui/DatabasePage.slint:75
+#: src/ui/ui/DatabasePage.slint:67
 msgctxt "DatabasePage"
 msgid "Clear cached previews, thumbnails, and favicons"
 msgstr ""
 
-#: src/ui/ui/DatabasePage.slint:79
+#: src/ui/ui/DatabasePage.slint:71
 msgctxt "DatabasePage"
 msgid "Deadhead"
 msgstr ""
 
-#: src/ui/ui/DatabasePage.slint:80
+#: src/ui/ui/DatabasePage.slint:72
 msgctxt "DatabasePage"
 msgid "Remove clips referencing files that no longer exist on disk"
 msgstr ""
 
-#: src/ui/ui/DatabasePage.slint:84
+#: src/ui/ui/DatabasePage.slint:76
 msgctxt "DatabasePage"
 msgid "Reclassify All"
 msgstr ""
 
-#: src/ui/ui/DatabasePage.slint:85
+#: src/ui/ui/DatabasePage.slint:77
 msgctxt "DatabasePage"
 msgid "Re-run content detection on every clip"
 msgstr ""
 
-#: src/ui/ui/DatabasePage.slint:89
+#: src/ui/ui/DatabasePage.slint:81
 msgctxt "DatabasePage"
 msgid "Compact Database"
 msgstr ""
 
-#: src/ui/ui/DatabasePage.slint:90
+#: src/ui/ui/DatabasePage.slint:82
 msgctxt "DatabasePage"
 msgid "Rebuild the database file to reclaim space freed by deleted clips"
 msgstr ""
 
-#: src/ui/ui/DatabasePage.slint:94
+#: src/ui/ui/DatabasePage.slint:86
 msgctxt "DatabasePage"
 msgid "Export All Clips"
 msgstr ""
 
-#: src/ui/ui/DatabasePage.slint:95
+#: src/ui/ui/DatabasePage.slint:87
 msgctxt "DatabasePage"
 msgid "Save all clips to a JSON file"
 msgstr ""
 
-#: src/ui/ui/DatabasePage.slint:99
+#: src/ui/ui/DatabasePage.slint:91
 msgctxt "DatabasePage"
 msgid "Export Bookmarks"
 msgstr ""
 
-#: src/ui/ui/DatabasePage.slint:100
+#: src/ui/ui/DatabasePage.slint:92
 msgctxt "DatabasePage"
 msgid "Save only bookmarked clips to a JSON file"
 msgstr ""
 
-#: src/ui/ui/DatabasePage.slint:104
+#: src/ui/ui/DatabasePage.slint:96
 msgctxt "DatabasePage"
 msgid "Import Backup"
 msgstr ""
 
-#: src/ui/ui/DatabasePage.slint:105
+#: src/ui/ui/DatabasePage.slint:97
 msgctxt "DatabasePage"
 msgid "Load clips from a JSON backup file"
 msgstr ""
 
-#: src/ui/ui/DatabasePage.slint:135
+#: src/ui/ui/DatabasePage.slint:143
 msgctxt "DatabasePage"
 msgid "Statistics"
 msgstr ""
 
-#: src/ui/ui/DatabasePage.slint:148
+#: src/ui/ui/DatabasePage.slint:156
 msgctxt "DatabasePage"
 msgid "Database created"
 msgstr ""
 
-#: src/ui/ui/DatabasePage.slint:168
+#: src/ui/ui/DatabasePage.slint:176
 msgctxt "DatabasePage"
 msgid "Database size"
 msgstr ""
 
-#: src/ui/ui/DatabasePage.slint:188
+#: src/ui/ui/DatabasePage.slint:196
 msgctxt "DatabasePage"
 msgid "Total clips"
 msgstr ""
@@ -332,7 +339,7 @@ msgctxt "DatabasePage"
 msgid "Unique clips ever / Pastes"
 msgstr ""
 
-#: src/ui/ui/DatabasePage.slint:215
+#: src/ui/ui/DatabasePage.slint:223
 msgctxt "DatabasePage"
 msgid "{} / {}"
 msgstr ""
@@ -452,7 +459,7 @@ msgctxt "PreviewWindow"
 msgid "Cliptoo Preview"
 msgstr ""
 
-#: src/ui/ui/SettingsComponents.slint:343
+#: src/ui/ui/SettingsComponents.slint:407
 msgctxt "SliderRow"
 msgid "Off"
 msgstr ""
@@ -489,199 +496,201 @@ msgid "Settings"
 msgstr ""
 
 #. bound here and interpolated through @markdown at the use site).
-#: src/ui/ui/SettingsPage.slint:45
+#: src/ui/ui/SettingsPage.slint:29
 msgctxt "SettingsPage"
 msgid "Open the most recent log file in your default viewer"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:46
+#: src/ui/ui/SettingsPage.slint:30
 msgctxt "SettingsPage"
 msgid "Verbosity of messages written to the log file"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:48
+#: src/ui/ui/SettingsPage.slint:32
 msgctxt "SettingsPage"
 msgid "Pick a custom accent color"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:49
+#: src/ui/ui/SettingsPage.slint:33
 msgctxt "SettingsPage"
 msgid "Font family used for the clip list. Click to pick a font"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:70
+#: src/ui/ui/SettingsPage.slint:54
 msgctxt "SettingsPage"
 msgid "General"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:75
+#: src/ui/ui/SettingsPage.slint:59
 msgctxt "SettingsPage"
 msgid "Start with system"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:76
+#: src/ui/ui/SettingsPage.slint:60
 msgctxt "SettingsPage"
 msgid "Launch Cliptoo automatically when you log in"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:84
+#: src/ui/ui/SettingsPage.slint:68
 msgctxt "SettingsPage"
 msgid "Always close to tray"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:85
+#: src/ui/ui/SettingsPage.slint:69
 msgctxt "SettingsPage"
 msgid "Hide to the system tray when the window loses focus"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:93
+#: src/ui/ui/SettingsPage.slint:77
 msgctxt "SettingsPage"
 msgid "Paste as plain text"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:94
+#: src/ui/ui/SettingsPage.slint:78
 msgctxt "SettingsPage"
 msgid ""
 "Strip formatting when pasting text, and paste file paths as text instead of "
 "attaching the file"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:102
+#: src/ui/ui/SettingsPage.slint:86
 msgctxt "SettingsPage"
 msgid "Paste moves clip to top"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:103
+#: src/ui/ui/SettingsPage.slint:87
 msgctxt "SettingsPage"
 msgid "Move a clip to the top of the list when you paste it"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:116
+#: src/ui/ui/SettingsPage.slint:95
 msgctxt "SettingsPage"
 msgid "Log level"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:164
+#: src/ui/ui/SettingsPage.slint:124
 msgctxt "SettingsPage"
 msgid "Open latest log"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:183
+#: src/ui/ui/SettingsPage.slint:143
 msgctxt "SettingsPage"
 msgid "Appearance"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:187
+#: src/ui/ui/SettingsPage.slint:147
 msgctxt "SettingsPage"
 msgid "Theme"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:196
+#: src/ui/ui/SettingsPage.slint:156
 msgctxt "SettingsPage"
 msgid "Color code clip types"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:197
+#: src/ui/ui/SettingsPage.slint:157
 msgctxt "SettingsPage"
 msgid "Colorise each clip type a different hue"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:210
+#: src/ui/ui/SettingsPage.slint:165
 msgctxt "SettingsPage"
 msgid "Accent color"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:237
+#: src/ui/ui/SettingsPage.slint:182
 msgctxt "SettingsPage"
 msgid "Clear"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:256
+#: src/ui/ui/SettingsPage.slint:196
 msgctxt "SettingsPage"
 msgid "Font family"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:295
+#: src/ui/ui/SettingsPage.slint:223
 msgctxt "SettingsPage"
 msgid "Clip list font size"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:296
+#: src/ui/ui/SettingsPage.slint:224
 msgctxt "SettingsPage"
 msgid "Font size of clip entries in the main list"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:308
+#: src/ui/ui/SettingsPage.slint:236
 msgctxt "SettingsPage"
 msgid "Preview font size"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:309
+#: src/ui/ui/SettingsPage.slint:237
 msgctxt "SettingsPage"
 msgid "Font size used for code and color previews"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:321
+#: src/ui/ui/SettingsPage.slint:249
 msgctxt "SettingsPage"
 msgid "Row padding"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:322
+#: src/ui/ui/SettingsPage.slint:250
 msgctxt "SettingsPage"
 msgid "Vertical padding of items in the clip list"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:331
+#: src/ui/ui/SettingsPage.slint:259
 msgctxt "SettingsPage"
 msgid "Preview hover delay"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:332
+#: src/ui/ui/SettingsPage.slint:260
 msgctxt "SettingsPage"
 msgid "Delay before the hover preview appears"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:345
+#: src/ui/ui/SettingsPage.slint:273
 msgctxt "SettingsPage"
 msgid "Preview size"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:346
+#: src/ui/ui/SettingsPage.slint:274
 msgctxt "SettingsPage"
 msgid "Maximum width/height of hover previews"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:359
+#: src/ui/ui/SettingsPage.slint:287
 msgctxt "SettingsPage"
 msgid "External Apps"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:363
+#: src/ui/ui/SettingsPage.slint:291
 msgctxt "SettingsPage"
 msgid "Diff tool path"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:364
+#: src/ui/ui/SettingsPage.slint:292
 msgctxt "SettingsPage"
 msgid "Command used to compare two text clips"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:372
+#: src/ui/ui/SettingsPage.slint:300
 msgctxt "SettingsPage"
 msgid "Send To apps"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:373
+#: src/ui/ui/SettingsPage.slint:301
 msgctxt "SettingsPage"
-msgid "Comma-separated list of apps that can open a clip. 'Name: command'"
+msgid ""
+"Comma-separated list of apps that can open a clip. 'Name: command'. "
+"Arguments cannot contain commas"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:381
+#: src/ui/ui/SettingsPage.slint:309
 msgctxt "SettingsPage"
 msgid "Blacklist apps"
 msgstr ""
 
-#: src/ui/ui/SettingsPage.slint:382
+#: src/ui/ui/SettingsPage.slint:310
 msgctxt "SettingsPage"
 msgid "Comma-separated list of apps excluded from clipboard capture"
 msgstr ""
@@ -691,118 +700,128 @@ msgctxt "SettingsWindow"
 msgid "Cliptoo Settings"
 msgstr ""
 
-#: src/ui/ui/ShortcutsPage.slint:63
+#: src/ui/ui/ShortcutsPage.slint:61
 msgctxt "ShortcutsPage"
 msgid "Global"
 msgstr ""
 
-#: src/ui/ui/ShortcutsPage.slint:68
+#: src/ui/ui/ShortcutsPage.slint:66
 msgctxt "ShortcutsPage"
 msgid "Launch hotkey"
 msgstr ""
 
-#: src/ui/ui/ShortcutsPage.slint:69
+#: src/ui/ui/ShortcutsPage.slint:67
 msgctxt "ShortcutsPage"
 msgid "Global hotkey to toggle the Cliptoo window"
 msgstr ""
 
-#: src/ui/ui/ShortcutsPage.slint:77
+#: src/ui/ui/ShortcutsPage.slint:75
 msgctxt "ShortcutsPage"
 msgid "Quick-paste modifier"
 msgstr ""
 
-#: src/ui/ui/ShortcutsPage.slint:78
+#: src/ui/ui/ShortcutsPage.slint:76
 msgctxt "ShortcutsPage"
 msgid "Modifier key to hold for the quick-paste number overlay"
 msgstr ""
 
-#: src/ui/ui/ShortcutsPage.slint:88
+#: src/ui/ui/ShortcutsPage.slint:86
 msgctxt "ShortcutsPage"
 msgid "Clip List"
 msgstr ""
 
-#: src/ui/ui/ShortcutsPage.slint:93
+#: src/ui/ui/ShortcutsPage.slint:91
 msgctxt "ShortcutsPage"
 msgid "Move the selection"
 msgstr ""
 
-#: src/ui/ui/ShortcutsPage.slint:98
+#: src/ui/ui/ShortcutsPage.slint:96
 msgctxt "ShortcutsPage"
 msgid "Jump to the first / last clip"
 msgstr ""
 
-#: src/ui/ui/ShortcutsPage.slint:103
+#: src/ui/ui/ShortcutsPage.slint:101
 msgctxt "ShortcutsPage"
 msgid "Move one page"
 msgstr ""
 
-#: src/ui/ui/ShortcutsPage.slint:108
+#: src/ui/ui/ShortcutsPage.slint:106
 msgctxt "ShortcutsPage"
 msgid "Paste the selected clip"
 msgstr ""
 
-#: src/ui/ui/ShortcutsPage.slint:113
+#: src/ui/ui/ShortcutsPage.slint:111
 msgctxt "ShortcutsPage"
-msgid "Delete the selected clip"
+msgid "Delete the selected clip (press twice)"
 msgstr ""
 
-#: src/ui/ui/ShortcutsPage.slint:118
+#: src/ui/ui/ShortcutsPage.slint:116
+msgctxt "ShortcutsPage"
+msgid "Open the filter grid"
+msgstr ""
+
+#: src/ui/ui/ShortcutsPage.slint:121
+msgctxt "ShortcutsPage"
+msgid "Open the main menu"
+msgstr ""
+
+#: src/ui/ui/ShortcutsPage.slint:126
 msgctxt "ShortcutsPage"
 msgid "Copy the selected clip without pasting"
 msgstr ""
 
-#: src/ui/ui/ShortcutsPage.slint:123
+#: src/ui/ui/ShortcutsPage.slint:131
 msgctxt "ShortcutsPage"
 msgid "Edit the selected clip"
 msgstr ""
 
-#: src/ui/ui/ShortcutsPage.slint:128
+#: src/ui/ui/ShortcutsPage.slint:136
 msgctxt "ShortcutsPage"
 msgid "Quick-paste that clip"
 msgstr ""
 
-#: src/ui/ui/ShortcutsPage.slint:133
+#: src/ui/ui/ShortcutsPage.slint:141
 msgctxt "ShortcutsPage"
 msgid "Search"
 msgstr ""
 
-#: src/ui/ui/ShortcutsPage.slint:137
+#: src/ui/ui/ShortcutsPage.slint:145
 msgctxt "ShortcutsPage"
 msgid "Typing"
 msgstr ""
 
-#: src/ui/ui/ShortcutsPage.slint:138
+#: src/ui/ui/ShortcutsPage.slint:146
 msgctxt "ShortcutsPage"
 msgid "Search — no need to click the field first"
 msgstr ""
 
-#: src/ui/ui/ShortcutsPage.slint:143
+#: src/ui/ui/ShortcutsPage.slint:151
 msgctxt "ShortcutsPage"
 msgid "Delete the last search character"
 msgstr ""
 
-#: src/ui/ui/ShortcutsPage.slint:148
+#: src/ui/ui/ShortcutsPage.slint:156
 msgctxt "ShortcutsPage"
 msgid "Delete the last search word"
 msgstr ""
 
-#: src/ui/ui/ShortcutsPage.slint:153
+#: src/ui/ui/ShortcutsPage.slint:161
 msgctxt "ShortcutsPage"
 msgid "Clear the search, then close the window"
 msgstr ""
 
 #. Tooltip text for the filter icon, e.g. "Filter: Text".
-#: src/ui/ui/Toolbar.slint:45
+#: src/ui/ui/Toolbar.slint:44
 msgctxt "Toolbar"
 msgid "Filter: {}"
 msgstr ""
 
-#: src/ui/ui/Toolbar.slint:170
+#: src/ui/ui/Toolbar.slint:169
 msgctxt "Toolbar"
 msgid "Search clips"
 msgstr ""
 
-#: src/ui/ui/Toolbar.slint:202
+#: src/ui/ui/Toolbar.slint:201
 msgctxt "Toolbar"
 msgid "Search…"
 msgstr ""
