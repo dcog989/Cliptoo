@@ -6,8 +6,9 @@
 //! the active window's application is the KWin scripting interface
 //! (`org.kde.KWin` at `/Scripting`). A resident script subscribes to
 //! `workspace.windowActivated` and pushes the active window's `resourceClass`
-//! back to us with `callDBus` on every focus change; the callbacks arrive on a
-//! dedicated session connection via a `MessageStream` match rule.
+//! back to us with `callDBus` on every focus change; the callbacks arrive as
+//! method calls on a dedicated session connection, which serves them through
+//! the `org.cliptoo.Tracker` interface and directly updates the cache.
 //!
 //! A fresh on-demand query at ingest time is always stale: the listener
 //! notices a copy up to one poll interval late, by which point focus may have
@@ -29,8 +30,11 @@ const KW_SCRIPTING_PATH: &str = "/Scripting";
 const KW_SCRIPTING_IFACE: &str = "org.kde.kwin.Scripting";
 const KW_SCRIPT_IFACE: &str = "org.kde.kwin.Script";
 const SCRIPT_TIMEOUT: Duration = Duration::from_secs(2);
-// The D-Bus member the tracker script calls back on for every focus change.
+// D-Bus member the tracker script calls back on for every focus change.
 const SCRIPT_MEMBER: &str = "activeWindow";
+// Interface serving `SCRIPT_MEMBER` on the tracker connection. The script must
+// name it explicitly: zbus rejects a call that carries no interface field.
+const TRACKER_IFACE: &str = "org.cliptoo.Tracker";
 // Prefix for the per-process script name (see `install_tracker`). The suffix
 // must differ on every start: KWin only runs a script under a name it has not
 // loaded before.
@@ -101,17 +105,20 @@ async fn install_tracker(cache: &ActiveWindowCache) -> anyhow::Result<()> {
     // Dedicated connection for the fixed callback name, so a script left over
     // from an earlier process still reaches this instance (KWin does not
     // reliably replace the resident script, and the connection's unique name
-    // changes on every restart). Start the object server before owning the
-    // name: zbus warns that calls can be lost otherwise.
+    // changes on every restart). Serve the callback interface before owning
+    // the name: zbus warns that calls can be lost otherwise.
     let conn = zbus::connection::Builder::session()?.build().await?;
-    conn.object_server();
+    conn.object_server()
+        .at("/", Tracker(cache.clone()))
+        .await
+        .map_err(|e| anyhow::anyhow!("failed to serve the tracker interface: {e}"))?;
     conn.request_name(TRACKER_SERVICE)
         .await
         .map_err(|e| anyhow::anyhow!("failed to own {TRACKER_SERVICE}: {e}"))?;
 
     // Subscribe before loading the script so a fast initial `report()` can't
-    // race ahead of us. The callback is a method call to `TRACKER_SERVICE` with
-    // member "activeWindow".
+    // race ahead of us. Used only as a lifeline: the interface above handles
+    // the calls, and a closed stream means the session bus went away.
     let rule = MatchRule::builder()
         .msg_type(Type::MethodCall)
         .member(SCRIPT_MEMBER)
@@ -160,7 +167,7 @@ async fn install_tracker(cache: &ActiveWindowCache) -> anyhow::Result<()> {
     }
 
     let script = format!(
-        "function report() {{ var w = workspace.activeWindow; if (w) {{ callDBus(\"{TRACKER_SERVICE}\", \"/\", \"\", \"{SCRIPT_MEMBER}\", w.resourceClass || w.resourceName || \"\"); }} }}\n\
+        "function report() {{ var w = workspace.activeWindow; if (w) {{ callDBus(\"{TRACKER_SERVICE}\", \"/\", \"{TRACKER_IFACE}\", \"{SCRIPT_MEMBER}\", w.resourceClass || w.resourceName || \"\"); }} }}\n\
          workspace.windowActivated.connect(report);\n\
          report();"
     );
@@ -235,7 +242,7 @@ async fn install_tracker(cache: &ActiveWindowCache) -> anyhow::Result<()> {
     // session legitimately produces no callbacks for a long stretch.
     loop {
         match stream.next().await {
-            Some(Ok(msg)) => apply_callback(cache, msg),
+            Some(Ok(_)) => {}
             Some(Err(e)) => {
                 return Err(anyhow::anyhow!("tracker stream error: {e}"));
             }
@@ -246,15 +253,29 @@ async fn install_tracker(cache: &ActiveWindowCache) -> anyhow::Result<()> {
     }
 }
 
-/// Apply one KWin tracker callback to the cache. A malformed callback says
-/// nothing about the active window, so the cache is left untouched rather than
-/// cleared.
-fn apply_callback(cache: &ActiveWindowCache, msg: zbus::Message) {
-    let Ok(app) = msg.body().deserialize::<String>() else {
-        return;
-    };
-    let app = (!app.is_empty()).then_some(app);
-    if let Ok(mut guard) = cache.write() {
-        *guard = app;
+/// Callback target for the KWin tracker script. The script calls
+/// [`SCRIPT_MEMBER`] on this interface for every focus change.
+struct Tracker(ActiveWindowCache);
+
+#[zbus::interface(name = "org.cliptoo.Tracker")]
+impl Tracker {
+    fn active_window(&self, app: String) {
+        let app = (!app.is_empty()).then_some(app);
+        if let Ok(mut guard) = self.0.write() {
+            *guard = app;
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{TRACKER_IFACE, Tracker};
+    use zbus::object_server::Interface;
+
+    /// The script spells the interface name out as a literal; keep it in sync
+    /// with the attribute on `Tracker`.
+    #[test]
+    fn tracker_interface_name_matches_the_script() {
+        assert_eq!(Tracker::name().as_str(), TRACKER_IFACE);
     }
 }

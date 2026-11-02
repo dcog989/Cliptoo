@@ -93,6 +93,16 @@ fn read_kdeglobals_accent() -> Option<(u8, u8, u8)> {
 /// resort when the portal call fails.
 /// Returns `(r, g, b)` in 0–255, or `None` if undetectable.
 pub async fn detect_system_accent() -> Option<(u8, u8, u8)> {
+    let accent = read_system_accent().await;
+    // Logged here, once per detection: the token fillers run for every window.
+    if let Some((r, g, b)) = accent {
+        tracing::debug!("detected system accent: #{r:02X}{g:02X}{b:02X}");
+    }
+    accent
+}
+
+/// One detection attempt; see [`detect_system_accent`].
+async fn read_system_accent() -> Option<(u8, u8, u8)> {
     if on_kde()
         && let Some(rgb) = read_kdeglobals_accent()
     {

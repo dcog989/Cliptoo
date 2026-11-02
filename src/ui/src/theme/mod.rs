@@ -101,7 +101,6 @@ pub fn fill_accent(
     // Base accent: the system accent in "System" theme mode, otherwise the
     // user-picked color.
     let (accent_rgb, (accent_l, accent_c, accent_h)) = if let Some((sr, sg, sb)) = system_accent {
-        tracing::debug!("detected system accent: #{sr:02X}{sg:02X}{sb:02X}");
         ((sr, sg, sb), srgb_bytes_to_oklch(sr, sg, sb))
     } else {
         let (r, g, b) = parse_accent_hex(&settings.accent_color);
