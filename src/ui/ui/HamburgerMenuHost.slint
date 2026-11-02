@@ -81,6 +81,14 @@ export component HamburgerMenuHost {
                     hamburger.move-selection(1);
                     return accept;
                 }
+                if (e.text == Key.Home) {
+                    hamburger.select-first();
+                    return accept;
+                }
+                if (e.text == Key.End) {
+                    hamburger.select-last();
+                    return accept;
+                }
                 if (e.text == Key.Return) {
                     hamburger.activate-selected();
                     return accept;

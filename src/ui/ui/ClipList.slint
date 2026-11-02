@@ -107,6 +107,14 @@ export component ClipList {
         }
     }
 
+    // Window-space Y of the selected row, for anchoring the context menu when
+    // it is opened from the keyboard.
+    public function selected-row-y() -> float {
+        return (root.list-padding / 1px)
+            + (root.selected-index * Theme.row-height / 1px)
+            + (list-view.content-y / 1px);
+    }
+
     // Scrollbar strip width. The std-widgets scrollbar is disabled below (its
     // track clicks don't register on Plasma) and replaced by the ScrollBar
     // overlay on the right edge.
@@ -135,6 +143,8 @@ export component ClipList {
         height: root.height - root.list-padding;
         vertical-scrollbar-policy: ScrollBarPolicy.always-off;
         accessible-role: list;
+        accessible-label: @tr("Clip history");
+        accessible-item-count: root.clips.length;
         for clip[idx] in root.clips: ClipItem {
             clip-data: clip;
             is-selected: idx == root.selected-index;

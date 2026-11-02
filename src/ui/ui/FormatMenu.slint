@@ -43,6 +43,14 @@ export component FormatMenu {
         }
     }
 
+    public function select-first() {
+        root.selected = 0;
+    }
+
+    public function select-last() {
+        root.selected = root.row-count - 1;
+    }
+
     // Enter: run the highlighted row's action.
     public function activate-selected() {
         if (root.selected == 0) {

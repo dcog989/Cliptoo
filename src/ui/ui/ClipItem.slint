@@ -72,7 +72,17 @@ export component ClipItem {
         width: 100%;
         accessible-role: list-item;
         accessible-label: clip-data.preview-content;
-        accessible-description: ClipTypeMap.label-for(clip-data.clip-type);
+        // Type plus the state that is otherwise only shown with an icon or
+        // strikethrough: bookmarked, multiline, and a file path that no longer
+        // exists on disk.
+        accessible-description: ClipTypeMap.label-for(clip-data.clip-type)
+            + (clip-data.is-bookmarked ? @tr(", bookmarked") : "")
+            + (clip-data.is-multiline ? @tr(", multiline") : "")
+            + (clip-data.is-deadhead ? @tr(", file missing") : "");
+        accessible-item-index: root.row-index;
+        accessible-item-selectable: true;
+        accessible-item-selected: root.is-selected;
+        accessible-action-default => { root.activated(); }
 
         // Keyboard selection gets the accent-tinted selection surface plus a
         // dim accent border; pointer hover adds only a surface tint, so it

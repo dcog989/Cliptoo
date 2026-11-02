@@ -147,6 +147,14 @@ export component ContextMenuHost {
                     ctx-menu.move-selection(1);
                     return accept;
                 }
+                if (e.text == Key.Home) {
+                    ctx-menu.select-first();
+                    return accept;
+                }
+                if (e.text == Key.End) {
+                    ctx-menu.select-last();
+                    return accept;
+                }
                 if (e.text == Key.Return) {
                     ctx-menu.activate-selected();
                     return accept;
@@ -257,6 +265,18 @@ export component ContextMenuHost {
                     fmt-menu.move-selection(1);
                     return accept;
                 }
+                if (e.text == Key.Home) {
+                    fmt-menu.select-first();
+                    return accept;
+                }
+                if (e.text == Key.End) {
+                    fmt-menu.select-last();
+                    return accept;
+                }
+                if (e.text == Key.LeftArrow) {
+                    root.show-main();
+                    return accept;
+                }
                 if (e.text == Key.Return) {
                     fmt-menu.activate-selected();
                     return accept;
@@ -319,6 +339,18 @@ export component ContextMenuHost {
                 }
                 if (e.text == Key.DownArrow) {
                     root.send-move-selection(1);
+                    return accept;
+                }
+                if (e.text == Key.Home) {
+                    root.send-selected = 0;
+                    return accept;
+                }
+                if (e.text == Key.End) {
+                    root.send-selected = root.send-row-count() - 1;
+                    return accept;
+                }
+                if (e.text == Key.LeftArrow) {
+                    root.show-main();
                     return accept;
                 }
                 if (e.text == Key.Return) {

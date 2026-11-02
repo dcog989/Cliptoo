@@ -18,18 +18,24 @@ export component MenuRow {
 
     height: root.is-separator ? 9px : root.row-height;
 
-    // Separator line; only visible for separator rows. Always instantiated so
-    // the row keeps a content-based preferred size (if-conditional children
-    // contribute no preferred-size constraint to the row).
-    sep := Rectangle {
-        visible: root.is-separator;
+    // Separator line. A conditional element keeps hidden rows out of the
+    // accessibility tree too (a `visible: false` row would still be exposed).
+    if root.is-separator: Rectangle {
         y: 4px;
         height: 1px;
         background: Theme.border-subtle;
     }
 
-    content := Rectangle {
-        visible: !root.is-separator;
+    if !root.is-separator: content := Rectangle {
+        // Rows are keyboard-driven by the owning menu (arrow keys move
+        // `selected`), so expose each one as a selectable list item and let
+        // assistive tech activate the same callback as a click.
+        accessible-role: list-item;
+        accessible-label: root.label;
+        accessible-item-selectable: true;
+        accessible-item-selected: root.selected;
+        accessible-action-default => { root.clicked(); }
+
         border-radius: 5px;
         border-width: 1px;
         // A destructive row (Delete) swaps the hover fill for a red fill and
