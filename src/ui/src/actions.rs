@@ -238,7 +238,7 @@ pub fn setup_clip_actions(
                     edit.set_meta_info(meta.into());
                     match file_snapshot {
                         Some((mtime, size)) => crate::edit::remember_file_snapshot(id, mtime, size),
-                        None => crate::edit::forget_file_snapshot(id),
+                        None => crate::edit::forget_file_snapshot(),
                     }
                     // Fresh open: clear any dirty/discard state left by the
                     // previous clip (see EditWindow.slint dirty).

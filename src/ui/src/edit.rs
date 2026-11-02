@@ -1,5 +1,4 @@
-use std::cell::RefCell;
-use std::collections::HashMap;
+use std::cell::Cell;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
@@ -10,29 +9,28 @@ use slint::ComponentHandle;
 use crate::helpers;
 
 thread_local! {
-    /// File mtime/size captured when a clip was opened, by clip id. Kept out of
-    /// Slint properties because `float` is f32 there and cannot represent an
-    /// epoch mtime precisely enough to detect an external edit.
-    static FILE_SNAPSHOTS: RefCell<HashMap<i32, (f64, u64)>> =
-        RefCell::new(HashMap::new());
+    /// File mtime/size captured when a clip was opened, with the clip id. Kept
+    /// out of Slint properties because `float` is f32 there and cannot
+    /// represent an epoch mtime precisely enough to detect an external edit.
+    /// One editor window exists, so one entry is enough.
+    static FILE_SNAPSHOT: Cell<Option<(i32, f64, u64)>> = const { Cell::new(None) };
 }
 
 /// Record the file snapshot for an open clip (UI thread only).
 pub fn remember_file_snapshot(id: i32, mtime: f64, size: u64) {
-    FILE_SNAPSHOTS.with(|s| {
-        s.borrow_mut().insert(id, (mtime, size));
-    });
+    FILE_SNAPSHOT.with(|s| s.set(Some((id, mtime, size))));
 }
 
 /// Drop a snapshot (clip is not a readable file, or the editor was reopened).
-pub fn forget_file_snapshot(id: i32) {
-    FILE_SNAPSHOTS.with(|s| {
-        s.borrow_mut().remove(&id);
-    });
+pub fn forget_file_snapshot() {
+    FILE_SNAPSHOT.with(|s| s.set(None));
 }
 
 fn file_snapshot(id: i32) -> Option<(f64, u64)> {
-    FILE_SNAPSHOTS.with(|s| s.borrow().get(&id).copied())
+    FILE_SNAPSHOT.with(|s| match s.get() {
+        Some((open_id, mtime, size)) if open_id == id => Some((mtime, size)),
+        _ => None,
+    })
 }
 
 /// Persist the editor window's current size to settings. Called on every close
@@ -146,9 +144,11 @@ pub fn setup_edit_window(
                 let (query, filter) = helpers::current_view_state(&ui);
                 let pfx = tag_prefix.clone();
                 tokio::spawn(async move {
-                    // Save the edited content. Any failure aborts the save and
-                    // keeps the editor open with an error toast — a silent
-                    // close would convince the user their edits persisted.
+                    // Save the edited content. Any failure keeps the editor open
+                    // with a toast — a silent close would convince the user their
+                    // edits persisted. `file_saved` separates "the file on disk
+                    // is already rewritten" from "nothing was saved".
+                    let mut file_saved = false;
                     let result: anyhow::Result<()> = async {
                         // A text-document clip stores its file path in `Content`;
                         // saving means writing the edited text back to that file.
@@ -190,7 +190,15 @@ pub fn setup_edit_window(
                             })
                             .await
                             .context("file-write task panicked")?;
-                            wrote.context("writing edited file")?;
+                            let (new_mtime, new_size) = wrote.context("writing edited file")?;
+                            file_saved = true;
+                            // Replace the snapshot with the file we just wrote,
+                            // so a retry after a later step fails (or a second
+                            // Save) compares against the current file, not the
+                            // one from before the write.
+                            let _ = win.upgrade_in_event_loop(move |_| {
+                                remember_file_snapshot(id, new_mtime, new_size);
+                            });
                             // Refresh the file-derived metadata so the stored
                             // row reflects the rewritten file's size and shape;
                             // Content/PreviewContent stay the path.
@@ -248,10 +256,20 @@ pub fn setup_edit_window(
                     if let Err(e) = result {
                         tracing::error!("edit: failed to save clip {id}: {e:#}");
                         // Keep the window open so nothing is silently lost; the
-                        // user can fix the problem and retry, or cancel.
+                        // user can retry or cancel. When the file write already
+                        // succeeded, say so: the remaining failure is only the
+                        // index/tag update.
+                        let (message, severity) = if file_saved {
+                            (
+                                format!("File saved, but the clip index was not updated: {e:#}"),
+                                "warn",
+                            )
+                        } else {
+                            (format!("Save failed: {e:#}"), "error")
+                        };
                         let _ = win.upgrade_in_event_loop(move |win| {
-                            win.set_toast_message(format!("Save failed: {e:#}").into());
-                            win.set_toast_severity("error".into());
+                            win.set_toast_message(message.into());
+                            win.set_toast_severity(severity.into());
                             win.set_toast_visible(true);
                         });
                         return;
@@ -286,9 +304,12 @@ pub fn setup_edit_window(
 /// Write edited text back to a text-document file via a temp file in the same
 /// directory, so a crash mid-write cannot truncate the user's document. The
 /// original permissions are carried over (a 0600 note must not become 0644).
-/// Separated so the save path can be unit-tested without the window/tokio
-/// plumbing.
-fn write_text_file(path: &str, contents: &str) -> std::io::Result<()> {
+/// Returns the written file's mtime/size so the save path can refresh its
+/// snapshot. Separated so the save path can be unit-tested without the
+/// window/tokio plumbing.
+fn write_text_file(path: &str, contents: &str) -> std::io::Result<(f64, u64)> {
+    use std::os::unix::fs::OpenOptionsExt;
+
     // Write through a symlink (dotfile setups) instead of replacing the link
     // with a regular file. Falls back to the given path when it is gone.
     let original = Path::new(path);
@@ -301,16 +322,41 @@ fn write_text_file(path: &str, contents: &str) -> std::io::Result<()> {
     let dir = path.parent().unwrap_or_else(|| Path::new("."));
     let tmp = dir.join(format!(".{name}.cliptoo-{}.tmp", std::process::id()));
 
-    let written = std::fs::File::create(&tmp).and_then(|mut file| {
+    // `create_new` refuses to follow an existing symlink or reuse someone
+    // else's file at this predictable name (the temp lives in the clip's
+    // directory, which can be shared like /tmp). The 0600 mode keeps the text
+    // private until the original permissions are copied over.
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create_new(true).mode(0o600);
+    let tmp_file = options.open(&tmp).or_else(|e| {
+        if e.kind() != std::io::ErrorKind::AlreadyExists {
+            return Err(e);
+        }
+        // A temp left by a crashed save, or a planted link. Unlink never
+        // follows the link, so removing it cannot touch its target.
+        std::fs::remove_file(&tmp)?;
+        options.open(&tmp)
+    });
+    let written = tmp_file.and_then(|mut file| {
         std::io::Write::write_all(&mut file, contents.as_bytes())?;
         // Flush the data before the rename: otherwise a power cut can leave
         // the new name pointing at a zero-length file.
-        file.sync_all()
+        file.sync_all()?;
+        let meta = file.metadata()?;
+        let mtime = meta
+            .modified()
+            .ok()
+            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+            .map_or(0.0, |d| d.as_secs_f64());
+        Ok((mtime, meta.len()))
     });
-    if let Err(e) = written {
-        let _ = std::fs::remove_file(&tmp);
-        return Err(e);
-    }
+    let (mtime, size) = match written {
+        Ok(written) => written,
+        Err(e) => {
+            let _ = std::fs::remove_file(&tmp);
+            return Err(e);
+        }
+    };
     if let Ok(meta) = std::fs::metadata(path) {
         let _ = std::fs::set_permissions(&tmp, meta.permissions());
     }
@@ -318,7 +364,7 @@ fn write_text_file(path: &str, contents: &str) -> std::io::Result<()> {
         let _ = std::fs::remove_file(&tmp);
         return Err(e);
     }
-    Ok(())
+    Ok((mtime, size))
 }
 
 /// Whether the file still has the size and mtime it had when the editor loaded
@@ -339,7 +385,7 @@ fn file_unchanged(path: &str, mtime: f64, size: u64) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::write_text_file;
+    use super::{file_unchanged, write_text_file};
 
     #[test]
     fn writes_text_file_contents() {
@@ -358,5 +404,33 @@ mod tests {
     fn missing_parent_dir_errors() {
         let path = "/definitely/not/a/real/dir/doc.txt";
         assert!(write_text_file(path, "x").is_err());
+    }
+
+    #[test]
+    fn keeps_the_original_permissions() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = std::env::temp_dir().join(format!("cliptoo_edit_perms_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("secret.txt");
+        write_text_file(path.to_str().unwrap(), "one").unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o640)).unwrap();
+        write_text_file(path.to_str().unwrap(), "two").unwrap();
+        let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o640, "the original permissions must be carried over");
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn detects_a_file_changed_after_the_snapshot() {
+        let dir = std::env::temp_dir().join(format!("cliptoo_edit_mtime_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("doc.txt");
+        let (mtime, size) = write_text_file(path.to_str().unwrap(), "one").unwrap();
+        assert!(file_unchanged(path.to_str().unwrap(), mtime, size));
+        write_text_file(path.to_str().unwrap(), "a longer edit").unwrap();
+        assert!(!file_unchanged(path.to_str().unwrap(), mtime, size));
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 }
