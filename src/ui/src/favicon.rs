@@ -128,14 +128,12 @@ async fn store_favicon(
 ) -> Option<PathBuf> {
     if dark
         && let Some(html) = html
-        && let Some(bytes) = fetch_dark_favicon(client, url, html).await
-        && save_favicon(fav_path, &bytes)
+        && fetch_dark_favicon(client, url, fav_path, html).await
     {
         return Some(fav_path.to_path_buf());
     }
     if let Some(html) = html
-        && let Some(bytes) = fetch_site_favicon(client, url, html).await
-        && save_favicon(fav_path, &bytes)
+        && fetch_site_favicon(client, url, fav_path, html).await
     {
         return Some(fav_path.to_path_buf());
     }
@@ -207,19 +205,23 @@ const MAX_DARK_FAVICON_PROBES: usize = 12;
 type DarkFaviconCandidates = (Vec<String>, Vec<String>);
 
 /// Pick the dark-mode favicon out of the page's `<link>` declarations and
-/// `-dark` siblings.
+/// `-dark` siblings, saving the first candidate that decodes as an icon. A
+/// soft-404 that answers 200 with HTML must not stop the probe chain.
 async fn fetch_dark_favicon(
     client: &reqwest::Client,
     base_url: &str,
+    fav_path: &Path,
     html: &str,
-) -> Option<Vec<u8>> {
+) -> bool {
     let (direct, probes) = find_dark_favicon_candidates(html, base_url);
     for url in direct.into_iter().chain(probes) {
-        if let Some(bytes) = download_bytes(client, &url).await {
-            return Some(bytes);
+        if let Some(bytes) = download_bytes(client, &url).await
+            && save_favicon(fav_path, &bytes)
+        {
+            return true;
         }
     }
-    None
+    false
 }
 
 fn find_dark_favicon_candidates(html: &str, base_url: &str) -> DarkFaviconCandidates {
@@ -339,17 +341,20 @@ fn parse_link_tags(html: &str) -> Vec<LinkAttrs> {
 async fn fetch_site_favicon(
     client: &reqwest::Client,
     base_url: &str,
+    fav_path: &Path,
     html: &str,
-) -> Option<Vec<u8>> {
+) -> bool {
     // The spec's default icon is the last `rel="icon"` without a `sizes`
     // attribute; try from the end so an overriding declaration wins, then work
     // backwards through the rest.
     for url in site_favicon_hrefs(html, base_url).into_iter().rev() {
-        if let Some(bytes) = download_bytes(client, &url).await {
-            return Some(bytes);
+        if let Some(bytes) = download_bytes(client, &url).await
+            && save_favicon(fav_path, &bytes)
+        {
+            return true;
         }
     }
-    None
+    false
 }
 
 /// Collect the site's non-dark declared icon URLs, in document order.
