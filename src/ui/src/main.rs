@@ -37,9 +37,6 @@ slint::include_modules!();
 #[tokio::main]
 async fn main() -> Result<()> {
     let dirs = app_dirs::AppDirs::resolve()?;
-    // Cached hover previews from an older pixel ratio are upscaled (blurred) in
-    // the popup; drop them so the next hover regenerates at the current ratio.
-    cliptoo_core::image::migrate_preview_ratio(&dirs.thumbnails_dir);
     let settings = cliptoo_core::Settings::load(&dirs.settings_path);
     let _log_guard = cliptoo_core::logger::init(&dirs.logs_dir, settings.log_level_filter());
 
@@ -62,6 +59,12 @@ async fn main() -> Result<()> {
         }
         Err(e) => tracing::warn!("single-instance lock unavailable: {e}"),
     }
+
+    // After the instance check: a second copy must not rewrite the cache files
+    // the running instance is reading. Cached hover previews from an older
+    // pixel ratio are upscaled (blurred) in the popup; drop them so the next
+    // hover regenerates at the current ratio.
+    cliptoo_core::image::migrate_preview_ratio(&dirs.thumbnails_dir);
 
     // Build the Ctrl+V virtual keyboard now rather than on the first paste:
     // evdev drops events for a device the compositor has not opened yet, which
