@@ -155,8 +155,11 @@ export component Toolbar {
                 horizontal-stretch: 1;
                 height: 32px;
                 border-radius: 8px;
+                border-width: 1px;
+                border-color: search-input.has-focus ? Theme.accent-primary : Theme.border-accent;
                 background: Theme.bg-input;
                 clip: true;
+                animate border-color { duration: Theme.anim-fast; }
 
                 search-input := LineEdit {
                     width: 100%;
