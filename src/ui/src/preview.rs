@@ -1,8 +1,8 @@
 use std::cell::RefCell;
 use std::io::Read;
 use std::path::Path;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, OnceLock};
 
 use slint::{ComponentHandle, Model};
 
@@ -16,11 +16,24 @@ const FILE_TEXT_PREVIEW_MAX_BYTES: usize = 64 * 1024;
 const FILE_PREVIEW_SEPARATOR_GLYPH: &str = "─";
 /// Length (in glyphs) of the path/contents divider line.
 const FILE_PREVIEW_SEPARATOR_LEN: usize = 40;
+/// Entries visited for one folder hover. A huge or network-mounted folder must
+/// not pin a blocking thread; the count is shown with a `+` past this limit.
+const FOLDER_SCAN_MAX_ENTRIES: u64 = 5000;
+/// Page and icon fetches allowed at once from hovering. A pointer sweep can ask
+/// for many previews; stale requests are dropped before they take a permit.
+const HOVER_FETCH_CONCURRENCY: usize = 4;
 
 /// Bumped on every preview request and on every dismissal. A request still in
 /// flight when the pointer leaves (or the window hides) must not show the
 /// tooltip afterwards — nobody would be left to dismiss it.
 static PREVIEW_GENERATION: AtomicU64 = AtomicU64::new(0);
+
+/// Caps concurrent hover fetches so a pointer sweep cannot queue one page
+/// download per row.
+fn hover_fetch_limit() -> &'static tokio::sync::Semaphore {
+    static LIMIT: OnceLock<tokio::sync::Semaphore> = OnceLock::new();
+    LIMIT.get_or_init(|| tokio::sync::Semaphore::new(HOVER_FETCH_CONCURRENCY))
+}
 
 thread_local! {
     // The live preview window, registered at startup so modules without a
@@ -124,6 +137,17 @@ fn show_link_preview(ctx: &PreviewContext) {
     let generation_cell = ctx.generation;
     let has_cached_title = cached_title.is_some();
     tokio::spawn(async move {
+        // A newer hover (or a dismissal) already replaced this request: never
+        // start its network work.
+        if generation_cell.load(Ordering::Relaxed) != generation {
+            return;
+        }
+        let Ok(_permit) = hover_fetch_limit().acquire().await else {
+            return;
+        };
+        if generation_cell.load(Ordering::Relaxed) != generation {
+            return;
+        }
         let (title, fav_path) = if has_cached_title {
             (None, crate::favicon::fetch_favicon(&c, &fd, dark).await)
         } else {
@@ -255,28 +279,26 @@ fn show_image_preview(ctx: &PreviewContext) {
                 )
             })
             .await;
-            let p = td2.join(format!("{prefix}_preview.webp"));
-            if p.exists() {
-                let _ = w.upgrade_in_event_loop(move |preview| {
-                    // A newer request has taken over the popup; leave it alone.
-                    if generation_cell.load(Ordering::Relaxed) != generation {
-                        return;
-                    }
-                    let img = slint::Image::load_from_path(&p).unwrap_or_default();
-                    preview.set_preview_image(img);
-                });
+            // The file-backed path writes a WebP, except for SVG sources which
+            // are copied verbatim; pick whichever exists.
+            let webp = td2.join(format!("{prefix}_preview.webp"));
+            let svg = td2.join(format!("{prefix}_preview.svg"));
+            let preview_path = if webp.exists() {
+                Some(webp)
             } else {
-                let svg_p = td2.join(format!("{prefix}_preview.svg"));
-                if svg_p.exists() {
-                    let _ = w.upgrade_in_event_loop(move |preview| {
-                        if generation_cell.load(Ordering::Relaxed) != generation {
-                            return;
-                        }
-                        let img = slint::Image::load_from_path(&svg_p).unwrap_or_default();
-                        preview.set_preview_image(img);
-                    });
+                svg.metadata().is_ok_and(|m| m.len() > 0).then_some(svg)
+            };
+            let Some(preview_path) = preview_path else {
+                return;
+            };
+            let _ = w.upgrade_in_event_loop(move |preview| {
+                // A newer request has taken over the popup; leave it alone.
+                if generation_cell.load(Ordering::Relaxed) != generation {
+                    return;
                 }
-            }
+                let img = slint::Image::load_from_path(&preview_path).unwrap_or_default();
+                preview.set_preview_image(img);
+            });
         });
     }
     preview.set_preview_clip_type("file_image".into());
@@ -327,6 +349,9 @@ fn scan_folder_info(path: &str) -> String {
     let mut latest_mtime: Option<std::time::SystemTime> = None;
     if let Ok(entries) = std::fs::read_dir(path) {
         for entry in entries.flatten() {
+            if count >= FOLDER_SCAN_MAX_ENTRIES {
+                break;
+            }
             count += 1;
             if let Ok(meta) = entry.metadata() {
                 total_size += meta.len();
@@ -338,8 +363,13 @@ fn scan_folder_info(path: &str) -> String {
     }
     let size_str = crate::stats_ui::format_size(total_size);
     let item_label = if count == 1 { "item" } else { "items" };
+    let count_str = if count >= FOLDER_SCAN_MAX_ENTRIES {
+        format!("{count}+")
+    } else {
+        count.to_string()
+    };
     let date_str = latest_mtime.map(format_mtime).unwrap_or_default();
-    format!("{count} {item_label} · {size_str} · {date_str}")
+    format!("{count_str} {item_label} · {size_str} · {date_str}")
 }
 
 /// Preview for a copied file whose contents cannot be shown (archive, video,

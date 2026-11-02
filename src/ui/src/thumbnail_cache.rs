@@ -6,46 +6,46 @@ use std::path::Path;
 
 use cliptoo_core::db::models::ClipData as DbClipData;
 use cliptoo_core::db::models::ClipType;
-use cliptoo_core::image::HASH_FILENAME_PREFIX_LEN;
+pub use cliptoo_core::image::hash_key;
 use cliptoo_core::url::extract_domain;
 
 use lru::LruCache;
 
-// ── LRU thumbnail cache ───────────────────────────────────────────────────────
+// ── In-memory image cache ─────────────────────────────────────────────────────
 
-/// Default in-memory thumbnail cache limit: 512 entries.  Each list-cell WebP
-/// is typically ~2–4 KiB on disk; once decoded into RGBA the Slint Image
-/// carries the pixel buffer internally, so 512 entries ≈ 25–32 MB of decoded
-/// pixels.  The budget is expressed as an entry count because Slint does not
-/// expose the buffer size.
+/// Default limit for both decoded-image caches: 512 entries. A list-cell WebP
+/// is ~2–4 KiB on disk, but the cache holds decoded pixels, so the budget is an
+/// entry count; Slint does not expose the buffer size.
 const LRU_CAPACITY: usize = 512;
 
-/// Least-Recently-Used in-memory cache for decoded Slint thumbnail images.
-///
-/// Wraps `lru::LruCache<String, slint::Image>`.  Keyed by the first 16
-/// characters of the content hash (the same prefix used for the WebP filename
-/// on disk).  `slint::Image` is not `Send` so the cache must live on the
-/// UI thread.
-pub struct ThumbnailLru(LruCache<String, Image>);
+/// Least-Recently-Used cache of decoded Slint images, keyed by cache-file stem
+/// (`hash[..16]`) or `domain` / `domain:dark` for favicons. `slint::Image` is
+/// not `Send`, so the caches live on the UI thread.
+pub struct ImageLru(LruCache<String, Image>);
 
-impl ThumbnailLru {
+impl ImageLru {
     pub fn new(capacity: usize) -> Self {
         Self(LruCache::new(
             NonZeroUsize::new(capacity).expect("capacity must be > 0"),
         ))
     }
 
-    pub fn get_or_load(&mut self, thumbnails_dir: &Path, hash: &str) -> Image {
-        let Some(key) = hash_key(hash) else {
-            // Malformed hash: can never have keyed a real thumbnail file.
-            return Image::default();
-        };
+    /// The cached image for `key`, otherwise the result of `load`. A miss is
+    /// not cached: a thumbnail file can be written after its row was first
+    /// converted, and caching "no image" would hide it until eviction.
+    fn get_or_load(&mut self, key: &str, load: impl FnOnce() -> Option<Image>) -> Image {
         if let Some(img) = self.0.get(key) {
             return img.clone();
         }
-        let img = load_thumbnail(thumbnails_dir, hash);
+        let Some(img) = load() else {
+            return Image::default();
+        };
         self.0.put(key.to_string(), img.clone());
         img
+    }
+
+    fn evict_where(&mut self, keep: impl Fn(&str) -> bool) {
+        self.0.retain(|key, _| keep(key));
     }
 
     pub fn clear(&mut self) {
@@ -53,98 +53,61 @@ impl ThumbnailLru {
     }
 }
 
-impl Default for ThumbnailLru {
+impl Default for ImageLru {
     fn default() -> Self {
         Self::new(LRU_CAPACITY)
     }
 }
 
-/// The 16-char hash prefix used as the thumbnail cache key and filename stem.
-///
-/// Returns `None` when the slice boundary would split a multi-byte UTF-8 char —
-/// a corrupt or legacy hash (e.g. imported before hash validation) can never
-/// have keyed a real thumbnail, mirroring the guard in
-/// `maintenance::prune_cache`.
-pub(crate) fn hash_key(hash: &str) -> Option<&str> {
-    let end = hash.len().min(HASH_FILENAME_PREFIX_LEN);
-    hash.is_char_boundary(end).then(|| &hash[..end])
-}
-
-fn load_thumbnail(thumbnails_dir: &Path, content_hash: &str) -> Image {
-    let Some(key) = hash_key(content_hash) else {
-        return Image::default();
-    };
+fn load_thumbnail(thumbnails_dir: &Path, hash: &str) -> Option<Image> {
+    let key = hash_key(hash)?;
     let webp = thumbnails_dir.join(format!("{key}.webp"));
     if webp.exists() {
-        return Image::load_from_path(&webp).unwrap_or_default();
+        return Image::load_from_path(&webp).ok();
     }
     let svg = thumbnails_dir.join(format!("{key}.svg"));
     // A 0-byte SVG (a copied empty source file from before validation was
     // added) would make Slint log a parse error; treat it as absent.
     if svg.metadata().is_ok_and(|m| m.len() > 0) {
-        return Image::load_from_path(&svg).unwrap_or_default();
+        return Image::load_from_path(&svg).ok();
     }
-    Image::default()
+    None
 }
 
-// ── LRU favicon cache ─────────────────────────────────────────────────────────
-
-/// Least-Recently-Used in-memory cache for decoded Slint favicon images.
-/// Keyed by domain plus the theme variant, since the light and dark icons for
-/// a domain are distinct and both may be cached side-by-side on disk.
-/// `slint::Image` is not `Send` so the cache must live on the UI thread.
-pub struct FaviconLru(LruCache<String, Image>);
-
-impl FaviconLru {
-    pub fn get_or_load(&mut self, favicons_dir: &Path, content: &str) -> Image {
-        let domain = match extract_domain(content) {
-            Some(d) => d,
-            None => return Image::default(),
-        };
-        let dark = crate::theme::cached_resolved_theme().0;
-        let cache_key = if dark {
-            format!("{domain}:dark")
-        } else {
-            domain.clone()
-        };
-        if let Some(img) = self.0.get(&cache_key) {
-            return img.clone();
-        }
-        let path = favicons_dir.join(crate::favicon::favicon_file_name(&domain, dark));
-        let img = if path.exists() {
-            Image::load_from_path(&path).unwrap_or_default()
-        } else {
-            Image::default()
-        };
-        self.0.put(cache_key, img.clone());
-        img
-    }
-
-    pub fn clear(&mut self) {
-        self.0.clear();
-    }
-
-    /// Evict the cached icons whose domain `keep` rejects. The key is either
-    /// `domain` or `domain:dark`, so the variant suffix is stripped before the
-    /// caller's filter sees it.
-    pub fn evict_where(&mut self, keep: &dyn Fn(&str) -> bool) {
-        self.0.retain(|key, _| {
-            let domain = key.strip_suffix(":dark").unwrap_or(key);
-            keep(domain)
-        });
-    }
+fn thumbnail(thumbnails_dir: &Path, hash: &str) -> Image {
+    let Some(key) = hash_key(hash) else {
+        // Malformed hash: can never have keyed a real thumbnail file.
+        return Image::default();
+    };
+    THUMB_LRU.with(|lru| {
+        lru.borrow_mut()
+            .get_or_load(key, || load_thumbnail(thumbnails_dir, hash))
+    })
 }
 
-impl Default for FaviconLru {
-    fn default() -> Self {
-        Self(LruCache::new(
-            NonZeroUsize::new(LRU_CAPACITY).expect("capacity must be > 0"),
-        ))
-    }
-}
+// ── Favicon cache ─────────────────────────────────────────────────────────────
 
-fn load_favicon(favicons_dir: &Path, content: &str) -> Image {
-    FAVICON_LRU.with(|lru| lru.borrow_mut().get_or_load(favicons_dir, content))
+/// Cached or on-disk favicon for a link clip. The key carries the theme
+/// variant because the light and dark icons for a domain are distinct files
+/// and both may be cached side-by-side on disk.
+fn favicon(favicons_dir: &Path, content: &str) -> Image {
+    let Some(domain) = extract_domain(content) else {
+        return Image::default();
+    };
+    let dark = crate::theme::cached_resolved_theme().0;
+    let key = if dark {
+        format!("{domain}:dark")
+    } else {
+        domain.clone()
+    };
+    FAVICON_LRU.with(|lru| {
+        lru.borrow_mut().get_or_load(&key, || {
+            let path = favicons_dir.join(crate::favicon::favicon_file_name(&domain, dark));
+            path.exists()
+                .then(|| Image::load_from_path(&path).ok())
+                .flatten()
+        })
+    })
 }
 
 /// Re-load every link clip's favicon from disk under the currently active
@@ -161,7 +124,10 @@ pub fn reload_favicons_for(ui: &crate::AppWindow, favicons_dir: &Path, domains: 
 }
 
 fn reload_favicons_where(ui: &crate::AppWindow, favicons_dir: &Path, keep: &dyn Fn(&str) -> bool) {
-    FAVICON_LRU.with(|lru| lru.borrow_mut().evict_where(keep));
+    FAVICON_LRU.with(|lru| {
+        lru.borrow_mut()
+            .evict_where(|key| keep(key.strip_suffix(":dark").unwrap_or(key)))
+    });
     let model = ui.get_clips();
     for i in 0..model.row_count() {
         if let Some(mut data) = model.row_data(i)
@@ -171,7 +137,7 @@ fn reload_favicons_where(ui: &crate::AppWindow, favicons_dir: &Path, keep: &dyn 
             if !domain.as_deref().is_some_and(keep) {
                 continue;
             }
-            data.favicon_image = load_favicon(favicons_dir, &data.preview_content);
+            data.favicon_image = favicon(favicons_dir, &data.preview_content);
             model.set_row_data(i, data);
         }
     }
@@ -186,15 +152,12 @@ pub fn convert(db_clip: DbClipData, thumbnails_dir: &Path, favicons_dir: &Path) 
     let is_svg_source = matches!(db_clip.clip_type, ClipType::Text | ClipType::CodeSnippet)
         && cliptoo_core::content::is_svg_markup(&db_clip.preview_content);
     let thumbnail = if db_clip.clip_type == ClipType::FileImage || is_svg_source {
-        THUMB_LRU.with(|lru| {
-            lru.borrow_mut()
-                .get_or_load(thumbnails_dir, &db_clip.content_hash)
-        })
+        thumbnail(thumbnails_dir, &db_clip.content_hash)
     } else {
         Image::default()
     };
     let favicon = if db_clip.clip_type == ClipType::Link {
-        load_favicon(favicons_dir, &db_clip.preview_content)
+        favicon(favicons_dir, &db_clip.preview_content)
     } else {
         Image::default()
     };
@@ -242,10 +205,10 @@ pub fn convert(db_clip: DbClipData, thumbnails_dir: &Path, favicons_dir: &Path) 
 
 // Thread-local LRU caches — allocated once on the UI thread.
 thread_local! {
-    pub static THUMB_LRU: std::cell::RefCell<ThumbnailLru> =
-        std::cell::RefCell::new(ThumbnailLru::default());
-    pub static FAVICON_LRU: std::cell::RefCell<FaviconLru> =
-        std::cell::RefCell::new(FaviconLru::default());
+    pub static THUMB_LRU: std::cell::RefCell<ImageLru> =
+        std::cell::RefCell::new(ImageLru::default());
+    pub static FAVICON_LRU: std::cell::RefCell<ImageLru> =
+        std::cell::RefCell::new(ImageLru::default());
 }
 
 /// Evict every thumbnail and favicon image from the in-memory LRUs.
@@ -270,32 +233,4 @@ pub fn convert_vec(
         .into_iter()
         .map(|d| convert(d, thumbnails_dir, favicons_dir))
         .collect()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::hash_key;
-
-    #[test]
-    fn hash_key_truncates_to_prefix() {
-        assert_eq!(hash_key("abcdef1234567890xyz"), Some("abcdef1234567890"));
-    }
-
-    #[test]
-    fn hash_key_shorter_hash_stays_whole() {
-        assert_eq!(hash_key("abc"), Some("abc"));
-    }
-
-    #[test]
-    fn hash_key_exact_prefix_is_boundary() {
-        assert_eq!(hash_key("abcdef1234567890"), Some("abcdef1234567890"));
-    }
-
-    #[test]
-    fn hash_key_rejects_split_multibyte_char() {
-        // 15 ASCII bytes followed by a 2-byte char: byte 16 splits it.
-        let h = "abcdefghijklmno\u{00e9}";
-        assert_eq!(h.len(), 17);
-        assert_eq!(hash_key(h), None);
-    }
 }
