@@ -641,9 +641,14 @@ msgctxt "ContextMenu"
 msgid "Format"
 msgstr ""
 
-#: src/ui/ui/ContextMenu.slint:205 src/ui/ui/ContextMenu.slint:219
+#: src/ui/ui/ContextMenu.slint:205 src/ui/ui/ContextMenu.slint:219 src/ui/ui/ContextMenu.slint:233
 msgctxt "ContextMenu"
 msgid "Delete"
+msgstr ""
+
+#: src/ui/ui/ContextMenu.slint:234
+msgctxt "ContextMenu"
+msgid "Confirm Delete!!"
 msgstr ""
 
 #: src/ui/ui/ContextMenu.slint:217 src/ui/ui/ContextMenu.slint:231

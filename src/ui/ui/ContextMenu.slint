@@ -51,6 +51,10 @@ export component ContextMenu {
     // Keyboard selection: index of the highlighted row, -1 until the first
     // arrow key. Separators are not counted; row-count is the actionable count.
     in-out property <int> selected: -1;
+    // Delete is irreversible, so the first activation arms the row
+    // ("Confirm Delete!!") and the second one runs it — same two-step guard as
+    // Cancel in the editor.
+    in-out property <bool> delete-armed: false;
     property <int> paste-count: (root.show-paste ? 1 : 0)
         + (root.show-rich-paste ? 1 : 0)
         + (root.show-plain-paste ? 1 : 0);
@@ -69,6 +73,7 @@ export component ContextMenu {
 
     // Wrap around so Down at the last row lands on the first.
     public function move-selection(delta: int) {
+        root.delete-armed = false;
         let next = root.selected + delta;
         if (next < 0) {
             root.selected = root.row-count - 1;
@@ -80,11 +85,22 @@ export component ContextMenu {
     }
 
     public function select-first() {
+        root.delete-armed = false;
         root.selected = 0;
     }
 
     public function select-last() {
+        root.delete-armed = false;
         root.selected = root.row-count - 1;
+    }
+
+    // First call arms, second call deletes.
+    function request-delete() {
+        if (root.delete-armed) {
+            root.delete();
+        } else {
+            root.delete-armed = true;
+        }
     }
 
     // Enter: run the highlighted row's action.
@@ -105,7 +121,7 @@ export component ContextMenu {
         } else if (root.is-text-type && i == root.idx-format) {
             root.format-open();
         } else if (i == root.idx-delete) {
-            root.delete();
+            root.request-delete();
         } else if (i == root.idx-delete + 1) {
             root.move-to-top();
         } else if (i == root.idx-delete + 2) {
@@ -216,12 +232,12 @@ export component ContextMenu {
             MenuSeparator { }
 
             MenuRow {
-                label: @tr("Delete");
+                label: root.delete-armed ? @tr("Confirm Delete!!") : @tr("Delete");
                 icon: @image-url("icons/trash-2.svg");
                 is-danger: true;
                 selected: root.selected == root.idx-delete;
                 clicked => {
-                    root.delete();
+                    root.request-delete();
                 }
             }
 

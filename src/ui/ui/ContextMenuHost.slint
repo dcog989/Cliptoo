@@ -121,6 +121,9 @@ export component ContextMenuHost {
 
     // ── Main actions popup ──────────────────────────────────────────────────
     main-popup := PopupWindow {
+        // Inside clicks must not dismiss: Delete arms on the first one and
+        // needs the second. Outside clicks and ESC still close.
+        close-policy: PopupClosePolicy.close-on-click-outside;
         x: Math.min(root.ctx-menu-x, root.window-width - (ctx-menu.menu-width + 4px));
         y: Math.max(0px, Math.min(root.ctx-menu-anchor-y, root.window-height - ctx-menu.menu-height));
         // Explicit size for the Qt backend — PopupWindow won't render without it.
@@ -241,6 +244,7 @@ export component ContextMenuHost {
             triggered() => {
                 main-esc-scope.focus();
                 ctx-menu.selected = -1;
+                ctx-menu.delete-armed = false;
                 root.main-focus-armed = false;
             }
         }
