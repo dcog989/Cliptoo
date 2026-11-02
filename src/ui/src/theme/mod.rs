@@ -349,6 +349,7 @@ macro_rules! register_theme_filler {
 register_theme_filler!(register_about_theme_filler, crate::AboutWindow);
 register_theme_filler!(register_preview_theme_filler, crate::PreviewWindow);
 register_theme_filler!(register_edit_theme_filler, crate::EditWindow);
+register_theme_filler!(register_qr_theme_filler, crate::QrWindow);
 
 #[cfg(test)]
 mod tests {

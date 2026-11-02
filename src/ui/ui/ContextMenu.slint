@@ -19,6 +19,7 @@ export component ContextMenu {
 
     callback preview();
     callback edit();
+    callback decode-qr();           // image clips only: show decoded QR payloads
     callback paste();               // default paste for plain text clips
     callback paste-as(string);      // "rich" | "plain"
     callback delete();
@@ -37,6 +38,8 @@ export component ContextMenu {
     property <bool> is-rich-type: root.clip-type == "rtf" || root.clip-type == "html";
     // True for clips with a file paste rendition (`text/uri-list`).
     property <bool> is-file-type: ClipTypeMap.is-file-type(root.clip-type);
+    // Only image clips can hold a QR code.
+    property <bool> show-qr: root.clip-type == "file_image";
     // Plain text clips get an explicit plain paste row. Colour clips paste as
     // text too but are not in is-text-type, which also gates the Format menu.
     property <bool> show-paste: (root.is-text-type || root.clip-type == "color") && !root.is-rich-type;
@@ -52,15 +55,15 @@ export component ContextMenu {
         + (root.show-rich-paste ? 1 : 0)
         + (root.show-plain-paste ? 1 : 0);
     property <int> send-to-row: root.send-to-apps.length > 0 ? 1 : 0;
-    property <int> row-count: 8 + root.paste-count + (root.is-text-type ? 1 : 0) + root.send-to-row;
+    property <int> row-count: 8 + root.paste-count + (root.is-text-type ? 1 : 0) + root.send-to-row + (root.show-qr ? 1 : 0);
 
     // Row indices, in menu order. Conditional rows share an index with the row
     // that follows them when hidden, so activation always guards on the same
     // boolean that decided the row was rendered.
-    property <int> idx-paste: 2;
-    property <int> idx-rich: 2 + (root.show-paste ? 1 : 0);
+    property <int> idx-paste: 2 + (root.show-qr ? 1 : 0);
+    property <int> idx-rich: root.idx-paste + (root.show-paste ? 1 : 0);
     property <int> idx-plain: root.idx-rich + (root.show-rich-paste ? 1 : 0);
-    property <int> idx-format: 2 + root.paste-count;
+    property <int> idx-format: root.idx-paste + root.paste-count;
     property <int> idx-delete: root.idx-format + (root.is-text-type ? 1 : 0);
     property <int> idx-bookmark: root.row-count - 1 - root.send-to-row;
 
@@ -91,6 +94,8 @@ export component ContextMenu {
             root.preview();
         } else if (i == 1) {
             root.edit();
+        } else if (root.show-qr && i == 2) {
+            root.decode-qr();
         } else if (root.show-paste && i == root.idx-paste) {
             root.paste();
         } else if (root.show-rich-paste && i == root.idx-rich) {
@@ -162,6 +167,15 @@ export component ContextMenu {
                 selected: root.selected == 1;
                 clicked => {
                     root.edit();
+                }
+            }
+
+            if root.show-qr: MenuRow {
+                label: @tr("Decode QR");
+                icon: @image-url("icons/file-image.svg");
+                selected: root.selected == 2;
+                clicked => {
+                    root.decode-qr();
                 }
             }
 

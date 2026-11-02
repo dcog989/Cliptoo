@@ -16,6 +16,7 @@ import { ClipData } from "ClipData.slint";
 import { EditWindow } from "EditWindow.slint";
 import { SettingsWindow } from "SettingsWindow.slint";
 import { AboutWindow } from "AboutWindow.slint";
+import { QrWindow, QrResult } from "QrWindow.slint";
 import { ToastNotification } from "ToastNotification.slint";
 import { CliptooTray } from "CliptooTray.slint";
 export {
@@ -24,6 +25,8 @@ export {
     SettingsWindow,
     EditWindow,
     AboutWindow,
+    QrWindow,
+    QrResult,
     PreviewWindow,
     CliptooTray,
 }
@@ -78,6 +81,7 @@ export component AppWindow inherits Window {
     callback move-up-one(int);                 // swap with clip above
     callback move-down-one(int);               // swap with clip below
     callback edit-clip(int);                   // open edit window for clip
+    callback decode-qr(int);                   // image clip: decode its QR code
     callback paste-as(int, string);            // paste clip as "rich" | "plain" text
 
     // ── Properties set from Rust ──────────────────────────────────────────────
@@ -121,7 +125,7 @@ export component AppWindow inherits Window {
     // it can never get stuck true; Rust sets settings-open while the settings
     // window is visible. popup-opening is set by the popup-open handlers so the
     // guard is already true the moment a host popup's show() runs.
-    property <bool> popup-open: root.popup-opening || ctx-menu-host.popup-open || hamburger-host.popup-open || filter-popup.popup-open || root.settings-open || root.about-open || root.edit-open;
+    property <bool> popup-open: root.popup-opening || ctx-menu-host.popup-open || hamburger-host.popup-open || filter-popup.popup-open || root.settings-open || root.about-open || root.edit-open || root.qr-open;
     property <bool> popup-opening: false;
     // Only the PopupWindow menus (not the Settings/About/Edit child windows).
     // MainClipArea's blur poll keys its popup-open branch off this so blurring
@@ -130,6 +134,7 @@ export component AppWindow inherits Window {
     in-out property <bool> settings-open: false;
     in-out property <bool> about-open: false;
     in-out property <bool> edit-open: false;
+    in-out property <bool> qr-open: false;
 
     in property <length> min-window-width: 320px;
     in property <length> min-window-height: 240px;
@@ -284,6 +289,9 @@ export component AppWindow inherits Window {
         }
         edit-clip(id) => {
             root.edit-clip(id);
+        }
+        decode-qr(id) => {
+            root.decode-qr(id);
         }
         paste-clip(id) => {
             root.item-activated(id);

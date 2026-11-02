@@ -15,6 +15,7 @@ pub mod icon;
 pub mod image;
 pub mod logger;
 pub mod maintenance;
+pub mod qr;
 pub mod send_to;
 pub mod settings;
 pub mod stats;

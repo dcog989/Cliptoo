@@ -202,72 +202,73 @@ msgctxt "ClipTypeMap"
 msgid "Other File"
 msgstr ""
 
-#: src/ui/ui/ContextMenuHost.slint:374
+#: src/ui/ui/ContextMenuHost.slint:374 src/ui/ui/ContextMenuHost.slint:379
 msgctxt "ContextMenuHost"
 msgid "Back"
 msgstr ""
 
-#: src/ui/ui/ContextMenu.slint:151
+#: src/ui/ui/ContextMenu.slint:151 src/ui/ui/ContextMenu.slint:156
 msgctxt "ContextMenu"
 msgid "Preview"
 msgstr ""
 
-#: src/ui/ui/ContextMenu.slint:160
+#: src/ui/ui/ContextMenu.slint:160 src/ui/ui/ContextMenu.slint:165
 msgctxt "ContextMenu"
 msgid "Edit"
 msgstr ""
 
 #: src/ui/ui/ContextMenu.slint:170 src/ui/ui/ContextMenu.slint:186
+#: src/ui/ui/ContextMenu.slint:170 src/ui/ui/ContextMenu.slint:186 src/ui/ui/ContextMenu.slint:200
 msgctxt "ContextMenu"
 msgid "Paste as Plain Text"
 msgstr ""
 
-#: src/ui/ui/ContextMenu.slint:178
+#: src/ui/ui/ContextMenu.slint:178 src/ui/ui/ContextMenu.slint:192
 msgctxt "ContextMenu"
 msgid "Paste as Rich Text"
 msgstr ""
 
-#: src/ui/ui/ContextMenu.slint:194
+#: src/ui/ui/ContextMenu.slint:194 src/ui/ui/ContextMenu.slint:208
 msgctxt "ContextMenu"
 msgid "Format"
 msgstr ""
 
-#: src/ui/ui/ContextMenu.slint:205
+#: src/ui/ui/ContextMenu.slint:205 src/ui/ui/ContextMenu.slint:219
 msgctxt "ContextMenu"
 msgid "Delete"
 msgstr ""
 
-#: src/ui/ui/ContextMenu.slint:217
+#: src/ui/ui/ContextMenu.slint:217 src/ui/ui/ContextMenu.slint:231
 msgctxt "ContextMenu"
 msgid "Move to Top"
 msgstr ""
 
-#: src/ui/ui/ContextMenu.slint:226
+#: src/ui/ui/ContextMenu.slint:226 src/ui/ui/ContextMenu.slint:240
 msgctxt "ContextMenu"
 msgid "Move to Bottom"
 msgstr ""
 
-#: src/ui/ui/ContextMenu.slint:235
+#: src/ui/ui/ContextMenu.slint:235 src/ui/ui/ContextMenu.slint:249
 msgctxt "ContextMenu"
 msgid "Move Up One"
 msgstr ""
 
-#: src/ui/ui/ContextMenu.slint:244
+#: src/ui/ui/ContextMenu.slint:244 src/ui/ui/ContextMenu.slint:258
 msgctxt "ContextMenu"
 msgid "Move Down One"
 msgstr ""
 
-#: src/ui/ui/ContextMenu.slint:255
+#: src/ui/ui/ContextMenu.slint:255 src/ui/ui/ContextMenu.slint:269
 msgctxt "ContextMenu"
 msgid "Remove Bookmark"
 msgstr ""
 
-#: src/ui/ui/ContextMenu.slint:255
+#: src/ui/ui/ContextMenu.slint:255 src/ui/ui/ContextMenu.slint:269
 msgctxt "ContextMenu"
 msgid "Bookmark"
 msgstr ""
 
-#: src/ui/ui/ContextMenu.slint:265
+#: src/ui/ui/ContextMenu.slint:265 src/ui/ui/ContextMenu.slint:279
 msgctxt "ContextMenu"
 msgid "Send To"
 msgstr ""
@@ -985,4 +986,64 @@ msgstr ""
 #: src/ui/ui/Toolbar.slint:291
 msgctxt "Toolbar"
 msgid "Main menu"
+msgstr ""
+
+#: src/ui/ui/ContextMenu.slint:174
+msgctxt "ContextMenu"
+msgid "Decode QR"
+msgstr ""
+
+#: src/ui/ui/QrWindow.slint:62
+msgctxt "QrWindow"
+msgid "QR Code"
+msgstr ""
+
+#: src/ui/ui/QrWindow.slint:78
+msgctxt "QrWindow"
+msgid "URL"
+msgstr ""
+
+#: src/ui/ui/QrWindow.slint:79
+msgctxt "QrWindow"
+msgid "Wi-Fi"
+msgstr ""
+
+#: src/ui/ui/QrWindow.slint:80
+msgctxt "QrWindow"
+msgid "Email"
+msgstr ""
+
+#: src/ui/ui/QrWindow.slint:81
+msgctxt "QrWindow"
+msgid "Phone"
+msgstr ""
+
+#: src/ui/ui/QrWindow.slint:82
+msgctxt "QrWindow"
+msgid "Contact"
+msgstr ""
+
+#: src/ui/ui/QrWindow.slint:83
+msgctxt "QrWindow"
+msgid "Text"
+msgstr ""
+
+#: src/ui/ui/QrWindow.slint:105
+msgctxt "QrWindow"
+msgid "1 QR code decoded"
+msgstr ""
+
+#: src/ui/ui/QrWindow.slint:142
+msgctxt "QrWindow"
+msgid "Copy"
+msgstr ""
+
+#: src/ui/ui/QrWindow.slint:149
+msgctxt "QrWindow"
+msgid "Open"
+msgstr ""
+
+#: src/ui/ui/QrWindow.slint:171
+msgctxt "QrWindow"
+msgid "Close"
 msgstr ""

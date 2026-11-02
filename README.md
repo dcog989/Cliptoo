@@ -30,6 +30,7 @@ Advanced Linux clipboard manager. Use your clip history as a library of things. 
 
 - **Filters:** text, links, images, colors, bookmarks.
 - **Images:** hover previews for PNG, JPEG, GIF, WebP, AVIF, JXL, SVG, ICO, BMP, and TIFF.
+- **QR codes:** right-click an image clip to decode its payload; copy the text or open the URL.
 - **Colors:** `#hex`, `rgb()`, `hsl()`, `hwb()`, `lab()`/`lch()`, `oklab()`/`oklch()`/`okhsl()`, with transparency.
 - **URLs and Files:** fetched titles and favicons; file size, mtime, and type.
 - **Tags:** `##`-prefixed search.
@@ -66,7 +67,7 @@ Advanced Linux clipboard manager. Use your clip history as a library of things. 
 | Wayland             | `wl-clipboard-rs`, `wayland-client`, wlr/ext data-control |
 | Database            | SQLite + FTS5 (`rusqlite`)                       |
 | Async Runtime       | Tokio                                            |
-| Image Processing    | `image`, `resvg` (SVG), `jxl-oxide` (JXL)        |
+| Image Processing    | `image`, `resvg` (SVG), `jxl-oxide` (JXL), `rqrr` (QR) |
 | Colour Science      | `palette` (Oklab / Oklch / Okhsl)                |
 | D-Bus / Portals     | `zbus`, `ashpd` (portal hotkeys)                 |
 | System Tray         | Slint `SystemTrayIcon`                           |

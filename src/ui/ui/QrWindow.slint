@@ -1,0 +1,181 @@
+// QrWindow.slint — Decoded QR payloads for an image clip.
+// Opened from the context menu's "Decode QR"; one card per detected code.
+
+import { Theme } from "Theme.slint";
+import { ScrollView } from "std-widgets.slint";
+
+export struct QrResult {
+    kind: string,
+    payload: string,
+}
+
+component QrButton {
+    in property <string> label;
+    callback clicked;
+
+    height: 26px;
+    width: 56px;
+
+    surface := Rectangle {
+        width: 100%;
+        height: 100%;
+        border-radius: 4px;
+        border-width: focus.has-focus ? 1px : 0px;
+        border-color: Theme.accent-primary;
+        background: touch.has-hover ? Theme.bg-row-hover : Theme.bg-input;
+        accessible-role: button;
+        accessible-label: root.label;
+        accessible-action-default => {
+            root.clicked();
+        }
+
+        Text {
+            text: root.label;
+            color: Theme.fg-primary;
+            font-size: Theme.font-size - 2px;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+
+        focus := FocusScope {
+            key-pressed(event) => {
+                if (event.text == Key.Return || event.text == " ") {
+                    root.clicked();
+                    accept
+                } else {
+                    reject
+                }
+            }
+        }
+
+        touch := TouchArea {
+            mouse-cursor: pointer;
+            clicked => {
+                focus.focus();
+                root.clicked();
+            }
+        }
+    }
+}
+
+export component QrWindow inherits Window {
+    title: @tr("QR Code");
+    always-on-top: true;
+    background: Theme.bg-primary;
+    default-font-size: Theme.font-size;
+    preferred-width: 460px;
+    preferred-height: 360px;
+    min-width: 320px;
+    min-height: 240px;
+
+    in property <[QrResult]> codes: [];
+
+    callback copy(string);
+    callback open(string);
+    callback closing();
+
+    pure function kind-label(kind: string) -> string {
+        kind == "url" ? @tr("URL")
+            : kind == "wifi" ? @tr("Wi-Fi")
+            : kind == "email" ? @tr("Email")
+            : kind == "phone" ? @tr("Phone")
+            : kind == "contact" ? @tr("Contact")
+            : @tr("Text")
+    }
+
+    forward-focus: qr-focus;
+    qr-focus := FocusScope {
+        focus-on-tab-navigation: false;
+        key-pressed(event) => {
+            if (event.text == Key.Escape) {
+                root.closing();
+                root.hide();
+                accept
+            } else {
+                reject
+            }
+        }
+
+        VerticalLayout {
+            padding: 16px;
+            spacing: 10px;
+
+            Text {
+                text: root.codes.length == 1
+                    ? @tr("1 QR code decoded")
+                    : "\{root.codes.length} QR codes decoded";
+                color: Theme.fg-secondary;
+                font-size: Theme.font-size - 1px;
+            }
+
+            ScrollView {
+                vertical-stretch: 1;
+                content-width: self.visible-width;
+                content-height: codes-layout.preferred-height;
+
+                codes-layout := VerticalLayout {
+                    spacing: 8px;
+
+                    for code in root.codes: Rectangle {
+                        border-radius: 6px;
+                        border-width: 1px;
+                        border-color: Theme.border-subtle;
+                        background: Theme.bg-input;
+
+                        VerticalLayout {
+                            padding: 8px;
+                            spacing: 6px;
+
+                            HorizontalLayout {
+                                spacing: 6px;
+                                alignment: start;
+
+                                Text {
+                                    text: root.kind-label(code.kind);
+                                    color: Theme.fg-muted;
+                                    font-size: Theme.font-size - 1px;
+                                    vertical-alignment: center;
+                                    horizontal-stretch: 1;
+                                }
+
+                                QrButton {
+                                    label: @tr("Copy");
+                                    clicked => {
+                                        root.copy(code.payload);
+                                    }
+                                }
+
+                                if code.kind == "url": QrButton {
+                                    label: @tr("Open");
+                                    clicked => {
+                                        root.open(code.payload);
+                                    }
+                                }
+                            }
+
+                            Text {
+                                text: code.payload;
+                                color: Theme.fg-primary;
+                                font-size: Theme.font-size;
+                                wrap: word-wrap;
+                            }
+                        }
+                    }
+                }
+            }
+
+            HorizontalLayout {
+                alignment: end;
+
+                QrButton {
+                    label: @tr("Close");
+                    width: 80px;
+                    clicked => {
+                        root.closing();
+                        root.hide();
+                    }
+                }
+            }
+        }
+    }
+}

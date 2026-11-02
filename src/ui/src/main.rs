@@ -23,6 +23,7 @@ mod maintenance;
 mod paste;
 mod positioning;
 mod preview;
+mod qr;
 mod search;
 mod settings;
 mod source_app;
@@ -212,7 +213,17 @@ async fn main() -> Result<()> {
     // global too so it doesn't keep the colours from the previous theme.
     theme::register_edit_theme_filler(&theme_fillers, &edit_win.as_weak());
 
+    let qr_win = crate::QrWindow::new()?;
+    theme::fill_theme(
+        &qr_win.global::<crate::Theme>(),
+        &settings.borrow(),
+        is_dark,
+        system_accent,
+    );
+    theme::register_qr_theme_filler(&theme_fillers, &qr_win.as_weak());
+
     let suppression = Arc::new(paste::PasteSuppressionSet::new());
+    qr::setup_qr(&ui, &qr_win, &db, &suppression);
     actions::setup_clip_actions(
         &ui,
         &edit_win,

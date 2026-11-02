@@ -18,6 +18,7 @@ image.workspace = true
 jxl-oxide.workspace = true
 palette.workspace = true
 resvg.workspace = true
+rqrr.workspace = true
 rusqlite.workspace = true
 serde.workspace = true
 serde_json.workspace = true
