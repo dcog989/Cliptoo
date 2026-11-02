@@ -162,31 +162,8 @@ pub(super) fn setup_setting_commit(
                 "paste_as_plain_text" => s.paste_as_plain_text = value == "true",
                 "paste_moves_to_top" => s.paste_moves_clip_to_top = value == "true",
                 "compare_tool_path" => s.compare_tool_path = value.clone(),
-                "send_to_apps" => {
-                    s.send_to_apps = parse_send_to_apps(&value);
-                    // Rebuild the context-menu Send To list so the change
-                    // applies without a restart.
-                    if let Some(ui) = settings_ui.upgrade() {
-                        let names: Vec<slint::SharedString> = s
-                            .send_to_apps
-                            .iter()
-                            .map(|a| slint::SharedString::from(a.name.as_str()))
-                            .collect();
-                        ui.set_ctx_send_to_apps(
-                            std::rc::Rc::new(slint::VecModel::from(names)).into(),
-                        );
-                    }
-                }
-                "blacklisted_apps" => {
-                    s.blacklisted_apps = parse_blacklist(&value);
-                    // The clipboard listener reads the blacklist from this
-                    // shared state on every poll, so the change applies
-                    // without a restart.
-                    *blacklist_state
-                        .lock()
-                        .unwrap_or_else(|poisoned| poisoned.into_inner()) =
-                        s.blacklisted_apps.clone();
-                }
+                "send_to_apps" => s.send_to_apps = parse_send_to_apps(&value),
+                "blacklisted_apps" => s.blacklisted_apps = parse_blacklist(&value),
                 "max_clips" => {
                     if let Ok(v) = value.parse::<u32>() {
                         // Retention ceiling the settings page offers; the clip
@@ -215,11 +192,31 @@ pub(super) fn setup_setting_commit(
             // whole file and blocked the UI thread. Closing the window saves
             // synchronously through the close handlers.
             drop(s);
+            let live_ui = settings_ui.clone();
+            let live_blacklist = blacklist_state.clone();
             save_timer.start(
                 slint::TimerMode::SingleShot,
                 SETTINGS_SAVE_DEBOUNCE,
                 move || {
-                    let _ = s_saved.borrow().save(&p_saved);
+                    let snapshot = s_saved.borrow();
+                    let _ = snapshot.save(&p_saved);
+                    // Apply the text-field side effects only after the edits
+                    // settle: per keystroke, a half-typed list was pushed to
+                    // the context menu and the live app blacklist.
+                    if let Some(ui) = live_ui.upgrade() {
+                        let names: Vec<slint::SharedString> = snapshot
+                            .send_to_apps
+                            .iter()
+                            .map(|a| slint::SharedString::from(a.name.as_str()))
+                            .collect();
+                        ui.set_ctx_send_to_apps(
+                            std::rc::Rc::new(slint::VecModel::from(names)).into(),
+                        );
+                    }
+                    *live_blacklist
+                        .lock()
+                        .unwrap_or_else(|poisoned| poisoned.into_inner()) =
+                        snapshot.blacklisted_apps.clone();
                 },
             );
         },
