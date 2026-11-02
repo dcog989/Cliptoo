@@ -191,21 +191,42 @@ async fn install_tracker(cache: &ActiveWindowCache) -> anyhow::Result<()> {
     // engine once `run` completes, so the file is safe to clean up only now.
     let _ = std::fs::remove_file(&script_path);
 
+    // The script's initial `report()` must arrive promptly. A wedged script
+    // from a previous process (it happened: the resident script survived every
+    // restart, KWin kept it loaded, and the new one never ran) or a `run` that
+    // silently failed leaves this stream with no callbacks forever, which used
+    // to hang here with no log while every clip was attributed to no app.
+    // Time out so the retry loop installs a fresh script instead.
+    match tokio::time::timeout(SCRIPT_TIMEOUT, stream.next()).await {
+        Ok(Some(Ok(msg))) => apply_callback(cache, msg),
+        Ok(Some(Err(e))) => return Err(anyhow::anyhow!("tracker stream error: {e}")),
+        Ok(None) => return Ok(()),
+        Err(_) => {
+            // Drop the wedged script so the next attempt is not poisoned by it.
+            let _ = tokio::time::timeout(
+                SCRIPT_TIMEOUT,
+                conn.call_method(
+                    Some(KW_SCRIPTING_SERVICE),
+                    KW_SCRIPTING_PATH,
+                    Some(KW_SCRIPTING_IFACE),
+                    "unloadScript",
+                    &(SCRIPT_NAME,),
+                ),
+            )
+            .await;
+            return Err(anyhow::anyhow!(
+                "tracker script loaded but never reported the active window"
+            ));
+        }
+    }
+    debug!("active-window tracker installed");
+
     // The script now reports every focus change; block on the stream until it
     // dies. There is no timeout here: an idle session legitimately produces no
     // callbacks for a long stretch.
     loop {
         match stream.next().await {
-            Some(Ok(msg)) => {
-                // A malformed callback says nothing about the active window;
-                // leave the cache untouched rather than clearing it.
-                if let Ok(app) = msg.body().deserialize::<String>() {
-                    let app = (!app.is_empty()).then_some(app);
-                    if let Ok(mut guard) = cache.write() {
-                        *guard = app;
-                    }
-                }
-            }
+            Some(Ok(msg)) => apply_callback(cache, msg),
             Some(Err(e)) => {
                 return Err(anyhow::anyhow!("tracker stream error: {e}"));
             }
@@ -213,5 +234,18 @@ async fn install_tracker(cache: &ActiveWindowCache) -> anyhow::Result<()> {
             // scratch so the script is reloaded and the cache keeps tracking.
             None => return Ok(()),
         }
+    }
+}
+
+/// Apply one KWin tracker callback to the cache. A malformed callback says
+/// nothing about the active window, so the cache is left untouched rather than
+/// cleared.
+fn apply_callback(cache: &ActiveWindowCache, msg: zbus::Message) {
+    let Ok(app) = msg.body().deserialize::<String>() else {
+        return;
+    };
+    let app = (!app.is_empty()).then_some(app);
+    if let Ok(mut guard) = cache.write() {
+        *guard = app;
     }
 }
