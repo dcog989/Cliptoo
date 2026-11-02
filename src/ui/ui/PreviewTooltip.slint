@@ -27,9 +27,10 @@ export component PreviewTooltip inherits Rectangle {
     // setting.
     private property <length> max-content-height: root.preview-clip-type == "file_image" ? root.image-box + 80px : Theme.preview-size;
 
-    // The preview-size setting drives the popup width for every clip type.
+    // The preview-size setting drives the popup width for every clip type; a
+    // colour clip is the swatch, so it uses the full preview-size square.
     width: root.preview-clip-type == "file_image" ? root.image-box + 24px : Theme.preview-size;
-    height: Math.min(content-layout.preferred-height, root.max-content-height);
+    height: root.preview-clip-type == "color" ? root.max-content-height : Math.min(content-layout.preferred-height, root.max-content-height);
     clip: true;
     border-radius: Theme.border-radius;
     background: Theme.bg-header;
@@ -38,24 +39,6 @@ export component PreviewTooltip inherits Rectangle {
 
     content-layout := VerticalLayout {
         padding: 12px;
-
-        // ── Color preview ─────────────────────────────────────────────────
-        if root.preview-clip-type == "color": VerticalLayout {
-            spacing: 8px;
-            Rectangle {
-                height: 60px;
-                border-radius: 6px;
-                background: root.preview-color;
-            }
-
-            Text {
-                text: root.preview-text;
-                font-family: Theme.font-family;
-                color: Theme.fg-primary;
-                font-size: Theme.preview-font-size;
-                horizontal-alignment: center;
-            }
-        }
 
         // ── Image preview ─────────────────────────────────────────────────
         if root.preview-clip-type == "file_image": VerticalLayout {
@@ -167,6 +150,30 @@ export component PreviewTooltip inherits Rectangle {
             color: Theme.fg-primary;
             font-size: Theme.preview-font-size;
             wrap: word-wrap;
+        }
+    }
+
+    // ── Color preview ─────────────────────────────────────────────────────
+    // Outside the padded content layout so the swatch fills the whole popup;
+    // the colour string is overlaid in black or white, picked by the swatch
+    // luminance.
+    if root.preview-clip-type == "color": Rectangle {
+        // Inset by the border width so the 1px frame stays visible.
+        x: 1px;
+        y: 1px;
+        width: parent.width - 2px;
+        height: parent.height - 2px;
+        background: root.preview-color;
+
+        Text {
+            width: 100%;
+            height: 100%;
+            text: root.preview-text;
+            font-family: Theme.font-family;
+            font-size: Theme.preview-font-size;
+            color: (0.299 * root.preview-color.red + 0.587 * root.preview-color.green + 0.114 * root.preview-color.blue) > 128 ? black : white;
+            horizontal-alignment: center;
+            vertical-alignment: center;
         }
     }
 
