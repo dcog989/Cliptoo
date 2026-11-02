@@ -4,6 +4,7 @@
 import { Theme } from "Theme.slint";
 import { InputBox } from "InputBox.slint";
 import { StepperRowBody } from "SettingsComponents.slint";
+import { MenuSeparator } from "MenuRow.slint";
 
 component AboutRow {
     in property <string> label;
@@ -178,6 +179,8 @@ export component AboutWindow inherits Window {
                 clickable: false;
             }
 
+            MenuSeparator { }
+
             AboutRow {
                 label: @tr("Install");
                 value: root.install-path;
@@ -202,10 +205,18 @@ export component AboutWindow inherits Window {
                 value-clicked => { root.open-folder(root.cache-path); }
             }
 
+            MenuSeparator { }
+
             AboutRow {
                 label: @tr("Logs");
                 value: root.logs-folder-path;
                 value-clicked => { root.open-folder(root.logs-folder-path); }
+            }
+
+            AboutRow {
+                label: @tr("Latest log");
+                value: @tr("Open latest log");
+                value-clicked => { root.open-latest-log(); }
             }
 
             HorizontalLayout {
@@ -243,11 +254,7 @@ export component AboutWindow inherits Window {
                 }
             }
 
-            AboutRow {
-                label: @tr("Log file");
-                value: @tr("Open latest log");
-                value-clicked => { root.open-latest-log(); }
-            }
+            MenuSeparator { }
 
             AboutRow {
                 label: @tr("Source");

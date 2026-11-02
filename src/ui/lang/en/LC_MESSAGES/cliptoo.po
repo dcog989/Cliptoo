@@ -1526,7 +1526,7 @@ msgstr ""
 
 #: src/ui/ui/AboutWindow.slint:247
 msgctxt "AboutWindow"
-msgid "Log file"
+msgid "Latest log"
 msgstr ""
 
 #: src/ui/ui/AboutWindow.slint:248
