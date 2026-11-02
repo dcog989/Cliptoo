@@ -6,7 +6,8 @@ use std::collections::HashMap;
 use std::time::Duration;
 use tokio::time::timeout;
 use tracing::info;
-use zbus::{Connection, zvariant::Value};
+use zbus::message::Type;
+use zbus::{Connection, MatchRule, MessageStream, zvariant::Value};
 
 const PORTAL_DEST: &str = "org.freedesktop.portal.Desktop";
 const PORTAL_PATH: &str = "/org/freedesktop/portal/desktop";
@@ -75,6 +76,35 @@ fn to_xdg_key(key: &str) -> &str {
     }
 }
 
+/// Split a hotkey into its modifier part and its key token. A trailing `+` is
+/// the plus key itself, not a separator.
+fn split_trigger(trigger: &str) -> (&str, &str) {
+    match trigger.strip_suffix('+') {
+        Some(before) => (before, "+"),
+        None => match trigger.rsplit_once('+') {
+            Some((mods, key)) => (mods, key),
+            // A single token is the bare key (e.g. `F5`).
+            None => ("", trigger),
+        },
+    }
+}
+
+/// Tokens that name a modifier rather than a key. A trigger that ends in one
+/// has no key to bind: the portal accepts it, binds nothing, and reports
+/// success, so the hotkey silently never fires.
+const MODIFIER_NAMES: [&str; 13] = [
+    "CTRL", "CONTROL", "SHIFT", "ALT", "ALTGR", "META", "SUPER", "LOGO", "WIN", "CAPS", "CAPSLOCK",
+    "NUM", "NUMLOCK",
+];
+
+/// True when the trigger ends in a real key. `clean_hotkey_text` turns a
+/// capture with no key (`Ctrl+`) into `CTRL`, and a hand-edited settings file
+/// can hold the same, so this is checked before touching the portal.
+fn has_bindable_key(trigger: &str) -> bool {
+    let key = split_trigger(trigger).1;
+    !key.is_empty() && !MODIFIER_NAMES.iter().any(|m| key.eq_ignore_ascii_case(m))
+}
+
 /// Convert a Qt-style hotkey string (as stored in settings, e.g. `Ctrl+Alt+z`)
 /// to the XDG Shortcuts spec format the portal expects (e.g. `CTRL+ALT+z`).
 ///
@@ -89,16 +119,7 @@ fn to_xdg_key(key: &str) -> &str {
 /// therefore split off from the right and translated to its keysym name, so a
 /// `Ctrl++` hotkey becomes `CTRL+plus`.
 fn to_xdg_trigger(trigger: &str) -> String {
-    // A trailing `+` is the plus key itself, not a separator.
-    let (mods_str, key) = match trigger.strip_suffix('+') {
-        Some(before) => (before, "+"),
-        None => match trigger.rsplit_once('+') {
-            Some((m, k)) => (m, k),
-            // A single token is the bare key (e.g. `F5`) — nothing to
-            // normalise beyond the keysym-name mapping.
-            None => return to_xdg_key(trigger).to_string(),
-        },
-    };
+    let (mods_str, key) = split_trigger(trigger);
 
     let mods = mods_str
         .split('+')
@@ -122,89 +143,18 @@ fn to_xdg_trigger(trigger: &str) -> String {
     out
 }
 
-/// One-shot, best-effort probe for the XDG Desktop Portal at startup.
-///
-/// On Wayland, the portal is the **only** mechanism a client app can use to
-/// register a global keyboard shortcut. Compositors do not expose key-grab
-/// APIs (X11's `XGrabKey` is unavailable to Wayland clients) and apps like
-/// KDE's `KGlobalAccel` (used by CopyQ on KDE) are out of reach for
-/// non-KDE-toolkit clients.
-///
-/// The portal stack is layered:
-///
-/// ```text
-///   client  ──▶  xdg-desktop-portal           (D-Bus router)
-///                   │
-///                   └─▶  xdg-desktop-portal-kde     (KDE Plasma 6 backend)
-///                       xdg-desktop-portal-gnome   (GNOME backend)
-///                       xdg-desktop-portal-wlr     (wlroots backend)
-///                       xdg-desktop-portal-gtk     (GTK fallback)
-/// ```
-///
-/// Cliptoo's PKGBUILD declares `xdg-desktop-portal-kde` so a normal install
-/// gets the router + backend transitively. If this check fires, the user is
-/// either running outside a supported desktop session, the portal service
-/// has been stopped, or the binary is being run on a system where the
-/// portal was never installed. The app continues to run; only the global
-/// hotkey is unavailable.
-pub async fn check_portal_presence() {
-    let conn = match Connection::session().await {
-        Ok(c) => c,
-        Err(e) => {
-            info!(
-                "no D-Bus session bus ({e}); global hotkey will not be registered. \
-                 The XDG Desktop Portal is required to register a global hotkey on \
-                 Wayland. Ensure the binary is launched inside a desktop session."
-            );
-            return;
-        }
-    };
-
-    // 5s is generous; NameHasOwner is a synchronous bus call that should
-    // resolve in microseconds on a working system. The timeout exists so
-    // a hung D-Bus daemon cannot block startup indefinitely.
-    let reply = timeout(
-        Duration::from_secs(5),
-        conn.call_method(
-            Some("org.freedesktop.DBus"),
-            "/org/freedesktop/DBus",
-            Some("org.freedesktop.DBus"),
-            "NameHasOwner",
-            &("org.freedesktop.portal.Desktop",),
-        ),
-    )
-    .await;
-
-    let owned = match reply {
-        Ok(Ok(msg)) => msg.body().deserialize::<bool>().unwrap_or(false),
-        Ok(Err(e)) => {
-            info!(
-                "D-Bus NameHasOwner for org.freedesktop.portal.Desktop failed: {e}; \
-                 global hotkey will not be registered."
-            );
-            return;
-        }
-        Err(_) => {
-            info!(
-                "timed out querying D-Bus for org.freedesktop.portal.Desktop; \
-                 global hotkey will not be registered."
-            );
-            return;
-        }
-    };
-
-    if !owned {
-        info!(
-            "XDG Desktop Portal (org.freedesktop.portal.Desktop) is not running; \
-             the global hotkey will not be registered. On Wayland the portal is \
-             the only mechanism for client apps to register global hotkeys. \
-             Install the appropriate backend for your compositor: \
-             `xdg-desktop-portal-kde` (KDE Plasma 6), `xdg-desktop-portal-gnome` \
-             (GNOME), `xdg-desktop-portal-wlr` (Sway/Hyprland/etc.), or \
-             `xdg-desktop-portal-gtk` (other GTK environments). The app \
-             continues to run; only the toggle hotkey is affected."
-        );
-    }
+/// Stream with one item per owner change of `org.freedesktop.portal.Desktop`
+/// — a start, a crash or a package-upgrade restart.
+async fn portal_owner_changes(conn: &Connection) -> Result<MessageStream> {
+    let rule = MatchRule::builder()
+        .msg_type(Type::Signal)
+        .sender("org.freedesktop.DBus")?
+        .path("/org/freedesktop/DBus")?
+        .interface("org.freedesktop.DBus")?
+        .member("NameOwnerChanged")?
+        .add_arg(PORTAL_DEST)?
+        .build();
+    Ok(MessageStream::for_match_rule(rule, conn, None).await?)
 }
 
 /// Register a single global shortcut via the XDG Desktop Portal and
@@ -241,10 +191,8 @@ pub async fn check_portal_presence() {
 ///    and returns `Ok(Some(handle))` because partial success is possible.
 ///
 /// In every case the app continues to run; only the global hotkey is
-/// affected. Callers should pair this function with [`check_portal_presence`]
-/// at startup so the user gets an informational heads-up before the
-/// session bus is first exercised, and retry a `None` result — the portal
-/// is often not yet running when an autostart app launches at login.
+/// affected. Callers should retry a `None` result — the portal is often not
+/// yet running when an autostart app launches at login.
 pub async fn register_shortcuts_and_listen<F>(
     shortcut_id: &str,
     description: &str,
@@ -254,6 +202,14 @@ pub async fn register_shortcuts_and_listen<F>(
 where
     F: FnMut(String) + Send + 'static,
 {
+    if !has_bindable_key(trigger) {
+        tracing::warn!(
+            "hotkey '{trigger}' has no key to bind; keeping the previous shortcut \
+             and waiting for a valid one"
+        );
+        return Ok(None);
+    }
+
     let conn = Connection::session()
         .await
         .context("session bus connection")?;
@@ -287,6 +243,19 @@ where
             );
         }
     }
+
+    // A portal restart destroys every session, but zbus keeps this process's
+    // signal streams open across the bus-name owner change (it follows the new
+    // owner), so the Activated stream would wait forever on a session that no
+    // longer exists. Watch the portal name and end the listener when it
+    // changes, so `run_hotkey_loop` registers a fresh session.
+    let mut portal_owner_changed = match portal_owner_changes(&conn).await {
+        Ok(stream) => stream,
+        Err(e) => {
+            tracing::warn!("cannot watch the portal bus name: {e}");
+            return Ok(None);
+        }
+    };
 
     let proxy = GlobalShortcuts::with_connection(conn)
         .await
@@ -353,8 +322,26 @@ where
     };
 
     let handle = tokio::spawn(async move {
-        while let Some(activated) = activated.next().await {
-            handler(activated.shortcut_id().to_string());
+        loop {
+            tokio::select! {
+                signal = activated.next() => match signal {
+                    Some(activated) => handler(activated.shortcut_id().to_string()),
+                    None => break,
+                },
+                change = portal_owner_changed.next() => match change {
+                    Some(Ok(_)) => {
+                        tracing::warn!(
+                            "the XDG Desktop Portal restarted; re-registering the global shortcut"
+                        );
+                        break;
+                    }
+                    Some(Err(e)) => {
+                        tracing::warn!("portal bus-name watch failed: {e}; re-registering");
+                        break;
+                    }
+                    None => break,
+                },
+            }
         }
     });
 
@@ -395,10 +382,23 @@ pub async fn clear_kglobalaccel_bindings(action: &str) {
 /// that a user who installed/fixed the portal gets the hotkey back promptly.
 const REGISTRATION_RETRY_DELAY: Duration = Duration::from_secs(15);
 
+/// Ceiling for the retry delay. Without it a machine with no portal backend
+/// would query the portal forever at the base rate; with it the cost settles
+/// at one attempt every few minutes.
+const MAX_REGISTRATION_RETRY_DELAY: Duration = Duration::from_secs(300);
+
+/// True when the combo actually changed, so the KGlobalAccel keys must be
+/// cleared for the portal to apply the new trigger. A listener that merely
+/// ended (portal restart, bus drop) must keep the keys the user may have set
+/// in KDE System Settings.
+fn binding_needs_clearing(previous: &str, current: &str) -> bool {
+    previous != current
+}
+
 /// Keep the global toggle shortcut registered, re-registering whenever the
-/// user changes the hotkey in Settings, the portal restarts (the listener
-/// ends on its own), or a previous registration failed (the portal was not
-/// yet running).
+/// user changes the hotkey in Settings, the portal restarts (the bus-name
+/// watch in [`register_shortcuts_and_listen`] ends the listener), or a
+/// previous registration failed (the portal was not yet running).
 ///
 /// The settings UI commits on every key-press, so `wait_for_stable_hotkey`
 /// debounces the re-registration until the combo has been stable for a quiet
@@ -413,10 +413,11 @@ pub async fn run_hotkey_loop(
     // KDE's "Configure Shortcuts" dialog).
     const TOGGLE_DESCRIPTION: &str = "Toggle the Cliptoo window";
 
+    let mut retry_delay = REGISTRATION_RETRY_DELAY;
+    let mut failed_hotkey: Option<String> = None;
+
     loop {
         let main_hotkey = hotkey_rx.borrow().clone();
-
-        check_portal_presence().await;
 
         let handler = {
             let weak = ui.clone();
@@ -441,30 +442,40 @@ pub async fn run_hotkey_loop(
         .await
         {
             Ok(Some(mut handle)) => {
+                retry_delay = REGISTRATION_RETRY_DELAY;
+                failed_hotkey = None;
                 // A live listener is installed. Re-register when the user
                 // finishes editing the hotkey (debounced) or the listener
                 // ends on its own (portal restarted / bus dropped).
                 if wait_for_stable_hotkey(&mut hotkey_rx, &mut handle).await {
                     true
                 } else {
-                    // Drop the old listener, clear the stale KGlobalAccel
-                    // keys so the portal treats the shortcut as new (and
-                    // applies the new preferred_trigger), then loop to
-                    // re-register.
+                    // Drop the old listener. Clear the KGlobalAccel keys only
+                    // when the trigger changed, so the portal treats the
+                    // shortcut as new and applies it; an unrequested
+                    // re-register keeps the keys stored in KDE.
                     handle.abort();
-                    clear_kglobalaccel_bindings(TOGGLE_ID).await;
+                    if binding_needs_clearing(&main_hotkey, hotkey_rx.borrow().as_str()) {
+                        clear_kglobalaccel_bindings(TOGGLE_ID).await;
+                    }
                     false
                 }
             }
-            Ok(None) => {
+            failed => {
+                if let Err(e) = failed {
+                    tracing::warn!("Global shortcuts unavailable: {e}");
+                }
                 // Registration failed (portal absent or hung): retry in the
                 // background rather than blocking on the hotkey channel, and
-                // re-register sooner if the user edits the hotkey meanwhile.
-                wait_for_retry(&mut hotkey_rx, REGISTRATION_RETRY_DELAY).await
-            }
-            Err(e) => {
-                tracing::warn!("Global shortcuts unavailable: {e}");
-                wait_for_retry(&mut hotkey_rx, REGISTRATION_RETRY_DELAY).await
+                // back off while the same hotkey keeps failing so a machine
+                // without a portal is not polled every 15 seconds forever.
+                retry_delay = if failed_hotkey.as_deref() == Some(main_hotkey.as_str()) {
+                    (retry_delay * 2).min(MAX_REGISTRATION_RETRY_DELAY)
+                } else {
+                    REGISTRATION_RETRY_DELAY
+                };
+                failed_hotkey = Some(main_hotkey);
+                wait_for_retry(&mut hotkey_rx, retry_delay).await
             }
         };
 
@@ -576,6 +587,31 @@ mod tests {
         assert_eq!(to_xdg_trigger("Ctrl+UpArrow"), "CTRL+Up");
         assert_eq!(to_xdg_trigger("Ctrl+ScrollLock"), "CTRL+Scroll_Lock");
         assert_eq!(to_xdg_trigger("Ctrl+F12"), "CTRL+F12");
+    }
+
+    #[test]
+    fn split_trigger_keeps_a_trailing_plus_as_the_key() {
+        assert_eq!(split_trigger("Ctrl+Alt+Q"), ("Ctrl+Alt", "Q"));
+        assert_eq!(split_trigger("F5"), ("", "F5"));
+        assert_eq!(split_trigger("Ctrl++"), ("Ctrl+", "+"));
+        assert_eq!(split_trigger("+"), ("", "+"));
+    }
+
+    #[test]
+    fn has_bindable_key_rejects_bare_modifiers() {
+        assert!(has_bindable_key("Ctrl+Alt+Q"));
+        assert!(has_bindable_key("Ctrl++"));
+        assert!(has_bindable_key("F5"));
+        // What `clean_hotkey_text` makes of a capture with no key.
+        assert!(!has_bindable_key("CTRL"));
+        assert!(!has_bindable_key("Ctrl+Shift"));
+        assert!(!has_bindable_key(""));
+    }
+
+    #[test]
+    fn binding_needs_clearing_only_when_the_hotkey_changed() {
+        assert!(!binding_needs_clearing("Ctrl+Alt+Q", "Ctrl+Alt+Q"));
+        assert!(binding_needs_clearing("Ctrl+Alt+Q", "Ctrl+Shift+K"));
     }
 
     #[tokio::test]
