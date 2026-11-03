@@ -521,6 +521,9 @@ export component ToggleRow {
         InputBox {
             horizontal-stretch: 1;
             bordered: false;
+            // The toggle sits on the page surface; InputBox's default field
+            // fill would leave a grey strip beside it.
+            background: transparent;
 
             HorizontalLayout {
                 cross-axis-alignment: center;

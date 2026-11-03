@@ -1,5 +1,6 @@
 // SettingsHeader.slint — Top bar of the settings window.
-// Page title ("Settings"; "Shortcuts" or "Database" on a sub-page, preceded by
+// Page title ("Settings"; "Keyboard Shortcuts" or "Database" on a sub-page,
+// preceded by
 // a Back button), plus the shortcut and Database icons that switch pages.
 
 import { Theme } from "Theme.slint";
@@ -16,7 +17,7 @@ export component SettingsHeader {
     private property <string> tip-shortcuts: @tr("Shortcuts: hotkeys and keyboard shortcuts");
     private property <string> tip-back: @tr("Back to settings");
     private property <bool> on-sub-page: root.on-database-page || root.on-shortcuts-page;
-    private property <string> sub-page-title: root.on-database-page ? @tr("Database") : @tr("Shortcuts");
+    private property <string> sub-page-title: root.on-database-page ? @tr("Database") : @tr("Keyboard Shortcuts");
 
     function back() {
         root.on-database-page = false;

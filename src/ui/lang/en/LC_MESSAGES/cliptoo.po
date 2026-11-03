@@ -612,7 +612,7 @@ msgstr ""
 
 #: src/ui/ui/SettingsHeader.slint:19
 msgctxt "SettingsHeader"
-msgid "Shortcuts"
+msgid "Keyboard Shortcuts"
 msgstr ""
 
 #: src/ui/ui/SettingsHeader.slint:55
