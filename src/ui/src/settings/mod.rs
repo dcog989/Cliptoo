@@ -295,6 +295,7 @@ fn create_settings_window(
         &dirs.settings_path,
         dirs.favicons_dir.clone(),
         dirs.thumbnails_dir.clone(),
+        db,
         hotkey_tx,
         retention_tx,
         blacklist_state,

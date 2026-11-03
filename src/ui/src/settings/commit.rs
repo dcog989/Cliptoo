@@ -26,6 +26,7 @@ pub(super) fn setup_setting_commit(
     settings_path: &std::path::Path,
     favicons_dir: std::path::PathBuf,
     thumbnails_dir: std::path::PathBuf,
+    db: &std::sync::Arc<cliptoo_core::db::DbPool>,
     hotkey_tx: tokio::sync::watch::Sender<String>,
     retention_tx: tokio::sync::watch::Sender<cliptoo_core::maintenance::RetentionConfig>,
     blacklist_state: std::sync::Arc<std::sync::Mutex<Vec<String>>>,
@@ -39,6 +40,7 @@ pub(super) fn setup_setting_commit(
     let fillers = fillers.clone();
     let image_preview_size = image_preview_size.clone();
     let thumbnails_dir = thumbnails_dir.clone();
+    let reapply_db = db.clone();
     let save_timer = std::rc::Rc::new(slint::Timer::default());
     let invalidate_timer = std::rc::Rc::new(slint::Timer::default());
     settings_win.on_setting_changed(
@@ -92,7 +94,14 @@ pub(super) fn setup_setting_commit(
                 }
                 "theme" => {
                     s.theme = value.clone();
-                    reapply_theme(&settings_ui, &sw, &s, favicons_dir.clone(), fillers.clone());
+                    reapply_theme(
+                        &settings_ui,
+                        &sw,
+                        &s,
+                        favicons_dir.clone(),
+                        &reapply_db,
+                        fillers.clone(),
+                    );
                 }
                 "font_family" => {
                     s.font_family = value.clone();

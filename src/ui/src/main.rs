@@ -167,6 +167,7 @@ async fn main() -> Result<()> {
         settings_slot,
         settings.clone(),
         dirs.favicons_dir.clone(),
+        db.clone(),
         theme_fillers.clone(),
     );
 

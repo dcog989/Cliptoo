@@ -92,11 +92,13 @@ pub(super) fn reapply_theme(
     settings_win_ui: &slint::Weak<crate::SettingsWindow>,
     settings: &cliptoo_core::Settings,
     favicons_dir: std::path::PathBuf,
+    db: &std::sync::Arc<cliptoo_core::db::DbPool>,
     fillers: crate::theme::ThemeFillers,
 ) {
     let main_weak = main_ui.clone();
     let settings_weak = settings_win_ui.clone();
     let s_snap = settings.clone();
+    let db = db.clone();
     let request = THEME_REAPPLY_REQUEST.fetch_add(1, Ordering::Relaxed) + 1;
     tokio::spawn(async move {
         let prev_dark = crate::theme::cached_resolved_theme().0;
@@ -121,6 +123,10 @@ pub(super) fn reapply_theme(
                 // theme variant, so a light→dark (or vice-versa) switch must
                 // reload them to avoid showing an invisible icon.
                 crate::thumbnail_cache::reload_favicons(&ui, &favicons_dir);
+                // Rows with no icon for the new variant reload as empty; fetch
+                // that variant now instead of leaving them blank until the
+                // next list refresh.
+                crate::favicon::check_pending_favicons(&ui, &db, &favicons_dir);
             }
             if let Some(win) = settings_weak.upgrade() {
                 crate::theme::fill_theme(
@@ -145,6 +151,7 @@ pub(crate) fn watch_system_theme(
     settings_slot: crate::lazy_window::LazyWindow<crate::SettingsWindow>,
     settings: std::rc::Rc<std::cell::RefCell<cliptoo_core::Settings>>,
     favicons_dir: std::path::PathBuf,
+    db: std::sync::Arc<cliptoo_core::db::DbPool>,
     fillers: crate::theme::ThemeFillers,
 ) {
     let result = slint::spawn_local(async move {
@@ -184,6 +191,7 @@ pub(crate) fn watch_system_theme(
                     &settings_win,
                     &snapshot,
                     favicons_dir.clone(),
+                    &db,
                     fillers.clone(),
                 );
             }

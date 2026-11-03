@@ -474,13 +474,14 @@ pub fn cache_page_title(url: &str, title: &str, fav_dir: &Path) {
     let _ = std::fs::write(&path, title);
 }
 
-/// Domains for which a favicon fetch has already been dispatched this session.
-/// Inserted at dispatch time so `check_pending_favicons` neither double-fetches
-/// an in-flight domain across overlapping refreshes nor re-fetches a domain
-/// whose favicon cannot be obtained (no site icon + DuckDuckGo 404) on every
-/// refresh. A successful fetch reloads all matching rows, so no removal is
-/// needed. Per-session only: cleared on restart, so a site that adds a favicon
-/// later is retried.
+/// Domains (and theme variants) for which a favicon fetch has already been
+/// dispatched this session. Keyed by `domain:dark` so switching theme still
+/// fetches the other variant. Inserted at dispatch time so
+/// `check_pending_favicons` neither double-fetches an in-flight domain across
+/// overlapping refreshes nor re-fetches a domain whose favicon cannot be
+/// obtained (no site icon + DuckDuckGo 404) on every refresh. A successful
+/// fetch reloads all matching rows, so no removal is needed. Per-session only:
+/// cleared on restart, so a site that adds a favicon later is retried.
 fn attempted_favicon_domains() -> &'static Mutex<HashSet<String>> {
     static ATTEMPTED: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
     ATTEMPTED.get_or_init(|| Mutex::new(HashSet::new()))
@@ -507,6 +508,10 @@ pub fn check_pending_favicons(ui: &crate::AppWindow, db: &Arc<DbPool>, favicons_
     let mut attempted = attempted_favicon_domains()
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
+    // The active theme decides which cache file is fetched, so the ledger must
+    // be keyed by variant too: a domain attempted in dark mode must still be
+    // fetched after switching to light (and vice versa).
+    let dark = crate::theme::cached_resolved_theme().0;
     // Loaded on first use: a list whose links all have icons never pays for it.
     let mut failures: Option<HashMap<i64, u32>> = None;
     for i in 0..model.row_count() {
@@ -522,7 +527,7 @@ pub fn check_pending_favicons(ui: &crate::AppWindow, db: &Arc<DbPool>, favicons_
                 let Some(domain) = extract_domain(&data.preview_content) else {
                     continue;
                 };
-                if attempted.insert(domain) {
+                if attempted.insert(format!("{domain}:{dark}")) {
                     pending.push(data.id as i64);
                 }
             }
@@ -539,7 +544,6 @@ pub fn check_pending_favicons(ui: &crate::AppWindow, db: &Arc<DbPool>, favicons_
     // one spawned task per domain (the old code) opened hundreds of requests at
     // once, and every success reloaded the whole list, for O(domains × rows) UI
     // work.
-    let dark = crate::theme::cached_resolved_theme().0;
     let weak = ui.as_weak();
     let db = db.clone();
     let fav_dir = favicons_dir.to_owned();
