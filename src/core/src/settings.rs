@@ -23,9 +23,12 @@ pub struct Settings {
     pub window_height: f64,
     pub editor_window_width: f64,
     pub editor_window_height: f64,
-    // Settings window size, persisted so user resizes survive restarts.
+    // Settings window size, persisted so user resizes survive restarts. A
+    // height the user never adjusted follows the main window instead; the flag
+    // distinguishes a real resize from heights older versions saved on close.
     pub settings_window_width: f64,
-    pub settings_window_height: f64,
+    pub settings_window_height: Option<f64>,
+    pub settings_window_height_custom: bool,
 
     // Theming
     // accent_color is a "#RRGGBB" string; empty means "use the OS accent".
@@ -78,7 +81,8 @@ impl Default for Settings {
             editor_window_width: 520.0,
             editor_window_height: 420.0,
             settings_window_width: 560.0,
-            settings_window_height: 540.0,
+            settings_window_height: None,
+            settings_window_height_custom: false,
             accent_color: String::new(),
             theme: "System".to_string(),
             font_family: "Inter".to_string(),
@@ -301,7 +305,8 @@ mod tests {
         assert_eq!(s.quick_paste_modifier, "Right Alt");
         assert!(s.always_close_to_tray);
         assert!((s.settings_window_width - 560.0).abs() < f64::EPSILON);
-        assert!((s.settings_window_height - 540.0).abs() < f64::EPSILON);
+        assert_eq!(s.settings_window_height, None);
+        assert!(!s.settings_window_height_custom);
         assert!(!s.color_code_clip_types);
     }
 }
