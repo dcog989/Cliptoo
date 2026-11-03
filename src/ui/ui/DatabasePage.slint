@@ -130,6 +130,12 @@ export component DatabasePage inherits ScrollView {
             ]: Rectangle {
                 row: Math.floor(idx / 2);
                 col: Math.mod(idx, 2);
+                // Both columns take half the grid. Sizing by content made the
+                // left column wider, because its confirm labels are longer than
+                // every label in the right column. Bind to the page width, not
+                // `parent.width`: the ScrollView derives its content width from
+                // the children, so the latter is a binding loop.
+                width: (root.width - 40px) / 2;
                 height: 30px;
                 border-radius: 6px;
                 // Hover lift matches MenuRow: a neutral surface with a subtle
@@ -174,22 +180,14 @@ export component DatabasePage inherits ScrollView {
                         reject
                     }
 
-                    // Invisible copy of the confirm label so the button measures
-                    // at its widest state and does not resize when armed.
-                    Text {
-                        text: action.confirm-label;
-                        opacity: 0;
-                        horizontal-alignment: center;
-                        vertical-alignment: center;
-                        font-size: Theme.font-size;
-                    }
-
                     Text {
                         text: confirming ? action.confirm-label : action.label;
                         color: confirming ? Theme.warn-fg : danger ? Theme.danger-on-bg : Theme.fg-primary;
+                        width: 100%;
                         horizontal-alignment: center;
                         vertical-alignment: center;
                         font-size: Theme.font-size;
+                        overflow: elide;
                     }
 
                     action-touch := TouchArea {
