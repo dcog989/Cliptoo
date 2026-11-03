@@ -19,6 +19,9 @@ export component MenuRow {
     in property <image> icon;
     in property <string> label;
     in property <bool> is-danger: false;
+    // Destructive row in its confirm state: the second activation deletes, so
+    // the row switches to the warning palette instead of the danger one.
+    in property <bool> armed: false;
     in property <bool> has-arrow: false;
     // Keyboard selection highlight, driven by the owning menu.
     in property <bool> selected: false;
@@ -40,16 +43,22 @@ export component MenuRow {
         border-radius: 5px;
         border-width: 1px;
         // A destructive row (Delete) swaps the hover fill for a red fill and
-        // pale content, plus a pale outline while active.
+        // pale content, plus a pale outline while active; once armed for
+        // confirmation it takes the amber warning fill instead.
         // Keyboard selection keeps the accent outline; pointer hover is only a
         // surface tint, so it never reads as the row Enter will activate.
         property <bool> active: root.selected || touch.pressed;
         property <bool> hover-only: touch.has-hover && !active;
-        property <bool> danger-hot: root.is-danger && (active || hover-only);
-        border-color: active
+        property <bool> danger-hot: root.is-danger && !root.armed && (active || hover-only);
+        property <bool> confirming: root.is-danger && root.armed;
+        border-color: confirming
+            ? Theme.warn-base
+            : active
             ? (root.is-danger ? Theme.danger-on-bg : Theme.accent-primary)
             : transparent;
-        background: danger-hot
+        background: confirming
+            ? Theme.warn-base.mix(Theme.bg-primary, 0.85)
+            : danger-hot
             ? Theme.danger-bg
             : active
             ? Theme.bg-row-selected
@@ -69,14 +78,14 @@ export component MenuRow {
                 height: 16px;
                 source: root.icon;
                 colorize: root.is-danger
-                    ? (content.danger-hot ? Theme.danger-on-bg : Theme.danger-fg)
+                    ? (content.confirming ? Theme.warn-fg : content.danger-hot ? Theme.danger-on-bg : Theme.danger-fg)
                     : Theme.fg-secondary;
             }
 
             Text {
                 text: root.label;
                 color: root.is-danger
-                    ? (content.danger-hot ? Theme.danger-on-bg : Theme.danger-fg)
+                    ? (content.confirming ? Theme.warn-fg : content.danger-hot ? Theme.danger-on-bg : Theme.danger-fg)
                     : Theme.fg-primary;
                 font-size: Theme.font-size;
                 vertical-alignment: center;

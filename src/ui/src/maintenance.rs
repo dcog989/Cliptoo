@@ -99,14 +99,6 @@ async fn pick_path(save: bool) -> anyhow::Result<Option<std::path::PathBuf>> {
     .map_err(|_| anyhow::anyhow!("file chooser did not answer within {DIALOG_TIMEOUT:?}"))?
 }
 
-/// Destructive actions need a second click on the same button within this
-/// window. One misclick must not wipe the history or delete clips.
-const CONFIRM_WINDOW: std::time::Duration = std::time::Duration::from_secs(5);
-
-fn needs_confirmation(key: &str) -> bool {
-    matches!(key, "clear-history" | "deadhead")
-}
-
 /// Set up the manual maintenance actions handler on the main window.
 pub fn setup_manual_maintenance(
     ui: &crate::AppWindow,
@@ -124,28 +116,8 @@ pub fn setup_manual_maintenance(
     let maint_win = settings_win.as_weak();
     let maint_td2 = dirs.thumbnails_dir.clone();
     let maint_db_path = dirs.db_path.clone();
-    let toast_win = settings_win.as_weak();
-    let pending_confirm: Arc<std::sync::Mutex<Option<(String, std::time::Instant)>>> =
-        Arc::new(std::sync::Mutex::new(None));
     ui.on_maintenance_action(move |key: slint::SharedString| {
         let key = key.to_string();
-        if needs_confirmation(&key) {
-            let mut pending = pending_confirm
-                .lock()
-                .unwrap_or_else(|poisoned| poisoned.into_inner());
-            let confirmed = pending.as_ref().is_some_and(|(pending_key, at)| {
-                pending_key == &key && at.elapsed() < CONFIRM_WINDOW
-            });
-            *pending = if confirmed {
-                None
-            } else {
-                Some((key.clone(), std::time::Instant::now()))
-            };
-            if !confirmed {
-                crate::settings::show_toast(&toast_win, "Click again to confirm", "warn");
-                return;
-            }
-        }
         let db = maint_db.clone();
         let td = maint_td.clone();
         let fd = maint_fd.clone();

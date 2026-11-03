@@ -253,6 +253,7 @@ export component ContextMenu {
                     : @tr("Delete");
                 icon: @image-url("icons/trash-2.svg");
                 is-danger: true;
+                armed: root.delete-armed;
                 selected: root.selected == root.idx-delete;
                 clicked => {
                     root.request-delete();

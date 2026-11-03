@@ -313,6 +313,11 @@ msgctxt "DatabasePage"
 msgid "Clear History"
 msgstr ""
 
+#: src/ui/ui/DatabasePage.slint:63
+msgctxt "DatabasePage"
+msgid "Confirm Clear History!!"
+msgstr ""
+
 #: src/ui/ui/DatabasePage.slint:62 src/ui/ui/DatabasePage.slint:64
 msgctxt "DatabasePage"
 msgid "Delete all clips from the clipboard history"
@@ -328,9 +333,14 @@ msgctxt "DatabasePage"
 msgid "Clear cached previews, thumbnails, and favicons"
 msgstr ""
 
-#: src/ui/ui/DatabasePage.slint:71 src/ui/ui/DatabasePage.slint:73
+#: src/ui/ui/DatabasePage.slint:73
 msgctxt "DatabasePage"
 msgid "Deadhead"
+msgstr ""
+
+#: src/ui/ui/DatabasePage.slint:75
+msgctxt "DatabasePage"
+msgid "Confirm Deadhead!!"
 msgstr ""
 
 #: src/ui/ui/DatabasePage.slint:72 src/ui/ui/DatabasePage.slint:74

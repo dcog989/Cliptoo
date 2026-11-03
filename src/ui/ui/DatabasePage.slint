@@ -14,6 +14,29 @@ export component DatabasePage inherits ScrollView {
 
     out property <length> content-preferred-height: content-layout.preferred-height;
 
+    // Destructive rows arm on the first click and run on a second click on the
+    // same row, mirroring the context menu's Delete. The button itself shows
+    // the warning state, so no toast is needed.
+    private property <string> armed: "";
+
+    Timer {
+        interval: 5000ms;
+        running: root.armed != "";
+        triggered => {
+            root.armed = "";
+        }
+    }
+
+    function activate(key: string) {
+        let destructive = key == "clear-history" || key == "deadhead";
+        if (destructive && root.armed != key) {
+            root.armed = key;
+        } else {
+            root.armed = "";
+            root.maintenance-action(key);
+        }
+    }
+
     content-layout := VerticalLayout {
         padding-left: 16px;
         padding-right: 16px;
@@ -61,41 +84,49 @@ export component DatabasePage inherits ScrollView {
                 {
                     key: "clear-history",
                     label: @tr("Clear History"),
+                    confirm-label: @tr("Confirm Clear History!!"),
                     tip: @tr("Delete all clips from the clipboard history")
                 },
                 {
                     key: "clear-caches",
                     label: @tr("Clear Caches"),
+                    confirm-label: "",
                     tip: @tr("Clear cached previews, thumbnails, and favicons")
                 },
                 {
                     key: "deadhead",
                     label: @tr("Deadhead"),
+                    confirm-label: @tr("Confirm Deadhead!!"),
                     tip: @tr("Remove clips referencing files that no longer exist on disk")
                 },
                 {
                     key: "reclassify",
                     label: @tr("Reclassify All"),
+                    confirm-label: "",
                     tip: @tr("Re-run content detection on every clip")
                 },
                 {
                     key: "compact",
                     label: @tr("Compact Database"),
+                    confirm-label: "",
                     tip: @tr("Rebuild the database file to reclaim space freed by deleted clips")
                 },
                 {
                     key: "export",
                     label: @tr("Export All Clips"),
+                    confirm-label: "",
                     tip: @tr("Save all clips to a JSON file")
                 },
                 {
                     key: "export-bookmarks",
                     label: @tr("Export Bookmarks"),
+                    confirm-label: "",
                     tip: @tr("Save only bookmarked clips to a JSON file")
                 },
                 {
                     key: "import",
                     label: @tr("Import Backup"),
+                    confirm-label: "",
                     tip: @tr("Load clips from a JSON backup file")
                 },
             ]: Rectangle {
@@ -108,16 +139,21 @@ export component DatabasePage inherits ScrollView {
                 // takes the pale danger outline instead.
                 property <bool> hot: action-touch.has-hover;
                 property <bool> danger: action.key == "clear-history";
+                property <bool> confirming: root.armed == action.key;
                 // Keyboard focus ring plus the click/hover states. The
                 // FocusScope inside is the accessible button.
                 property <bool> focused: action-focus.has-focus;
                 border-width: 1px;
                 border-color: focused
                     ? Theme.accent-primary
+                    : confirming
+                    ? Theme.warn-base
                     : hot
                     ? (danger ? Theme.danger-on-bg : Theme.border-subtle)
                     : transparent;
-                background: danger
+                background: confirming
+                    ? Theme.warn-base.mix(Theme.bg-primary, 0.85)
+                    : danger
                     ? Theme.danger-bg
                     : hot || focused
                     ? Theme.bg-row-hover
@@ -127,22 +163,32 @@ export component DatabasePage inherits ScrollView {
 
                 action-focus := FocusScope {
                     accessible-role: button;
-                    accessible-label: action.label;
+                    accessible-label: confirming ? action.confirm-label : action.label;
                     accessible-description: action.tip;
                     accessible-action-default => {
-                        root.maintenance-action(action.key);
+                        root.activate(action.key);
                     }
                     key-pressed(e) => {
                         if (e.text == Key.Return || e.text == " ") {
-                            root.maintenance-action(action.key);
+                            root.activate(action.key);
                             return accept;
                         }
                         reject
                     }
 
+                    // Invisible copy of the confirm label so the button measures
+                    // at its widest state and does not resize when armed.
                     Text {
-                        text: action.label;
-                        color: danger ? Theme.danger-on-bg : Theme.fg-primary;
+                        text: action.confirm-label;
+                        opacity: 0;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                        font-size: Theme.font-size;
+                    }
+
+                    Text {
+                        text: confirming ? action.confirm-label : action.label;
+                        color: confirming ? Theme.warn-fg : danger ? Theme.danger-on-bg : Theme.fg-primary;
                         horizontal-alignment: center;
                         vertical-alignment: center;
                         font-size: Theme.font-size;
@@ -155,7 +201,7 @@ export component DatabasePage inherits ScrollView {
 
                         clicked => {
                             action-focus.focus();
-                            root.maintenance-action(action.key);
+                            root.activate(action.key);
                         }
                         mouse-cursor: pointer;
                     }
