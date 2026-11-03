@@ -7,9 +7,9 @@
 import { Theme } from "Theme.slint";
 
 export component MenuSeparator {
-    height: 9px;
+    height: Theme.menu-separator-height;
     Rectangle {
-        y: 4px;
+        y: (parent.height - 1px) / 2;
         height: 1px;
         background: Theme.border-subtle;
     }
@@ -25,7 +25,7 @@ export component MenuRow {
     in property <bool> has-arrow: false;
     // Keyboard selection highlight, driven by the owning menu.
     in property <bool> selected: false;
-    in property <length> row-height: 32px;
+    in property <length> row-height: Theme.menu-row-height;
     callback clicked;
 
     height: root.row-height;

@@ -157,14 +157,14 @@ export component ContextMenu {
 
     pure function main-menu-height() -> length {
         // Row and separator counts are computed rather than measured because
-        // Slint resolves the preferred size of conditional rows to 0; rows are
-        // 32px, separators 9px, vertical padding 4px × 2.
+        // Slint resolves the preferred size of conditional rows to 0; rows use
+        // the shared menu metrics so this stays in step with MenuRow.
         // Separators: the three unconditional (above Delete, above Move to
         // Top, above Bookmark), plus one each for the paste block and Send To.
         let seps = 3
             + (root.has-paste-block ? 1 : 0)
             + root.send-to-row;
-        return root.row-count * 32px + seps * 9px + 8px;
+        return root.row-count * Theme.menu-row-height + seps * Theme.menu-separator-height + Theme.menu-padding * 2;
     }
 
     menu-root := Rectangle {

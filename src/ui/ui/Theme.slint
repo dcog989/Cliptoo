@@ -110,6 +110,11 @@ export global Theme {
     in property <length> border-radius:    6px;
     // Main-window bottom bar (search + filter + hamburger) height.
     in property <length> toolbar-height:   48px;
+    // Popup menu metrics, shared by MenuRow, MenuSeparator and the popup
+    // geometry math so a change to one cannot desync the others.
+    in property <length> menu-row-height:  32px;
+    in property <length> menu-separator-height: 9px;
+    in property <length> menu-padding:     4px;
 
     // ── Timing ────────────────────────────────────────────────────────────────
     in property <duration> anim-fast:       120ms;

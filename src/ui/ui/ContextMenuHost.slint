@@ -340,12 +340,12 @@ export component ContextMenuHost {
 
     // ── Send To submenu popup ───────────────────────────────────────────────
     send-popup := PopupWindow {
-        // Height: Back row + one row per app + a separator. Rows are 32px,
-        // separators 9px, vertical padding 4px × 2.
+        // Size from the menu's own content (the Qt backend still needs an
+        // explicit size, but that size can be the layout's preferred size).
         x: Math.min(root.ctx-menu-x + 24px, root.window-width - (send-menu-root.preferred-width + 4px));
-        y: Math.max(0px, Math.min(root.ctx-menu-anchor-y, root.window-height - (((1 + root.send-to-apps.length) * 32px) + 9px + 8px)));
+        y: Math.max(0px, Math.min(root.ctx-menu-anchor-y, root.window-height - send-menu-root.preferred-height));
         width: send-menu-root.preferred-width;
-        height: ((1 + root.send-to-apps.length) * 32px) + 9px + 8px;
+        height: send-menu-root.preferred-height;
 
         send-esc-scope := FocusScope {
             width: 100%;
