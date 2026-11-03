@@ -256,6 +256,7 @@ pub async fn refresh_clips(
             ui.set_selected_index(new_idx.map(|i| i as i32).unwrap_or(0));
             model_changed();
             crate::favicon::check_pending_favicons(&ui, &db2, &fd);
+            crate::thumbnail_cache::check_pending_thumbnails(&ui, &db2, &td, &fd);
         });
     }
 }
@@ -351,6 +352,10 @@ pub fn load_more_clips_live(
                 }
             }
             model_changed();
+            // Rows appended by scrolling were never scanned for missing
+            // icons/thumbnails; fetch and generate them now that they are shown.
+            crate::favicon::check_pending_favicons(&ui, &db, &fd);
+            crate::thumbnail_cache::check_pending_thumbnails(&ui, &db, &td, &fd);
         });
         if sent.is_err() {
             pending.store(false, Ordering::Relaxed);

@@ -146,6 +146,7 @@ pub(super) fn setup_setting_commit(
                         // thumbnail generation, and the preview window's Theme
                         // token is updated by apply_theme_to_windows.
                         image_preview_size.store(v, std::sync::atomic::Ordering::Relaxed);
+                        crate::thumbnail_cache::set_preview_max_dim(v);
                         apply_theme_to_windows(&settings_ui, &sw, |t| {
                             t.set_preview_size(v as f32);
                         });

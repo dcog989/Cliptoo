@@ -503,48 +503,6 @@ pub fn search_clips(
     run_search(conn, &sql, &ft, filter, &[&fts_query], limit, offset)
 }
 
-/// One clip that can have a cached thumbnail: id, content hash, raw content,
-/// and clip type.
-pub type ThumbnailSource = (i64, String, String, String);
-
-/// Fetch the next page of clips whose thumbnail files may exist, for rebuilding
-/// the cache after it is cleared. Only `file_image` clips and text/code clips
-/// containing SVG markup can have a thumbnail; every other type never does.
-/// `Content LIKE '%<svg%'` is a cheap prefilter (ASCII case-insensitive);
-/// callers re-check with `is_svg_markup`.
-pub fn thumbnail_sources(
-    conn: &Connection,
-    after_id: i64,
-    limit: i64,
-) -> Result<Vec<ThumbnailSource>> {
-    let mut stmt = conn.prepare_cached(
-        "SELECT Id, ContentHash, Content, ClipType FROM clips
-         WHERE Id > ?1
-           AND (ClipType = ?3
-                OR (ClipType IN (?4, ?5) AND Content LIKE '%<svg%'))
-         ORDER BY Id
-         LIMIT ?2",
-    )?;
-    let rows = stmt.query_map(
-        params![
-            after_id,
-            limit,
-            ClipType::FileImage.as_str(),
-            ClipType::Text.as_str(),
-            ClipType::CodeSnippet.as_str()
-        ],
-        |row| {
-            Ok((
-                row.get::<_, i64>(0)?,
-                row.get::<_, String>(1)?,
-                row.get::<_, String>(2)?,
-                row.get::<_, String>(3)?,
-            ))
-        },
-    )?;
-    rows.map(|r| r.map_err(anyhow::Error::from)).collect()
-}
-
 pub fn get_clip_content(conn: &Connection, id: i64) -> Result<String> {
     let content: Option<String> = conn.query_row(
         "SELECT Content FROM clips WHERE Id = ?1",

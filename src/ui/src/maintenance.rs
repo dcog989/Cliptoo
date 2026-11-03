@@ -127,9 +127,9 @@ pub fn setup_manual_maintenance(
         let settings = maint_settings.clone();
         let ui = maint_ui.clone();
         let settings_win = maint_win.clone();
-        let (max_clips, max_age_days, preview_max_dim) = {
+        let (max_clips, max_age_days) = {
             let s = settings.borrow();
-            (s.max_clips, s.max_age_days, s.hover_image_preview_size)
+            (s.max_clips, s.max_age_days)
         };
         tokio::spawn(async move {
             let result: anyhow::Result<Option<String>> = async {
@@ -157,13 +157,7 @@ pub fn setup_manual_maintenance(
                         let _ = ui.upgrade_in_event_loop(|_| {
                             crate::thumbnail_cache::clear_caches();
                         });
-                        // Thumbnails are derived data: without this they would
-                        // only come back on hover, and never for SVG source
-                        // clips (their thumbnail is written at ingest only).
-                        let rebuilt = rebuild_thumbnails(&db, &td, preview_max_dim).await;
-                        Ok(Some(format!(
-                            "Cleared {removed} cache files, rebuilt {rebuilt} thumbnails"
-                        )))
+                        Ok(Some(format!("Cleared {removed} cache files")))
                     }
                     "deadhead" => {
                         let n = cliptoo_core::maintenance::delete_deadheads(&db).await?;
@@ -291,82 +285,6 @@ pub fn setup_manual_maintenance(
             }
         });
     });
-}
-
-/// Rows fetched per thumbnail-rebuild page. A matching SVG clip can be large,
-/// and its content is held while the page is processed.
-const THUMBNAIL_REBUILD_PAGE_SIZE: i64 = 20;
-
-/// Rebuild the list-cell and preview thumbnails for every clip that can have
-/// them, after "Clear caches" deleted the files. Serialised through the decode
-/// permit like ingest, so a rebuild cannot overlap another decode. Returns how
-/// many were written; failures (e.g. the source image is gone) are logged and
-/// skipped.
-async fn rebuild_thumbnails(
-    db: &Arc<cliptoo_core::db::DbPool>,
-    thumbnails_dir: &std::path::Path,
-    preview_max_dim: u32,
-) -> u64 {
-    let mut rebuilt = 0;
-    let mut after_id = 0;
-    loop {
-        let page = match db
-            .with(|conn| {
-                cliptoo_core::db::queries::thumbnail_sources(
-                    conn,
-                    after_id,
-                    THUMBNAIL_REBUILD_PAGE_SIZE,
-                )
-            })
-            .await
-        {
-            Ok(page) => page,
-            Err(e) => {
-                tracing::error!("rebuild_thumbnails: query failed: {e}");
-                break;
-            }
-        };
-        if page.is_empty() {
-            break;
-        }
-        for (id, hash, content, clip_type) in page {
-            after_id = id;
-            let td = thumbnails_dir.to_path_buf();
-            let _permit = crate::decode_limit::permit().await;
-            let stored = tokio::task::spawn_blocking(move || -> anyhow::Result<bool> {
-                if clip_type == "file_image" {
-                    // A multi-image selection stores one path per line; the
-                    // thumbnail describes the first file, as at ingest.
-                    let path = content.lines().next().unwrap_or(&content);
-                    cliptoo_core::image::store_both_thumbnails_for_file(
-                        &td,
-                        &hash,
-                        std::path::Path::new(path),
-                        preview_max_dim,
-                    )?;
-                    return Ok(true);
-                }
-                if cliptoo_core::content::is_svg_markup(&content) {
-                    cliptoo_core::image::store_both_thumbnails(
-                        &td,
-                        &hash,
-                        &cliptoo_core::image::svg_thumbnail_bytes(&content),
-                        preview_max_dim,
-                    )?;
-                    return Ok(true);
-                }
-                Ok(false)
-            })
-            .await;
-            match stored {
-                Ok(Ok(true)) => rebuilt += 1,
-                Ok(Ok(false)) => {}
-                Ok(Err(e)) => tracing::debug!("rebuild_thumbnails: clip {id}: {e:#}"),
-                Err(e) => tracing::warn!("rebuild_thumbnails: clip {id} task failed: {e}"),
-            }
-        }
-    }
-    rebuilt
 }
 
 #[cfg(test)]

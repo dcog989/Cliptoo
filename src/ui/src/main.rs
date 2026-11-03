@@ -41,6 +41,9 @@ slint::include_modules!();
 async fn main() -> Result<()> {
     let dirs = app_dirs::AppDirs::resolve()?;
     let settings = cliptoo_core::Settings::load(&dirs.settings_path);
+    // Mirror the preview size for list-driven thumbnail generation (see
+    // `thumbnail_cache::check_pending_thumbnails`).
+    thumbnail_cache::set_preview_max_dim(settings.hover_image_preview_size);
     let _log_guard = cliptoo_core::logger::init(&dirs.logs_dir, settings.log_level_filter());
 
     // reqwest is built with `rustls-no-provider`, so it reads the process-wide

@@ -1,8 +1,11 @@
+use slint::ComponentHandle;
 use slint::Image;
 use slint::Model;
 use std::collections::HashSet;
 use std::num::NonZeroUsize;
 use std::path::Path;
+use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::{Mutex, OnceLock};
 
 use cliptoo_core::db::models::ClipData as DbClipData;
 use cliptoo_core::db::models::ClipType;
@@ -222,6 +225,124 @@ thread_local! {
 pub fn clear_caches() {
     THUMB_LRU.with(|lru| lru.borrow_mut().clear());
     FAVICON_LRU.with(|lru| lru.borrow_mut().clear());
+    // Re-allow a generation attempt for every clip, so "Clear caches" rebuilds
+    // the rows on screen even for clips that failed to regenerate before.
+    attempted_thumbnails()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .clear();
+}
+
+/// Logical max dimension for a generated preview thumbnail, mirrored from the
+/// `hover_image_preview_size` setting so list-driven generation can size the
+/// preview without a settings handle.
+static PREVIEW_MAX_DIM: AtomicU32 = AtomicU32::new(300);
+
+pub fn set_preview_max_dim(dim: u32) {
+    PREVIEW_MAX_DIM.store(dim, Ordering::Relaxed);
+}
+
+fn preview_max_dim() -> u32 {
+    PREVIEW_MAX_DIM.load(Ordering::Relaxed)
+}
+
+/// Clip ids whose thumbnail generation was already attempted this session.
+/// Without this, a clip whose source is gone would be decoded again on every
+/// list refresh; `clear_caches` resets it.
+fn attempted_thumbnails() -> &'static Mutex<HashSet<i64>> {
+    static ATTEMPTED: OnceLock<Mutex<HashSet<i64>>> = OnceLock::new();
+    ATTEMPTED.get_or_init(|| Mutex::new(HashSet::new()))
+}
+
+/// Generate the missing thumbnail for every displayed row that can have one:
+/// image clips and SVG source clips. Called after the list model is built or
+/// extended, so a clip regenerates only while it is on screen. Must run on the
+/// UI thread (reads the Slint model); the decode and write happen in the
+/// background.
+pub fn check_pending_thumbnails(
+    ui: &crate::AppWindow,
+    db: &std::sync::Arc<cliptoo_core::db::DbPool>,
+    thumbnails_dir: &Path,
+    favicons_dir: &Path,
+) {
+    let model = ui.get_clips();
+    let mut pending = Vec::new();
+    let mut attempted = attempted_thumbnails()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    for i in 0..model.row_count() {
+        let Some(data) = model.row_data(i) else {
+            continue;
+        };
+        if data.thumbnail_image.size().width != 0 {
+            continue;
+        }
+        let ct = data.clip_type.as_str();
+        let can_have_thumbnail = ct == "file_image"
+            || ((ct == "text" || ct == "code_snippet")
+                && cliptoo_core::content::is_svg_markup(&data.preview_content));
+        if can_have_thumbnail && attempted.insert(data.id as i64) {
+            pending.push(data.id as i64);
+        }
+    }
+    drop(attempted);
+    if pending.is_empty() {
+        return;
+    }
+
+    let max_dim = preview_max_dim();
+    let db = db.clone();
+    let td = thumbnails_dir.to_path_buf();
+    let fd = favicons_dir.to_path_buf();
+    let weak = ui.as_weak();
+    tokio::spawn(async move {
+        let mut written = false;
+        for id in pending {
+            let Ok((content, clip_type, hash)) = db
+                .with(|conn| cliptoo_core::db::queries::get_clip_type_and_content(conn, id))
+                .await
+            else {
+                continue;
+            };
+            let td2 = td.clone();
+            // One decode at a time, like ingest: a hover or another ingest
+            // must not overlap this.
+            let _permit = crate::decode_limit::permit().await;
+            let stored = tokio::task::spawn_blocking(move || -> anyhow::Result<()> {
+                if clip_type == "file_image" {
+                    // A multi-image selection stores one path per line; the
+                    // thumbnail describes the first file, as at ingest.
+                    let path = content.lines().next().unwrap_or(&content);
+                    cliptoo_core::image::store_both_thumbnails_for_file(
+                        &td2,
+                        &hash,
+                        Path::new(path),
+                        max_dim,
+                    )
+                } else if cliptoo_core::content::is_svg_markup(&content) {
+                    cliptoo_core::image::store_both_thumbnails(
+                        &td2,
+                        &hash,
+                        &cliptoo_core::image::svg_thumbnail_bytes(&content),
+                        max_dim,
+                    )
+                } else {
+                    Ok(())
+                }
+            })
+            .await;
+            match stored {
+                Ok(Ok(())) => written = true,
+                Ok(Err(e)) => tracing::debug!("thumbnail rebuild for clip {id}: {e:#}"),
+                Err(e) => tracing::warn!("thumbnail rebuild for clip {id} task failed: {e}"),
+            }
+        }
+        if written {
+            let _ = weak.upgrade_in_event_loop(move |ui| {
+                crate::helpers::refresh_clips_live(&db, &ui.as_weak(), &td, &fd, None);
+            });
+        }
+    });
 }
 
 /// Convert a Vec of DB clips to Slint ClipData, using the thread-local
