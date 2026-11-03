@@ -437,6 +437,7 @@ pub async fn run_listener(
                                 let td2 = thumbnails_dir.clone();
                                 let fd2 = favicons_dir.clone();
                                 std::mem::drop(tokio::spawn(async move {
+                                    let _permit = crate::decode_limit::permit().await;
                                     let store = tokio::task::spawn_blocking(move || {
                                         if let Err(e) = cliptoo_core::image::store_both_thumbnails(
                                             &store_td,
@@ -543,6 +544,7 @@ pub async fn run_listener(
                             let fd2 = favicons_dir.clone();
                             let max_dim = preview_max_dim.clone();
                             std::mem::drop(tokio::spawn(async move {
+                                let _permit = crate::decode_limit::permit().await;
                                 let store = tokio::task::spawn_blocking(move || {
                                     if let Err(e) =
                                         cliptoo_core::image::store_both_thumbnails_for_file(
@@ -610,6 +612,7 @@ pub async fn run_listener(
                         // images, so the whole store-then-insert runs off the
                         // poll loop to keep detecting new copies.
                         std::mem::drop(tokio::spawn(async move {
+                            let _permit = crate::decode_limit::permit().await;
                             let store_hash = hash.clone();
                             let store = tokio::task::spawn_blocking(move || -> Result<()> {
                                 cliptoo_core::image::store_image(&images, &store_hash, &data)?;

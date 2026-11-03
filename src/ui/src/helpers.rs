@@ -224,6 +224,11 @@ pub async fn refresh_clips(
             if model_generation() != generation {
                 return;
             }
+            // The window closed while the query ran. Rebuilding the list would
+            // repopulate a hidden window (and re-decode its thumbnails).
+            if !ui.get_window_visible() {
+                return;
+            }
             if ui.get_search_text().as_str() != query || ui.get_active_filter().as_str() != filter {
                 return;
             }
@@ -253,6 +258,22 @@ pub async fn refresh_clips(
             crate::favicon::check_pending_favicons(&ui, &db2, &fd);
         });
     }
+}
+
+/// Drop every row and every decoded thumbnail/favicon cached for the hidden
+/// window.
+///
+/// The list is rebuilt by `show_window` (`refresh-clips`), so a window sitting
+/// in the tray does not need its rows: keeping up to `max_clips` rows and their
+/// image textures for a list nobody is looking at is the largest piece of idle
+/// UI memory. Bumps the model generation so a refresh that started before the
+/// clear cannot repopulate the hidden list.
+pub fn clear_clip_model(ui: &crate::AppWindow) {
+    ui.set_clips(std::rc::Rc::new(slint::VecModel::<crate::ClipData>::from(Vec::new())).into());
+    ui.set_clips_has_more(false);
+    ui.set_selected_index(0);
+    model_changed();
+    crate::thumbnail_cache::clear_caches();
 }
 
 /// Query one page past the rows the model already holds and append it.

@@ -109,6 +109,20 @@ fn decode_vector_or_jxl(data: &[u8]) -> Result<image::DynamicImage> {
     let jxl = jxl_oxide::JxlImage::builder()
         .read(std::io::Cursor::new(data))
         .map_err(|e| anyhow::anyhow!("jxl-oxide decode: {e}"))?;
+    // The renderer produces an f32 buffer (16 bytes per RGBA pixel), four times
+    // the u8 RGBA budget, so check the declared size before rendering: a small
+    // JXL file can declare a huge canvas, and the raster limits in
+    // `decode_limits` never see it.
+    let (declared_w, declared_h) = (jxl.width(), jxl.height());
+    let render_bytes = u64::from(declared_w)
+        .saturating_mul(u64::from(declared_h))
+        .saturating_mul(16);
+    if declared_w > MAX_DECODE_DIM || declared_h > MAX_DECODE_DIM || render_bytes > MAX_DECODE_ALLOC
+    {
+        return Err(anyhow::anyhow!(
+            "jxl image {declared_w}x{declared_h} exceeds decode limits"
+        ));
+    }
     let render = jxl
         .render_frame(0)
         .map_err(|e| anyhow::anyhow!("jxl render: {e}"))?;

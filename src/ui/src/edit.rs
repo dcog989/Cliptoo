@@ -55,8 +55,20 @@ pub fn setup_edit_window(
     dirs: &crate::app_dirs::AppDirs,
     db: &Arc<cliptoo_core::db::DbPool>,
     tag_prefix: &str,
+    theme_fillers: &crate::theme::ThemeFillers,
 ) -> crate::EditWindow {
     let edit_win = crate::EditWindow::new().expect("EditWindow creation");
+
+    // A lazily created window missed the startup theme fill.
+    let (is_dark, system_accent) = crate::theme::cached_resolved_theme();
+    crate::theme::fill_theme(
+        &edit_win.global::<crate::Theme>(),
+        &settings.borrow(),
+        is_dark,
+        system_accent,
+    );
+    crate::theme::register_edit_theme_filler(theme_fillers, &edit_win.as_weak());
+
     let main_ui = ui.as_weak();
 
     // Save editor size on close.

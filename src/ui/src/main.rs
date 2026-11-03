@@ -13,12 +13,14 @@ mod app_dirs;
 mod autostart;
 mod clipboard;
 mod dbus;
+mod decode_limit;
 mod drag;
 mod edit;
 mod favicon;
 mod helpers;
 mod hotkeys;
 mod instance;
+mod lazy_window;
 mod maintenance;
 mod paste;
 mod positioning;
@@ -141,42 +143,41 @@ async fn main() -> Result<()> {
     // `Theme` global; register them here so a live theme/accent change reaches
     // them too (see theme::ThemeFillers).
     let theme_fillers = theme::new_theme_fillers();
-    let settings_win = settings::setup_settings_window(
+
+    // Settings, About, Edit and QR are built on first use (see lazy_window):
+    // creating them at startup costs their whole scene graph for a window most
+    // sessions never open. Only the main, tray and hover-preview windows exist
+    // here.
+    let settings_slot = lazy_window::LazyWindow::<SettingsWindow>::new();
+    settings::register_settings(
         &ui,
-        &settings,
-        &dirs,
+        &settings_slot,
+        settings.clone(),
+        dirs.clone(),
+        db.clone(),
         hotkey_tx,
         retention_tx,
         blacklist_state.clone(),
         image_preview_size.clone(),
         theme_fillers.clone(),
     );
-    // Slint globals are per-window-instance: the settings window has its own
-    // `Theme` global that must be filled separately from the main window's.
-    theme::fill_theme(
-        &settings_win.global::<crate::Theme>(),
-        &settings.borrow(),
-        is_dark,
-        system_accent,
-    );
-
     // Follow live OS appearance changes (KDE/XDG portal `SettingChanged`).
     settings::theme_apply::watch_system_theme(
         ui.as_weak(),
-        settings_win.as_weak(),
+        settings_slot,
         settings.clone(),
         dirs.favicons_dir.clone(),
         theme_fillers.clone(),
     );
 
-    let about_win = about::setup_about_window(&ui, &dirs, &settings);
-    theme::fill_theme(
-        &about_win.global::<crate::Theme>(),
-        &settings.borrow(),
-        is_dark,
-        system_accent,
+    let about_slot = lazy_window::LazyWindow::<AboutWindow>::new();
+    about::register_about(
+        &ui,
+        &about_slot,
+        dirs.clone(),
+        settings.clone(),
+        theme_fillers.clone(),
     );
-    theme::register_about_theme_filler(&theme_fillers, &about_win.as_weak());
 
     // Standalone hover-preview surface. It is re-parented onto the main window
     // as an input-transparent, focus-less Qt tooltip (see drag.rs) so a preview
@@ -193,8 +194,6 @@ async fn main() -> Result<()> {
     drag::make_tooltip_window(&preview_win, &ui);
     preview::register_preview_window(&preview_win);
 
-    stats_ui::setup_stats(&settings_win, &db, &dirs.db_path);
-
     search::setup_search(&ui, &db, &dirs, &tag_prefix);
 
     search::setup_filter(&ui, &db, &dirs);
@@ -202,36 +201,27 @@ async fn main() -> Result<()> {
     preview::setup_preview(&ui, &preview_win, &db, &dirs, image_preview_size.clone());
     preview::setup_dismiss_preview(&ui, &preview_win);
 
-    let edit_win = edit::setup_edit_window(&ui, &settings, &dirs, &db, &tag_prefix);
-    theme::fill_theme(
-        &edit_win.global::<crate::Theme>(),
-        &settings.borrow(),
-        is_dark,
-        system_accent,
-    );
-    // The editor can stay open while a theme change lands; re-fill its Theme
-    // global too so it doesn't keep the colours from the previous theme.
-    theme::register_edit_theme_filler(&theme_fillers, &edit_win.as_weak());
-
-    let qr_win = crate::QrWindow::new()?;
-    theme::fill_theme(
-        &qr_win.global::<crate::Theme>(),
-        &settings.borrow(),
-        is_dark,
-        system_accent,
-    );
-    theme::register_qr_theme_filler(&theme_fillers, &qr_win.as_weak());
+    let edit_slot = lazy_window::LazyWindow::<EditWindow>::new();
+    let qr_slot = lazy_window::LazyWindow::<QrWindow>::new();
 
     let suppression = Arc::new(paste::PasteSuppressionSet::new());
-    qr::setup_qr(&ui, &qr_win, &db, &suppression);
+    qr::setup_qr(
+        &ui,
+        &qr_slot,
+        &db,
+        &suppression,
+        settings.clone(),
+        theme_fillers.clone(),
+    );
     actions::setup_clip_actions(
         &ui,
-        &edit_win,
+        &edit_slot,
         &db,
         &settings,
         &dirs,
         &suppression,
         &tag_prefix,
+        theme_fillers,
     );
 
     const MAINTENANCE_INTERVAL_SECS: u64 = 6 * 60 * 60;
@@ -243,7 +233,6 @@ async fn main() -> Result<()> {
         retention_rx,
         MAINTENANCE_INTERVAL_SECS,
     );
-    maintenance::setup_manual_maintenance(&ui, &db, &dirs, &settings, &settings_win);
 
     // ── Clipboard listener ─────────────────────────────────────────────
     // Active-window tracker: a resident KWin script keeps a shared cache of

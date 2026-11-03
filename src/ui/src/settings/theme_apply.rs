@@ -142,7 +142,7 @@ pub(super) fn reapply_theme(
 /// a re-resolve reads the current values, so the signal body is not needed.
 pub(crate) fn watch_system_theme(
     main_ui: slint::Weak<crate::AppWindow>,
-    settings_win: slint::Weak<crate::SettingsWindow>,
+    settings_slot: crate::lazy_window::LazyWindow<crate::SettingsWindow>,
     settings: std::rc::Rc<std::cell::RefCell<cliptoo_core::Settings>>,
     favicons_dir: std::path::PathBuf,
     fillers: crate::theme::ThemeFillers,
@@ -173,6 +173,12 @@ pub(crate) fn watch_system_theme(
             // A custom accent with an explicit light/dark mode ignores OS
             // appearance changes; re-resolving would only repeat the same work.
             if snapshot.theme == "System" || snapshot.accent_color.trim().is_empty() {
+                // The settings window may not have been opened yet; a theme
+                // change before that is picked up by its creation-time fill.
+                let settings_win = settings_slot
+                    .get()
+                    .map(|win| win.as_weak())
+                    .unwrap_or_default();
                 reapply_theme(
                     &main_ui,
                     &settings_win,

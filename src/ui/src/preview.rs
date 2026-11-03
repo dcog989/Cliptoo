@@ -289,6 +289,7 @@ fn show_image_preview(ctx: &PreviewContext) {
         tokio::spawn(async move {
             // Decoding, resizing and WebP encoding are blocking; keep them off
             // the async workers that also run the clipboard poll.
+            let _permit = crate::decode_limit::permit().await;
             let _ = tokio::task::spawn_blocking(move || {
                 cliptoo_core::image::store_both_thumbnails_for_file(
                     &store_td,

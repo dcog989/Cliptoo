@@ -169,61 +169,88 @@ fn setup_settings_closing(
 }
 
 /// Show the settings window from the hamburger menu.
-fn setup_menu_open(
-    settings_win: &crate::SettingsWindow,
+fn present_settings(
+    win: &crate::SettingsWindow,
     main_ui: &crate::AppWindow,
     settings: &std::rc::Rc<std::cell::RefCell<cliptoo_core::Settings>>,
 ) {
-    let sw = settings_win.as_weak();
-    let weak_ui = main_ui.as_weak();
-    let settings = settings.clone();
-    main_ui.on_menu_settings(move || {
-        if let Some(win) = sw.upgrade() {
-            let main_height = match weak_ui.upgrade() {
-                Some(ui) => {
-                    // Guard blur-to-tray while the settings window is visible;
-                    // cleared when the settings window closes.
-                    ui.set_settings_open(true);
-                    ui.get_stored_height()
-                }
-                None => win.get_stored_height(),
-            };
-            // Always reopen on the settings page (not a sub-page), regardless
-            // of where the user left off.
-            win.set_on_database_page(false);
-            win.set_on_shortcuts_page(false);
-            // Never adjusted: follow the main window's current height. An
-            // adjusted height is restored from Settings instead.
-            let height = {
-                let s = settings.borrow();
-                if s.settings_window_height_custom {
-                    s.settings_window_height.unwrap_or(main_height as f64) as f32
-                } else {
-                    main_height
-                }
-            };
-            win.set_stored_height(height);
-            win.set_opened_height(height);
-            // preferred-height is shrunk by the WM decorations on Wayland, so
-            // size the window explicitly to open at the stored size.
-            win.window().set_size(slint::LogicalSize {
-                width: win.get_stored_width(),
-                height,
-            });
-            win.show().ok();
-            // Qt's show() doesn't raise a freshly-shown window; after a popup
-            // (context/hamburger menu) closes it can restart under the main
-            // window. Raise+activate so Settings always opens on top.
-            crate::drag::activate_window(&win);
+    // Guard blur-to-tray while the settings window is visible; cleared when the
+    // settings window closes.
+    main_ui.set_settings_open(true);
+    let main_height = main_ui.get_stored_height();
+    // Always reopen on the settings page (not a sub-page), regardless of where
+    // the user left off.
+    win.set_on_database_page(false);
+    win.set_on_shortcuts_page(false);
+    // Never adjusted: follow the main window's current height. An adjusted
+    // height is restored from Settings instead.
+    let height = {
+        let s = settings.borrow();
+        if s.settings_window_height_custom {
+            s.settings_window_height.unwrap_or(main_height as f64) as f32
+        } else {
+            main_height
         }
+    };
+    win.set_stored_height(height);
+    win.set_opened_height(height);
+    // preferred-height is shrunk by the WM decorations on Wayland, so size the
+    // window explicitly to open at the stored size.
+    win.window().set_size(slint::LogicalSize {
+        width: win.get_stored_width(),
+        height,
+    });
+    win.show().ok();
+    // Qt's show() doesn't raise a freshly-shown window; after a popup
+    // (context/hamburger menu) closes it can restart under the main window.
+    // Raise+activate so Settings always opens on top.
+    crate::drag::activate_window(win);
+}
+
+/// Register the Settings open handler. The window itself is built on the first
+/// open, not at startup, so a session that never opens it never pays for it.
+#[allow(clippy::too_many_arguments)]
+pub fn register_settings(
+    ui: &crate::AppWindow,
+    slot: &crate::lazy_window::LazyWindow<crate::SettingsWindow>,
+    settings: std::rc::Rc<std::cell::RefCell<cliptoo_core::Settings>>,
+    dirs: crate::app_dirs::AppDirs,
+    db: std::sync::Arc<cliptoo_core::db::DbPool>,
+    hotkey_tx: tokio::sync::watch::Sender<String>,
+    retention_tx: tokio::sync::watch::Sender<cliptoo_core::maintenance::RetentionConfig>,
+    blacklist_state: std::sync::Arc<std::sync::Mutex<Vec<String>>>,
+    image_preview_size: std::sync::Arc<std::sync::atomic::AtomicU32>,
+    theme_fillers: crate::theme::ThemeFillers,
+) {
+    let weak_ui = ui.as_weak();
+    let slot = slot.clone();
+    ui.on_menu_settings(move || {
+        let Some(ui) = weak_ui.upgrade() else {
+            return;
+        };
+        let win = slot.get_or_create(|| {
+            create_settings_window(
+                &ui,
+                &settings,
+                &dirs,
+                &db,
+                hotkey_tx.clone(),
+                retention_tx.clone(),
+                blacklist_state.clone(),
+                image_preview_size.clone(),
+                theme_fillers.clone(),
+            )
+        });
+        present_settings(&win, &ui, &settings);
     });
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn setup_settings_window(
+fn create_settings_window(
     ui: &crate::AppWindow,
     settings: &std::rc::Rc<std::cell::RefCell<cliptoo_core::Settings>>,
     dirs: &crate::app_dirs::AppDirs,
+    db: &std::sync::Arc<cliptoo_core::db::DbPool>,
     hotkey_tx: tokio::sync::watch::Sender<String>,
     retention_tx: tokio::sync::watch::Sender<cliptoo_core::maintenance::RetentionConfig>,
     blacklist_state: std::sync::Arc<std::sync::Mutex<Vec<String>>>,
@@ -231,6 +258,16 @@ pub fn setup_settings_window(
     theme_fillers: crate::theme::ThemeFillers,
 ) -> crate::SettingsWindow {
     let settings_win = crate::SettingsWindow::new().expect("SettingsWindow creation");
+
+    // A lazily created window missed the startup theme fill; fill it before any
+    // handler reads a token.
+    let (is_dark, system_accent) = crate::theme::cached_resolved_theme();
+    crate::theme::fill_theme(
+        &settings_win.global::<crate::Theme>(),
+        &settings.borrow(),
+        is_dark,
+        system_accent,
+    );
 
     setup_close_persistence(&settings_win, ui, settings, &dirs.settings_path);
     init_settings_properties(&settings_win, settings, &dirs.settings_path);
@@ -264,7 +301,10 @@ pub fn setup_settings_window(
         image_preview_size,
         theme_fillers,
     );
-    setup_menu_open(&settings_win, ui, settings);
+    // Registered here, not at startup: both only forward actions from this
+    // window, which cannot exist before it does.
+    crate::stats_ui::setup_stats(&settings_win, db, &dirs.db_path);
+    crate::maintenance::setup_manual_maintenance(ui, db, dirs, settings, &settings_win);
 
     settings_win
 }

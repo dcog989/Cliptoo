@@ -48,12 +48,13 @@ impl ClipDeps {
 
 pub fn setup_clip_actions(
     ui: &crate::AppWindow,
-    edit_win: &crate::EditWindow,
+    edit_slot: &crate::lazy_window::LazyWindow<crate::EditWindow>,
     db: &Arc<cliptoo_core::db::DbPool>,
     settings: &std::rc::Rc<std::cell::RefCell<cliptoo_core::Settings>>,
     dirs: &crate::app_dirs::AppDirs,
     suppression: &Arc<crate::paste::PasteSuppressionSet>,
     tag_prefix: &str,
+    theme_fillers: crate::theme::ThemeFillers,
 ) {
     let tag_prefix = tag_prefix.to_string();
 
@@ -216,13 +217,30 @@ pub fn setup_clip_actions(
 
     // ── Edit clip (from context menu) ───────────────────────────────────
     {
-        let ctx_edit_win = edit_win.as_weak();
+        let ctx_edit_win = edit_slot.clone();
         let ctx_edit_settings = settings.clone();
+        let ctx_edit_dirs = dirs.clone();
         let ctx_edit_db = db.clone();
         let ctx_edit_ui = ui.as_weak();
+        let ctx_edit_fillers = theme_fillers.clone();
+        let ctx_edit_prefix = tag_prefix.clone();
         ui.on_edit_clip(move |id: i32| {
+            let Some(ui_now) = ctx_edit_ui.upgrade() else {
+                return;
+            };
+            // Build the editor on the first Edit: most sessions never open it.
+            let edit_win = ctx_edit_win.get_or_create(|| {
+                crate::edit::setup_edit_window(
+                    &ui_now,
+                    &ctx_edit_settings,
+                    &ctx_edit_dirs,
+                    &ctx_edit_db,
+                    &ctx_edit_prefix,
+                    &ctx_edit_fillers,
+                )
+            });
             let db = ctx_edit_db.clone();
-            let edit = ctx_edit_win.clone();
+            let edit = edit_win.as_weak();
             let ui = ctx_edit_ui.clone();
             let (edit_w, edit_h) = {
                 let s = ctx_edit_settings.borrow();

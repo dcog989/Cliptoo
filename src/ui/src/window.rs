@@ -12,16 +12,18 @@ pub fn hide_window(ui: &crate::AppWindow) {
     ui.set_window_visible(false);
     // Closing to tray clears any active search so the next show() reopens the
     // results for the current type filter rather than a stale search result set
-    // with an empty search box.
-    if !ui.get_search_text().is_empty() {
-        ui.set_search_text("".into());
-        ui.invoke_search_changed("".into());
-    }
+    // with an empty search box. Set it directly: invoking `search-changed`
+    // would run a query 120 ms later for a window nobody can see.
+    ui.set_is_searching(false);
+    ui.set_search_text("".into());
     // Dismiss a showing hover preview: the preview is its own top-level window
     // and would otherwise reappear orphaned on the next show() with no cursor
     // under it to ever dismiss it. Hide it before the main window so the
     // tooltip doesn't linger over the desktop after the main window is gone.
     crate::preview::hide_preview();
+    // The list is rebuilt on show; holding its rows and decoded images while
+    // hidden is the biggest idle UI allocation.
+    crate::helpers::clear_clip_model(ui);
     let _ = ComponentHandle::hide(ui);
 }
 

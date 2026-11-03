@@ -2,12 +2,68 @@
 use slint::{ComponentHandle, SharedString};
 use std::time::Duration;
 
-pub fn setup_about_window(
+/// Register the About open handler. The window itself is built on the first
+/// open, not at startup.
+pub fn register_about(
+    ui: &crate::AppWindow,
+    slot: &crate::lazy_window::LazyWindow<crate::AboutWindow>,
+    dirs: crate::app_dirs::AppDirs,
+    settings: std::rc::Rc<std::cell::RefCell<cliptoo_core::Settings>>,
+    theme_fillers: crate::theme::ThemeFillers,
+) {
+    let weak_ui = ui.as_weak();
+    let slot = slot.clone();
+    ui.on_menu_about(move || {
+        let Some(ui) = weak_ui.upgrade() else {
+            return;
+        };
+        let win = slot.get_or_create(|| create_about_window(&ui, &dirs, &settings, &theme_fillers));
+        present_about(&win, &ui);
+    });
+}
+
+/// Show the About window from the hamburger menu.
+fn present_about(about_win: &crate::AboutWindow, main_ui: &crate::AppWindow) {
+    main_ui.set_about_open(true);
+    // preferred-* alone doesn't size the window reliably on Wayland/Qt (same
+    // reason settings.rs uses set_size), so force the size measured from the
+    // content, paths included.
+    let w = about_win.get_content_width().max(340.0);
+    let h = about_win.get_content_height().max(280.0);
+    about_win.window().set_size(slint::LogicalSize {
+        width: w,
+        height: h,
+    });
+    let _ = about_win.show();
+    // Qt's show() doesn't raise; after the hamburger popup closes the About
+    // window can land under the main window. Defer the raise so the popup has
+    // time to recede.
+    let aw = about_win.as_weak();
+    slint::Timer::single_shot(Duration::from_millis(100), move || {
+        if let Some(win) = aw.upgrade() {
+            crate::drag::activate_window(&win);
+        }
+    });
+}
+
+fn create_about_window(
     ui: &crate::AppWindow,
     dirs: &crate::app_dirs::AppDirs,
     settings: &std::rc::Rc<std::cell::RefCell<cliptoo_core::Settings>>,
+    theme_fillers: &crate::theme::ThemeFillers,
 ) -> crate::AboutWindow {
     let about_win = crate::AboutWindow::new().expect("AboutWindow creation");
+
+    // A lazily created window missed the startup theme fill.
+    let (is_dark, system_accent) = crate::theme::cached_resolved_theme();
+    crate::theme::fill_theme(
+        &about_win.global::<crate::Theme>(),
+        &settings.borrow(),
+        is_dark,
+        system_accent,
+    );
+    crate::theme::register_about_theme_filler(theme_fillers, &about_win.as_weak());
+
     about_win.set_version(env!("CARGO_PKG_VERSION").into());
     about_win.set_install_path(install_dir().into());
     about_win.set_config_path(dirs.config_dir.display().to_string().into());
@@ -81,38 +137,6 @@ pub fn setup_about_window(
         about_win.on_about_closing(move || {
             if let Some(ui) = main_ui.upgrade() {
                 ui.set_about_open(false);
-            }
-        });
-    }
-
-    // Show the About window from the hamburger menu.
-    {
-        let aw = about_win.as_weak();
-        let main_ui = ui.as_weak();
-        ui.on_menu_about(move || {
-            if let Some(ui) = main_ui.upgrade() {
-                ui.set_about_open(true);
-            }
-            if let Some(win) = aw.upgrade() {
-                // preferred-* alone doesn't size the window reliably on
-                // Wayland/Qt (same reason settings.rs uses set_size), so force
-                // the size measured from the content, paths included.
-                let w = win.get_content_width().max(340.0);
-                let h = win.get_content_height().max(280.0);
-                win.window().set_size(slint::LogicalSize {
-                    width: w,
-                    height: h,
-                });
-                let _ = win.show();
-                // Qt's show() doesn't raise; after the hamburger popup closes
-                // the About window can land under the main window.  Defer the
-                // raise so the popup has time to recede.
-                let aw = aw.clone();
-                slint::Timer::single_shot(Duration::from_millis(100), move || {
-                    if let Some(win) = aw.upgrade() {
-                        crate::drag::activate_window(&win);
-                    }
-                });
             }
         });
     }

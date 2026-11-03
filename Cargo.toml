@@ -72,3 +72,7 @@ opt-level = 3
 # No debuginfo either way; the 118k-entry symbol table only adds package weight.
 # Release panic traces are address-only once stripped.
 strip = "symbols"
+# One codegen unit lets LTO drop unreachable generic instantiations, shrinking
+# the 45 MB text section (resident code pages) and the package.
+lto = true
+codegen-units = 1

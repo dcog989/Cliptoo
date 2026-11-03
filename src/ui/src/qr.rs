@@ -20,10 +20,84 @@ const RAISE_DELAY: Duration = Duration::from_millis(100);
 
 pub fn setup_qr(
     ui: &crate::AppWindow,
-    qr_win: &crate::QrWindow,
+    qr_slot: &crate::lazy_window::LazyWindow<crate::QrWindow>,
     db: &Arc<cliptoo_core::db::DbPool>,
     suppression: &Arc<PasteSuppressionSet>,
+    settings: std::rc::Rc<std::cell::RefCell<cliptoo_core::Settings>>,
+    theme_fillers: crate::theme::ThemeFillers,
 ) {
+    let main_ui = ui.as_weak();
+    let qr_slot = qr_slot.clone();
+    let db = db.clone();
+    let suppression = suppression.clone();
+    ui.on_decode_qr(move |id: i32| {
+        let Some(ui_now) = main_ui.upgrade() else {
+            return;
+        };
+        // Build the result window on the first QR request: most sessions never
+        // decode one, so it does not exist at startup.
+        let qr_win = qr_slot
+            .get_or_create(|| create_qr_window(&ui_now, &settings, &suppression, &theme_fillers));
+        let main_ui = ui_now.as_weak();
+        let qr_win = qr_win.as_weak();
+        let db = db.clone();
+        tokio::spawn(async move {
+            let row = db
+                .with(|conn| cliptoo_core::db::queries::get_clip_type_and_content(conn, id as i64))
+                .await;
+            let Ok((content, clip_type, _hash)) = row else {
+                return;
+            };
+            if clip_type != "file_image" {
+                return;
+            }
+            let decoded = tokio::task::spawn_blocking(move || {
+                // A multi-selection image clip stores one path per line; decode
+                // the first file.
+                let first = content.lines().next().unwrap_or(&content);
+                cliptoo_core::qr::decode_path(std::path::Path::new(first))
+            })
+            .await;
+            let (codes, error) = match decoded {
+                Ok(Ok(codes)) => (codes, None),
+                Ok(Err(e)) => (Vec::new(), Some(format!("{e:#}"))),
+                Err(e) => (Vec::new(), Some(format!("QR decode task failed: {e}"))),
+            };
+            let _ = main_ui.upgrade_in_event_loop(move |ui| {
+                if let Some(error) = error {
+                    tracing::warn!("QR decode failed: {error}");
+                    crate::actions::show_main_toast(&ui, "Could not decode this image", "error");
+                    return;
+                }
+                if codes.is_empty() {
+                    crate::actions::show_main_toast(&ui, "No QR code found", "info");
+                    return;
+                }
+                show_results(&ui, &qr_win, codes);
+            });
+        });
+    });
+}
+
+/// Wire the window's own callbacks and theme. Runs once, on the first decode.
+fn create_qr_window(
+    ui: &crate::AppWindow,
+    settings: &std::rc::Rc<std::cell::RefCell<cliptoo_core::Settings>>,
+    suppression: &Arc<PasteSuppressionSet>,
+    theme_fillers: &crate::theme::ThemeFillers,
+) -> crate::QrWindow {
+    let qr_win = crate::QrWindow::new().expect("QrWindow creation");
+
+    // A lazily created window missed the startup theme fill.
+    let (is_dark, system_accent) = crate::theme::cached_resolved_theme();
+    crate::theme::fill_theme(
+        &qr_win.global::<crate::Theme>(),
+        &settings.borrow(),
+        is_dark,
+        system_accent,
+    );
+    crate::theme::register_qr_theme_filler(theme_fillers, &qr_win.as_weak());
+
     // Escape and the Close button both route through `closing`, so this is the
     // one place that clears the blur-to-tray guard.
     {
@@ -68,49 +142,7 @@ pub fn setup_qr(
         }
     });
 
-    let main_ui = ui.as_weak();
-    let qr_win = qr_win.as_weak();
-    let db = db.clone();
-    ui.on_decode_qr(move |id: i32| {
-        let main_ui = main_ui.clone();
-        let qr_win = qr_win.clone();
-        let db = db.clone();
-        tokio::spawn(async move {
-            let row = db
-                .with(|conn| cliptoo_core::db::queries::get_clip_type_and_content(conn, id as i64))
-                .await;
-            let Ok((content, clip_type, _hash)) = row else {
-                return;
-            };
-            if clip_type != "file_image" {
-                return;
-            }
-            let decoded = tokio::task::spawn_blocking(move || {
-                // A multi-selection image clip stores one path per line; decode
-                // the first file.
-                let first = content.lines().next().unwrap_or(&content);
-                cliptoo_core::qr::decode_path(std::path::Path::new(first))
-            })
-            .await;
-            let (codes, error) = match decoded {
-                Ok(Ok(codes)) => (codes, None),
-                Ok(Err(e)) => (Vec::new(), Some(format!("{e:#}"))),
-                Err(e) => (Vec::new(), Some(format!("QR decode task failed: {e}"))),
-            };
-            let _ = main_ui.upgrade_in_event_loop(move |ui| {
-                if let Some(error) = error {
-                    tracing::warn!("QR decode failed: {error}");
-                    crate::actions::show_main_toast(&ui, "Could not decode this image", "error");
-                    return;
-                }
-                if codes.is_empty() {
-                    crate::actions::show_main_toast(&ui, "No QR code found", "info");
-                    return;
-                }
-                show_results(&ui, &qr_win, codes);
-            });
-        });
-    });
+    qr_win
 }
 
 fn show_results(

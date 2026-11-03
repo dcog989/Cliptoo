@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 ///   state   (~/.local/state/Cliptoo/) — logs
 ///   data    (~/.local/share/Cliptoo/) — clip history DB, full-resolution images
 ///   cache   (~/.cache/Cliptoo/)       — thumbnails, favicons (regenerable)
+#[derive(Clone)]
 pub struct AppDirs {
     pub config_dir: PathBuf,
     pub data_dir: PathBuf,
