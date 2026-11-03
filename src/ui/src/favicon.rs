@@ -487,6 +487,16 @@ fn attempted_favicon_domains() -> &'static Mutex<HashSet<String>> {
     ATTEMPTED.get_or_init(|| Mutex::new(HashSet::new()))
 }
 
+/// Forget every per-session dispatch, so "Clear caches" can re-fetch icons for
+/// domains already attempted in this run. Without this the reset failure ledger
+/// has no effect until a restart.
+pub fn reset_attempted_domains() {
+    attempted_favicon_domains()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .clear();
+}
+
 /// A clip stops being fetched after this many failed favicon attempts. The
 /// ledger is persistent and only reset by the "Clear caches" maintenance
 /// action, so a domain with no obtainable favicon costs at most a handful of

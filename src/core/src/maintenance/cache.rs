@@ -203,9 +203,33 @@ pub async fn prune_cache(
     Ok(pruned)
 }
 
+/// Delete every cache file in `thumbnails_dir` and `favicons_dir`, including
+/// those belonging to live clips, so the next render or fetch rebuilds them.
+/// Bookkeeping dotfiles (e.g. `.preview_ratio`) are kept: dropping the marker
+/// would make the next launch wipe the previews this clear is about to
+/// rebuild. The full-resolution image store is clip data, not cache, and is
+/// never touched. Returns the number of files removed.
+pub async fn clear_cache_files(thumbnails_dir: &Path, favicons_dir: &Path) -> u64 {
+    let mut removed = 0;
+    for dir in [thumbnails_dir, favicons_dir] {
+        let Ok(mut entries) = tokio::fs::read_dir(dir).await else {
+            continue;
+        };
+        while let Ok(Some(entry)) = entries.next_entry().await {
+            if entry.file_name().to_string_lossy().starts_with('.') {
+                continue;
+            }
+            if tokio::fs::remove_file(entry.path()).await.is_ok() {
+                removed += 1;
+            }
+        }
+    }
+    removed
+}
+
 #[cfg(test)]
 mod tests {
-    use super::favicon_is_orphan;
+    use super::{clear_cache_files, favicon_is_orphan};
     use std::collections::HashSet;
 
     /// `known` holds link domains plus 16-char URL-hash stems.
@@ -243,5 +267,40 @@ mod tests {
         let set = known(&["dark.dark"]);
         assert!(!favicon_is_orphan("dark.dark.webp", &set));
         assert!(!favicon_is_orphan("dark.dark.dark.webp", &set));
+    }
+
+    #[tokio::test]
+    async fn clear_cache_files_removes_live_and_orphan_files_but_keeps_bookkeeping() {
+        let root = std::env::temp_dir().join(format!("cliptoo_clear_cache_{}", std::process::id()));
+        let td = root.join("thumbnails");
+        let fd = root.join("favicons");
+        std::fs::create_dir_all(td.join("nested")).unwrap();
+        std::fs::create_dir_all(&fd).unwrap();
+        for name in [
+            "0123456789abcdef.webp",
+            "0123456789abcdef_preview.webp",
+            ".preview_ratio",
+        ] {
+            std::fs::write(td.join(name), b"x").unwrap();
+        }
+        std::fs::write(fd.join("example.com.webp"), b"x").unwrap();
+        std::fs::write(fd.join("0123456789abcdef.title"), b"x").unwrap();
+
+        let removed = clear_cache_files(&td, &fd).await;
+
+        assert_eq!(removed, 4);
+        assert!(
+            td.join(".preview_ratio").is_file(),
+            "the ratio marker must survive"
+        );
+        assert!(
+            td.join("nested").is_dir(),
+            "subdirectories are not cache files"
+        );
+        assert!(!td.join("0123456789abcdef.webp").exists());
+        assert!(!fd.join("example.com.webp").exists());
+        assert!(!fd.join("0123456789abcdef.title").exists());
+
+        let _ = std::fs::remove_dir_all(&root);
     }
 }

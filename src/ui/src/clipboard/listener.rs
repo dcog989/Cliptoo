@@ -428,7 +428,8 @@ pub async fn run_listener(
                                 // Rasterise + write the thumbnail before the
                                 // refresh so the list isn't rebuilt (and the
                                 // empty image cached) ahead of the files.
-                                let svg_data = svg_thumbnail_source(&classified.content);
+                                let svg_data =
+                                    cliptoo_core::image::svg_thumbnail_bytes(&classified.content);
                                 let thumb_hash = classified.content_hash.clone();
                                 let store_td = thumbnails_dir.clone();
                                 let max_dim = preview_max_dim.clone();
@@ -736,21 +737,6 @@ async fn insert_clip_with_stat(
         Ok(inserted)
     })
     .await
-}
-
-/// Fill for `currentColor` when rasterising an SVG source clip into a
-/// thumbnail. usvg resolves `currentColor` to black (the SVG initial value),
-/// which is invisible against the list's dark row background; a mid-grey is
-/// legible on both light and dark themes.
-const SVG_CURRENT_COLOR_FALLBACK: &str = "#888888";
-
-/// Bytes to feed the SVG rasteriser for a source clip's thumbnail. Only the
-/// rendering copy substitutes `currentColor` (see
-/// [`SVG_CURRENT_COLOR_FALLBACK`]); the stored clip content keeps the original
-/// markup so a paste re-offers it unchanged.
-fn svg_thumbnail_source(svg: &str) -> Vec<u8> {
-    svg.replace("currentColor", SVG_CURRENT_COLOR_FALLBACK)
-        .into_bytes()
 }
 
 /// Whether a payload found during the startup baseline covers the whole

@@ -47,6 +47,20 @@ const UNDECODABLE_IMAGE_EXTS: &[&str] = &["psd", "xcf", "raw", "arw", "cr2", "ne
 /// so Slint can render them natively at any size.
 const SVG_RENDER_SIZE: u32 = 1024;
 
+/// Fill for `currentColor` when rasterising an SVG source clip into a
+/// thumbnail. usvg resolves `currentColor` to black (the SVG initial value),
+/// which is invisible against the list's dark row background; a mid-grey is
+/// legible on both light and dark themes.
+const SVG_CURRENT_COLOR_FALLBACK: &str = "#888888";
+
+/// Bytes to feed the SVG rasteriser for a source clip's thumbnail. Only the
+/// rendering copy substitutes `currentColor`; the stored clip content keeps
+/// the original markup so a paste re-offers it unchanged.
+pub fn svg_thumbnail_bytes(svg: &str) -> Vec<u8> {
+    svg.replace("currentColor", SVG_CURRENT_COLOR_FALLBACK)
+        .into_bytes()
+}
+
 // ── Directory layout ──────────────────────────────────────────────────────────
 //
 // Full-resolution clipboard images are stored as PNG under `images_dir`:

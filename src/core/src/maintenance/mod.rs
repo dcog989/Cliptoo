@@ -17,7 +17,7 @@ mod deadhead;
 mod reclassify;
 mod retention;
 
-pub use cache::prune_cache;
+pub use cache::{clear_cache_files, prune_cache};
 pub use deadhead::{deadhead_collect, delete_deadheads, mark_deadheads};
 pub use reclassify::reclassify_all;
 pub use retention::{RetentionConfig, clear_history, retention};
