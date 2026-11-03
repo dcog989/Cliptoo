@@ -10,7 +10,9 @@ export component SettingsRow {
     in property <string> tooltip-text;
     in property <bool> fill: false;
 
-    height: 32px;
+    // No fixed height: every row's InputBox is 28px, and letting the row follow
+    // its content keeps wrapper rows and direct SettingsRow rows the same height.
+    // A height set here does not propagate through the wrapper components' roots.
     // Fill the host row's width: as a child of a non-layout component root
     // (the row), an implicit-size custom component would otherwise be centered
     // at its preferred width instead of stretching across the row.
