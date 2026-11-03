@@ -2,7 +2,7 @@
 name = "cliptoo"
 version.workspace = true
 edition.workspace = true
-description = "Cliptoo — native clipboard manager for KDE Plasma 6 / Wayland"
+description = "Cliptoo — a native Linux KDE clipboard manager"
 license.workspace = true
 
 # ── cargo-deb metadata ─────────────────────────────────────────────────────────
@@ -16,9 +16,7 @@ assets = [
   ["../../packaging/cliptoo.desktop", "usr/share/applications/", "644"],
   ["assets/cliptoo.svg", "usr/share/icons/hicolor/scalable/apps/", "644"],
 ]
-extended-description = """Cliptoo is a native, background-running clipboard manager for Linux
-desktop environments (KDE Plasma 6 / Wayland).  It captures, parses, and indexes
-clipboard data with a target memory footprint under 20 MB."""
+extended-description = """Cliptoo is an advanced clipboard manager for Linux KDE desktop."""
 
 # ── cargo-generate-rpm metadata ────────────────────────────────────────────────
 [package.metadata.generate-rpm]
