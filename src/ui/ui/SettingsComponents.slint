@@ -73,14 +73,26 @@ export component StepperButton inherits Rectangle {
     out property <bool> hovered: touch.has-hover;
 
     min-width: 24px;
-    // Fill the field's interior (28px field, minus 1px border top and bottom)
-    // so the hover fill never covers the field outline.
+    // Fill the field's interior (28px field, minus 1px border top and bottom).
+    // The fill is inset so it cannot touch the field outline.
     height: 26px;
     border-radius: 4px;
-    background: touch.has-hover || step-focus.has-focus ? Theme.bg-row-hover : transparent;
     border-width: step-focus.has-focus ? 1px : 0px;
     border-color: Theme.accent-primary;
-    animate background { duration: Theme.anim-fast; }
+
+    Rectangle {
+        x: 1px;
+        y: 1px;
+        width: parent.width - 2px;
+        height: parent.height - 2px;
+        border-radius: 3px;
+        background: root.hovered
+            ? Theme.accent-fill.mix(Theme.bg-input, 0.45)
+            : step-focus.has-focus
+            ? Theme.bg-row-hover
+            : transparent;
+        animate background { duration: Theme.anim-fast; }
+    }
 
     accessible-role: button;
     accessible-label: root.action-label != "" ? root.action-label : root.text;
@@ -284,7 +296,7 @@ export component IntRow {
         tooltip-text: root.tooltip-text;
 
         InputBox {
-            hover: int-body.prev-hover || int-body.next-hover;
+            hot: int-body.prev-hover || int-body.next-hover;
 
             int-body := StepperRowBody {
                 step-back() => {
@@ -321,7 +333,7 @@ export component FloatRow {
         tooltip-text: root.tooltip-text;
 
         InputBox {
-            hover: float-body.prev-hover || float-body.next-hover;
+            hot: float-body.prev-hover || float-body.next-hover;
 
             float-body := StepperRowBody {
                 step-back() => {
@@ -474,7 +486,7 @@ export component DropRow {
         tooltip-text: root.tooltip-text;
 
         InputBox {
-            hover: drop-body.prev-hover || drop-body.next-hover;
+            hot: drop-body.prev-hover || drop-body.next-hover;
 
             drop-body := StepperRowBody {
                 leading-glyph: "‹";
