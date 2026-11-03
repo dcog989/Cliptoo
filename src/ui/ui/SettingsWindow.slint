@@ -8,7 +8,7 @@ import { SettingsHeader } from "SettingsHeader.slint";
 import { SettingsPage } from "SettingsPage.slint";
 import { ShortcutsPage } from "ShortcutsPage.slint";
 import { DatabasePage } from "DatabasePage.slint";
-import { ToastNotification } from "ToastNotification.slint";
+import { ToastHost } from "ToastNotification.slint";
 
 export component SettingsWindow inherits Window {
     title: @tr("Cliptoo Settings");
@@ -142,18 +142,10 @@ export component SettingsWindow inherits Window {
     }
 
     // ── Toast notification overlay ─────────────────────────────────────
-    ToastNotification {
-        // Bounded width is required: an absolute instance has no layout to
-        // stretch it, so without an explicit width it collapses (and long
-        // messages would otherwise never wrap).
-        width: Math.min(320px, root.width - 40px);
-        x: (root.width - self.width) / 2;
-        y: root.height - self.height - 16px;
+    ToastHost {
+        bottom-offset: 16px;
         message: root.toast-message;
         severity: root.toast-severity;
         active <=> root.toast-visible;
-        dismissed => {
-            root.toast-visible = false;
-        }
     }
 }

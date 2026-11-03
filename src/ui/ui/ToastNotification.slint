@@ -95,3 +95,24 @@ export component ToastNotification {
         }
     }
 }
+
+// Shared toast placement for every window: centered horizontally, `bottom-offset`
+// above the window's bottom edge. Consumers only supply the message/severity.
+export component ToastHost {
+    in property <length> bottom-offset: 16px;
+    in property <string> message;
+    in property <string> severity: "info";
+    in-out property <bool> active: false;
+
+    width: 100%;
+    height: 100%;
+
+    toast := ToastNotification {
+        width: Math.min(320px, root.width - 40px);
+        x: (root.width - self.width) / 2;
+        y: root.height - root.bottom-offset - self.height;
+        message: root.message;
+        severity: root.severity;
+        active <=> root.active;
+    }
+}

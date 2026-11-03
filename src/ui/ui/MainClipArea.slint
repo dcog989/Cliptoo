@@ -44,6 +44,10 @@ export component MainClipArea inherits Rectangle {
     // the focus restore from the closing popup does not dismiss the request.
     in-out property <bool> menu-preview-pending: false;
 
+    // Window-space anchor of the hamburger button, forwarded to the menu host.
+    out property <length> menu-anchor-x: toolbar.menu-anchor-x;
+    out property <length> menu-anchor-y: toolbar.menu-anchor-y;
+
     in-out property <int> selected-index: 0;  // reset by Rust on search/filter change
     in-out property <string> search-text: "";
     in-out property <string> active-filter: "all";

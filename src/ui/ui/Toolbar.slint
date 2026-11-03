@@ -44,6 +44,10 @@ export component Toolbar {
     property <string> filter-tooltip: @tr("Filter: {}", root.filter-label);
 
     out property <bool> search-focused: search-input.has-focus;
+    // Window-space top-right corner of the hamburger button, so its popup does
+    // not have to re-derive the toolbar's padding.
+    out property <length> menu-anchor-x: hamburger-button.absolute-position.x + hamburger-button.width;
+    out property <length> menu-anchor-y: hamburger-button.absolute-position.y;
 
     // Report focus transitions on the search field. MainClipArea uses the
     // gain edge to dismiss a manually-invoked preview lingering over the
@@ -277,7 +281,7 @@ export component Toolbar {
             }
 
             // ── Hamburger menu [5] (settings, about, ...) ─────────
-            Rectangle {
+            hamburger-button := Rectangle {
                 horizontal-stretch: 0;
                 width: 32px;
                 height: 32px;
