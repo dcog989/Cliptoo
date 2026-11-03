@@ -226,9 +226,13 @@ export component ClipItem {
             }
 
             // ── Column 2: leading-whitespace + content snippet + bookmark ─────────
-            Rectangle {
+            text-col := Rectangle {
                 horizontal-stretch: 1;
                 clip: true;
+                // Text geometry shared by the plain, strikethrough and
+                // highlighted-span paths, so all three reserve the same slots.
+                property <length> text-x: clip-data.has-leading-whitespace ? 22px : 0px;
+                property <length> text-width: text-col.width - text-col.text-x - (clip-data.is-bookmarked ? 22px : 0px);
 
                 // Leading whitespace indicator
                 if clip-data.has-leading-whitespace: Image {
@@ -247,8 +251,8 @@ export component ClipItem {
                 // against its laid-out width to detect elision.
                 preview-text := Text {
                     visible: !root.is-searching || clip-data.match-context == "";
-                    x: clip-data.has-leading-whitespace ? 22px : 0px;
-                    width: parent.width - self.x - (clip-data.is-bookmarked ? 22px : 0px);
+                    x: text-col.text-x;
+                    width: text-col.text-width;
                     height: 100%;
                     text: clip-data.preview-content;
                     font-family: Theme.font-family;
@@ -261,8 +265,8 @@ export component ClipItem {
 
                 // Strikethrough overlay for deadhead file clips
                 if clip-data.is-deadhead && (!root.is-searching || clip-data.match-context == ""): Rectangle {
-                    x: clip-data.has-leading-whitespace ? 22px : 0px;
-                    width: parent.width - self.x - (clip-data.is-bookmarked ? 22px : 0px);
+                    x: text-col.text-x;
+                    width: text-col.text-width;
                     y: (parent.height / 2) - 0.5px;
                     height: 1px;
                     background: Theme.fg-muted;
@@ -276,8 +280,8 @@ export component ClipItem {
                 // layout cannot squeeze it and would otherwise bleed past the
                 // bookmark icon's reserved zone and overlap the icon.
                 if root.is-searching && clip-data.match-context != "": Rectangle {
-                    x: clip-data.has-leading-whitespace ? 22px : 0px;
-                    width: parent.width - self.x - (clip-data.is-bookmarked ? 22px : 0px);
+                    x: text-col.text-x;
+                    width: text-col.text-width;
                     height: 100%;
                     clip: true;
                     HorizontalLayout {
@@ -307,7 +311,7 @@ export component ClipItem {
                 if clip-data.is-bookmarked: Image {
                     source: @image-url("icons/bookmark.svg");
                     colorize: Theme.fg-bookmarked;
-                    x: parent.width - 18px;
+                    x: text-col.width - 18px;
                     y: (parent.height - 18px) / 2;
                     width: 18px;
                     height: 18px;

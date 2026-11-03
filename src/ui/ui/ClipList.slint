@@ -211,12 +211,18 @@ export component ClipList {
         }
     }
 
+    // Window-space Y of a row's top edge. Shared by pointer callbacks and the
+    // context menu anchor so they cannot drift apart.
+    pure function row-y(idx: int) -> float {
+        return (root.list-padding / 1px)
+            + (idx * Theme.row-height / 1px)
+            + (list-view.content-y / 1px);
+    }
+
     // Window-space Y of the selected row, for anchoring the context menu when
     // it is opened from the keyboard.
     public function selected-row-y() -> float {
-        return (root.list-padding / 1px)
-            + (root.selected-index * Theme.row-height / 1px)
-            + (list-view.content-y / 1px);
+        return root.row-y(root.selected-index);
     }
 
     // Scrollbar strip width. The std-widgets scrollbar is disabled below (its
@@ -269,10 +275,10 @@ export component ClipList {
                 if (!root.row-selected(clip.id, idx)) {
                     root.set-cursor(idx);
                 }
-                root.item-right-clicked(clip.id, x, idx * Theme.row-height / 1px + list-view.content-y / 1px + root.list-padding / 1px + y, clip.is-bookmarked, clip.clip-type);
+                root.item-right-clicked(clip.id, x, root.row-y(idx) + y, clip.is-bookmarked, clip.clip-type);
             }
             hovered(mx, my) => {
-                root.request-preview(clip.id, mx, idx * Theme.row-height / 1px + list-view.content-y / 1px + root.list-padding / 1px + my);
+                root.request-preview(clip.id, mx, root.row-y(idx) + my);
             }
             hover-exited => {
                 root.dismiss-preview();
