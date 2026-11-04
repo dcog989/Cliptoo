@@ -1,6 +1,6 @@
 # Cliptoo
 
-Advanced Linux clipboard manager for KDE Wayland. Use your clip history as a library of things. Rust, Slint, and SQLite = small footprint and fast performance.
+![Cliptoo logo](assets/cliptoo-48.svg) Advanced clipboard manager for Linux KDE. Use your clip history as a library of things. Small footprint, fast performance.
 
 ![screen-1](assets/screen-1.webp) ![screen-2](assets/screen-2.webp) ![screen-3](assets/screen-3.webp) ![screen-4](assets/screen-4.webp) ![screen-5](assets/screen-5.webp)
 
@@ -59,34 +59,19 @@ Advanced Linux clipboard manager for KDE Wayland. Use your clip history as a lib
 
 Download [GitHub Latest Release](https://github.com/dcog989/Cliptoo/releases/latest):
 
-Cliptoo runs on *Wayland* only (KDE Plasma 6). Requires `xdg-desktop-portal-kde`.
+| Platform | Format | Install |
+|----------|--------|---------|
+| Linux | AppImage | `chmod +x cliptoo-*-x86_64.AppImage && ./cliptoo-*-x86_64.AppImage` |
+| Debian / Ubuntu | `.deb` | `sudo apt install ./cliptoo_*_amd64.deb` |
+| Fedora / RHEL | `.rpm` | `sudo dnf install ./cliptoo-*.x86_64.rpm` |
+| Arch / CachyOS | `.pkg.tar.zst` | `sudo pacman -U cliptoo-*.pkg.tar.zst` |
+| Arch / CachyOS | `PKGBUILD` (local build) | `make package && sudo pacman -U .pkg/cliptoo-*.pkg.tar.zst` |
+| Any | source | `make install` (installs to `/usr/local`) |
 
-### AppImage
+> [!NOTE]
+> Cliptoo runs on Wayland only (KDE Plasma 6) and requires `xdg-desktop-portal-kde`. Source builds need the [requirements](#requirements); `make uninstall` removes them.
 
-```sh
-chmod +x cliptoo-*-x86_64.AppImage
-./cliptoo-*-x86_64.AppImage
-```
-
-### Packages
-
-| Distro        | Install                                              |
-|---------------|------------------------------------------------------|
-| Debian/Ubuntu | `sudo apt install ./cliptoo_*_amd64.deb`             |
-| Fedora/RHEL   | `sudo dnf install ./cliptoo-*.x86_64.rpm`            |
-| Arch          | `sudo pacman -U cliptoo-*.pkg.tar.zst`               |
-
-Local Arch build: `make package && sudo pacman -U .pkg/cliptoo-*.pkg.tar.zst`.
-
-### From source
-
-See [Requirements](#Requirements).
-
-```sh
-make install    # installs to `/usr/local`
-```
-
-`make uninstall` to remove it. Data lives in `~/.local/share/Cliptoo/` (DB, images), config in `~/.config/Cliptoo/`, cache in `~/.cache/Cliptoo/`, logs in `~/.local/state/Cliptoo/Logs/`.
+Data lives in `~/.local/share/Cliptoo/` (DB, images), config in `~/.config/Cliptoo/`, cache in `~/.cache/Cliptoo/`, logs in `~/.local/state/Cliptoo/Logs/`.
 
 ---
 
