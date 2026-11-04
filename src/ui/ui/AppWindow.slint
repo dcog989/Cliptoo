@@ -100,6 +100,8 @@ export component AppWindow inherits Window {
     in property <[ClipData]> clips: [];
     // True while the current view has older rows the list has not appended yet.
     in property <bool> clips-has-more: false;
+    // True once the first query result has been applied; gates the empty state.
+    in property <bool> clips-loaded: false;
     in property <bool> is-searching: false;
     // Set from Rust on every show/hide of the main window. Gates the
     // focus-poll timer in MainClipArea so it never runs while hidden.
@@ -216,6 +218,7 @@ export component AppWindow inherits Window {
     main-clip-area := MainClipArea {
         clips: root.clips;
         clips-has-more: root.clips-has-more;
+        clips-loaded: root.clips-loaded;
         is-searching: root.is-searching;
         window-visible: root.window-visible;
         quick-paste-mod-text: root.quick-paste-mod-text;

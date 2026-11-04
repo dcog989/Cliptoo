@@ -251,6 +251,7 @@ pub async fn refresh_clips(
             let model = std::rc::Rc::new(slint::VecModel::<crate::ClipData>::from(slint_clips));
             ui.set_clips(model.clone().into());
             ui.set_clips_has_more(has_more);
+            ui.set_clips_loaded(true);
             let new_idx = prev_selected.and_then(|id| {
                 (0..model.row_count()).find(|&i| model.row_data(i).is_some_and(|d| d.id == id))
             });
@@ -273,6 +274,8 @@ pub async fn refresh_clips(
 pub fn clear_clip_model(ui: &crate::AppWindow) {
     ui.set_clips(std::rc::Rc::new(slint::VecModel::<crate::ClipData>::from(Vec::new())).into());
     ui.set_clips_has_more(false);
+    // The next show re-queries; until that result lands, show no empty state.
+    ui.set_clips_loaded(false);
     ui.set_selected_index(0);
     model_changed();
     crate::thumbnail_cache::clear_caches();

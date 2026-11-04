@@ -18,6 +18,8 @@ export component MainClipArea inherits Rectangle {
     in property <[ClipData]> clips: [];
     // True while older rows of the current view can still be appended.
     in property <bool> clips-has-more: false;
+    // True once the first query result has been applied; gates the empty state.
+    in property <bool> clips-loaded: false;
     in property <bool> is-searching: false;
     in-out property <bool> quick-paste-active: false;
     // Set from Rust on every show/hide of the main window. Gates the
@@ -369,6 +371,7 @@ export component MainClipArea inherits Rectangle {
             clip-list := ClipList {
                 clips: root.clips;
                 has-more: root.clips-has-more;
+                loaded: root.clips-loaded;
                 quick-paste-active: root.quick-paste-active;
                 quick-paste-slots: root.quick-paste-slots;
                 is-searching: root.is-searching;
