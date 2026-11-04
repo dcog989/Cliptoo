@@ -221,6 +221,18 @@ export component ContextMenuHost {
                     root.move-down-one(root.ctx-clip-id);
                     root.close-all();
                 }
+                delete => {
+                    root.delete-clip(root.ctx-clip-id);
+                    root.close-all();
+                }
+                delete-selection => {
+                    root.delete-selection();
+                    root.close-all();
+                }
+                merge-selection => {
+                    root.merge-selection();
+                    root.close-all();
+                }
                 submenu-requested(which) => {
                     if (which == "format") {
                         if (!format-flyout.is-open) {
