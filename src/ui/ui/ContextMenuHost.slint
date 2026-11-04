@@ -1,15 +1,14 @@
-// ContextMenuHost.slint — Right-click context menu popups for clip list items,
-// together with all of their positioning state.
+// ContextMenuHost.slint — Right-click context menu for clip list items,
+// together with its positioning state.
 //
 // AppWindow calls `open-at` from the ClipList right-click callback. The main
-// popup shows the primary actions; the "Format" and "Send To" rows open
-// dedicated popups. Each submenu is its own PopupWindow so every menu is sized
-// from fully-visible content at open time (a shown popup cannot reliably
-// re-grow to fit a hidden sub-view, so they are never toggled in place).
+// menu is one PopupWindow; Format and Send To open their own flyout popups to
+// the right, so the main menu never resizes or repaints. The flyouts are nested
+// inside the main popup so they close with it.
 
 import { ContextMenu } from "ContextMenu.slint";
 import { FormatMenu } from "FormatMenu.slint";
-import { MenuRow, MenuSeparator } from "MenuRow.slint";
+import { MenuRow } from "MenuRow.slint";
 import { Theme } from "Theme.slint";
 
 export component ContextMenuHost {
@@ -22,80 +21,73 @@ export component ContextMenuHost {
     // inside the multi-selection.
     in property <bool> multi-selection: false;
 
-    // Read-only for AppWindow: reflects whether any menu popup is open.
-    out property <bool> popup-open: main-popup.is-open || format-popup.is-open || send-popup.is-open;
+    // Read-only for AppWindow: reflects whether the main menu is open.
+    out property <bool> popup-open: main-popup.is-open;
 
     callback preview-requested(int, float, float);  // id, x, y in logical px
     callback edit-clip(int);
     callback decode-qr(int);
     callback transform-clip(int, string);
     callback paste-clip(int);              // default paste for plain text clips
-    callback paste-as(int, string);  // id, mode ("rich" | "plain")
-    callback toggle-bookmark(int, bool);  // id, current is-bookmarked
+    callback paste-as(int, string);        // id, mode ("rich" | "plain")
+    callback toggle-bookmark(int, bool);   // id, current is-bookmarked
     callback move-to-top(int);
     callback move-to-bottom(int);
     callback move-up-one(int);
     callback move-down-one(int);
-    callback send-to-clip(int, string);   // id, app name
+    callback send-to-clip(int, string);    // id, app name
     callback delete-clip(int);
-    callback delete-selection();          // multi-selection: delete every selected clip
-    callback merge-selection();           // multi-selection: merge into one clip
+    callback delete-selection();           // multi-selection: delete every selected clip
+    callback merge-selection();            // multi-selection: merge into one clip
+    // Set by close-all; handled inside the main popup, where the nested
+    // flyouts are in scope.
+    in-out property <bool> close-flyouts-requested: false;
 
     property <int> ctx-clip-id: 0;
     property <bool> ctx-clip-is-bookmarked: false;
     property <string> ctx-clip-type: "text";
-    // Raw right-click position. Each popup's x/y bindings clamp these against
-    // the popup's own size.
+    // Raw right-click position. The popup's x/y bindings clamp these.
     property <length> ctx-menu-x: 0px;
     property <length> ctx-menu-anchor-y: 0px;
-    // Armed by each show function just before popup.show(); that popup's
-    // focus-timer consumes its own flag (flips it back to false) once its
-    // key-handling scope has focus. One flag per popup: a shared flag let the
-    // closing popup's timer consume the one the newly-opened submenu armed.
+    // Main menu geometry mirrored out of the popup; the flyouts position
+    // themselves from it.
+    property <length> main-w: 0px;
+    property <length> format-row-y: 0px;
+    property <length> send-row-y: 0px;
+    // Armed by each show function just before its popup.show(); that popup's
+    // focus-timer consumes its own flag once its key-handling scope has focus.
     in-out property <bool> main-focus-armed: false;
     in-out property <bool> format-focus-armed: false;
     in-out property <bool> send-focus-armed: false;
-    // Keyboard selection in the Send To popup. 0 is Back, 1..N are the apps.
+    // Keyboard selection in the Send To flyout.
     property <int> send-selected: -1;
 
-    // Called by AppWindow from the ClipList right-click callback before the
-    // main popup opens.
     public function open-at(id: int, x: float, y: float, bookmarked: bool, clip-type: string) {
         root.ctx-clip-id = id;
         root.ctx-clip-is-bookmarked = bookmarked;
         root.ctx-clip-type = clip-type;
         root.ctx-menu-x = x * 1px;
         root.ctx-menu-anchor-y = y * 1px;
+        root.close-flyouts-requested = false;
         root.main-focus-armed = true;
         main-popup.show();
     }
 
-    // Submenu navigation: close the current popup and open the requested one.
-    public function show-format() {
+    // Closes the menu and any open flyout. Called from AppWindow on blur.
+    public function close-all() {
+        root.close-flyouts-requested = true;
         main-popup.close();
-        root.format-focus-armed = true;
-        format-popup.show();
+        root.close-flyouts-requested = false;
     }
 
-    public function show-send() {
-        main-popup.close();
-        root.send-focus-armed = true;
-        send-popup.show();
-    }
-
-    public function show-main() {
-        format-popup.close();
-        send-popup.close();
-        root.main-focus-armed = true;
-        main-popup.show();
-    }
-
-    // Keyboard selection in the Send To popup; separators are not counted.
     function send-row-count() -> int {
-        return 1 + root.send-to-apps.length;
+        return root.send-to-apps.length;
     }
 
     function send-move-selection(delta: int) {
+        if (root.send-row-count() == 0) {
+            return;
+        }
         let next = root.send-selected + delta;
         if (next < 0) {
             root.send-selected = root.send-row-count() - 1;
@@ -107,39 +99,33 @@ export component ContextMenuHost {
     }
 
     function send-activate-selected() {
-        if (root.send-selected == 0) {
-            root.show-main();
-        } else if (root.send-selected > 0 && root.send-selected <= root.send-to-apps.length) {
-            root.send-to-clip(root.ctx-clip-id, root.send-to-apps[root.send-selected - 1]);
-            send-popup.close();
+        if (root.send-selected >= 0 && root.send-selected < root.send-row-count()) {
+            root.send-to-clip(root.ctx-clip-id, root.send-to-apps[root.send-selected]);
+            root.close-all();
         }
     }
 
-    // Closes every popup in this host at once. Called from AppWindow's
-    // close-all-popups when the window blurs so no menu lingers as its own
-    // top-level window after the main window hides.
-    public function close-all() {
-        main-popup.close();
-        format-popup.close();
-        send-popup.close();
-    }
-
-    // ── Main actions popup ──────────────────────────────────────────────────
     main-popup := PopupWindow {
         // Inside clicks must not dismiss: Delete arms on the first one and
         // needs the second. Outside clicks and ESC still close.
         close-policy: PopupClosePolicy.close-on-click-outside;
-        x: Math.min(root.ctx-menu-x, root.window-width - (ctx-menu.menu-width + 4px));
-        y: Math.max(0px, Math.min(root.ctx-menu-anchor-y, root.window-height - ctx-menu.menu-height));
-        // Explicit size for the Qt backend — PopupWindow won't render without it.
-        width: ctx-menu.menu-width;
-        height: ctx-menu.menu-height;
+        x: Math.max(0px, Math.min(root.ctx-menu-x, root.window-width - (main-menu.menu-width + 4px)));
+        y: Math.max(0px, Math.min(root.ctx-menu-anchor-y, root.window-height - main-menu.menu-height));
+        width: main-menu.menu-width;
+        height: main-menu.menu-height;
 
-        // Key handling scope: receives the keys the popup's focused window
-        // delivers, so ESC closes the menu. A popup with no focused item drops
-        // keys before any item sees them, so the focus-timer below gives this
-        // scope focus as soon as the popup is shown.
-        main-esc-scope := FocusScope {
+        // Mirror of the host flag: `changed` only accepts a property of this
+        // element. Runs synchronously, before the host closes this popup.
+        property <bool> close-requested: root.close-flyouts-requested;
+        changed close-requested => {
+            if (self.close-requested) {
+                format-flyout.close();
+                send-flyout.close();
+                root.close-flyouts-requested = false;
+            }
+        }
+
+        esc-scope := FocusScope {
             width: 100%;
             height: 100%;
             focus-on-click: false;
@@ -148,37 +134,45 @@ export component ContextMenuHost {
                     root.close-all();
                     return accept;
                 }
+                if (e.text == Key.RightArrow) {
+                    if (main-menu.open-selected-submenu()) {
+                        return accept;
+                    }
+                    return reject;
+                }
                 if (e.text == Key.UpArrow) {
-                    ctx-menu.move-selection(-1);
+                    main-menu.move-selection(-1);
                     return accept;
                 }
                 if (e.text == Key.DownArrow) {
-                    ctx-menu.move-selection(1);
+                    main-menu.move-selection(1);
                     return accept;
                 }
                 if (e.text == Key.Home) {
-                    ctx-menu.select-first();
+                    main-menu.select-first();
                     return accept;
                 }
                 if (e.text == Key.End) {
-                    ctx-menu.select-last();
+                    main-menu.select-last();
                     return accept;
                 }
                 if (e.text == Key.Return) {
-                    ctx-menu.activate-selected();
+                    main-menu.activate-selected();
                     return accept;
                 }
                 reject
             }
 
-            // Solid fill so any extra space below the menu content is not transparent.
+            // Solid fill for the area under the menu; rounded so it cannot
+            // poke out past the menu's corners.
             Rectangle {
                 width: 100%;
                 height: 100%;
+                border-radius: Theme.border-radius;
                 background: Theme.bg-header;
             }
 
-            ctx-menu := ContextMenu {
+            main-menu := ContextMenu {
                 width: 100%;
                 height: 100%;
                 clip-id: root.ctx-clip-id;
@@ -189,239 +183,239 @@ export component ContextMenuHost {
 
                 preview => {
                     root.preview-requested(root.ctx-clip-id, main-popup.x / 1px, main-popup.y / 1px);
-                    main-popup.close();
+                    root.close-all();
                 }
                 edit => {
                     root.edit-clip(root.ctx-clip-id);
-                    main-popup.close();
+                    root.close-all();
                 }
                 decode-qr => {
                     root.decode-qr(root.ctx-clip-id);
-                    main-popup.close();
+                    root.close-all();
                 }
                 paste() => {
                     root.paste-clip(root.ctx-clip-id);
-                    main-popup.close();
+                    root.close-all();
                 }
                 paste-as(mode) => {
                     root.paste-as(root.ctx-clip-id, mode);
-                    main-popup.close();
+                    root.close-all();
                 }
                 toggle-bookmark(id, current) => {
                     root.toggle-bookmark(id, current);
-                    main-popup.close();
+                    root.close-all();
                 }
                 move-to-top => {
                     root.move-to-top(root.ctx-clip-id);
-                    main-popup.close();
+                    root.close-all();
                 }
                 move-to-bottom => {
                     root.move-to-bottom(root.ctx-clip-id);
-                    main-popup.close();
+                    root.close-all();
                 }
                 move-up-one => {
                     root.move-up-one(root.ctx-clip-id);
-                    main-popup.close();
+                    root.close-all();
                 }
                 move-down-one => {
                     root.move-down-one(root.ctx-clip-id);
-                    main-popup.close();
+                    root.close-all();
                 }
-                format-open => {
-                    root.show-format();
-                }
-                send-to-open => {
-                    root.show-send();
-                }
-                delete => {
-                    root.delete-clip(root.ctx-clip-id);
-                    main-popup.close();
-                }
-                delete-selection => {
-                    root.delete-selection();
-                    main-popup.close();
-                }
-                merge-selection => {
-                    root.merge-selection();
-                    main-popup.close();
+                submenu-requested(which) => {
+                    if (which == "format") {
+                        if (!format-flyout.is-open) {
+                            send-flyout.close();
+                            root.format-focus-armed = true;
+                            format-flyout.show();
+                        }
+                    } else if (which == "send") {
+                        if (!send-flyout.is-open) {
+                            format-flyout.close();
+                            root.send-focus-armed = true;
+                            send-flyout.show();
+                        }
+                    } else if (format-flyout.is-open || send-flyout.is-open) {
+                        format-flyout.close();
+                        send-flyout.close();
+                        root.main-focus-armed = true;
+                    }
                 }
             }
         }
 
-        // One-shot per show: armed by the show functions, fires ~1ms after the
-        // popup opens to give the key-handling scope focus, then disarms.
-        // Resets the keyboard highlight too: open-at cannot touch properties
-        // inside a PopupWindow, so the reset happens here, inside it.
-        main-focus-timer := Timer {
+        // ── Format flyout ───────────────────────────────────────────────────
+        format-flyout := PopupWindow {
+            close-policy: PopupClosePolicy.close-on-click-outside;
+            x: root.main-w;
+            y: root.format-row-y;
+            width: fmt-menu.menu-width;
+            height: fmt-menu.menu-height;
+
+            fmt-esc-scope := FocusScope {
+                width: 100%;
+                height: 100%;
+                focus-on-click: false;
+                key-pressed(e) => {
+                    if (e.text == Key.Escape) {
+                        root.close-all();
+                        return accept;
+                    }
+                    if (e.text == Key.UpArrow) {
+                        fmt-menu.move-selection(-1);
+                        return accept;
+                    }
+                    if (e.text == Key.DownArrow) {
+                        fmt-menu.move-selection(1);
+                        return accept;
+                    }
+                    if (e.text == Key.Home) {
+                        fmt-menu.select-first();
+                        return accept;
+                    }
+                    if (e.text == Key.End) {
+                        fmt-menu.select-last();
+                        return accept;
+                    }
+                    if (e.text == Key.LeftArrow) {
+                        format-flyout.close();
+                        root.main-focus-armed = true;
+                        return accept;
+                    }
+                    if (e.text == Key.Return) {
+                        fmt-menu.activate-selected();
+                        return accept;
+                    }
+                    reject
+                }
+
+                Rectangle {
+                    width: 100%;
+                    height: 100%;
+                    border-radius: Theme.border-radius;
+                    background: Theme.bg-header;
+                }
+
+                fmt-menu := FormatMenu {
+                    width: 100%;
+                    height: 100%;
+
+                    format(key) => {
+                        root.transform-clip(root.ctx-clip-id, key);
+                        root.close-all();
+                    }
+                }
+            }
+
+            format-focus-timer := Timer {
+                interval: 1ms;
+                running: root.format-focus-armed;
+                triggered() => {
+                    fmt-esc-scope.focus();
+                    fmt-menu.selected = -1;
+                    root.format-focus-armed = false;
+                }
+            }
+        }
+
+        // ── Send To flyout ──────────────────────────────────────────────────
+        send-flyout := PopupWindow {
+            close-policy: PopupClosePolicy.close-on-click-outside;
+            x: root.main-w;
+            y: root.send-row-y;
+            width: send-menu-root.preferred-width;
+            height: send-menu-root.preferred-height;
+
+            send-esc-scope := FocusScope {
+                width: 100%;
+                height: 100%;
+                focus-on-click: false;
+                key-pressed(e) => {
+                    if (e.text == Key.Escape) {
+                        root.close-all();
+                        return accept;
+                    }
+                    if (e.text == Key.UpArrow) {
+                        root.send-move-selection(-1);
+                        return accept;
+                    }
+                    if (e.text == Key.DownArrow) {
+                        root.send-move-selection(1);
+                        return accept;
+                    }
+                    if (e.text == Key.Home) {
+                        root.send-selected = 0;
+                        return accept;
+                    }
+                    if (e.text == Key.End) {
+                        root.send-selected = root.send-row-count() - 1;
+                        return accept;
+                    }
+                    if (e.text == Key.LeftArrow) {
+                        send-flyout.close();
+                        root.main-focus-armed = true;
+                        return accept;
+                    }
+                    if (e.text == Key.Return) {
+                        root.send-activate-selected();
+                        return accept;
+                    }
+                    reject
+                }
+
+                Rectangle {
+                    width: 100%;
+                    height: 100%;
+                    border-radius: Theme.border-radius;
+                    background: Theme.bg-header;
+                }
+
+                send-menu-root := Rectangle {
+                    border-radius: Theme.border-radius;
+                    background: Theme.bg-header;
+                    border-width: 1px;
+                    border-color: Theme.border-subtle;
+                    drop-shadow-blur: 12px;
+                    drop-shadow-color: Theme.shadow;
+                    drop-shadow-offset-y: 4px;
+
+                    VerticalLayout {
+                        alignment: start;
+                        padding: 4px;
+                        spacing: 0px;
+
+                        for app-name[idx] in root.send-to-apps: MenuRow {
+                            label: app-name;
+                            selected: root.send-selected == idx;
+                            clicked => {
+                                root.send-to-clip(root.ctx-clip-id, app-name);
+                                root.close-all();
+                            }
+                        }
+                    }
+                }
+            }
+
+            send-focus-timer := Timer {
+                interval: 1ms;
+                running: root.send-focus-armed;
+                triggered() => {
+                    send-esc-scope.focus();
+                    root.send-selected = -1;
+                    root.send-focus-armed = false;
+                }
+            }
+        }
+
+        focus-timer := Timer {
             interval: 1ms;
             running: root.main-focus-armed;
             triggered() => {
-                main-esc-scope.focus();
-                ctx-menu.selected = -1;
-                ctx-menu.delete-armed = false;
+                esc-scope.focus();
+                // Mirror the geometry the flyouts position themselves from.
+                root.main-w = main-menu.menu-width;
+                root.format-row-y = main-menu.format-anchor-y;
+                root.send-row-y = main-menu.send-anchor-y;
                 root.main-focus-armed = false;
-            }
-        }
-    }
-
-    // ── Format submenu popup ─────────────────────────────────────────────────
-    format-popup := PopupWindow {
-        x: Math.min(root.ctx-menu-x + 24px, root.window-width - (fmt-menu.menu-width + 4px));
-        y: Math.max(0px, Math.min(root.ctx-menu-anchor-y, root.window-height - fmt-menu.menu-height));
-        width: fmt-menu.menu-width;
-        height: fmt-menu.menu-height;
-
-        fmt-esc-scope := FocusScope {
-            width: 100%;
-            height: 100%;
-            focus-on-click: false;
-            key-pressed(e) => {
-                if (e.text == Key.Escape) {
-                    root.close-all();
-                    return accept;
-                }
-                if (e.text == Key.UpArrow) {
-                    fmt-menu.move-selection(-1);
-                    return accept;
-                }
-                if (e.text == Key.DownArrow) {
-                    fmt-menu.move-selection(1);
-                    return accept;
-                }
-                if (e.text == Key.Home) {
-                    fmt-menu.select-first();
-                    return accept;
-                }
-                if (e.text == Key.End) {
-                    fmt-menu.select-last();
-                    return accept;
-                }
-                if (e.text == Key.LeftArrow) {
-                    root.show-main();
-                    return accept;
-                }
-                if (e.text == Key.Return) {
-                    fmt-menu.activate-selected();
-                    return accept;
-                }
-                reject
-            }
-
-            Rectangle {
-                width: 100%;
-                height: 100%;
-                background: Theme.bg-header;
-            }
-
-            fmt-menu := FormatMenu {
-                width: 100%;
-                height: 100%;
-
-                back => {
-                    root.show-main();
-                }
-                format(key) => {
-                    root.transform-clip(root.ctx-clip-id, key);
-                    format-popup.close();
-                }
-            }
-        }
-
-        format-focus-timer := Timer {
-            interval: 1ms;
-            running: root.format-focus-armed;
-            triggered() => {
-                fmt-esc-scope.focus();
-                fmt-menu.selected = -1;
-                root.format-focus-armed = false;
-            }
-        }
-    }
-
-    // ── Send To submenu popup ───────────────────────────────────────────────
-    send-popup := PopupWindow {
-        // Size from the menu's own content (the Qt backend still needs an
-        // explicit size, but that size can be the layout's preferred size).
-        x: Math.min(root.ctx-menu-x + 24px, root.window-width - (send-menu-root.preferred-width + 4px));
-        y: Math.max(0px, Math.min(root.ctx-menu-anchor-y, root.window-height - send-menu-root.preferred-height));
-        width: send-menu-root.preferred-width;
-        height: send-menu-root.preferred-height;
-
-        send-esc-scope := FocusScope {
-            width: 100%;
-            height: 100%;
-            focus-on-click: false;
-            key-pressed(e) => {
-                if (e.text == Key.Escape) {
-                    root.close-all();
-                    return accept;
-                }
-                if (e.text == Key.UpArrow) {
-                    root.send-move-selection(-1);
-                    return accept;
-                }
-                if (e.text == Key.DownArrow) {
-                    root.send-move-selection(1);
-                    return accept;
-                }
-                if (e.text == Key.Home) {
-                    root.send-selected = 0;
-                    return accept;
-                }
-                if (e.text == Key.End) {
-                    root.send-selected = root.send-row-count() - 1;
-                    return accept;
-                }
-                if (e.text == Key.LeftArrow) {
-                    root.show-main();
-                    return accept;
-                }
-                if (e.text == Key.Return) {
-                    root.send-activate-selected();
-                    return accept;
-                }
-                reject
-            }
-
-            Rectangle {
-                width: 100%;
-                height: 100%;
-                background: Theme.bg-header;
-            }
-
-            send-menu-root := VerticalLayout {
-                padding: 4px;
-                spacing: 0px;
-
-                MenuRow {
-                    label: @tr("Back");
-                    icon: @image-url("icons/arrow-left.svg");
-                    selected: root.send-selected == 0;
-                    clicked => {
-                        root.show-main();
-                    }
-                }
-
-                MenuSeparator { }
-
-                for app-name[idx] in root.send-to-apps: MenuRow {
-                    label: app-name;
-                    selected: root.send-selected == idx + 1;
-                    clicked => {
-                        root.send-to-clip(root.ctx-clip-id, app-name);
-                        send-popup.close();
-                    }
-                }
-            }
-        }
-
-        send-focus-timer := Timer {
-            interval: 1ms;
-            running: root.send-focus-armed;
-            triggered() => {
-                send-esc-scope.focus();
-                root.send-selected = -1;
-                root.send-focus-armed = false;
             }
         }
     }

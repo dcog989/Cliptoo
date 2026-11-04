@@ -40,6 +40,9 @@ slint::include_modules!();
 #[tokio::main]
 async fn main() -> Result<()> {
     let dirs = app_dirs::AppDirs::resolve()?;
+    // Checked before load(): load() writes a default settings file on first
+    // launch, so afterwards every launch looks like a returning one.
+    let first_run = !dirs.settings_path.exists();
     let settings = cliptoo_core::Settings::load(&dirs.settings_path);
     // Mirror the preview size for list-driven thumbnail generation (see
     // `thumbnail_cache::check_pending_thumbnails`).
@@ -137,7 +140,6 @@ async fn main() -> Result<()> {
 
     window::setup_resize(&ui);
     window::setup_close_handlers(&ui, &settings, &dirs);
-    window::setup_close_to_tray(&ui);
     window::setup_focus_regained(&ui);
     // Keep the timer alive for the app's lifetime.
     let _window_active_poll = window::setup_window_active_poll(&ui);
@@ -275,48 +277,56 @@ async fn main() -> Result<()> {
     }
 
     // ── System tray ────────────────────────────────────────────────────
+    // The tray is optional: it is the last-resort surface, so the user can
+    // turn it off. Without a tray the window can never hide, or it would be
+    // unreachable (see the close handlers).
     let mut _tray = None;
-    match CliptooTray::new() {
-        Ok(tray) => {
-            {
-                let win = ui.as_weak();
-                tray.on_toggle_window(move || {
-                    if let Some(w) = win.upgrade() {
-                        window::toggle_window(&w);
-                    }
+    if settings.borrow().show_tray_icon {
+        match CliptooTray::new() {
+            Ok(tray) => {
+                {
+                    let win = ui.as_weak();
+                    tray.on_toggle_window(move || {
+                        if let Some(w) = win.upgrade() {
+                            window::toggle_window(&w);
+                        }
+                    });
+                }
+
+                // Quit via the event loop so `main` returns cleanly: the log
+                // guard is flushed on drop and the "Cliptoo exiting" line is
+                // emitted, instead of a hard exit that skips teardown.
+                let quit_settings = settings.clone();
+                let quit_settings_path = dirs.settings_path.clone();
+                tray.on_quit_app(move || {
+                    // Flush the debounced settings write before the event loop
+                    // stops, or the last edit is lost when quitting from the tray.
+                    let _ = quit_settings.borrow().save(&quit_settings_path);
+                    let _ = slint::quit_event_loop();
                 });
-            }
 
-            // Quit via the event loop so `main` returns cleanly: the log
-            // guard is flushed on drop and the "Cliptoo exiting" line is
-            // emitted, instead of a hard exit that skips teardown.
-            let quit_settings = settings.clone();
-            let quit_settings_path = dirs.settings_path.clone();
-            tray.on_quit_app(move || {
-                // Flush the debounced settings write before the event loop
-                // stops, or the last edit is lost when quitting from the tray.
-                let _ = quit_settings.borrow().save(&quit_settings_path);
-                let _ = slint::quit_event_loop();
-            });
-
-            // Slint 1.18 reports a missing system tray backend from show().
-            // Only keep the tray when it actually appeared: otherwise
-            // start_hidden below would hide the window behind a tray icon that
-            // isn't there, leaving the app unreachable.
-            match tray.show() {
-                Ok(()) => _tray = Some(tray),
-                Err(e) => {
-                    tracing::warn!("System tray unavailable, keeping the window visible: {e}")
+                // Slint 1.18 reports a missing system tray backend from show().
+                // Only keep the tray when it actually appeared: otherwise
+                // start_hidden below would hide the window behind a tray icon
+                // that isn't there, leaving the app unreachable.
+                match tray.show() {
+                    Ok(()) => _tray = Some(tray),
+                    Err(e) => {
+                        tracing::warn!("System tray unavailable, keeping the window visible: {e}")
+                    }
                 }
             }
+            Err(e) => tracing::warn!("System tray unavailable (app will still work): {e}"),
         }
-        Err(e) => tracing::warn!("System tray unavailable (app will still work): {e}"),
+    } else {
+        info!("system tray icon disabled in settings");
     }
 
     // Start closed to tray. Only fall back to showing the window when the
     // tray failed to initialise or show, otherwise the app would be unreachable.
-    // When "Always close to tray" is off, start with the main window visible.
-    let start_hidden = _tray.is_some() && settings.borrow().always_close_to_tray;
+    // The first launch always shows the window, so a new user sees the app.
+    // When "Hide when focus is lost" is off, start with the window visible.
+    let start_hidden = !first_run && _tray.is_some() && settings.borrow().always_close_to_tray;
     if start_hidden {
         window::hide_window(&ui);
     } else {

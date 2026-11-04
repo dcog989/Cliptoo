@@ -78,11 +78,12 @@ export component ClipItem {
         accessible-label: clip-data.preview-content;
         // Type plus the state that is otherwise only shown with an icon or
         // strikethrough: bookmarked, multiline, and a file path that no longer
-        // exists on disk.
-        accessible-description: ClipTypeMap.label-for(clip-data.clip-type)
-            + (clip-data.is-bookmarked ? @tr(", bookmarked") : "")
-            + (clip-data.is-multiline ? @tr(", multiline") : "")
-            + (clip-data.is-deadhead ? @tr(", file missing") : "");
+        // exists on disk. Each segment is a complete translated sentence so a
+        // translator can reorder it; only the type name is interpolated.
+        accessible-description: @tr("{} clip.", ClipTypeMap.label-for(clip-data.clip-type))
+            + (clip-data.is-bookmarked ? " " + @tr("Bookmarked.") : "")
+            + (clip-data.is-multiline ? " " + @tr("Multiline.") : "")
+            + (clip-data.is-deadhead ? " " + @tr("File is missing.") : "");
         accessible-item-index: root.row-index;
         accessible-item-selectable: true;
         accessible-item-selected: root.is-selected;

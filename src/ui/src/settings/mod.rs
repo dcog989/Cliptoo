@@ -18,13 +18,35 @@ pub(crate) mod theme_apply;
 /// "info" | "warn" | "error". Shared so every action reports failures the
 /// same way.
 pub(crate) fn show_toast(win: &slint::Weak<crate::SettingsWindow>, message: &str, severity: &str) {
+    show_toast_action(win, message, severity, "");
+}
+
+/// Toast with one action button (e.g. Undo). The action callback is wired on
+/// the settings window and routed to `undo-maintenance`.
+pub(crate) fn show_toast_action(
+    win: &slint::Weak<crate::SettingsWindow>,
+    message: &str,
+    severity: &str,
+    action_label: &str,
+) {
     let message = message.to_string();
     let severity = severity.to_string();
+    let action_label = action_label.to_string();
     let _ = win.upgrade_in_event_loop(move |win| {
         win.set_toast_visible(false);
         win.set_toast_message(message.into());
         win.set_toast_severity(severity.into());
+        win.set_toast_action_label(action_label.into());
         win.set_toast_visible(true);
+    });
+}
+
+/// Hide the current toast and clear its action, so a completed deferred action
+/// cannot still offer Undo.
+pub(crate) fn hide_toast(win: &slint::Weak<crate::SettingsWindow>) {
+    let _ = win.upgrade_in_event_loop(|win| {
+        win.set_toast_visible(false);
+        win.set_toast_action_label("".into());
     });
 }
 
@@ -115,6 +137,7 @@ fn init_settings_properties(
     let v = settings_win.global::<crate::SettingsValues>();
     v.set_s_hotkey(clean_hotkey_text(s.hotkey.as_str()).into());
     v.set_s_start_with_system(s.start_with_system);
+    v.set_s_show_tray_icon(s.show_tray_icon);
     v.set_s_always_close_to_tray(s.always_close_to_tray);
     v.set_s_quick_paste_mod_idx(idx_of(&s.quick_paste_modifier, &QUICK_PASTE_MODIFIERS));
     v.set_s_theme_idx(idx_of(&s.theme, &THEMES));

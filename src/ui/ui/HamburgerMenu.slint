@@ -1,5 +1,7 @@
 // HamburgerMenu.slint — Popup menu content for hamburger icon.
 // Rendered inside a PopupWindow declared in AppWindow.
+// Window management (hide/minimise) does not belong here; ESC already hides
+// the window.
 
 import { Theme } from "Theme.slint";
 import { MenuRow } from "MenuRow.slint";
@@ -7,12 +9,11 @@ import { MenuRow } from "MenuRow.slint";
 export component HamburgerMenu {
     callback menu-settings();
     callback menu-about();
-    callback menu-close-to-tray();
 
     // Keyboard selection: index of the highlighted row, -1 until the first
     // arrow key.
     in-out property <int> selected: -1;
-    property <int> row-count: 3;
+    property <int> row-count: 2;
 
     // Wrap around so Down at the last row lands on the first.
     public function move-selection(delta: int) {
@@ -40,8 +41,6 @@ export component HamburgerMenu {
             root.menu-about();
         } else if (root.selected == 1) {
             root.menu-settings();
-        } else if (root.selected == 2) {
-            root.menu-close-to-tray();
         }
     }
 
@@ -53,19 +52,18 @@ export component HamburgerMenu {
     out property <length> menu-width: menu-root.preferred-width;
 
     menu-root := Rectangle {
-        border-radius: 8px;
+        border-radius: Theme.border-radius;
         background: Theme.bg-header;
         border-width: 1px;
         border-color: Theme.border-subtle;
 
         VerticalLayout {
-            padding: 4px;
+            padding: Theme.menu-padding;
             spacing: 2px;
 
             MenuRow {
                 label: @tr("About");
                 icon: @image-url("icons/info.svg");
-                row-height: 36px;
                 selected: root.selected == 0;
                 clicked => {
                     root.menu-about();
@@ -75,20 +73,9 @@ export component HamburgerMenu {
             MenuRow {
                 label: @tr("Settings");
                 icon: @image-url("icons/settings.svg");
-                row-height: 36px;
                 selected: root.selected == 1;
                 clicked => {
                     root.menu-settings();
-                }
-            }
-
-            MenuRow {
-                label: @tr("Close to Tray");
-                icon: @image-url("icons/minimize-2.svg");
-                row-height: 36px;
-                selected: root.selected == 2;
-                clicked => {
-                    root.menu-close-to-tray();
                 }
             }
         }

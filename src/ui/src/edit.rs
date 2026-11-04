@@ -271,16 +271,14 @@ pub fn setup_edit_window(
                         // user can retry or cancel. When the file write already
                         // succeeded, say so: the remaining failure is only the
                         // index/tag update.
-                        let (message, severity) = if file_saved {
-                            (
-                                format!("File saved, but the clip index was not updated: {e:#}"),
-                                "warn",
-                            )
-                        } else {
-                            (format!("Save failed: {e:#}"), "error")
-                        };
                         let _ = win.upgrade_in_event_loop(move |win| {
-                            win.set_toast_message(message.into());
+                            let global = win.global::<crate::Translations>();
+                            let (message, severity) = if file_saved {
+                                (global.get_err_save_file_index(), "warn")
+                            } else {
+                                (global.get_err_save_clip(), "error")
+                            };
+                            win.set_toast_message(message);
                             win.set_toast_severity(severity.into());
                             win.set_toast_visible(true);
                         });

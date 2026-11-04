@@ -81,49 +81,49 @@ export component DatabasePage inherits ScrollView {
             for action[idx] in [
                 {
                     key: "clear-history",
-                    label: @tr("Clear History"),
-                    confirm-label: @tr("Confirm Clear History!!"),
+                    label: @tr("Clear history"),
+                    confirm-label: @tr("Clear all history?"),
                     tip: @tr("Delete all clips from the clipboard history")
                 },
                 {
                     key: "clear-caches",
-                    label: @tr("Clear Caches"),
+                    label: @tr("Clear caches"),
                     confirm-label: "",
                     tip: @tr("Clear cached previews, thumbnails, and favicons")
                 },
                 {
                     key: "deadhead",
-                    label: @tr("Deadhead"),
-                    confirm-label: @tr("Confirm Deadhead!!"),
+                    label: @tr("Remove clips with missing files"),
+                    confirm-label: @tr("Remove all?"),
                     tip: @tr("Remove clips referencing files that no longer exist on disk")
                 },
                 {
                     key: "reclassify",
-                    label: @tr("Reclassify All"),
+                    label: @tr("Reclassify all"),
                     confirm-label: "",
                     tip: @tr("Re-run content detection on every clip")
                 },
                 {
                     key: "compact",
-                    label: @tr("Compact Database"),
+                    label: @tr("Compact database"),
                     confirm-label: "",
                     tip: @tr("Rebuild the database file to reclaim space freed by deleted clips")
                 },
                 {
                     key: "export",
-                    label: @tr("Export All Clips"),
+                    label: @tr("Export all clips…"),
                     confirm-label: "",
                     tip: @tr("Save all clips to a JSON file")
                 },
                 {
                     key: "export-bookmarks",
-                    label: @tr("Export Bookmarks"),
+                    label: @tr("Export bookmarks…"),
                     confirm-label: "",
                     tip: @tr("Save only bookmarked clips to a JSON file")
                 },
                 {
                     key: "import",
-                    label: @tr("Import Backup"),
+                    label: @tr("Import backup…"),
                     confirm-label: "",
                     tip: @tr("Load clips from a JSON backup file")
                 },
@@ -218,7 +218,7 @@ export component DatabasePage inherits ScrollView {
                 spacing: 12px;
                 alignment: start;
                 Text {
-                    width: 180px;
+                    width: 280px;
                     text: @tr("Database created");
                     color: Theme.fg-primary;
                     font-size: Theme.font-size;
@@ -238,7 +238,7 @@ export component DatabasePage inherits ScrollView {
                 spacing: 12px;
                 alignment: start;
                 Text {
-                    width: 180px;
+                    width: 280px;
                     text: @tr("Database size");
                     color: Theme.fg-primary;
                     font-size: Theme.font-size;
@@ -258,7 +258,7 @@ export component DatabasePage inherits ScrollView {
                 spacing: 12px;
                 alignment: start;
                 Text {
-                    width: 180px;
+                    width: 280px;
                     text: @tr("Total clips");
                     color: Theme.fg-primary;
                     font-size: Theme.font-size;
@@ -278,7 +278,7 @@ export component DatabasePage inherits ScrollView {
                 spacing: 12px;
                 alignment: start;
                 Text {
-                    width: 180px;
+                    width: 280px;
                     text: @tr("Unique clips ever / Pastes");
                     color: Theme.fg-primary;
                     font-size: Theme.font-size;

@@ -99,6 +99,13 @@ async fn pick_path(save: bool) -> anyhow::Result<Option<std::path::PathBuf>> {
     .map_err(|_| anyhow::anyhow!("file chooser did not answer within {DIALOG_TIMEOUT:?}"))?
 }
 
+/// Invalidates an in-flight deferred clear when Undo is pressed. A clear runs
+/// only when this still holds the generation it started with.
+static CLEAR_HISTORY_GENERATION: AtomicU64 = AtomicU64::new(0);
+
+/// How long "Clear history" waits for Undo before deleting anything.
+const CLEAR_UNDO_WINDOW: std::time::Duration = std::time::Duration::from_secs(8);
+
 /// Set up the manual maintenance actions handler on the main window.
 pub fn setup_manual_maintenance(
     ui: &crate::AppWindow,
@@ -107,6 +114,14 @@ pub fn setup_manual_maintenance(
     settings: &std::rc::Rc<std::cell::RefCell<cliptoo_core::Settings>>,
     settings_win: &crate::SettingsWindow,
 ) {
+    {
+        let undo_win = settings_win.as_weak();
+        settings_win.on_undo_maintenance(move || {
+            // Cancel the pending clear; the database was not touched yet.
+            CLEAR_HISTORY_GENERATION.fetch_add(1, Ordering::SeqCst);
+            crate::settings::hide_toast(&undo_win);
+        });
+    }
     let maint_db = db.clone();
     let maint_td = dirs.thumbnails_dir.clone();
     let maint_fd = dirs.favicons_dir.clone();
@@ -131,13 +146,56 @@ pub fn setup_manual_maintenance(
             let s = settings.borrow();
             (s.max_clips, s.max_age_days)
         };
+        // Read the translated text on the UI thread; the spawned task must not
+        // touch Slint properties.
+        let (history_cleared, undo, err_message) = match settings_win.upgrade() {
+            Some(win) => {
+                let global = win.global::<crate::Translations>();
+                (
+                    global.get_history_cleared(),
+                    global.get_undo(),
+                    global.get_err_maintenance(),
+                )
+            }
+            None => (
+                slint::SharedString::from(""),
+                slint::SharedString::from(""),
+                slint::SharedString::from(""),
+            ),
+        };
         tokio::spawn(async move {
+            // Clear History is deferred so the toast's Undo can still stop it.
+            if key == "clear-history" {
+                let generation = CLEAR_HISTORY_GENERATION.fetch_add(1, Ordering::SeqCst) + 1;
+                crate::settings::show_toast_action(&settings_win, &history_cleared, "info", &undo);
+                tokio::time::sleep(CLEAR_UNDO_WINDOW).await;
+                if CLEAR_HISTORY_GENERATION.load(Ordering::SeqCst) != generation {
+                    return;
+                }
+                crate::settings::hide_toast(&settings_win);
+                if let Err(e) = db.with(cliptoo_core::maintenance::clear_history).await {
+                    tracing::error!("maintenance_action 'clear-history' failed: {e}");
+                    crate::settings::show_toast(&settings_win, &err_message, "error");
+                    return;
+                }
+                let _ = cliptoo_core::maintenance::run_scheduled(
+                    &db,
+                    cliptoo_core::maintenance::RetentionConfig {
+                        max_clips,
+                        max_age_days,
+                    },
+                    &td,
+                    &fd,
+                    &id_dir,
+                )
+                .await;
+                crate::helpers::refresh_clips_live(&db, &ui, &td2, &fd, None);
+                crate::stats_ui::refresh(settings_win.clone(), db.clone(), db_path.clone());
+                return;
+            }
+
             let result: anyhow::Result<Option<String>> = async {
                 match key.as_str() {
-                    "clear-history" => {
-                        db.with(cliptoo_core::maintenance::clear_history).await?;
-                        Ok(None)
-                    }
                     "clear-caches" => {
                         // Orphan sweep first: it also removes full-resolution
                         // PNGs whose clip is gone, which the clear below must
@@ -162,9 +220,9 @@ pub fn setup_manual_maintenance(
                     "deadhead" => {
                         let n = cliptoo_core::maintenance::delete_deadheads(&db).await?;
                         Ok(Some(if n == 0 {
-                            "No dead file clips found".to_string()
+                            "No clips with missing files found".to_string()
                         } else {
-                            format!("Removed {n} dead file clips")
+                            format!("Removed {n} clips with missing files")
                         }))
                     }
                     "reclassify" => {
@@ -229,19 +287,11 @@ pub fn setup_manual_maintenance(
 
             match &result {
                 Ok(Some(msg)) => crate::settings::show_toast(&settings_win, msg, "info"),
-                Ok(None) if !cancelled => {
-                    let msg = match key.as_str() {
-                        "clear-history" => "History cleared",
-                        _ => "",
-                    };
-                    if !msg.is_empty() {
-                        crate::settings::show_toast(&settings_win, msg, "info");
-                    }
-                }
+                Ok(None) if !cancelled => {}
                 Ok(None) => {}
                 Err(e) => {
                     tracing::error!("maintenance_action '{key}' failed: {e}");
-                    crate::settings::show_toast(&settings_win, &format!("Error: {e}"), "error");
+                    crate::settings::show_toast(&settings_win, &err_message, "error");
                 }
             }
 

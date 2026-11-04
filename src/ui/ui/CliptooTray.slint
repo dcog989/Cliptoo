@@ -1,5 +1,8 @@
 export component CliptooTray inherits SystemTrayIcon {
-    icon: @image-url("../assets/cliptoo.svg");
+    // A tray icon must be monochrome and symbolic, not the full-colour app
+    // logo. Plasma does not recolour StatusNotifier icons, so a mid-tone grey
+    // stays visible on both light and dark panels.
+    icon: @image-url("../assets/cliptoo-symbolic.svg");
     tooltip: @tr("Cliptoo — Clipboard Manager");
     title: "Cliptoo";
 

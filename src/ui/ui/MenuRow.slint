@@ -27,6 +27,8 @@ export component MenuRow {
     in property <bool> selected: false;
     in property <length> row-height: Theme.menu-row-height;
     callback clicked;
+    // Pointer moved over the row. Used to open a submenu on hover.
+    callback hovered;
 
     height: root.row-height;
 
@@ -70,7 +72,9 @@ export component MenuRow {
             padding-left: 12px;
             padding-right: 10px;
             spacing: 8px;
-            alignment: start;
+            // Stretch so a row with a submenu pushes its chevron to the right
+            // edge instead of leaving it next to the label.
+            alignment: LayoutAlignment.stretch;
             cross-axis-alignment: center;
 
             if root.icon.width > 0: Image {
@@ -92,17 +96,22 @@ export component MenuRow {
                 horizontal-stretch: root.has-arrow ? 1 : 0;
             }
 
-            if root.has-arrow: Text {
-                text: "…";
-                color: touch.has-hover && !touch.pressed ? Theme.fg-clip-list : Theme.fg-muted;
-                font-size: Theme.font-size + 2px;
-                vertical-alignment: center;
+            if root.has-arrow: Image {
+                width: 14px;
+                height: 14px;
+                source: @image-url("icons/chevron-right.svg");
+                colorize: touch.has-hover && !touch.pressed ? Theme.fg-clip-list : Theme.fg-muted;
             }
         }
 
         touch := TouchArea {
             clicked => {
                 root.clicked();
+            }
+            pointer-event(e) => {
+                if (e.kind == PointerEventKind.move) {
+                    root.hovered();
+                }
             }
             mouse-cursor: pointer;
         }

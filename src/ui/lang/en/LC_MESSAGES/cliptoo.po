@@ -288,9 +288,7 @@ msgstr ""
 
 #: src/ui/ui/DatabasePage.slint:30 src/ui/ui/DatabasePage.slint:32
 msgctxt "DatabasePage"
-msgid ""
-"Maximum number of non-bookmarked clips kept in history, 0 = keep all (the "
-"list shows up to 1000)"
+msgid "Maximum number of non-bookmarked clips kept in history, 0 = keep all (the list shows up to 1000)"
 msgstr ""
 
 #: src/ui/ui/DatabasePage.slint:41 src/ui/ui/DatabasePage.slint:43
@@ -663,9 +661,7 @@ msgstr ""
 
 #: src/ui/ui/SettingsPage.slint:78 src/ui/ui/SettingsPage.slint:73
 msgctxt "SettingsPage"
-msgid ""
-"Strip formatting when pasting text, and paste file paths as text instead of "
-"attaching the file"
+msgid "Strip formatting when pasting text, and paste file paths as text instead of attaching the file"
 msgstr ""
 
 #: src/ui/ui/SettingsPage.slint:86 src/ui/ui/SettingsPage.slint:81
@@ -785,9 +781,7 @@ msgstr ""
 
 #: src/ui/ui/SettingsPage.slint:303 src/ui/ui/SettingsPage.slint:250
 msgctxt "SettingsPage"
-msgid ""
-"Comma-separated list of apps that can open a clip. 'Name: command'. "
-"Arguments cannot contain commas"
+msgid "Comma-separated list of apps that can open a clip. Format: “Name: command”. Arguments cannot contain commas"
 msgstr ""
 
 #: src/ui/ui/SettingsPage.slint:311 src/ui/ui/SettingsPage.slint:258
@@ -1120,4 +1114,445 @@ msgstr ""
 #: src/ui/ui/ShortcutsPage.slint:151
 msgctxt "ShortcutsPage"
 msgid "Merge the selected clips into one"
+msgstr ""
+
+#. Rust-produced toast text, read through the Translations global.
+#: src/ui/ui/Translations.slint
+msgctxt "Translations"
+msgid "Could not save the bookmark. Try again."
+msgstr ""
+
+#: src/ui/ui/Translations.slint
+msgctxt "Translations"
+msgid "Could not copy this clip. Try again."
+msgstr ""
+
+#: src/ui/ui/Translations.slint
+msgctxt "Translations"
+msgid "Could not open this clip in that app. Check the app's path in Settings."
+msgstr ""
+
+#: src/ui/ui/Translations.slint
+msgctxt "Translations"
+msgid "Could not merge the clips. Try again."
+msgstr ""
+
+#: src/ui/ui/Translations.slint
+msgctxt "Translations"
+msgid "Could not compare the clips. Check the diff tool path in Settings."
+msgstr ""
+
+#: src/ui/ui/Translations.slint
+msgctxt "Translations"
+msgid "Could not paste. Make sure Cliptoo is allowed to send input."
+msgstr ""
+
+#: src/ui/ui/Translations.slint
+msgctxt "Translations"
+msgid "Could not load clips. Try again."
+msgstr ""
+
+#: src/ui/ui/Translations.slint
+msgctxt "Translations"
+msgid "Could not change launch at login. Check that your autostart folder is writable."
+msgstr ""
+
+#: src/ui/ui/Translations.slint
+msgctxt "Translations"
+msgid "Could not open the font picker. Install python3 and PyQt6, then try again."
+msgstr ""
+
+#: src/ui/ui/Translations.slint
+msgctxt "Translations"
+msgid "Could not open the colour picker. Install kdialog, then try again."
+msgstr ""
+
+#: src/ui/ui/Translations.slint
+msgctxt "Translations"
+msgid "The action did not finish. Try again."
+msgstr ""
+
+#: src/ui/ui/Translations.slint
+msgctxt "Translations"
+msgid "Could not save the clip. Try again."
+msgstr ""
+
+#: src/ui/ui/Translations.slint
+msgctxt "Translations"
+msgid "The file was saved, but Cliptoo could not update the clip index. Reopen the clip to check it."
+msgstr ""
+
+#: src/ui/ui/Translations.slint
+msgctxt "Translations"
+msgid "This clip is no longer in history."
+msgstr ""
+
+#: src/ui/ui/Translations.slint
+msgctxt "Translations"
+msgid "No QR code was found in this image."
+msgstr ""
+
+#: src/ui/ui/Translations.slint
+msgctxt "Translations"
+msgid "History cleared"
+msgstr ""
+
+#: src/ui/ui/Translations.slint
+msgctxt "Translations"
+msgid "Undo"
+msgstr ""
+
+#: src/ui/ui/Translations.slint
+msgctxt "Translations"
+msgid "Clip deleted"
+msgstr ""
+
+#: src/ui/ui/Translations.slint
+msgctxt "Translations"
+msgid "{} clips deleted"
+msgstr ""
+
+#: src/ui/ui/Translations.slint
+msgctxt "Translations"
+msgid "Press Delete again to remove the clip"
+msgstr ""
+
+#: src/ui/ui/Translations.slint
+msgctxt "Translations"
+msgid "Press Delete again to remove {} clips"
+msgstr ""
+
+#: src/ui/ui/Translations.slint
+msgctxt "Translations"
+msgid "Merged {} clips"
+msgstr ""
+
+#: src/ui/ui/ClipList.slint
+msgctxt "ClipList"
+msgid "No matching clips"
+msgstr ""
+
+#: src/ui/ui/ClipList.slint
+msgctxt "ClipList"
+msgid "Try a different search or filter."
+msgstr ""
+
+#: src/ui/ui/ClipList.slint
+msgctxt "ClipList"
+msgid "Clipboard history is empty"
+msgstr ""
+
+#: src/ui/ui/ClipList.slint
+msgctxt "ClipList"
+msgid "Copy something and it will appear here."
+msgstr ""
+
+#: src/ui/ui/ClipList.slint
+msgctxt "ClipList"
+msgid "Clear search"
+msgstr ""
+
+#: src/ui/ui/ClipItem.slint
+msgctxt "ClipItem"
+msgid "{} clip."
+msgstr ""
+
+#: src/ui/ui/ClipItem.slint
+msgctxt "ClipItem"
+msgid "Bookmarked."
+msgstr ""
+
+#: src/ui/ui/ClipItem.slint
+msgctxt "ClipItem"
+msgid "Multiline."
+msgstr ""
+
+#: src/ui/ui/ClipItem.slint
+msgctxt "ClipItem"
+msgid "File is missing."
+msgstr ""
+
+#: src/ui/ui/ToastNotification.slint
+msgctxt "ToastNotification"
+msgid "Dismiss"
+msgstr ""
+
+#: src/ui/ui/Toolbar.slint
+msgctxt "Toolbar"
+msgid "Search"
+msgstr ""
+
+#: src/ui/ui/PreviewWindow.slint
+msgctxt "PreviewWindow"
+msgid "Preview"
+msgstr ""
+
+#: src/ui/ui/SettingsWindow.slint
+msgctxt "SettingsWindow"
+msgid "Settings"
+msgstr ""
+
+#: src/ui/ui/DatabasePage.slint
+msgctxt "DatabasePage"
+msgid "Clear history"
+msgstr ""
+
+#: src/ui/ui/DatabasePage.slint
+msgctxt "DatabasePage"
+msgid "Clear all history?"
+msgstr ""
+
+#: src/ui/ui/DatabasePage.slint
+msgctxt "DatabasePage"
+msgid "Clear caches"
+msgstr ""
+
+#: src/ui/ui/DatabasePage.slint
+msgctxt "DatabasePage"
+msgid "Remove clips with missing files"
+msgstr ""
+
+#: src/ui/ui/DatabasePage.slint
+msgctxt "DatabasePage"
+msgid "Remove all?"
+msgstr ""
+
+#: src/ui/ui/DatabasePage.slint
+msgctxt "DatabasePage"
+msgid "Reclassify all"
+msgstr ""
+
+#: src/ui/ui/DatabasePage.slint
+msgctxt "DatabasePage"
+msgid "Compact database"
+msgstr ""
+
+#: src/ui/ui/DatabasePage.slint
+msgctxt "DatabasePage"
+msgid "Export all clips…"
+msgstr ""
+
+#: src/ui/ui/DatabasePage.slint
+msgctxt "DatabasePage"
+msgid "Export bookmarks…"
+msgstr ""
+
+#: src/ui/ui/DatabasePage.slint
+msgctxt "DatabasePage"
+msgid "Import backup…"
+msgstr ""
+
+#: src/ui/ui/SettingsPage.slint
+msgctxt "SettingsPage"
+msgid "Show tray icon"
+msgstr ""
+
+#: src/ui/ui/SettingsPage.slint
+msgctxt "SettingsPage"
+msgid "Show Cliptoo in the system tray. Applies on next launch"
+msgstr ""
+
+#: src/ui/ui/SettingsPage.slint
+msgctxt "SettingsPage"
+msgid "Hide when focus is lost"
+msgstr ""
+
+#: src/ui/ui/SettingsPage.slint
+msgctxt "SettingsPage"
+msgid "Hide the window instead of leaving it open when it loses focus"
+msgstr ""
+
+#: src/ui/ui/SettingsPage.slint
+msgctxt "SettingsPage"
+msgid "Theme mode"
+msgstr ""
+
+#: src/ui/ui/SettingsPage.slint
+msgctxt "SettingsPage"
+msgid "Row height"
+msgstr ""
+
+#: src/ui/ui/SettingsPage.slint
+msgctxt "SettingsPage"
+msgid "External apps"
+msgstr ""
+
+#: src/ui/ui/SettingsPage.slint
+msgctxt "SettingsPage"
+msgid "Send to apps"
+msgstr ""
+
+#: src/ui/ui/SettingsPage.slint
+msgctxt "SettingsPage"
+msgid "Blacklisted apps"
+msgstr ""
+
+#: src/ui/ui/SettingsPage.slint
+msgctxt "SettingsPage"
+msgid "System default"
+msgstr ""
+
+#: src/ui/ui/ClipTypes.slint
+msgctxt "ClipTypeMap"
+msgid "Plain text"
+msgstr ""
+
+#: src/ui/ui/ClipTypes.slint
+msgctxt "ClipTypeMap"
+msgid "Image file"
+msgstr ""
+
+#: src/ui/ui/ClipTypes.slint
+msgctxt "ClipTypeMap"
+msgid "Link"
+msgstr ""
+
+#: src/ui/ui/ClipTypes.slint
+msgctxt "ClipTypeMap"
+msgid "Executable file"
+msgstr ""
+
+#: src/ui/ui/ClipTypes.slint
+msgctxt "ClipTypeMap"
+msgid "Data file"
+msgstr ""
+
+#: src/ui/ui/ClipTypes.slint
+msgctxt "ClipTypeMap"
+msgid "Dev file"
+msgstr ""
+
+#: src/ui/ui/ClipTypes.slint
+msgctxt "ClipTypeMap"
+msgid "Audio file"
+msgstr ""
+
+#: src/ui/ui/ClipTypes.slint
+msgctxt "ClipTypeMap"
+msgid "Video file"
+msgstr ""
+
+#: src/ui/ui/ClipTypes.slint
+msgctxt "ClipTypeMap"
+msgid "Archive file"
+msgstr ""
+
+#: src/ui/ui/ClipTypes.slint
+msgctxt "ClipTypeMap"
+msgid "Document file"
+msgstr ""
+
+#: src/ui/ui/ClipTypes.slint
+msgctxt "ClipTypeMap"
+msgid "Text file"
+msgstr ""
+
+#: src/ui/ui/ClipTypes.slint
+msgctxt "ClipTypeMap"
+msgid "Rich text"
+msgstr ""
+
+#: src/ui/ui/ClipTypes.slint
+msgctxt "ClipTypeMap"
+msgid "Other file"
+msgstr ""
+
+#: src/ui/ui/ContextMenu.slint
+msgctxt "ContextMenu"
+msgid "Paste as plain text"
+msgstr ""
+
+#: src/ui/ui/ContextMenu.slint
+msgctxt "ContextMenu"
+msgid "Paste as rich text"
+msgstr ""
+
+#: src/ui/ui/ContextMenu.slint
+msgctxt "ContextMenu"
+msgid "Delete selection"
+msgstr ""
+
+#: src/ui/ui/ContextMenu.slint
+msgctxt "ContextMenu"
+msgid "Delete clip?"
+msgstr ""
+
+#: src/ui/ui/ContextMenu.slint
+msgctxt "ContextMenu"
+msgid "Merge selected"
+msgstr ""
+
+#: src/ui/ui/ContextMenu.slint
+msgctxt "ContextMenu"
+msgid "Move to top"
+msgstr ""
+
+#: src/ui/ui/ContextMenu.slint
+msgctxt "ContextMenu"
+msgid "Move to bottom"
+msgstr ""
+
+#: src/ui/ui/ContextMenu.slint
+msgctxt "ContextMenu"
+msgid "Move up one"
+msgstr ""
+
+#: src/ui/ui/ContextMenu.slint
+msgctxt "ContextMenu"
+msgid "Move down one"
+msgstr ""
+
+#: src/ui/ui/ContextMenu.slint
+msgctxt "ContextMenu"
+msgid "Remove bookmark"
+msgstr ""
+
+#: src/ui/ui/ContextMenu.slint
+msgctxt "ContextMenu"
+msgid "Send to"
+msgstr ""
+
+#: src/ui/ui/FormatMenu.slint
+msgctxt "FormatMenu"
+msgid "Capitalize words"
+msgstr ""
+
+#: src/ui/ui/FormatMenu.slint
+msgctxt "FormatMenu"
+msgid "Trim whitespace"
+msgstr ""
+
+#: src/ui/ui/FormatMenu.slint
+msgctxt "FormatMenu"
+msgid "Remove line breaks"
+msgstr ""
+
+#: src/ui/ui/FormatMenu.slint
+msgctxt "FormatMenu"
+msgid "Normalize line endings"
+msgstr ""
+
+#: src/ui/ui/FormatMenu.slint
+msgctxt "FormatMenu"
+msgid "Add timestamp"
+msgstr ""
+
+#: src/ui/ui/ShortcutsPage.slint
+msgctxt "ShortcutsPage"
+msgid "Clip list"
+msgstr ""
+
+#: src/ui/ui/Translations.slint
+msgctxt "Translations"
+msgid "Could not read this image. It may be damaged or not an image."
+msgstr ""
+
+#: src/ui/ui/SettingsHeader.slint
+msgctxt "SettingsHeader"
+msgid "Keyboard shortcuts"
+msgstr ""
+
+#: src/ui/ui/SettingsPage.slint
+msgctxt "SettingsPage"
+msgid "System follows the desktop setting"
 msgstr ""

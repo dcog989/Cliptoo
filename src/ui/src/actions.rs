@@ -8,6 +8,32 @@ use crate::helpers;
 /// Armed-delete state: the clip ids and the time of the first Delete press.
 type PendingDelete = std::rc::Rc<std::cell::Cell<Option<(Vec<i32>, std::time::Instant)>>>;
 
+/// A delete removed from the view but not yet from the database, so the toast's
+/// Undo can bring the rows back.
+struct UndoableDelete {
+    ids: Vec<i32>,
+    deps: ClipDeps,
+    // False when the rows could not be removed from the model (filtered/paged
+    // view); the database delete then needs a re-query to make them disappear.
+    removed_in_place: bool,
+}
+
+thread_local! {
+    static UNDOABLE_DELETE: std::cell::RefCell<Option<UndoableDelete>> =
+        const { std::cell::RefCell::new(None) };
+    static DELETE_GENERATION: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+}
+
+/// Run a delete that is still inside its Undo window. Called when the window
+/// hides (a rebuild would resurrect the rows) and when a new delete starts.
+pub fn flush_pending_delete() {
+    let entry = UNDOABLE_DELETE.with(|p| p.borrow_mut().take());
+    DELETE_GENERATION.with(|g| g.set(g.get() + 1));
+    if let Some(entry) = entry {
+        commit_delete(entry.deps, entry.ids, entry.removed_in_place);
+    }
+}
+
 /// Handles shared by the clip actions, cloned per callback so each background
 /// task owns its copies.
 #[derive(Clone)]
@@ -46,6 +72,7 @@ impl ClipDeps {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn setup_clip_actions(
     ui: &crate::AppWindow,
     edit_slot: &crate::lazy_window::LazyWindow<crate::EditWindow>,
@@ -145,6 +172,23 @@ pub fn setup_clip_actions(
         );
     }
 
+    // ── Undo a delete (toast action) ─────────────────────────────────────
+    {
+        let undo_deps = deps.clone();
+        ui.on_undo_delete(move || {
+            let had_pending = UNDOABLE_DELETE.with(|p| p.borrow_mut().take()).is_some();
+            DELETE_GENERATION.with(|g| g.set(g.get() + 1));
+            if let Some(ui) = undo_deps.ui.upgrade() {
+                ui.set_toast_action_label("".into());
+                ui.set_toast_visible(false);
+            }
+            // The rows are still in the database; re-querying restores them.
+            if had_pending {
+                undo_deps.refresh_live();
+            }
+        });
+    }
+
     // ── Merge the multi-selection into one new clip (Ctrl+M) ────────────
     {
         let merge_deps = deps.clone();
@@ -182,7 +226,8 @@ pub fn setup_clip_actions(
                 {
                     tracing::error!("bookmark toggle failed for clip {id}: {e}");
                     let _ = ui.upgrade_in_event_loop(|ui| {
-                        show_main_toast(&ui, "Could not save bookmark", "error");
+                        let message = ui.global::<crate::Translations>().get_err_save_bookmark();
+                        show_main_toast(&ui, &message, "error");
                     });
                     return;
                 }
@@ -355,8 +400,8 @@ pub fn setup_clip_actions(
                         {
                             tracing::error!("Copy error: {e}");
                             let ui = deps.ui.clone();
-                            let message = format!("Copy failed: {e:#}");
                             let _ = ui.upgrade_in_event_loop(move |ui| {
+                                let message = ui.global::<crate::Translations>().get_err_copy();
                                 show_main_toast(&ui, &message, "error");
                             });
                         }
@@ -400,7 +445,8 @@ pub fn setup_clip_actions(
         ui.on_transform_clip(move |id: i32, key: slint::SharedString| {
             let deps = transform_deps.clone();
             let key = key.to_string();
-            let keep_open = !transform_settings.borrow().always_close_to_tray;
+            let keep_open = !transform_settings.borrow().always_close_to_tray
+                || !transform_settings.borrow().show_tray_icon;
             tokio::spawn(async move {
                 match deps
                     .db
@@ -456,8 +502,8 @@ pub fn setup_clip_actions(
                         {
                             tracing::error!("Send-to error (app='{resolved_path}'): {e}");
                             let ui = deps.ui.clone();
-                            let message = format!("Could not open {resolved_path}: {e:#}");
                             let _ = ui.upgrade_in_event_loop(move |ui| {
+                                let message = ui.global::<crate::Translations>().get_err_open_app();
                                 show_main_toast(&ui, &message, "error");
                             });
                         }
@@ -480,6 +526,7 @@ pub fn setup_clip_actions(
         let cl = compare_left_id.clone();
         let cmp_db = db.clone();
         let cmp_settings = settings.clone();
+        let cmp_ui = ui.as_weak();
         ui.on_compare_right(move |id: i32| {
             let left_id = match cl.get() {
                 Some(l) => l,
@@ -495,6 +542,7 @@ pub fn setup_clip_actions(
             tracing::debug!("Compare: left {left_id} vs right {id}");
             let right_id = id as i64;
             let db = cmp_db.clone();
+            let ui = cmp_ui.clone();
             let tool_path = cmp_settings.borrow().compare_tool_path.clone();
             tokio::spawn(async move {
                 let left = db
@@ -509,9 +557,19 @@ pub fn setup_clip_actions(
                             cliptoo_core::compare::compare_clips(&l, &r, &tool_path).await
                         {
                             tracing::error!("Compare error: {e}");
+                            let _ = ui.upgrade_in_event_loop(|ui| {
+                                let message = ui.global::<crate::Translations>().get_err_compare();
+                                show_main_toast(&ui, &message, "error");
+                            });
                         }
                     }
-                    _ => tracing::error!("Compare: failed to fetch clip content"),
+                    _ => {
+                        tracing::error!("Compare: failed to fetch clip content");
+                        let _ = ui.upgrade_in_event_loop(|ui| {
+                            let message = ui.global::<crate::Translations>().get_clip_gone();
+                            show_main_toast(&ui, &message, "warn");
+                        });
+                    }
                 }
             });
         });
@@ -551,7 +609,8 @@ pub fn setup_clip_actions(
             // activation so a setting change applies without a restart.
             let moves_top = settings.borrow().paste_moves_clip_to_top;
             let paste_plain = settings.borrow().paste_as_plain_text;
-            let keep_open = !settings.borrow().always_close_to_tray;
+            let keep_open =
+                !settings.borrow().always_close_to_tray || !settings.borrow().show_tray_icon;
             let view = helpers::current_view_state(&deps.ui);
             tokio::spawn(paste_clip(
                 deps,
@@ -577,7 +636,8 @@ pub fn setup_clip_actions(
             // Same bookkeeping as a normal paste: always count it, and reorder
             // the list when the "paste moves clip to top" setting is on.
             let moves_top = pas_settings.borrow().paste_moves_clip_to_top;
-            let keep_open = !pas_settings.borrow().always_close_to_tray;
+            let keep_open = !pas_settings.borrow().always_close_to_tray
+                || !pas_settings.borrow().show_tray_icon;
             let paste_plain = mode == "plain";
             let view = helpers::current_view_state(&deps.ui);
             tokio::spawn(paste_clip(
@@ -611,10 +671,11 @@ fn request_delete(
     if confirmed {
         delete_clips(deps, compare_left_id, ids);
     } else {
-        let message = if ids.len() == 1 {
-            "Press Delete again to remove".to_string()
+        let message = if let Some(ui) = deps.ui.upgrade() {
+            ui.global::<crate::Translations>()
+                .invoke_confirm_delete(ids.len() as i32)
         } else {
-            format!("Press Delete again to remove {} clips", ids.len())
+            return;
         };
         pending.set(Some((ids, now)));
         if let Some(ui) = deps.ui.upgrade() {
@@ -661,13 +722,19 @@ fn selection_ids(
     ids
 }
 
-/// Remove clips and mirror it in the list. Shared by the context menu (one
-/// click is deliberate) and the confirmed Delete key.
+/// Remove clips from the view now and from the database after the Undo window.
+/// The row disappears immediately; Undo re-queries and brings it back.
 fn delete_clips(
     deps: ClipDeps,
     compare_left_id: std::rc::Rc<std::cell::Cell<Option<i64>>>,
     ids: Vec<i32>,
 ) {
+    if ids.is_empty() {
+        return;
+    }
+    // A second delete commits the first one; the toast only has one Undo slot.
+    flush_pending_delete();
+
     // A deleted clip can no longer be the compare-left; drop a stale reference
     // so a later compare doesn't target a missing row.
     if ids
@@ -676,14 +743,51 @@ fn delete_clips(
     {
         compare_left_id.set(None);
     }
+
+    let mut removed_in_place = false;
+    if let Some(ui) = deps.ui.upgrade() {
+        // Remove the rows in place when they are in the model (every visible
+        // delete is); a filtered or paged view still holds its visible rows.
+        removed_in_place = helpers::remove_rows_by_id(&ui, &ids);
+        let global = ui.global::<crate::Translations>();
+        let message = global.invoke_deleted(ids.len() as i32);
+        let undo = global.get_undo();
+        show_main_toast_action(&ui, &message, "info", &undo);
+    }
+
+    let generation = DELETE_GENERATION.with(|g| {
+        let next = g.get() + 1;
+        g.set(next);
+        next
+    });
+    UNDOABLE_DELETE.with(|p| {
+        *p.borrow_mut() = Some(UndoableDelete {
+            ids: ids.clone(),
+            deps: deps.clone(),
+            removed_in_place,
+        });
+    });
+
+    let timer_deps = deps.clone();
+    slint::Timer::single_shot(UNDO_WINDOW, move || {
+        if DELETE_GENERATION.with(|g| g.get()) != generation {
+            return;
+        }
+        let entry = UNDOABLE_DELETE.with(|p| p.borrow_mut().take());
+        if let Some(entry) = entry {
+            commit_delete(entry.deps, entry.ids, entry.removed_in_place);
+        }
+        if let Some(ui) = timer_deps.ui.upgrade() {
+            ui.set_toast_action_label("".into());
+        }
+    });
+}
+
+/// Delete the clips from the database. When the rows could not be removed from
+/// the model (or the write failed), re-query so the list cannot claim a delete
+/// landed.
+fn commit_delete(deps: ClipDeps, ids: Vec<i32>, removed_in_place: bool) {
     let view = helpers::current_view_state(&deps.ui);
-    // The row can be removed from the model in place when the model holds every
-    // row of the view; otherwise a re-query is needed to refill the truncated
-    // list. See helpers::model_is_complete.
-    let in_place = deps
-        .ui
-        .upgrade()
-        .is_some_and(|ui| helpers::model_is_complete(&ui));
     tokio::spawn(async move {
         let db_ok = deps
             .db
@@ -697,22 +801,7 @@ fn delete_clips(
             })
             .await
             .is_ok();
-        if in_place && db_ok {
-            let deps2 = deps.clone();
-            let _ = deps.ui.upgrade_in_event_loop(move |ui| {
-                if !helpers::remove_rows_by_id(&ui, &ids) {
-                    // The model changed since the click; re-query so the
-                    // deleted rows cannot linger.
-                    helpers::refresh_clips_live(
-                        &deps2.db,
-                        &deps2.ui,
-                        &deps2.thumbs,
-                        &deps2.favicons,
-                        Some(&deps2.tag_prefix),
-                    );
-                }
-            });
-        } else {
+        if !removed_in_place || !db_ok {
             deps.refresh(&view).await;
         }
     });
@@ -741,7 +830,8 @@ fn merge_clips(deps: ClipDeps, ids: Vec<i32>) {
                 Err(e) => {
                     tracing::warn!("merge: clip {id} is no longer in the database: {e}");
                     let _ = deps.ui.upgrade_in_event_loop(|ui| {
-                        show_main_toast(&ui, "Clip no longer exists", "warn");
+                        let message = ui.global::<crate::Translations>().get_clip_gone();
+                        show_main_toast(&ui, &message, "warn");
                     });
                     helpers::refresh_clips_live(
                         &deps.db,
@@ -783,14 +873,17 @@ fn merge_clips(deps: ClipDeps, ids: Vec<i32>) {
             Ok(_) => {
                 deps.refresh(&view).await;
                 let _ = deps.ui.upgrade_in_event_loop(move |ui| {
-                    let message = format!("Merged {count} clips");
+                    let message = ui
+                        .global::<crate::Translations>()
+                        .invoke_merged(count as i32);
                     show_main_toast(&ui, &message, "info");
                 });
             }
             Err(e) => {
                 tracing::error!("merge insert failed: {e:#}");
-                let _ = deps.ui.upgrade_in_event_loop(move |ui| {
-                    show_main_toast(&ui, &format!("Merge failed: {e:#}"), "error");
+                let _ = deps.ui.upgrade_in_event_loop(|ui| {
+                    let message = ui.global::<crate::Translations>().get_err_merge();
+                    show_main_toast(&ui, &message, "error");
                 });
             }
         }
@@ -909,15 +1002,28 @@ fn report_missing_clip(deps: &ClipDeps, id: i32, error: &anyhow::Error) {
         Some(&deps.tag_prefix),
     );
     let _ = deps.ui.upgrade_in_event_loop(|ui| {
-        show_main_toast(&ui, "Clip no longer exists", "warn");
+        let message = ui.global::<crate::Translations>().get_clip_gone();
+        show_main_toast(&ui, &message, "warn");
     });
 }
 
 /// Show a toast on the main window. Severity is "info" | "warn" | "error".
 pub(crate) fn show_main_toast(ui: &crate::AppWindow, message: &str, severity: &str) {
+    show_main_toast_action(ui, message, severity, "");
+}
+
+/// Show a toast with one action button (e.g. "Undo"). The action callback is
+/// wired per window (AppWindow's toast action is the delete undo).
+pub(crate) fn show_main_toast_action(
+    ui: &crate::AppWindow,
+    message: &str,
+    severity: &str,
+    action_label: &str,
+) {
     ui.set_toast_visible(false);
     ui.set_toast_message(message.into());
     ui.set_toast_severity(severity.into());
+    ui.set_toast_action_label(action_label.into());
     ui.set_toast_visible(true);
 }
 
@@ -925,10 +1031,11 @@ pub(crate) fn show_main_toast(ui: &crate::AppWindow, message: &str, severity: &s
 /// the window back and show the error; a log line alone leaves the user with a
 /// vanished window and no paste.
 fn show_paste_error(ui: &slint::Weak<crate::AppWindow>, error: &anyhow::Error) {
-    let message = format!("Paste failed: {error:#}");
+    tracing::error!("Paste failed: {error:#}");
     let ui = ui.clone();
     let _ = ui.upgrade_in_event_loop(move |ui| {
         crate::window::summon_window(&ui);
+        let message = ui.global::<crate::Translations>().get_err_paste();
         show_main_toast(&ui, &message, "error");
     });
 }
@@ -957,3 +1064,6 @@ const MAX_EDIT_FILE_BYTES: u64 = 16 * 1024 * 1024;
 
 /// How long the Delete key stays armed for the confirming second press.
 const DELETE_CONFIRM_WINDOW: std::time::Duration = std::time::Duration::from_secs(2);
+
+/// How long a deleted clip stays recoverable before the database write runs.
+const UNDO_WINDOW: std::time::Duration = std::time::Duration::from_secs(8);

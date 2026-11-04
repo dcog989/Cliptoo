@@ -1,5 +1,5 @@
 // SettingsPage.slint — Settings > main page: options grouped by category
-// (General | Appearance | External Apps).
+// (General | Appearance | External apps).
 
 import { Theme } from "Theme.slint";
 import { SettingsValues } from "SettingsValues.slint";
@@ -22,8 +22,8 @@ export component SettingsPage inherits ScrollView {
     callback accent-picker();
     callback font-picker();
 
-    // Tooltip text for inline controls (Tooltip.text is styled-text, so @tr is
-    // bound here and interpolated through @markdown at the use site).
+    // Inline descriptions for the accent and font rows. Bound here so their
+    // @tr context stays "SettingsPage"; SettingsRow renders them as subtitles.
     private property <string> tip-accent-picker: @tr("Color used for highlights, selections, and focus outlines");
     private property <string> tip-font-family: @tr("Font family used for the clip list. Click to pick a font");
 
@@ -58,8 +58,17 @@ export component SettingsPage inherits ScrollView {
         }
 
         ToggleRow {
-            label: @tr("Always close to tray");
-            tooltip-text: @tr("Hide to the system tray when the window loses focus");
+            label: @tr("Show tray icon");
+            tooltip-text: @tr("Show Cliptoo in the system tray. Applies on next launch");
+            value <=> SettingsValues.s-show-tray-icon;
+            committed(v) => {
+                root.setting-changed("show_tray_icon", v ? "true" : "false");
+            }
+        }
+
+        ToggleRow {
+            label: @tr("Hide when focus is lost");
+            tooltip-text: @tr("Hide the window instead of leaving it open when it loses focus");
             value <=> SettingsValues.s-always-close-to-tray;
             committed(v) => {
                 root.setting-changed("always_close_to_tray", v ? "true" : "false");
@@ -104,7 +113,8 @@ export component SettingsPage inherits ScrollView {
         }
 
         DropRow {
-            label: @tr("Theme Mode");
+            label: @tr("Theme mode");
+            tooltip-text: @tr("System follows the desktop setting");
             index <=> SettingsValues.s-theme-idx;
             options: ["System", "Light", "Dark"];
             committed(v) => {
@@ -164,7 +174,9 @@ export component SettingsPage inherits ScrollView {
                     padding-left: 8px;
                     padding-right: 8px;
                     Text {
-                        text: SettingsValues.s-font-family;
+                        text: SettingsValues.s-font-family == ""
+                            ? @tr("System default")
+                            : SettingsValues.s-font-family;
                         color: Theme.fg-primary;
                         font-size: Theme.font-size;
                         vertical-alignment: center;
@@ -208,7 +220,7 @@ export component SettingsPage inherits ScrollView {
         }
 
         DropRow {
-            label: @tr("Row Height");
+            label: @tr("Row height");
             tooltip-text: @tr("Height of each clip row in the list");
             index <=> SettingsValues.s-row-padding-idx;
             options: ["Compact", "Standard", "Luxury"];
@@ -230,9 +242,9 @@ export component SettingsPage inherits ScrollView {
             }
         }
 
-        // ── External Apps ────────────────────────────────────────────────
+        // ── External apps ────────────────────────────────────────────────
         SectionHeader {
-            text: @tr("External Apps");
+            text: @tr("External apps");
         }
 
         TextRow {
@@ -245,8 +257,8 @@ export component SettingsPage inherits ScrollView {
         }
 
         TextRow {
-            label: @tr("Send To apps");
-            tooltip-text: @tr("Comma-separated list of apps that can open a clip. 'Name: command'. Arguments cannot contain commas");
+            label: @tr("Send to apps");
+            tooltip-text: @tr("Comma-separated list of apps that can open a clip. Format: “Name: command”. Arguments cannot contain commas");
             value <=> SettingsValues.s-send-to-apps;
             committed(v) => {
                 root.setting-changed("send_to_apps", v);
@@ -254,7 +266,7 @@ export component SettingsPage inherits ScrollView {
         }
 
         TextRow {
-            label: @tr("Blacklist apps");
+            label: @tr("Blacklisted apps");
             tooltip-text: @tr("Comma-separated list of apps excluded from clipboard capture");
             value <=> SettingsValues.s-blacklist-apps;
             committed(v) => {

@@ -68,6 +68,10 @@ pub struct Settings {
 
     // System
     pub start_with_system: bool,
+    // Keep a system tray icon. A tray is the only way to reach the window
+    // while "close when focus is lost" is on, so turning it off also keeps the
+    // window on screen.
+    pub show_tray_icon: bool,
     pub always_close_to_tray: bool,
     pub logging_level: String,
 }
@@ -85,7 +89,8 @@ impl Default for Settings {
             settings_window_height_custom: false,
             accent_color: String::new(),
             theme: "System".to_string(),
-            font_family: "Inter".to_string(),
+            // Empty means "use the system font".
+            font_family: String::new(),
             font_size: 13.0,
             preview_font_size: 12.0,
             clip_item_padding: "Standard".to_string(),
@@ -102,6 +107,7 @@ impl Default for Settings {
             send_to_apps: vec![],
             blacklisted_apps: vec![],
             start_with_system: true,
+            show_tray_icon: true,
             always_close_to_tray: true,
             logging_level: "Info".to_string(),
         }
@@ -288,6 +294,7 @@ mod tests {
             .as_object_mut()
             .unwrap()
             .remove("always_close_to_tray");
+        value.as_object_mut().unwrap().remove("show_tray_icon");
         value
             .as_object_mut()
             .unwrap()
@@ -303,6 +310,7 @@ mod tests {
         let s: Settings = serde_json::from_value(value).unwrap();
         assert!(s.paste_moves_clip_to_top);
         assert_eq!(s.quick_paste_modifier, "Right Alt");
+        assert!(s.show_tray_icon);
         assert!(s.always_close_to_tray);
         assert!((s.settings_window_width - 560.0).abs() < f64::EPSILON);
         assert_eq!(s.settings_window_height, None);

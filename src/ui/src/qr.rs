@@ -66,11 +66,13 @@ pub fn setup_qr(
             let _ = main_ui.upgrade_in_event_loop(move |ui| {
                 if let Some(error) = error {
                     tracing::warn!("QR decode failed: {error}");
-                    crate::actions::show_main_toast(&ui, "Could not decode this image", "error");
+                    let message = ui.global::<crate::Translations>().get_err_qr_read();
+                    crate::actions::show_main_toast(&ui, &message, "error");
                     return;
                 }
                 if codes.is_empty() {
-                    crate::actions::show_main_toast(&ui, "No QR code found", "info");
+                    let message = ui.global::<crate::Translations>().get_no_qr_code();
+                    crate::actions::show_main_toast(&ui, &message, "info");
                     return;
                 }
                 show_results(&ui, &qr_win, codes);

@@ -22,7 +22,10 @@ pub fn hide_window(ui: &crate::AppWindow) {
     // tooltip doesn't linger over the desktop after the main window is gone.
     crate::preview::hide_preview();
     // The list is rebuilt on show; holding its rows and decoded images while
-    // hidden is the biggest idle UI allocation.
+    // hidden is the biggest idle UI allocation. Any delete still waiting for
+    // its Undo window must land now: the hidden list is about to be rebuilt
+    // from the database, which would otherwise resurrect the rows.
+    crate::actions::flush_pending_delete();
     crate::helpers::clear_clip_model(ui);
     let _ = ComponentHandle::hide(ui);
 }
@@ -228,8 +231,9 @@ pub fn setup_close_handlers(
                 ui.invoke_close_all_popups();
             }
 
-            // "Always close to tray" off: losing focus leaves the window open.
-            if !s.borrow().always_close_to_tray {
+            // "Hide when focus is lost" off (or no tray to reach the window
+            // again): losing focus leaves the window open.
+            if !s.borrow().always_close_to_tray || !s.borrow().show_tray_icon {
                 return;
             }
 
@@ -272,15 +276,6 @@ pub fn setup_window_active_poll(ui: &crate::AppWindow) -> slint::Timer {
         },
     );
     timer
-}
-
-pub fn setup_close_to_tray(ui: &crate::AppWindow) {
-    let weak = ui.as_weak();
-    ui.on_menu_close_to_tray(move || {
-        if let Some(ui) = weak.upgrade() {
-            hide_window(&ui);
-        }
-    });
 }
 
 /// When "always close to tray" is off, the window stays open but unfocused

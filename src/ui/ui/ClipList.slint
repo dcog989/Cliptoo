@@ -23,6 +23,9 @@ export component ClipList {
     in property <bool> quick-paste-active: false;
     in property <int> quick-paste-slots: 9;
     in property <bool> is-searching: false;
+    // True when a search or type filter is narrowing the history, so an empty
+    // list means "nothing matched" rather than "nothing copied yet".
+    in property <bool> is-filtered: false;
     in-out property <int> selected-index: 0;
     // Multi-select state. Ids are kept as ",<id>," tokens in a string: Slint
     // arrays can't be resized from here, and replace-all gives the per-row
@@ -44,6 +47,7 @@ export component ClipList {
     callback request-preview(int, float, float);  // id, x, y in logical px
     callback dismiss-preview;
     callback load-more;              // viewport neared the end of the loaded rows
+    callback clear-search;           // empty-state "Clear search" action
 
     // A new model (search, filter, ingest) drops the multi-selection; Rust
     // re-points selected-index right after.
@@ -286,27 +290,68 @@ export component ClipList {
         }
     }
 
-    // Empty state (no clips, or a search/filter that matched nothing): dimmed
-    // logo and label centred over the otherwise blank list area.
+    // Empty state: either the history is empty or the current search/filter
+    // matched nothing. Both need an explanation and, for a filtered view, a way
+    // back to the full list.
     if root.clips.length == 0: VerticalLayout {
         width: 100%;
         height: 100%;
         alignment: center;
         cross-axis-alignment: center;
-        spacing: 16px;
-        opacity: 0.8;
+        spacing: 12px;
+        opacity: 0.85;
 
         Image {
             source: @image-url("../assets/cliptoo.svg");
-            width: 96px;
-            height: 96px;
+            width: 64px;
+            height: 64px;
         }
 
         Text {
-            text: @tr("No Results");
+            text: root.is-filtered
+                ? @tr("No matching clips")
+                : @tr("Clipboard history is empty");
             color: Theme.fg-primary;
-            font-size: 32px;
+            font-size: Theme.font-size + 5px;
             horizontal-alignment: center;
+        }
+
+        Text {
+            text: root.is-filtered
+                ? @tr("Try a different search or filter.")
+                : @tr("Copy something and it will appear here.");
+            color: Theme.fg-secondary;
+            font-size: Theme.font-size;
+            horizontal-alignment: center;
+            wrap: word-wrap;
+            max-width: 260px;
+        }
+
+        if root.is-searching: Rectangle {
+            width: 112px;
+            height: 28px;
+            border-radius: 4px;
+            border-width: 1px;
+            border-color: Theme.accent-primary;
+
+            Text {
+                text: @tr("Clear search");
+                color: Theme.accent-primary;
+                font-size: Theme.font-size;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+                width: 100%;
+                height: 100%;
+            }
+
+            TouchArea {
+                mouse-cursor: pointer;
+                accessible-role: button;
+                accessible-label: @tr("Clear search");
+                clicked => {
+                    root.clear-search();
+                }
+            }
         }
     }
 

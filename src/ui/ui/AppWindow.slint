@@ -19,9 +19,11 @@ import { AboutWindow } from "AboutWindow.slint";
 import { QrWindow, QrResult } from "QrWindow.slint";
 import { ToastHost } from "ToastNotification.slint";
 import { CliptooTray } from "CliptooTray.slint";
+import { Translations } from "Translations.slint";
 export {
     Theme,
     SettingsValues,
+    Translations,
     SettingsWindow,
     EditWindow,
     AboutWindow,
@@ -64,7 +66,6 @@ export component AppWindow inherits Window {
     // ── Hamburger menu callbacks ─────────────────────────────
     callback menu-settings();
     callback menu-about();
-    callback menu-close-to-tray();
     // Phase-5 callbacks
     callback transform-clip(int, string);       // id, transform key
     callback send-to-clip(int, string);         // id, app_path (or name)
@@ -72,6 +73,7 @@ export component AppWindow inherits Window {
     callback compare-right(int);               // diff compare-left vs id
     callback maintenance-action(string);        // "clear-history" | "clear-caches" | "deadhead" | "reclassify" | "compact" | "export" | "export-bookmarks" | "import"
     callback delete-clip(int);                 // delete clip by id (context menu)
+    callback undo-delete();                    // restore a just-deleted clip
     callback delete-selection(int, int, string, string);  // bulk delete from the context menu
     callback request-delete(int);              // Delete key: arm, then confirm on a second press
     callback request-delete-selection(int, int, string, string);  // bulk delete: range + added/removed ids
@@ -123,6 +125,10 @@ export component AppWindow inherits Window {
     in-out property <bool> toast-visible:   false;
     in-out property <string> toast-message:   "";
     in-out property <string> toast-severity:  "info";
+    in-out property <string> toast-action-label: "";
+    // Instantiates the Translations global for this window; Rust reads it for
+    // translated toast text (see Translations.slint).
+    private property <string> tr-anchor: Translations.undo;
     // Guards blur-closed against focus-lost while any PopupWindow or the
     // SettingsWindow is open. Derived from the popups' actual is-open state so
     // it can never get stuck true; Rust sets settings-open while the settings
@@ -373,9 +379,6 @@ export component AppWindow inherits Window {
         menu-about() => {
             root.menu-about();
         }
-        menu-close-to-tray() => {
-            root.menu-close-to-tray();
-        }
     }
 
     // ── Filter-grid popup host ──────────────────────────────────
@@ -399,7 +402,11 @@ export component AppWindow inherits Window {
         bottom-offset: root.toolbar-height + 12px;
         message: root.toast-message;
         severity: root.toast-severity;
+        action-label: root.toast-action-label;
         active <=> root.toast-visible;
+        action-clicked => {
+            root.undo-delete();
+        }
     }
 
     // ── Resize areas (edges + corner) and border overlay ─────────────────

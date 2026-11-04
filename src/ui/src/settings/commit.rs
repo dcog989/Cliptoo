@@ -82,10 +82,14 @@ pub(super) fn setup_setting_commit(
                                 .set_s_start_with_system(!enabled);
                         }
                         tracing::warn!("autostart: failed to update the desktop file: {e}");
-                        super::show_toast(&sw, "Could not update autostart", "error");
+                        if let Some(win) = sw.upgrade() {
+                            let message = win.global::<crate::Translations>().get_err_autostart();
+                            super::show_toast(&sw, &message, "error");
+                        }
                     }
                 }
                 "always_close_to_tray" => s.always_close_to_tray = value == "true",
+                "show_tray_icon" => s.show_tray_icon = value == "true",
                 "quick_paste_modifier" => {
                     s.quick_paste_modifier = value.clone();
                     if let Some(ui) = settings_ui.upgrade() {
@@ -111,9 +115,15 @@ pub(super) fn setup_setting_commit(
                 }
                 "font_size" => {
                     if let Ok(v) = value.parse::<f64>() {
+                        let padding = s.clip_item_padding.clone();
                         s.font_size = v;
                         apply_theme_to_windows(&settings_ui, &sw, |t| {
-                            t.set_clip_list_font_size(v as f32)
+                            t.set_clip_list_font_size(v as f32);
+                            // Rows must grow with the text or the larger font
+                            // is clipped by the fixed padding mode.
+                            t.set_row_height(
+                                crate::positioning::row_height(padding.as_str(), v) as f32
+                            );
                         });
                     }
                 }
@@ -127,8 +137,11 @@ pub(super) fn setup_setting_commit(
                 }
                 "clip_item_padding" => {
                     s.clip_item_padding = value.clone();
+                    let font_size = s.font_size;
                     apply_theme_to_windows(&settings_ui, &sw, |t| {
-                        t.set_row_height(crate::positioning::row_height(value.as_str()) as f32);
+                        t.set_row_height(
+                            crate::positioning::row_height(value.as_str(), font_size) as f32
+                        );
                     });
                 }
                 "hover_preview_delay" => {

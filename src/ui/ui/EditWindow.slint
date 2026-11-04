@@ -8,6 +8,7 @@ import { Theme } from "Theme.slint";
 import { InputBox } from "InputBox.slint";
 import { ScrollView } from "std-widgets.slint";
 import { ToastHost } from "ToastNotification.slint";
+import { Translations } from "Translations.slint";
 
 export component EditWindow inherits Window {
     title: @tr("Edit Clip");
@@ -40,6 +41,10 @@ export component EditWindow inherits Window {
     in-out property <bool> toast-visible: false;
     in-out property <string> toast-message: "";
     in-out property <string> toast-severity: "info";
+
+    // Instantiates the Translations global for this window; Rust reads it for
+    // translated toast text (see Translations.slint).
+    private property <string> tr-anchor: Translations.undo;
 
     callback save-clicked(int, string, string);   // id, content, tags
     callback cancel-clicked;

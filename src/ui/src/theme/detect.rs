@@ -55,35 +55,67 @@ fn on_kde() -> bool {
     })
 }
 
+/// Read `key` from `[section]` in `$XDG_CONFIG_HOME/kdeglobals`.
+fn read_kdeglobals_value(section: &str, key: &str) -> Option<String> {
+    let path = dirs::config_dir()?.join("kdeglobals");
+    let text = std::fs::read_to_string(path).ok()?;
+    let header = format!("[{section}]");
+    let mut in_section = false;
+    for line in text.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with('[') {
+            in_section = trimmed == header;
+            continue;
+        }
+        if in_section
+            && let Some(value) = trimmed.strip_prefix(key)
+            && let Some(value) = value.strip_prefix('=')
+        {
+            return Some(value.trim().to_string());
+        }
+    }
+    None
+}
+
+/// Whether the desktop asks for animated transitions. KDE Plasma stores
+/// `AnimationDurationFactor=0` under `[KDE]` when animations are disabled; an
+/// unreadable file keeps the app's default animations on.
+pub fn animations_enabled() -> bool {
+    static ENABLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ENABLED.get_or_init(|| {
+        read_kdeglobals_value("KDE", "AnimationDurationFactor")
+            .and_then(|v| v.parse::<f64>().ok())
+            .is_none_or(|factor| factor > 0.0)
+    })
+}
+
+/// The system UI font size in logical pixels, derived from Plasma's
+/// `[General] font` entry (`Family,PointSize,…`). Qt reports points; Slint
+/// works in pixels at 96 dpi. `None` when the entry is missing or malformed,
+/// so callers keep their fallback.
+pub fn system_font_size_px() -> Option<f32> {
+    static SIZE: std::sync::OnceLock<Option<f32>> = std::sync::OnceLock::new();
+    *SIZE.get_or_init(|| {
+        let raw = read_kdeglobals_value("General", "font")?;
+        let points: f32 = raw.split(',').nth(1)?.trim().parse().ok()?;
+        // 1 pt = 96/72 px at the 96 dpi Slint assumes.
+        Some((points * 96.0 / 72.0).round())
+    })
+}
+
 /// Try to read the KDE Plasma 6 accent color from `$XDG_CONFIG_HOME/kdeglobals`.
 /// Plasma 6 writes the user's chosen accent color as `AccentColor=r,g,b,a`
 /// under `[General]` in this file.
 fn read_kdeglobals_accent() -> Option<(u8, u8, u8)> {
-    let path = dirs::config_dir()?.join("kdeglobals");
-
-    let text = std::fs::read_to_string(path).ok()?;
-    let mut in_general = false;
-    for line in text.lines() {
-        let trimmed = line.trim();
-        if trimmed == "[General]" {
-            in_general = true;
-            continue;
-        }
-        if trimmed.starts_with('[') {
-            in_general = false;
-            continue;
-        }
-        if in_general && trimmed.starts_with("AccentColor=") {
-            let parts: Vec<&str> = trimmed[12..].split(',').collect();
-            if parts.len() >= 3 {
-                let r = parts[0].trim().parse::<u8>().ok()?;
-                let g = parts[1].trim().parse::<u8>().ok()?;
-                let b = parts[2].trim().parse::<u8>().ok()?;
-                return Some((r, g, b));
-            }
-        }
+    let raw = read_kdeglobals_value("General", "AccentColor")?;
+    let parts: Vec<&str> = raw.split(',').collect();
+    if parts.len() < 3 {
+        return None;
     }
-    None
+    let r = parts[0].trim().parse::<u8>().ok()?;
+    let g = parts[1].trim().parse::<u8>().ok()?;
+    let b = parts[2].trim().parse::<u8>().ok()?;
+    Some((r, g, b))
 }
 
 /// Detect the system accent color. On KDE Plasma the portal's

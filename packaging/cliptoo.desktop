@@ -1,10 +1,11 @@
 [Desktop Entry]
 Name=Cliptoo
+GenericName=Clipboard Manager
 Comment=Clipboard manager for KDE Plasma 6
 Exec=cliptoo
 Icon=cliptoo
 Type=Application
-Categories=Utility;
+Categories=Utility;Qt;KDE;
 Keywords=clipboard;paste;history;
 StartupNotify=false
 X-KDE-StartupNotify=false

@@ -22,6 +22,9 @@ mod palette;
 
 pub use detect::{detect_system_accent, detect_system_dark};
 
+/// Duration of the short UI transitions when the desktop animations are on.
+const ANIM_FAST_MS: i64 = 120;
+
 /// Fallback accent RGB used when a stored hex is malformed. Empty strings are
 /// valid — they mean "use the OS accent", which is only known at runtime.
 const DEFAULT_ACCENT: (u8, u8, u8) = (0x7C, 0x6E, 0xE6);
@@ -225,6 +228,9 @@ pub fn fill_theme(
     t.set_fg_type_generic(type_color(palette::GENERIC));
 
     t.set_font_family(SharedString::from(&*settings.font_family));
+    // Follow the system UI font size (Plasma's kdeglobals); 13 px is the
+    // fallback when it cannot be read.
+    t.set_font_size(detect::system_font_size_px().unwrap_or(13.0));
     t.set_color_code_clip_types(settings.color_code_clip_types);
     t.set_clip_list_font_size(settings.font_size as f32);
     t.set_preview_font_size(settings.preview_font_size as f32);
@@ -232,7 +238,17 @@ pub fn fill_theme(
 
     t.set_hover_preview_delay(settings.hover_preview_delay as i64);
 
-    t.set_row_height(crate::positioning::row_height(&settings.clip_item_padding) as f32);
+    // Respect the desktop's "disable animations" preference instead of a fixed
+    // 120 ms (Slint has no platform API for it; see detect::animations_enabled).
+    t.set_anim_fast(if detect::animations_enabled() {
+        ANIM_FAST_MS
+    } else {
+        0
+    });
+
+    t.set_row_height(
+        crate::positioning::row_height(&settings.clip_item_padding, settings.font_size) as f32,
+    );
 }
 
 /// A resolved theme context: whether the UI should be dark and, if in

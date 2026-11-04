@@ -4,6 +4,7 @@
 // overlay. Persisted values live in the SettingsValues global.
 
 import { Theme } from "Theme.slint";
+import { Translations } from "Translations.slint";
 import { SettingsHeader } from "SettingsHeader.slint";
 import { SettingsPage } from "SettingsPage.slint";
 import { ShortcutsPage } from "ShortcutsPage.slint";
@@ -11,7 +12,7 @@ import { DatabasePage } from "DatabasePage.slint";
 import { ToastHost } from "ToastNotification.slint";
 
 export component SettingsWindow inherits Window {
-    title: @tr("Cliptoo Settings");
+    title: @tr("Settings");
     // Resizable via the WM frame; the size is persisted in Settings
     // (settings_window_width/height) and restored here on open. The height
     // defaults to the main window's height until the user resizes it.
@@ -22,7 +23,7 @@ export component SettingsWindow inherits Window {
     in-out property <length> opened-height: 600px;
     preferred-width: root.stored-width;
     preferred-height: root.stored-height;
-    min-width: 400px;
+    min-width: 540px;
     min-height: 400px;
     background: Theme.bg-primary;
     default-font-size: Theme.font-size;
@@ -32,10 +33,16 @@ export component SettingsWindow inherits Window {
     in-out property <bool> toast-visible:   false;
     in-out property <string> toast-message:   "";
     in-out property <string> toast-severity:  "info";
+    in-out property <string> toast-action-label: "";
+    // Instantiates the Translations global for this window; Rust reads it for
+    // translated toast text (see Translations.slint).
+    private property <string> tr-anchor: Translations.undo;
 
     callback settings-closing();
     callback setting-changed(string, string);
     callback maintenance-action(string);
+    callback undo-maintenance();
+
     callback clear-accent-color();
     callback accent-picker();
     callback font-picker();
@@ -140,6 +147,10 @@ export component SettingsWindow inherits Window {
         bottom-offset: 16px;
         message: root.toast-message;
         severity: root.toast-severity;
+        action-label: root.toast-action-label;
         active <=> root.toast-visible;
+        action-clicked => {
+            root.undo-maintenance();
+        }
     }
 }

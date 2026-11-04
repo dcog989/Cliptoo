@@ -1,0 +1,45 @@
+// Translations.slint — user-facing strings produced by Rust.
+//
+// Rust has no gettext runtime, so a toast message written in Rust never
+// reached the .po catalog. These strings live here to be extracted by the
+// usual @tr pass; Rust reads them from the window's `Translations` global.
+// Each string says what happened and what to do, in plain language, and never
+// includes raw error text (the log keeps the details).
+
+export global Translations {
+    out property <string> err-save-bookmark: @tr("Could not save the bookmark. Try again.");
+    out property <string> err-copy: @tr("Could not copy this clip. Try again.");
+    out property <string> err-open-app: @tr("Could not open this clip in that app. Check the app's path in Settings.");
+    out property <string> err-merge: @tr("Could not merge the clips. Try again.");
+    out property <string> err-compare: @tr("Could not compare the clips. Check the diff tool path in Settings.");
+    out property <string> err-paste: @tr("Could not paste. Make sure Cliptoo is allowed to send input.");
+    out property <string> err-load-clips: @tr("Could not load clips. Try again.");
+    out property <string> err-autostart: @tr("Could not change launch at login. Check that your autostart folder is writable.");
+    out property <string> err-font-picker: @tr("Could not open the font picker. Install python3 and PyQt6, then try again.");
+    out property <string> err-color-picker: @tr("Could not open the colour picker. Install kdialog, then try again.");
+    out property <string> err-maintenance: @tr("The action did not finish. Try again.");
+    out property <string> err-save-clip: @tr("Could not save the clip. Try again.");
+    out property <string> err-save-file-index: @tr("The file was saved, but Cliptoo could not update the clip index. Reopen the clip to check it.");
+    out property <string> clip-gone: @tr("This clip is no longer in history.");
+    out property <string> no-qr-code: @tr("No QR code was found in this image.");
+    out property <string> err-qr-read: @tr("Could not read this image. It may be damaged or not an image.");
+
+    out property <string> history-cleared: @tr("History cleared");
+    out property <string> undo: @tr("Undo");
+
+    // Full sentences with the count as a placeholder, so translators can put
+    // the number where their language needs it.
+    public pure function deleted(count: int) -> string {
+        return count == 1 ? @tr("Clip deleted") : @tr("{} clips deleted", count);
+    }
+
+    public pure function confirm-delete(count: int) -> string {
+        return count == 1
+            ? @tr("Press Delete again to remove the clip")
+            : @tr("Press Delete again to remove {} clips", count);
+    }
+
+    public pure function merged(count: int) -> string {
+        return @tr("Merged {} clips", count);
+    }
+}

@@ -47,11 +47,12 @@ pub fn ensure_autostart() -> Result<()> {
     let content = format!(
         "[Desktop Entry]\n\
          Name=Cliptoo\n\
+         GenericName=Clipboard Manager\n\
          Comment=Clipboard manager for KDE Plasma 6\n\
          Exec={}\n\
          Icon=cliptoo\n\
          Type=Application\n\
-         Categories=Utility;\n\
+         Categories=Utility;Qt;KDE;\n\
          Keywords=clipboard;paste;history;\n\
          StartupNotify=false\n\
          NoDisplay=true\n\

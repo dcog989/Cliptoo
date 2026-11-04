@@ -1,5 +1,5 @@
 // HamburgerMenuHost.slint — Popup menu for the hamburger icon (About,
-// Settings, Close to Tray), positioned just above the hamburger button.
+// Settings), positioned just above the hamburger button.
 
 import { HamburgerMenu } from "HamburgerMenu.slint";
 
@@ -21,7 +21,6 @@ export component HamburgerMenuHost {
 
     callback menu-settings();
     callback menu-about();
-    callback menu-close-to-tray();
 
     // Called by AppWindow from the toolbar hamburger click.
     public function show() {
@@ -100,11 +99,6 @@ export component HamburgerMenuHost {
                 }
                 menu-about => {
                     root.menu-about();
-                    root.popup-just-closed = true;
-                    popup.close();
-                }
-                menu-close-to-tray => {
-                    root.menu-close-to-tray();
                     root.popup-just-closed = true;
                     popup.close();
                 }

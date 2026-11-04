@@ -372,6 +372,7 @@ export component MainClipArea inherits Rectangle {
                 quick-paste-active: root.quick-paste-active;
                 quick-paste-slots: root.quick-paste-slots;
                 is-searching: root.is-searching;
+                is-filtered: root.is-searching || root.active-filter != "all";
                 popup-open: root.popup-open;
                 selected-index <=> root.selected-index;
                 horizontal-stretch: 1;
@@ -379,6 +380,10 @@ export component MainClipArea inherits Rectangle {
 
                 item-activated(id) => {
                     root.item-activated(id);
+                }
+                clear-search => {
+                    root.search-text = "";
+                    root.search-changed("");
                 }
                 item-right-clicked(id, x, y, bookmarked, ctype) => {
                     root.open-context-menu(id, x, y, bookmarked, ctype);

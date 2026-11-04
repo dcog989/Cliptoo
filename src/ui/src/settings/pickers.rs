@@ -134,12 +134,11 @@ if ok:
             }
 
             if family.is_empty() {
-                if error.is_some() {
-                    crate::settings::show_toast(
-                        &sw,
-                        "Font picker failed (python3 + PyQt6 required)",
-                        "error",
-                    );
+                if error.is_some()
+                    && let Some(win) = sw.upgrade()
+                {
+                    let message = win.global::<crate::Translations>().get_err_font_picker();
+                    crate::settings::show_toast(&sw, &message, "error");
                 }
                 return;
             }
@@ -244,12 +243,11 @@ pub(super) fn setup_accent_picker(
             }
 
             let Some(hex) = hex else {
-                if error.is_some() {
-                    crate::settings::show_toast(
-                        &sw,
-                        "Color picker failed (kdialog required)",
-                        "error",
-                    );
+                if error.is_some()
+                    && let Some(win) = sw.upgrade()
+                {
+                    let message = win.global::<crate::Translations>().get_err_color_picker();
+                    crate::settings::show_toast(&sw, &message, "error");
                 }
                 return;
             };

@@ -1,10 +1,8 @@
 // ContextMenu.slint — Right-click action menu for clip list items.
-// Rendered inside a PopupWindow declared in ContextMenuHost.
+// Rendered inside the PopupWindow declared in ContextMenuHost.
 //
-// This is the main actions view only. The "Format" and "Send To" items open
-// their own PopupWindows (FormatMenu / the host's send menu) so every menu is
-// sized from fully-visible content at open time — a shown popup cannot reliably
-// re-grow when a hidden sub-view becomes visible.
+// This is the main column only. Format and Send To open their own flyout
+// popups to the right; this menu does not resize.
 
 import { Theme } from "Theme.slint";
 import { ClipTypeMap } from "ClipTypes.slint";
@@ -33,8 +31,8 @@ export component ContextMenu {
     callback move-to-bottom();
     callback move-up-one();
     callback move-down-one();
-    callback format-open();         // open the Format submenu popup
-    callback send-to-open();        // open the Send To submenu popup
+    // "format" / "send" opens that flyout; "" closes any open one.
+    callback submenu-requested(string);
 
     // True when the clip type supports text transformations.
     property <bool> is-text-type: ClipTypeMap.is-text-type(root.clip-type);
@@ -56,9 +54,8 @@ export component ContextMenu {
     // Keyboard selection: index of the highlighted row, -1 until the first
     // arrow key. Separators are not counted; row-count is the actionable count.
     in-out property <int> selected: -1;
-    // Delete is irreversible, so the first activation arms the row
-    // ("Confirm Delete!!") and the second one runs it — same two-step guard as
-    // Cancel in the editor.
+    // The first activation arms the row ("Delete clip?") and the second one
+    // runs it — same two-step guard as Cancel in the editor.
     in-out property <bool> delete-armed: false;
     property <int> paste-count: (root.show-paste ? 1 : 0)
         + (root.show-rich-paste ? 1 : 0)
@@ -78,6 +75,21 @@ export component ContextMenu {
     property <int> idx-merge: root.idx-delete + 1;
     property <int> idx-move-top: root.idx-delete + (root.multi-selection ? 2 : 1);
     property <int> idx-bookmark: root.row-count - 1 - root.send-to-row;
+    property <int> idx-send: root.idx-bookmark + 1;
+
+    // Offset of the Format / Send To row from the popup's top edge, so the
+    // flyouts open level with the row that opened them. Separators before
+    // Format: the paste-block one. Before Send To: that plus the three
+    // unconditional ones.
+    out property <length> format-anchor-y:
+        Theme.menu-padding
+        + root.idx-format * Theme.menu-row-height
+        + (root.has-paste-block ? Theme.menu-separator-height : 0px);
+    out property <length> send-anchor-y:
+        Theme.menu-padding
+        + root.idx-send * Theme.menu-row-height
+        + (root.has-paste-block ? Theme.menu-separator-height : 0px)
+        + 4 * Theme.menu-separator-height;
 
     // Wrap around so Down at the last row lands on the first.
     public function move-selection(delta: int) {
@@ -115,6 +127,19 @@ export component ContextMenu {
         }
     }
 
+    // Opens the selected row's flyout, when it has one. Used by Right Arrow.
+    public function open-selected-submenu() -> bool {
+        if (root.is-text-type && root.selected == root.idx-format) {
+            root.submenu-requested("format");
+            return true;
+        }
+        if (root.send-to-row == 1 && root.selected == root.idx-send) {
+            root.submenu-requested("send");
+            return true;
+        }
+        return false;
+    }
+
     // Enter: run the highlighted row's action.
     public function activate-selected() {
         let i = root.selected;
@@ -131,7 +156,7 @@ export component ContextMenu {
         } else if (root.show-plain-paste && i == root.idx-plain) {
             root.paste-as("plain");
         } else if (root.is-text-type && i == root.idx-format) {
-            root.format-open();
+            root.submenu-requested("format");
         } else if (i == root.idx-delete) {
             root.request-delete();
         } else if (root.multi-selection && i == root.idx-merge) {
@@ -146,8 +171,8 @@ export component ContextMenu {
             root.move-down-one();
         } else if (i == root.idx-bookmark) {
             root.toggle-bookmark(root.clip-id, root.clip-is-bookmarked);
-        } else if (root.send-to-row == 1 && i == root.idx-bookmark + 1) {
-            root.send-to-open();
+        } else if (root.send-to-row == 1 && i == root.idx-send) {
+            root.submenu-requested("send");
         }
     }
 
@@ -168,7 +193,7 @@ export component ContextMenu {
     }
 
     menu-root := Rectangle {
-        border-radius: 8px;
+        border-radius: Theme.border-radius;
         background: Theme.bg-header;
         border-width: 1px;
         border-color: Theme.border-subtle;
@@ -176,8 +201,7 @@ export component ContextMenu {
         drop-shadow-color: Theme.shadow;
         drop-shadow-offset-y: 4px;
 
-        // ── Main view ─────────────────────────────────────────────────────────
-        main-view := VerticalLayout {
+        VerticalLayout {
             alignment: start;
             padding: 4px;
             spacing: 0px;
@@ -186,6 +210,7 @@ export component ContextMenu {
                 label: @tr("Preview");
                 icon: @image-url("icons/eye.svg");
                 selected: root.selected == 0;
+                hovered => { root.submenu-requested(""); }
                 clicked => {
                     root.preview();
                 }
@@ -195,6 +220,7 @@ export component ContextMenu {
                 label: @tr("Edit");
                 icon: @image-url("icons/pencil.svg");
                 selected: root.selected == 1;
+                hovered => { root.submenu-requested(""); }
                 clicked => {
                     root.edit();
                 }
@@ -204,6 +230,7 @@ export component ContextMenu {
                 label: @tr("Decode QR");
                 icon: @image-url("icons/file-image.svg");
                 selected: root.selected == 2;
+                hovered => { root.submenu-requested(""); }
                 clicked => {
                     root.decode-qr();
                 }
@@ -211,25 +238,28 @@ export component ContextMenu {
 
             if root.has-paste-block: MenuSeparator { }
             if root.show-paste: MenuRow {
-                label: @tr("Paste as Plain Text");
+                label: @tr("Paste as plain text");
                 icon: @image-url("icons/text.svg");
                 selected: root.selected == root.idx-paste;
+                hovered => { root.submenu-requested(""); }
                 clicked => {
                     root.paste();
                 }
             }
             if root.show-rich-paste: MenuRow {
-                label: @tr("Paste as Rich Text");
+                label: @tr("Paste as rich text");
                 icon: @image-url("icons/text-initial.svg");
                 selected: root.selected == root.idx-rich;
+                hovered => { root.submenu-requested(""); }
                 clicked => {
                     root.paste-as("rich");
                 }
             }
             if root.show-plain-paste: MenuRow {
-                label: @tr("Paste as Plain Text");
+                label: @tr("Paste as plain text");
                 icon: @image-url("icons/text.svg");
                 selected: root.selected == root.idx-plain;
+                hovered => { root.submenu-requested(""); }
                 clicked => {
                     root.paste-as("plain");
                 }
@@ -239,31 +269,36 @@ export component ContextMenu {
                 icon: @image-url("icons/pencil-line.svg");
                 has-arrow: true;
                 selected: root.selected == root.idx-format;
+                hovered => {
+                    root.submenu-requested("format");
+                }
                 clicked => {
-                    root.format-open();
+                    root.submenu-requested("format");
                 }
             }
             MenuSeparator { }
 
             MenuRow {
                 label: root.delete-armed
-                    ? @tr("Confirm Delete!!")
+                    ? @tr("Delete clip?")
                     : root.multi-selection
-                    ? @tr("Delete Selection")
+                    ? @tr("Delete selection")
                     : @tr("Delete");
                 icon: @image-url("icons/trash-2.svg");
                 is-danger: true;
                 armed: root.delete-armed;
                 selected: root.selected == root.idx-delete;
+                hovered => { root.submenu-requested(""); }
                 clicked => {
                     root.request-delete();
                 }
             }
 
             if root.multi-selection: MenuRow {
-                label: @tr("Merge Selected");
+                label: @tr("Merge selected");
                 icon: @image-url("icons/merge.svg");
                 selected: root.selected == root.idx-merge;
+                hovered => { root.submenu-requested(""); }
                 clicked => {
                     root.merge-selection();
                 }
@@ -272,36 +307,40 @@ export component ContextMenu {
             MenuSeparator { }
 
             MenuRow {
-                label: @tr("Move to Top");
+                label: @tr("Move to top");
                 icon: @image-url("icons/arrow-up-to-line.svg");
                 selected: root.selected == root.idx-move-top;
+                hovered => { root.submenu-requested(""); }
                 clicked => {
                     root.move-to-top();
                 }
             }
 
             MenuRow {
-                label: @tr("Move to Bottom");
+                label: @tr("Move to bottom");
                 icon: @image-url("icons/arrow-down-to-line.svg");
                 selected: root.selected == root.idx-move-top + 1;
+                hovered => { root.submenu-requested(""); }
                 clicked => {
                     root.move-to-bottom();
                 }
             }
 
             MenuRow {
-                label: @tr("Move Up One");
+                label: @tr("Move up one");
                 icon: @image-url("icons/chevron-up.svg");
                 selected: root.selected == root.idx-move-top + 2;
+                hovered => { root.submenu-requested(""); }
                 clicked => {
                     root.move-up-one();
                 }
             }
 
             MenuRow {
-                label: @tr("Move Down One");
+                label: @tr("Move down one");
                 icon: @image-url("icons/chevron-down.svg");
                 selected: root.selected == root.idx-move-top + 3;
+                hovered => { root.submenu-requested(""); }
                 clicked => {
                     root.move-down-one();
                 }
@@ -310,9 +349,10 @@ export component ContextMenu {
             MenuSeparator { }
 
             MenuRow {
-                label: root.clip-is-bookmarked ? @tr("Remove Bookmark") : @tr("Bookmark");
+                label: root.clip-is-bookmarked ? @tr("Remove bookmark") : @tr("Bookmark");
                 icon: root.clip-is-bookmarked ? @image-url("icons/bookmark-x.svg") : @image-url("icons/bookmark-plus.svg");
                 selected: root.selected == root.idx-bookmark;
+                hovered => { root.submenu-requested(""); }
                 clicked => {
                     root.toggle-bookmark(root.clip-id, root.clip-is-bookmarked);
                 }
@@ -320,12 +360,15 @@ export component ContextMenu {
 
             if root.send-to-apps.length > 0: MenuSeparator { }
             if root.send-to-apps.length > 0: MenuRow {
-                label: @tr("Send To");
+                label: @tr("Send to");
                 icon: @image-url("icons/send.svg");
                 has-arrow: true;
-                selected: root.selected == root.idx-bookmark + 1;
+                selected: root.selected == root.idx-send;
+                hovered => {
+                    root.submenu-requested("send");
+                }
                 clicked => {
-                    root.send-to-open();
+                    root.submenu-requested("send");
                 }
             }
         }

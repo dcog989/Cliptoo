@@ -205,7 +205,8 @@ pub async fn refresh_clips(
             view.filter
         );
         let _ = ui.upgrade_in_event_loop(|ui| {
-            crate::actions::show_main_toast(&ui, "Search failed; see the log", "error");
+            let message = ui.global::<crate::Translations>().get_err_load_clips();
+            crate::actions::show_main_toast(&ui, &message, "error");
         });
     }
     if let Ok(clips) = result {
@@ -392,12 +393,6 @@ fn is_full_unfiltered_view(search: &str, filter: &str, has_more: bool) -> bool {
     search.is_empty() && filter == "all" && !has_more
 }
 
-/// Whether the model holds every row of the current view, so removing one row in
-/// place cannot leave a truncated list that a re-query would refill.
-pub fn model_is_complete(ui: &crate::AppWindow) -> bool {
-    !ui.get_clips_has_more()
-}
-
 /// Mirror a clip reorder in the UI model in place, keeping the selected clip
 /// selected. Does nothing unless [`model_is_timestamp_ordered`] still holds
 /// when the mutation runs, so a view change since the DB write can't corrupt a
@@ -447,10 +442,10 @@ pub fn apply_row_move(ui: &crate::AppWindow, id: i32, how: RowMove) {
 
 /// Remove clip rows from the UI model in place, keeping the selected clip
 /// selected and otherwise landing on the position of the first removed row.
-/// Returns false when the model is not the full view or a row is missing, so
-/// the caller re-queries instead of showing rows the DB already deleted.
+/// Returns false when a row is not in the model, so the caller re-queries
+/// instead of trusting a partial removal.
 pub fn remove_rows_by_id(ui: &crate::AppWindow, ids: &[i32]) -> bool {
-    if !model_is_complete(ui) || ids.is_empty() {
+    if ids.is_empty() {
         return false;
     }
     let model = ui.get_clips();

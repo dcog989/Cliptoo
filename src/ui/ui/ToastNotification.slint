@@ -2,8 +2,9 @@
 //
 // Usage:
 //   Set `visible`, `message`, and `severity` from Rust.
-//   The component auto-dismisses after `display-duration` via an internal timer
-//   which fires `dismissed` so the parent can clear the properties.
+//   Info and warning toasts auto-dismiss after `display-duration`; an error
+//   stays until the user dismisses it, because it reports something that needs
+//   attention. `action-label` adds a single action (e.g. Undo).
 //
 // Severity values: "info" | "warn" | "error"   (anything else → info styling)
 
@@ -13,14 +14,15 @@ export component ToastNotification {
     in property <string> message:          "";
     in property <string> severity:         "info";
     // display-duration in milliseconds; the internal timer uses this.
-    // Long enough to read: the toast also carries the only feedback for a
-    // failed save or the two-step Delete confirmation.
     in property <duration> display-duration: 6000ms;
+    // Optional single action, e.g. "Undo". An empty label hides the button.
+    in property <string> action-label:     "";
 
     // The parent sets this to show the toast.
     in-out property <bool> active: false;
 
     callback dismissed;
+    callback action-clicked;
 
     // The mix factor weights the colour it is called on, so 0.85 keeps the
     // warning a strong amber fill (15% page) that the white `warn-fg` text can
@@ -34,13 +36,19 @@ export component ToastNotification {
     property <color> text-color:
         severity == "error" ? Theme.danger-on-bg : severity == "warn" ? Theme.warn-fg : Theme.fg-primary;
 
+    function dismiss() {
+        root.active = false;
+        root.dismissed();
+    }
+
     // Auto-dismiss timer: fires once after display-duration, then resets.
+    // Errors stay until dismissed: they need attention and must not vanish
+    // while the user is reading them.
     Timer {
         interval: root.display-duration;
-        running: root.active;
+        running: root.active && root.severity != "error";
         triggered => {
-            root.active = false;
-            root.dismissed();
+            root.dismiss();
         }
     }
 
@@ -55,7 +63,7 @@ export component ToastNotification {
         min-width: 200px;
         max-width: 400px;
 
-        border-radius: 6px;
+        border-radius: Theme.border-radius;
         background: bg-color;
         border-width: 1px;
         border-color: border-color;
@@ -81,6 +89,7 @@ export component ToastNotification {
                 // Empty while hidden, so assistive tech never sees a stale
                 // message from the previous toast.
                 text: root.active ? root.message : "";
+                horizontal-stretch: 1;
                 color: text-color;
                 font-size: Theme.font-size;
                 wrap: word-wrap;
@@ -92,6 +101,60 @@ export component ToastNotification {
                     ? AccessibleLiveness.assertive
                     : AccessibleLiveness.polite;
             }
+
+            // Single action (Undo). A toast with an action stays for its full
+            // display-duration so the action is usable.
+            if root.action-label != "": Rectangle {
+                width: action-text.preferred-width + 12px;
+                height: 24px;
+                border-radius: 4px;
+                background: transparent;
+                border-width: 1px;
+                border-color: text-color;
+
+                action-text := Text {
+                    text: root.action-label;
+                    color: text-color;
+                    font-size: Theme.font-size;
+                    font-weight: 700;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                    width: 100%;
+                    height: 100%;
+                }
+
+                TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => {
+                        root.action-clicked();
+                        root.dismiss();
+                    }
+                }
+            }
+
+            // Errors never auto-dismiss, so give them an explicit close path.
+            if root.severity == "error" && root.action-label == "": Rectangle {
+                width: 24px;
+                height: 24px;
+                border-radius: 4px;
+
+                Text {
+                    text: "×";
+                    color: text-color;
+                    font-size: Theme.font-size + 2px;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+
+                TouchArea {
+                    mouse-cursor: pointer;
+                    accessible-role: button;
+                    accessible-label: @tr("Dismiss");
+                    clicked => {
+                        root.dismiss();
+                    }
+                }
+            }
         }
     }
 }
@@ -102,17 +165,26 @@ export component ToastHost {
     in property <length> bottom-offset: 16px;
     in property <string> message;
     in property <string> severity: "info";
+    in property <string> action-label: "";
+    in property <duration> display-duration: 8000ms;
     in-out property <bool> active: false;
+
+    callback action-clicked;
 
     width: 100%;
     height: 100%;
 
     toast := ToastNotification {
-        width: Math.min(320px, root.width - 40px);
+        width: Math.min(360px, root.width - 40px);
         x: (root.width - self.width) / 2;
         y: root.height - root.bottom-offset - self.height;
         message: root.message;
         severity: root.severity;
+        action-label: root.action-label;
+        display-duration: root.display-duration;
         active <=> root.active;
+        action-clicked => {
+            root.action-clicked();
+        }
     }
 }

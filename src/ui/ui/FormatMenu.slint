@@ -1,17 +1,14 @@
-// FormatMenu.slint — The "Format" submenu popup for text clips.
-// A separate PopupWindow (hosted by ContextMenuHost) so each menu is sized
-// from fully-visible content at open time, avoiding the reactive re-sizing of
-// a shown popup when its content is toggled between sub-views.
+// FormatMenu.slint — The Format submenu: transform rows only.
+// Hosted by ContextMenuHost as a flyout to the right of the main clip menu.
 
 import { Theme } from "Theme.slint";
 import { MenuRow, MenuSeparator } from "MenuRow.slint";
 
 export component FormatMenu {
-    callback back();
     callback format(string);        // transform key
 
     // Keyboard selection: index of the highlighted row, -1 until the first
-    // arrow key. Back is 0; the transform rows follow in `transform-keys` order.
+    // arrow key. Separators are not counted; row-count is the actionable count.
     in-out property <int> selected: -1;
     property <[string]> transform-keys: [
         "upper",
@@ -28,8 +25,7 @@ export component FormatMenu {
         "lf1",
         "timestamp",
     ];
-    // Separators are not counted.
-    property <int> row-count: 1 + root.transform-keys.length;
+    property <int> row-count: root.transform-keys.length;
 
     // Wrap around so Down at the last row lands on the first.
     public function move-selection(delta: int) {
@@ -53,20 +49,17 @@ export component FormatMenu {
 
     // Enter: run the highlighted row's action.
     public function activate-selected() {
-        if (root.selected == 0) {
-            root.back();
-        } else if (root.selected > 0 && root.selected <= root.transform-keys.length) {
-            root.format(root.transform-keys[root.selected - 1]);
+        if (root.selected >= 0 && root.selected < root.transform-keys.length) {
+            root.format(root.transform-keys[root.selected]);
         }
     }
 
-    // Intrinsic popup size used by ContextMenuHost. All rows are unconditional
-    // so the height is a fixed count; the width comes from the widest label.
+    // Intrinsic popup size used by ContextMenuHost.
     out property <length> menu-width: menu-root.preferred-width;
     out property <length> menu-height: menu-root.preferred-height;
 
     menu-root := Rectangle {
-        border-radius: 8px;
+        border-radius: Theme.border-radius;
         background: Theme.bg-header;
         border-width: 1px;
         border-color: Theme.border-subtle;
@@ -80,20 +73,9 @@ export component FormatMenu {
             spacing: 0px;
 
             MenuRow {
-                label: @tr("Back");
-                icon: @image-url("icons/arrow-left.svg");
-                selected: root.selected == 0;
-                clicked => {
-                    root.back();
-                }
-            }
-
-            MenuSeparator { }
-
-            MenuRow {
                 label: @tr("UPPER CASE");
                 icon: @image-url("icons/case-upper.svg");
-                selected: root.selected == 1;
+                selected: root.selected == 0;
                 clicked => {
                     root.format("upper");
                 }
@@ -102,16 +84,16 @@ export component FormatMenu {
             MenuRow {
                 label: @tr("lower case");
                 icon: @image-url("icons/case-lower.svg");
-                selected: root.selected == 2;
+                selected: root.selected == 1;
                 clicked => {
                     root.format("lower");
                 }
             }
 
             MenuRow {
-                label: @tr("Capitalize Words");
+                label: @tr("Capitalize words");
                 icon: @image-url("icons/case-sensitive.svg");
-                selected: root.selected == 3;
+                selected: root.selected == 2;
                 clicked => {
                     root.format("capitalize");
                 }
@@ -120,7 +102,7 @@ export component FormatMenu {
             MenuRow {
                 label: @tr("Sentence case");
                 icon: @image-url("icons/case-sensitive.svg");
-                selected: root.selected == 4;
+                selected: root.selected == 3;
                 clicked => {
                     root.format("sentence");
                 }
@@ -129,7 +111,7 @@ export component FormatMenu {
             MenuRow {
                 label: @tr("iNVERT cASE");
                 icon: @image-url("icons/case-sensitive.svg");
-                selected: root.selected == 5;
+                selected: root.selected == 4;
                 clicked => {
                     root.format("invert");
                 }
@@ -140,7 +122,7 @@ export component FormatMenu {
             MenuRow {
                 label: @tr("kebab-case");
                 icon: @image-url("icons/text.svg");
-                selected: root.selected == 6;
+                selected: root.selected == 5;
                 clicked => {
                     root.format("kebab");
                 }
@@ -149,7 +131,7 @@ export component FormatMenu {
             MenuRow {
                 label: @tr("snake_case");
                 icon: @image-url("icons/text.svg");
-                selected: root.selected == 7;
+                selected: root.selected == 6;
                 clicked => {
                     root.format("snake");
                 }
@@ -158,7 +140,7 @@ export component FormatMenu {
             MenuRow {
                 label: @tr("camelCase");
                 icon: @image-url("icons/text.svg");
-                selected: root.selected == 8;
+                selected: root.selected == 7;
                 clicked => {
                     root.format("camel");
                 }
@@ -167,7 +149,7 @@ export component FormatMenu {
             MenuRow {
                 label: @tr("De-slug");
                 icon: @image-url("icons/text.svg");
-                selected: root.selected == 9;
+                selected: root.selected == 8;
                 clicked => {
                     root.format("deslug");
                 }
@@ -176,36 +158,36 @@ export component FormatMenu {
             MenuSeparator { }
 
             MenuRow {
-                label: @tr("Trim Whitespace");
+                label: @tr("Trim whitespace");
                 icon: @image-url("icons/scissors.svg");
-                selected: root.selected == 10;
+                selected: root.selected == 9;
                 clicked => {
                     root.format("trim");
                 }
             }
 
             MenuRow {
-                label: @tr("Remove Line Breaks");
+                label: @tr("Remove line breaks");
                 icon: @image-url("icons/text-wrap.svg");
-                selected: root.selected == 11;
+                selected: root.selected == 10;
                 clicked => {
                     root.format("remove_lf");
                 }
             }
 
             MenuRow {
-                label: @tr("Normalize LF");
+                label: @tr("Normalize line endings");
                 icon: @image-url("icons/text-wrap.svg");
-                selected: root.selected == 12;
+                selected: root.selected == 11;
                 clicked => {
                     root.format("lf1");
                 }
             }
 
             MenuRow {
-                label: @tr("Add Timestamp");
+                label: @tr("Add timestamp");
                 icon: @image-url("icons/clock.svg");
-                selected: root.selected == 13;
+                selected: root.selected == 12;
                 clicked => {
                     root.format("timestamp");
                 }

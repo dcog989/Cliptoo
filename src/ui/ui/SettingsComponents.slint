@@ -24,9 +24,12 @@ export component SettingsRow {
         // width (via horizontal-stretch); `start` pins hugging cells to their
         // preferred size. A single fixed alignment can't serve both.
         alignment: root.fill ? LayoutAlignment.stretch : LayoutAlignment.start;
+        // Keep the control at its own height; a stretched field would grow to
+        // the row height.
+        cross-axis-alignment: start;
 
         Text {
-            width: 180px;
+            width: 280px;
             text: root.label;
             color: Theme.fg-primary;
             font-size: Theme.font-size;
@@ -147,7 +150,7 @@ export component TextRow {
 
         InputBox {
             horizontal-stretch: 1;
-            min-width: 300px;
+            min-width: 200px;
             hot: ti.has-focus;
             hover: input-touch.has-hover;
 
@@ -373,7 +376,7 @@ export component SliderRow {
     // track is drawn and dragged by hand. The outer layout must use stretch
     // alignment — `alignment: start` pins children to their preferred size and
     // disables `horizontal-stretch`.)
-    private property <length> track-min-width: 160px;
+    private property <length> track-min-width: 140px;
 
     function set-value(v: int) {
         root.value = Math.min(root.max-val, Math.max(root.min-val, v));
@@ -574,6 +577,19 @@ export component ToggleRow {
                             background: root.value ? Theme.accent-fg : white;
                             x: root.value ? 24px : 2px;
                             animate x { duration: Theme.anim-fast; }
+
+                            // Check mark on the knob when the switch is on, so
+                            // the on/off state is not colour-only.
+                            Text {
+                                text: root.value ? "✓" : "";
+                                color: Theme.accent-fill;
+                                font-size: 12px;
+                                font-weight: 700;
+                                width: 100%;
+                                height: 100%;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
                         }
 
                         TouchArea {
