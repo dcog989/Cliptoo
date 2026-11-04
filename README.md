@@ -1,14 +1,8 @@
 # Cliptoo
 
-Advanced Linux clipboard manager. Use your clip history as a library of things. Rust, Slint, and SQLite = small footprint and fast performance.
+Advanced Linux clipboard manager for KDE Wayland. Use your clip history as a library of things. Rust, Slint, and SQLite = small footprint and fast performance.
 
-![screen-1](assets/screen-1.webp)
-![screen-2](assets/screen-2.webp)
-![screen-3](assets/screen-3.webp)
-![screen-4](assets/screen-4.webp)
-![screen-5](assets/screen-5.webp)
-
----
+![screen-1](assets/screen-1.webp) ![screen-2](assets/screen-2.webp) ![screen-3](assets/screen-3.webp) ![screen-4](assets/screen-4.webp) ![screen-5](assets/screen-5.webp)
 
 ## Features
 
@@ -61,11 +55,11 @@ Advanced Linux clipboard manager. Use your clip history as a library of things. 
 
 ---
 
-## Installation
+## Install
+
+Download [GitHub Latest Release](https://github.com/dcog989/Cliptoo/releases/latest):
 
 Cliptoo runs on *Wayland* only (KDE Plasma 6). Requires `xdg-desktop-portal-kde`.
-
-Prebuilt bundles are on the [releases page](https://github.com/dcog989/Cliptoo/releases).
 
 ### AppImage
 
@@ -73,8 +67,6 @@ Prebuilt bundles are on the [releases page](https://github.com/dcog989/Cliptoo/r
 chmod +x cliptoo-*-x86_64.AppImage
 ./cliptoo-*-x86_64.AppImage
 ```
-
-Use [AppImageLauncher](https://github.com/TheAssassin/AppImageLauncher) or [GearLever](https://github.com/mijorus/gearlever) to add it to the menu.
 
 ### Packages
 
@@ -88,7 +80,7 @@ Local Arch build: `make package && sudo pacman -U .pkg/cliptoo-*.pkg.tar.zst`.
 
 ### From source
 
-See [Prerequisites](#prerequisites).
+See [Requirements](#Requirements).
 
 ```sh
 make install    # installs to `/usr/local`
@@ -116,7 +108,7 @@ make install    # installs to `/usr/local`
 | Input Emulation     | `evdev` virtual keyboard                         |
 | HTTP Client         | `reqwest` (rustls)                               |
 
-### Prerequisites
+### Requirements
 
 - **Rust toolchain** (stable, edition 2024): `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
 - **Qt 6, Wayland, dav1d, and fontconfig dev headers, plus the `clang` and `mold` linkers**
@@ -155,7 +147,7 @@ cargo clean
 
 ### Release
 
-Releases use [Cocogitto](https://cocogitto.io/) (`cargo install cocogitto` / `sudo pacman -S cocogitto`), configured in `cog.toml`.
+Releases use [Cocogitto](https://docs.cocogitto.io/) (`cargo install cocogitto` / `sudo pacman -S cocogitto`) and [Conventional Commits](https://www.conventionalcommits.org/), configured in `cog.toml`.
 
 ```sh
 cog bump --auto               # bump version, sync manifests, write `CHANGELOG.md`, commit, tag, push
@@ -163,13 +155,11 @@ cog bump --version 1.23.4     # manual version
 cog changelog                 # changelog preview
 ```
 
-Commits must use [Conventional Commits](https://www.conventionalcommits.org/) — enforced on commit via `cog verify`.
-
----
-
 ## LLM Use
 
-Large Language Models (LLMs) were used to assist with code generation, refactoring, and documentation. All AI output was subject to human code review, automated testing, manual testing, and adversarial reviews.
+Large Language Models were used to assist with code generation and documentation. All output was subject to human review, automated testing, manual testing, and adversarial reviews.
+
+---
 
 ## License
 

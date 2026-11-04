@@ -84,6 +84,7 @@ Cocogitto is an external binary (`cargo install cocogitto` / `pacman -S cocogitt
 - Use clear naming over comments; reserve comments for complex workarounds or non-obvious issues — why, not what.
 - Never run git mutations (commit, push, reset, rebase, amend) unless explicitly instructed.
 - Do not create documentation files unless explicitly requested.
+- Adhere to <https://develop.kde.org/hig/>.
 
 ### Author Environment
 

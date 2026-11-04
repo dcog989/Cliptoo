@@ -69,10 +69,5 @@ debug = "limited"
 opt-level = 3
 
 [profile.release]
-# No debuginfo either way; the 118k-entry symbol table only adds package weight.
-# Release panic traces are address-only once stripped.
 strip = "symbols"
-# Thin LTO keeps the cross-crate dead-code elimination that shrinks the 45 MB
-# text section without fat LTO's serial whole-program link.
 lto = "thin"
-codegen-units = 1
