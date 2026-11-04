@@ -125,6 +125,11 @@ export component ShortcutsPage inherits ScrollView {
         }
 
         ShortcutRow {
+            keys: "Ctrl+,";
+            action: @tr("Open Settings");
+        }
+
+        ShortcutRow {
             keys: "Shift+F10";
             action: @tr("Open the clip menu (Format, Send To, Bookmark, Move)");
         }

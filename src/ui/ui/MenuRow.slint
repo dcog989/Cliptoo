@@ -23,6 +23,8 @@ export component MenuRow {
     // the row switches to the warning palette instead of the danger one.
     in property <bool> armed: false;
     in property <bool> has-arrow: false;
+    // Keyboard shortcut shown muted at the right end of the row.
+    in property <string> shortcut: "";
     // Keyboard selection highlight, driven by the owning menu.
     in property <bool> selected: false;
     in property <length> row-height: Theme.menu-row-height;
@@ -93,7 +95,14 @@ export component MenuRow {
                     : Theme.fg-primary;
                 font-size: Theme.font-size;
                 vertical-alignment: center;
-                horizontal-stretch: root.has-arrow ? 1 : 0;
+                horizontal-stretch: (root.has-arrow || root.shortcut != "") ? 1 : 0;
+            }
+
+            if root.shortcut != "": Text {
+                text: root.shortcut;
+                color: Theme.fg-muted;
+                font-size: Theme.font-size;
+                vertical-alignment: center;
             }
 
             if root.has-arrow: Image {

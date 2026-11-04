@@ -73,6 +73,7 @@ export component HamburgerMenu {
             MenuRow {
                 label: @tr("Settings");
                 icon: @image-url("icons/settings.svg");
+                shortcut: "Ctrl+,";
                 selected: root.selected == 1;
                 clicked => {
                     root.menu-settings();

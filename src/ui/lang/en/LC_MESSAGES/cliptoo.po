@@ -869,6 +869,11 @@ msgctxt "ShortcutsPage"
 msgid "Open the main menu"
 msgstr ""
 
+#: src/ui/ui/ShortcutsPage.slint:129
+msgctxt "ShortcutsPage"
+msgid "Open Settings"
+msgstr ""
+
 #: src/ui/ui/ShortcutsPage.slint:131
 msgctxt "ShortcutsPage"
 msgid "Open the clip menu (Format, Send To, Bookmark, Move)"
