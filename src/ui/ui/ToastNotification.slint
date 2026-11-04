@@ -59,8 +59,7 @@ export component ToastNotification {
         visible: root.active;
         // Anchored to bottom-center of the window by the parent (x/y set at
         // the use site).
-        height: content-layout.preferred-height + 16px;
-        min-width: 200px;
+        min-width: 120px;
         max-width: 400px;
 
         border-radius: Theme.border-radius;
@@ -73,9 +72,11 @@ export component ToastNotification {
         animate opacity { duration: Theme.anim-fast; }
 
         content-layout := HorizontalLayout {
+            width: 100%;
             padding: 8px;
             spacing: 8px;
-            alignment: start;
+            // Default `stretch`: only then do stretch factors grow the message
+            // and push the action button to the right edge.
 
             // Severity indicator bar
             Rectangle {
