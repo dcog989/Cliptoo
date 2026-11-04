@@ -115,6 +115,56 @@ fn create_about_window(
         crate::helpers::open_with_default(env!("CARGO_PKG_REPOSITORY"));
     });
 
+    // Check GitHub for a newer release. Once one is found the same button
+    // opens its release page, so a second click never re-queries.
+    {
+        use std::sync::atomic::{AtomicBool, Ordering};
+        use std::sync::{Arc, Mutex};
+
+        let aw = about_win.as_weak();
+        let checking = Arc::new(AtomicBool::new(false));
+        let release_url: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
+        about_win.on_update_action(move || {
+            if let Some(url) = release_url.lock().ok().and_then(|url| url.clone()) {
+                crate::helpers::open_with_default(&url);
+                return;
+            }
+            if checking.swap(true, Ordering::Relaxed) {
+                return;
+            }
+            let Some(win) = aw.upgrade() else { return };
+            win.set_update_label(win.global::<crate::Translations>().get_update_checking());
+            let weak = aw.clone();
+            let checking = checking.clone();
+            let release_url = release_url.clone();
+            tokio::spawn(async move {
+                let latest = fetch_latest_tag().await;
+                checking.store(false, Ordering::Relaxed);
+                let _ = weak.upgrade_in_event_loop(move |win| {
+                    let translations = win.global::<crate::Translations>();
+                    match latest {
+                        Some(tag) if is_newer_tag(&tag, env!("CARGO_PKG_VERSION")) => {
+                            let url = release_page_url(&tag);
+                            win.set_update_label(
+                                translations
+                                    .invoke_update_to_version(tag.trim_start_matches('v').into()),
+                            );
+                            if let Ok(mut slot) = release_url.lock() {
+                                *slot = Some(url);
+                            }
+                        }
+                        Some(_) => {
+                            win.set_update_label(translations.get_up_to_date());
+                        }
+                        None => {
+                            win.set_update_label(translations.get_update_failed());
+                        }
+                    }
+                });
+            });
+        });
+    }
+
     // Open a path (install/data/cache/logs dir) in the default file manager.
     about_win.on_open_folder(|path: SharedString| {
         crate::helpers::open_with_default(path.as_str());
@@ -150,4 +200,82 @@ fn install_dir() -> String {
         .ok()
         .and_then(|exe| exe.parent().map(|dir| dir.display().to_string()))
         .unwrap_or_else(|| String::from("?"))
+}
+
+/// GitHub's latest-release endpoint. The User-Agent is mandatory there.
+const LATEST_RELEASE_API: &str = "https://api.github.com/repos/dcog989/Cliptoo/releases/latest";
+const UPDATE_CHECK_TIMEOUT: Duration = Duration::from_secs(10);
+
+/// The latest release's tag, or None when the network or the API failed.
+async fn fetch_latest_tag() -> Option<String> {
+    let client = reqwest::Client::builder()
+        .timeout(UPDATE_CHECK_TIMEOUT)
+        .user_agent(crate::helpers::USER_AGENT)
+        .build()
+        .ok()?;
+    let body = client
+        .get(LATEST_RELEASE_API)
+        .send()
+        .await
+        .ok()?
+        .error_for_status()
+        .ok()?
+        .text()
+        .await
+        .ok()?;
+    tag_name(&body)
+}
+
+/// Pull `"tag_name":"v2.24.0"` out of the release JSON. serde_json is not a
+/// dependency of this crate and one field does not justify adding it.
+fn tag_name(body: &str) -> Option<String> {
+    const KEY: &str = "\"tag_name\":\"";
+    let start = body.find(KEY)? + KEY.len();
+    let rest = &body[start..];
+    let end = rest.find('"')?;
+    Some(rest[..end].to_string())
+}
+
+fn version_parts(v: &str) -> Vec<u64> {
+    // Drop a leading `v` and any pre-release/build suffix ("2.24.0-rc1").
+    v.trim_start_matches('v')
+        .split(['-', '+'])
+        .next()
+        .unwrap_or_default()
+        .split('.')
+        .map(|part| part.parse().unwrap_or(0))
+        .collect()
+}
+
+/// Numeric compare, so `v2.24` does not count as newer than `2.24.0`.
+fn is_newer_tag(latest: &str, current: &str) -> bool {
+    let mut latest = version_parts(latest);
+    let mut current = version_parts(current);
+    let len = latest.len().max(current.len());
+    latest.resize(len, 0);
+    current.resize(len, 0);
+    latest > current
+}
+
+fn release_page_url(tag: &str) -> String {
+    format!("{}/releases/tag/{tag}", env!("CARGO_PKG_REPOSITORY"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn tag_name_and_newer_tag() {
+        let body = r#"{"url":"x","tag_name":"v2.24.0","html_url":"y"}"#;
+        assert_eq!(tag_name(body).as_deref(), Some("v2.24.0"));
+        assert_eq!(tag_name("{}"), None);
+
+        assert!(is_newer_tag("v2.24.0", "2.23.0"));
+        assert!(is_newer_tag("v2.23.1", "2.23.0"));
+        assert!(!is_newer_tag("v2.23.0", "2.23.0"));
+        assert!(!is_newer_tag("v2.23", "2.23.0"));
+        assert!(!is_newer_tag("v2.22.9", "2.23.0"));
+        assert!(is_newer_tag("v3.0.0-rc1", "2.23.0"));
+    }
 }

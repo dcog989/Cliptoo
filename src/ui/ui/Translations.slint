@@ -26,6 +26,9 @@ export global Translations {
 
     out property <string> history-cleared: @tr("History cleared");
     out property <string> undo: @tr("Undo");
+    out property <string> up-to-date: @tr("Up to date");
+    out property <string> update-checking: @tr("Checking…");
+    out property <string> update-failed: @tr("Check failed");
 
     // Full sentences with the count as a placeholder, so translators can put
     // the number where their language needs it.
@@ -41,5 +44,9 @@ export global Translations {
 
     public pure function merged(count: int) -> string {
         return @tr("Merged {} clips", count);
+    }
+
+    public pure function update-to-version(version: string) -> string {
+        return @tr("Update to v{}", version);
     }
 }

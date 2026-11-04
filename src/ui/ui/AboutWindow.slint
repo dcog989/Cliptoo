@@ -86,6 +86,56 @@ component AboutRow {
     }
 }
 
+// Small neutral action button, styled like the Settings maintenance buttons.
+component UpdateButton inherits Rectangle {
+    in property <string> text;
+    callback clicked;
+
+    property <bool> hot: btn-touch.has-hover;
+    property <bool> focused: btn-focus.has-focus;
+
+    height: 26px;
+    width: btn-label.preferred-width + 24px;
+    border-radius: 6px;
+    border-width: 1px;
+    border-color: focused ? Theme.accent-primary : hot ? Theme.border-subtle : transparent;
+    background: hot || focused ? Theme.bg-row-hover : Theme.bg-input;
+    animate background { duration: Theme.anim-fast; }
+
+    btn-focus := FocusScope {
+        accessible-role: button;
+        accessible-label: root.text;
+        accessible-action-default => {
+            root.clicked();
+        }
+        key-pressed(e) => {
+            if (e.text == Key.Return || e.text == " ") {
+                root.clicked();
+                return accept;
+            }
+            reject
+        }
+
+        btn-label := Text {
+            text: root.text;
+            color: Theme.fg-primary;
+            font-size: Theme.font-size;
+            width: 100%;
+            height: 100%;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+
+    btn-touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => {
+            btn-focus.focus();
+            root.clicked();
+        }
+    }
+}
+
 export component AboutWindow inherits Window {
     title: @tr("About Cliptoo");
     always-on-top: true;
@@ -104,6 +154,9 @@ export component AboutWindow inherits Window {
     in property <string> cache-path: "";
     in property <string> logs-folder-path: "";
     in property <string> log-level: "";
+    // Update check state, shown in the button itself: empty means
+    // "Check for updates", otherwise the button carries the result.
+    in property <string> update-label: "";
 
     in-out property <length> content-width: Math.min(900px, Math.max(560px, content-layout.preferred-width + 40px));
     in-out property <length> content-height: Math.max(360px, content-layout.preferred-height);
@@ -113,6 +166,7 @@ export component AboutWindow inherits Window {
     callback open-folder(string);
     callback log-level-step(int);
     callback open-latest-log();
+    callback update-action();
 
     forward-focus: about-focus;
     about-focus := FocusScope {
@@ -173,10 +227,39 @@ export component AboutWindow inherits Window {
             width: 100%;
             spacing: 8px;
 
-            AboutRow {
-                label: @tr("Version");
-                value: root.version;
-                clickable: false;
+            HorizontalLayout {
+                spacing: 32px;
+
+                Text {
+                    width: 64px;
+                    text: @tr("Version");
+                    color: Theme.fg-muted;
+                    font-size: Theme.font-size;
+                    horizontal-alignment: left;
+                    vertical-alignment: center;
+                }
+
+                Text {
+                    text: root.version;
+                    color: Theme.fg-primary;
+                    font-size: Theme.font-size;
+                    vertical-alignment: center;
+                }
+
+                // Update check sits at the far end of the Version row.
+                HorizontalLayout {
+                    horizontal-stretch: 1;
+                    alignment: end;
+
+                    UpdateButton {
+                        text: root.update-label != ""
+                            ? root.update-label
+                            : @tr("Check for updates");
+                        clicked => {
+                            root.update-action();
+                        }
+                    }
+                }
             }
 
             MenuSeparator { }

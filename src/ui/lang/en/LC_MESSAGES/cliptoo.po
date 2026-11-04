@@ -1055,6 +1055,11 @@ msgctxt "AboutWindow"
 msgid "Latest log"
 msgstr ""
 
+#: src/ui/ui/AboutWindow.slint:244
+msgctxt "AboutWindow"
+msgid "Check for updates"
+msgstr ""
+
 #: src/ui/ui/ContextMenu.slint:250
 msgctxt "ContextMenu"
 msgid "Confirm Delete!!"
@@ -1225,6 +1230,26 @@ msgstr ""
 #: src/ui/ui/Translations.slint
 msgctxt "Translations"
 msgid "Merged {} clips"
+msgstr ""
+
+#: src/ui/ui/Translations.slint
+msgctxt "Translations"
+msgid "Up to date"
+msgstr ""
+
+#: src/ui/ui/Translations.slint
+msgctxt "Translations"
+msgid "Checking…"
+msgstr ""
+
+#: src/ui/ui/Translations.slint
+msgctxt "Translations"
+msgid "Check failed"
+msgstr ""
+
+#: src/ui/ui/Translations.slint
+msgctxt "Translations"
+msgid "Update to v{}"
 msgstr ""
 
 #: src/ui/ui/ClipList.slint
