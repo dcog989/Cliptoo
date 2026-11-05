@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 
 use cliptoo_core::db::DbPool;
 use cliptoo_core::favicon_failures;
-use cliptoo_core::url::extract_domain;
+use cliptoo_core::url::{extract_domain, url_cache_key};
 use futures::StreamExt;
 use slint::ComponentHandle;
 use slint::Model;
@@ -47,17 +47,17 @@ fn http_client() -> Option<&'static reqwest::Client> {
 const FAVICON_FETCH_CONCURRENCY: usize = 4;
 
 /// Cache-file suffixes for the two theme variants. Light and dark favicons
-/// are cached side-by-side (`{domain}.webp` vs `{domain}.dark.webp`) so
+/// are cached side-by-side (`{key}.webp` vs `{key}.dark.webp`) so
 /// switching themes never evicts the other variant.
 pub const FAVICON_LIGHT_SUFFIX: &str = ".webp";
 pub const FAVICON_DARK_SUFFIX: &str = ".dark.webp";
 
-/// The cache filename for a domain's favicon under the given theme.
-pub fn favicon_file_name(domain: &str, dark: bool) -> String {
+/// The cache filename for a favicon cache key under the given theme.
+pub fn favicon_file_name(key: &str, dark: bool) -> String {
     if dark {
-        format!("{domain}{FAVICON_DARK_SUFFIX}")
+        format!("{key}{FAVICON_DARK_SUFFIX}")
     } else {
-        format!("{domain}{FAVICON_LIGHT_SUFFIX}")
+        format!("{key}{FAVICON_LIGHT_SUFFIX}")
     }
 }
 
@@ -66,8 +66,8 @@ pub fn favicon_file_name(domain: &str, dark: bool) -> String {
 /// declared (matching what a browser tab would show), falling back to the
 /// DuckDuckGo icon so sites without a dark variant still get a cached icon.
 pub async fn fetch_favicon(url: &str, fav_dir: &Path, dark: bool) -> Option<PathBuf> {
-    let domain = extract_domain(url)?;
-    let fav_path = fav_dir.join(favicon_file_name(&domain, dark));
+    let key = url_cache_key(url)?;
+    let fav_path = fav_dir.join(favicon_file_name(&key, dark));
     if let Some(path) = cached_favicon(&fav_path) {
         return Some(path);
     }
@@ -91,9 +91,9 @@ pub async fn fetch_link_meta(
     };
     let html = fetch_page(client, url).await;
     let title = html.as_deref().and_then(page_title);
-    let favicon = match extract_domain(url) {
-        Some(domain) => {
-            let fav_path = fav_dir.join(favicon_file_name(&domain, dark));
+    let favicon = match url_cache_key(url) {
+        Some(key) => {
+            let fav_path = fav_dir.join(favicon_file_name(&key, dark));
             match cached_favicon(&fav_path) {
                 Some(path) => Some(path),
                 None => store_favicon(client, url, &fav_path, dark, html.as_deref()).await,
@@ -126,15 +126,16 @@ async fn store_favicon(
     dark: bool,
     html: Option<&str>,
 ) -> Option<PathBuf> {
-    if dark
-        && let Some(html) = html
-        && fetch_dark_favicon(client, url, fav_path, html).await
-    {
+    // A page that could not be read says nothing about its icon, and the
+    // DuckDuckGo proxy is host-wide (light artwork only). Caching it here would
+    // freeze a guess as this page's icon — the wrong one in dark mode — and
+    // also let a failed fetch overwrite an icon another fetch just wrote.
+    // Leave the slot empty so a later attempt can fetch the real icon.
+    let html = html?;
+    if dark && fetch_dark_favicon(client, url, fav_path, html).await {
         return Some(fav_path.to_path_buf());
     }
-    if let Some(html) = html
-        && fetch_site_favicon(client, url, fav_path, html).await
-    {
+    if fetch_site_favicon(client, url, fav_path, html).await {
         return Some(fav_path.to_path_buf());
     }
     let domain = extract_domain(url)?;
@@ -450,16 +451,9 @@ fn looks_like_svg(bytes: &[u8]) -> bool {
         .is_some_and(|s| s.starts_with("<svg") || s.starts_with("<?xml"))
 }
 
-/// Prefix length of the URL hash used as the title cache key. Shared with the
-/// maintenance sweep, which must recognise live title files as live.
-const TITLE_HASH_PREFIX_LEN: usize = cliptoo_core::image::HASH_FILENAME_PREFIX_LEN;
-
-/// Title cache file for one page. Keyed by the whole URL, not the domain: two
-/// pages on the same site must not share (or overwrite) each other's title.
+/// Title cache file for one page, keyed by [`url_cache_key`].
 fn title_cache_path(url: &str, fav_dir: &Path) -> Option<PathBuf> {
-    extract_domain(url)?;
-    let (hash, _) = cliptoo_core::content::hash::sha256_hex_and_prefix(url);
-    Some(fav_dir.join(format!("{}.title", &hash[..TITLE_HASH_PREFIX_LEN])))
+    Some(fav_dir.join(format!("{}.title", url_cache_key(url)?)))
 }
 
 pub fn load_cached_page_title(url: &str, fav_dir: &Path) -> Option<String> {
@@ -474,24 +468,24 @@ pub fn cache_page_title(url: &str, title: &str, fav_dir: &Path) {
     let _ = std::fs::write(&path, title);
 }
 
-/// Domains (and theme variants) for which a favicon fetch has already been
-/// dispatched this session. Keyed by `domain:dark` so switching theme still
+/// Pages (and theme variants) for which a favicon fetch has already been
+/// dispatched this session. Keyed by `url-key:dark` so switching theme still
 /// fetches the other variant. Inserted at dispatch time so
-/// `check_pending_favicons` neither double-fetches an in-flight domain across
-/// overlapping refreshes nor re-fetches a domain whose favicon cannot be
+/// `check_pending_favicons` neither double-fetches an in-flight page across
+/// overlapping refreshes nor re-fetches a page whose favicon cannot be
 /// obtained (no site icon + DuckDuckGo 404) on every refresh. A successful
 /// fetch reloads all matching rows, so no removal is needed. Per-session only:
 /// cleared on restart, so a site that adds a favicon later is retried.
-fn attempted_favicon_domains() -> &'static Mutex<HashSet<String>> {
+fn attempted_favicons() -> &'static Mutex<HashSet<String>> {
     static ATTEMPTED: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
     ATTEMPTED.get_or_init(|| Mutex::new(HashSet::new()))
 }
 
 /// Forget every per-session dispatch, so "Clear caches" can re-fetch icons for
-/// domains already attempted in this run. Without this the reset failure ledger
+/// pages already attempted in this run. Without this the reset failure ledger
 /// has no effect until a restart.
-pub fn reset_attempted_domains() {
-    attempted_favicon_domains()
+pub fn reset_attempted_favicons() {
+    attempted_favicons()
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner())
         .clear();
@@ -499,7 +493,7 @@ pub fn reset_attempted_domains() {
 
 /// A clip stops being fetched after this many failed favicon attempts. The
 /// ledger is persistent and only reset by the "Clear caches" maintenance
-/// action, so a domain with no obtainable favicon costs at most a handful of
+/// action, so a link with no obtainable favicon costs at most a handful of
 /// requests ever instead of one per session forever.
 ///
 /// The ledger itself lives in `cliptoo_core::favicon_failures` so the
@@ -515,11 +509,11 @@ pub fn reset_attempted_domains() {
 pub fn check_pending_favicons(ui: &crate::AppWindow, db: &Arc<DbPool>, favicons_dir: &Path) {
     let model = ui.get_clips();
     let mut pending = Vec::new();
-    let mut attempted = attempted_favicon_domains()
+    let mut attempted = attempted_favicons()
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
     // The active theme decides which cache file is fetched, so the ledger must
-    // be keyed by variant too: a domain attempted in dark mode must still be
+    // be keyed by variant too: a page attempted in dark mode must still be
     // fetched after switching to light (and vice versa).
     let dark = crate::theme::cached_resolved_theme().0;
     // Loaded on first use: a list whose links all have icons never pays for it.
@@ -534,10 +528,10 @@ pub fn check_pending_favicons(ui: &crate::AppWindow, db: &Arc<DbPool>, favicons_
                 if favicon_failures::exhausted(failures, data.id as i64) {
                     continue;
                 }
-                let Some(domain) = extract_domain(&data.preview_content) else {
+                let Some(key) = url_cache_key(&data.preview_content) else {
                     continue;
                 };
-                if attempted.insert(format!("{domain}:{dark}")) {
+                if attempted.insert(format!("{key}:{dark}")) {
                     pending.push(data.id as i64);
                 }
             }
@@ -551,8 +545,8 @@ pub fn check_pending_favicons(ui: &crate::AppWindow, db: &Arc<DbPool>, favicons_
     }
     // Fetch the variant matching the current theme (dark cache entries are
     // fetched separately from light ones). One task with bounded concurrency:
-    // one spawned task per domain (the old code) opened hundreds of requests at
-    // once, and every success reloaded the whole list, for O(domains × rows) UI
+    // one spawned task per link (the old code) opened hundreds of requests at
+    // once, and every success reloaded the whole list, for O(links × rows) UI
     // work.
     let weak = ui.as_weak();
     let db = db.clone();
@@ -567,9 +561,9 @@ pub fn check_pending_favicons(ui: &crate::AppWindow, db: &Arc<DbPool>, favicons_
                     .with(|conn| cliptoo_core::db::queries::get_clip_content(conn, clip_id))
                     .await
                     .ok()?;
-                let domain = extract_domain(&content);
+                let key = url_cache_key(&content);
                 let fetched = fetch_favicon(&content, &fav_dir, dark).await.is_some();
-                Some((clip_id, domain, fetched))
+                Some((clip_id, key, fetched))
             }
         }))
         .buffer_unordered(FAVICON_FETCH_CONCURRENCY)
@@ -577,21 +571,21 @@ pub fn check_pending_favicons(ui: &crate::AppWindow, db: &Arc<DbPool>, favicons_
         .await;
 
         let mut outcomes = Vec::with_capacity(results.len());
-        let mut reloaded_domains = HashSet::new();
-        for (clip_id, domain, fetched) in results.into_iter().flatten() {
+        let mut reloaded_keys = HashSet::new();
+        for (clip_id, key, fetched) in results.into_iter().flatten() {
             outcomes.push((clip_id, fetched));
-            // Remember the domains whose icon arrived: only rows showing that
-            // icon are reloaded, not the whole list.
-            if fetched && let Some(domain) = domain {
-                reloaded_domains.insert(domain);
+            // Remember the icons that arrived: only rows showing that icon are
+            // reloaded, not the whole list.
+            if fetched && let Some(key) = key {
+                reloaded_keys.insert(key);
             }
         }
         // One read-modify-write for the whole batch; a per-clip update would be
         // O(clips²) file writes.
         favicon_failures::record(&fav_dir, &outcomes);
-        if !reloaded_domains.is_empty() {
+        if !reloaded_keys.is_empty() {
             let _ = weak.upgrade_in_event_loop(move |ui| {
-                crate::thumbnail_cache::reload_favicons_for(&ui, &fav_dir, &reloaded_domains);
+                crate::thumbnail_cache::reload_favicons_for(&ui, &fav_dir, &reloaded_keys);
             });
         }
     });

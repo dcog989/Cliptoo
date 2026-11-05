@@ -203,10 +203,10 @@ pub fn setup_manual_maintenance(
                         cliptoo_core::maintenance::prune_cache(&db, &td, &fd, &id_dir).await?;
                         let removed = cliptoo_core::maintenance::clear_cache_files(&td, &fd).await;
                         // A clear re-allows favicon retries for clips whose
-                        // fetch budget was exhausted, and for domains already
+                        // fetch budget was exhausted, and for pages already
                         // attempted earlier in this session.
                         cliptoo_core::favicon_failures::reset_all(&fd);
-                        crate::favicon::reset_attempted_domains();
+                        crate::favicon::reset_attempted_favicons();
                         // Evict the decoded LRUs on the UI thread so the
                         // refresh below re-reads from disk instead of serving
                         // images whose files were just removed, and so the

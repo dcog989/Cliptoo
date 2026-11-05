@@ -9,11 +9,10 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 use tracing::warn;
 
-use crate::content::hash::sha256_hex_and_prefix;
 use crate::db::DbPool;
 use crate::db::models::ClipType;
 use crate::image::HASH_FILENAME_PREFIX_LEN;
-use crate::url::extract_domain;
+use crate::url::url_cache_key;
 
 /// Files touched since (pass start - this slack) are left alone. An image
 /// capture writes its PNG and thumbnails *before* it inserts the row, so a
@@ -21,11 +20,9 @@ use crate::url::extract_domain;
 /// deleted; the next pass cleans it if it stays orphaned.
 const RECENT_FILE_SLACK: Duration = Duration::from_secs(60);
 
-/// Collect the cache keys still referenced by a stored Link clip: the favicon
-/// domain, and the first [`HASH_FILENAME_PREFIX_LEN`] chars of the SHA-256 of
-/// the URL, which is the page-title cache key (see `ui/src/favicon.rs`). A
-/// title file is not keyed by domain — matching it against domains would prune
-/// every title on every pass.
+/// Collect the cache keys still referenced by a stored Link clip: the
+/// [`url_cache_key`], which names both the link's favicon file and its
+/// page-title file (see `ui/src/favicon.rs`).
 fn known_favicon_keys(conn: &Connection) -> Result<HashSet<String>> {
     let mut stmt = conn.prepare_cached("SELECT Content FROM clips WHERE ClipType = ?1")?;
     let mut keys = HashSet::new();
@@ -34,12 +31,8 @@ fn known_favicon_keys(conn: &Connection) -> Result<HashSet<String>> {
     })? {
         match row {
             Ok(Some(content)) => {
-                if let Some(domain) = extract_domain(&content) {
-                    keys.insert(domain);
-                }
-                let (hash, _) = sha256_hex_and_prefix(&content);
-                if let Some(stem) = hash.get(..HASH_FILENAME_PREFIX_LEN) {
-                    keys.insert(stem.to_string());
+                if let Some(key) = url_cache_key(&content) {
+                    keys.insert(key);
                 }
             }
             Ok(None) => {}
@@ -51,27 +44,20 @@ fn known_favicon_keys(conn: &Connection) -> Result<HashSet<String>> {
 
 /// True when a favicon-cache filename belongs to no stored Link clip.
 ///
-/// Cache files are `{domain}.webp`, `{domain}.dark.webp` (dark-theme variant)
-/// and `{url-hash}.title` (cached page title). A file is orphaned when none of
-/// its candidate keys appears in `known`. Candidates for the dark variant cover
-/// the suffix ambiguity (a domain that itself ends in `.dark`) so a live file
-/// is never pruned because of a suffix that was appended to its name. Files
-/// with unrecognised extensions are treated as orphans — the directory is
-/// fully managed by the favicon cache.
+/// Cache files are `{key}.webp`, `{key}.dark.webp` (dark-theme variant) and
+/// `{key}.title` (cached page title), all keyed by the URL hash. A file is
+/// orphaned when its key appears in no stored Link clip. Files with
+/// unrecognised extensions are treated as orphans — the directory is fully
+/// managed by the favicon cache.
 fn favicon_is_orphan(name: &str, known: &HashSet<String>) -> bool {
-    let candidates = if let Some(domain) = name.strip_suffix(".dark.webp") {
-        vec![
-            domain.to_string(),
-            name.strip_suffix(".webp").unwrap_or(name).to_string(),
-        ]
-    } else if let Some(domain) = name.strip_suffix(".webp") {
-        vec![domain.to_string()]
-    } else if let Some(stem) = name.strip_suffix(".title") {
-        vec![stem.to_string()]
-    } else {
-        return true;
-    };
-    candidates.iter().all(|c| !known.contains(c))
+    let stem = name
+        .strip_suffix(".dark.webp")
+        .or_else(|| name.strip_suffix(".webp"))
+        .or_else(|| name.strip_suffix(".title"));
+    match stem {
+        Some(stem) => !known.contains(stem),
+        None => true,
+    }
 }
 
 /// True when `entry` was written or modified so recently that it may still be
@@ -88,9 +74,9 @@ fn is_recent(entry: &std::fs::DirEntry, cutoff: SystemTime) -> bool {
 /// matching DB record. Returns the total number of files deleted.
 ///
 /// Thumbnails and full-size images are keyed by the first 16 chars of
-/// `ContentHash`; favicon cache files are keyed by the domain of a stored Link
-/// clip and title files by the URL hash — each dir is matched against its own
-/// key, so a favicon for a still-present link is never pruned.
+/// `ContentHash`; favicon and title files by the link's [`url_cache_key`] —
+/// each dir is matched against its own key, so a favicon for a still-present
+/// link is never pruned.
 pub async fn prune_cache(
     db: &Arc<DbPool>,
     thumbnails_dir: &Path,
@@ -185,7 +171,7 @@ pub async fn prune_cache(
         }
     }
 
-    // Favicons are keyed by Link-clip domain; titles by URL hash.
+    // Favicons and titles are keyed by the URL hash of a stored Link clip.
     if let Ok(entries) = std::fs::read_dir(favicons_dir) {
         for entry in entries.filter_map(|e| e.ok()) {
             let fname = entry.file_name();
@@ -232,41 +218,33 @@ mod tests {
     use super::{clear_cache_files, favicon_is_orphan};
     use std::collections::HashSet;
 
-    /// `known` holds link domains plus 16-char URL-hash stems.
+    /// `known` holds the 16-char URL-hash stems of stored Link clips.
     fn known(keys: &[&str]) -> HashSet<String> {
         keys.iter().map(|d| d.to_string()).collect()
     }
 
     #[test]
-    fn keeps_favicons_for_live_link_keys() {
-        let set = known(&["github.com", "example.com", "0123456789abcdef"]);
-        assert!(!favicon_is_orphan("github.com.webp", &set));
-        assert!(!favicon_is_orphan("github.com.dark.webp", &set));
-        assert!(
-            !favicon_is_orphan("0123456789abcdef.title", &set),
-            "title files are keyed by the first 16 chars of the URL hash"
-        );
+    fn keeps_favicons_and_titles_for_live_link_keys() {
+        let set = known(&["0123456789abcdef"]);
+        assert!(!favicon_is_orphan("0123456789abcdef.webp", &set));
+        assert!(!favicon_is_orphan("0123456789abcdef.dark.webp", &set));
+        assert!(!favicon_is_orphan("0123456789abcdef.title", &set));
     }
 
     #[test]
-    fn prunes_favicons_whose_key_is_gone() {
-        let set = known(&["github.com"]);
-        assert!(favicon_is_orphan("example.com.webp", &set));
-        assert!(favicon_is_orphan("example.com.dark.webp", &set));
-        assert!(favicon_is_orphan("0123456789abcdef.title", &set));
+    fn prunes_files_whose_key_is_gone() {
+        let set = known(&["0123456789abcdef"]);
+        assert!(favicon_is_orphan("fedcba9876543210.webp", &set));
+        assert!(favicon_is_orphan("fedcba9876543210.dark.webp", &set));
+        assert!(favicon_is_orphan("fedcba9876543210.title", &set));
         assert!(
-            favicon_is_orphan("github.com", &set),
+            favicon_is_orphan("0123456789abcdef", &set),
             "bare name is not a cache file"
         );
-    }
-
-    #[test]
-    fn keeps_domain_that_ends_in_dark() {
-        // A domain ending in ".dark" is saved as "dark.dark.webp"; both the
-        // ".dark.webp"-stripped and ".webp"-stripped keys must match it.
-        let set = known(&["dark.dark"]);
-        assert!(!favicon_is_orphan("dark.dark.webp", &set));
-        assert!(!favicon_is_orphan("dark.dark.dark.webp", &set));
+        assert!(
+            favicon_is_orphan("notes.txt", &set),
+            "unknown extensions are orphans"
+        );
     }
 
     #[tokio::test]

@@ -10,7 +10,7 @@ use std::sync::{Mutex, OnceLock};
 use cliptoo_core::db::models::ClipData as DbClipData;
 use cliptoo_core::db::models::ClipType;
 pub use cliptoo_core::image::hash_key;
-use cliptoo_core::url::extract_domain;
+use cliptoo_core::url::url_cache_key;
 
 use lru::LruCache;
 
@@ -22,7 +22,7 @@ use lru::LruCache;
 const LRU_CAPACITY: usize = 512;
 
 /// Least-Recently-Used cache of decoded Slint images, keyed by cache-file stem
-/// (`hash[..16]`) or `domain` / `domain:dark` for favicons. `slint::Image` is
+/// (`hash[..16]`) or `url-key` / `url-key:dark` for favicons. `slint::Image` is
 /// not `Send`, so the caches live on the UI thread.
 pub struct ImageLru(LruCache<String, Image>);
 
@@ -91,21 +91,21 @@ fn thumbnail(thumbnails_dir: &Path, hash: &str) -> Image {
 // ── Favicon cache ─────────────────────────────────────────────────────────────
 
 /// Cached or on-disk favicon for a link clip. The key carries the theme
-/// variant because the light and dark icons for a domain are distinct files
+/// variant because the light and dark icons for a page are distinct files
 /// and both may be cached side-by-side on disk.
 fn favicon(favicons_dir: &Path, content: &str) -> Image {
-    let Some(domain) = extract_domain(content) else {
+    let Some(key) = url_cache_key(content) else {
         return Image::default();
     };
     let dark = crate::theme::cached_resolved_theme().0;
-    let key = if dark {
-        format!("{domain}:dark")
+    let lru_key = if dark {
+        format!("{key}:dark")
     } else {
-        domain.clone()
+        key.clone()
     };
     FAVICON_LRU.with(|lru| {
-        lru.borrow_mut().get_or_load(&key, || {
-            let path = favicons_dir.join(crate::favicon::favicon_file_name(&domain, dark));
+        lru.borrow_mut().get_or_load(&lru_key, || {
+            let path = favicons_dir.join(crate::favicon::favicon_file_name(&key, dark));
             path.exists()
                 .then(|| Image::load_from_path(&path).ok())
                 .flatten()
@@ -120,10 +120,10 @@ pub fn reload_favicons(ui: &crate::AppWindow, favicons_dir: &Path) {
     reload_favicons_where(ui, favicons_dir, &|_| true);
 }
 
-/// Re-load only the rows whose domain just got a new icon, so a favicon fetch
+/// Re-load only the rows whose icon just got fetched, so a favicon fetch
 /// batch does not re-read every link row's image on the UI thread.
-pub fn reload_favicons_for(ui: &crate::AppWindow, favicons_dir: &Path, domains: &HashSet<String>) {
-    reload_favicons_where(ui, favicons_dir, &|domain| domains.contains(domain));
+pub fn reload_favicons_for(ui: &crate::AppWindow, favicons_dir: &Path, keys: &HashSet<String>) {
+    reload_favicons_where(ui, favicons_dir, &|key| keys.contains(key));
 }
 
 fn reload_favicons_where(ui: &crate::AppWindow, favicons_dir: &Path, keep: &dyn Fn(&str) -> bool) {
@@ -136,8 +136,8 @@ fn reload_favicons_where(ui: &crate::AppWindow, favicons_dir: &Path, keep: &dyn 
         if let Some(mut data) = model.row_data(i)
             && data.clip_type.as_str() == "link"
         {
-            let domain = extract_domain(&data.preview_content);
-            if !domain.as_deref().is_some_and(keep) {
+            let key = url_cache_key(&data.preview_content);
+            if !key.as_deref().is_some_and(keep) {
                 continue;
             }
             data.favicon_image = favicon(favicons_dir, &data.preview_content);
