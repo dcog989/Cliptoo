@@ -14,6 +14,10 @@ done
 
 sed -i "s/^pkgver=.*/pkgver=$version/" packaging/PKGBUILD
 
+# Gettext header field; no tool reads it, but keep it from drifting.
+sed -i "s/^\(\"Project-Id-Version: cliptoo \)[0-9.]*\(\\\\n\"\)/\1$version\2/" \
+    src/ui/lang/en/LC_MESSAGES/cliptoo.po
+
 # Keep the local makepkg scratch copy in sync when it exists.
 if [[ -f .pkg/PKGBUILD ]]; then
     sed -i "s/^pkgver=.*/pkgver=$version/" .pkg/PKGBUILD
