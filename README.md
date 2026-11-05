@@ -69,7 +69,7 @@ Download [GitHub Latest Release](https://github.com/dcog989/Cliptoo/releases/lat
 | Any | source | `make install` (installs to `/usr/local`) |
 
 > [!NOTE]
-> Cliptoo runs on Wayland only (KDE Plasma 6) and requires `xdg-desktop-portal-kde`. Source builds need the [requirements](#requirements); `make uninstall` removes them.
+> Cliptoo runs on Wayland only (KDE Plasma 6) and requires `xdg-desktop-portal-kde`. Source builds need the [requirements](#requirements); `make uninstall` removes them. The AppImage adds itself to the application menu, installs its icon, and repoints the entry when you move or rename it; Gear Lever and AppImageUpdate can update it in place.
 
 Data lives in `~/.local/share/Cliptoo/` (DB, images), config in `~/.config/Cliptoo/`, cache in `~/.cache/Cliptoo/`, logs in `~/.local/state/Cliptoo/Logs/`.
 

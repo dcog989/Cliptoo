@@ -14,6 +14,7 @@ mod autostart;
 mod clipboard;
 mod dbus;
 mod decode_limit;
+mod desktop_integration;
 mod drag;
 mod edit;
 mod favicon;
@@ -90,6 +91,10 @@ async fn main() -> Result<()> {
         // next login against the user's preference.
         tracing::warn!("autostart: failed to remove stale desktop file: {e}");
     }
+
+    // Synchronous: the portal only accepts the app id once `cliptoo.desktop`
+    // exists, and the hotkey loop starts below.
+    desktop_integration::install();
 
     let db = Arc::new(cliptoo_core::db::DbPool::open(&dirs.db_path)?);
     let ui = AppWindow::new()?;

@@ -109,7 +109,11 @@ jobs:
           wget -q -O tools/appimagetool.AppImage https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
           chmod +x tools/*.AppImage
           ./tools/linuxdeploy.AppImage --appdir "$APPDIR" --plugin qt
-          ./tools/appimagetool.AppImage "$APPDIR" "$PWD/cliptoo-$VERSION-x86_64.AppImage"
+          # Embedded update information lets Gear Lever / AppImageUpdate replace
+          # this file in place; the matching .zsync is published with the release.
+          ./tools/appimagetool.AppImage \
+            -u "gh-releases-zsync|dcog989|Cliptoo|latest|cliptoo-*-x86_64.AppImage.zsync" \
+            "$APPDIR" "$PWD/cliptoo-$VERSION-x86_64.AppImage"
 
       - name: Build Arch package
         run: |
@@ -137,6 +141,7 @@ jobs:
             target/debian/*.deb
             target/generate-rpm/*.rpm
             cliptoo-*.AppImage
+            cliptoo-*.AppImage.zsync
             .pkg/*.pkg.tar.zst
 
   release:
@@ -175,6 +180,7 @@ jobs:
             packages/**/*.deb
             packages/**/*.rpm
             packages/**/*.AppImage
+            packages/**/*.AppImage.zsync
             packages/**/*.pkg.tar.zst
             CHANGELOG.md
           draft: false

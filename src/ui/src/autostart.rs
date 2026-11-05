@@ -2,7 +2,8 @@ use anyhow::{Context, Result};
 use std::path::PathBuf;
 
 const AUTOSTART_DIR: &str = "autostart";
-const DESKTOP_FILE: &str = "cliptoo.desktop";
+/// Must match the app id registered with the portal in `hotkeys.rs`.
+pub(crate) const DESKTOP_FILE: &str = "cliptoo.desktop";
 
 fn autostart_path() -> Result<PathBuf> {
     let config_home = dirs::config_dir().context("no XDG config directory — is HOME set?")?;
@@ -13,7 +14,7 @@ fn autostart_path() -> Result<PathBuf> {
 /// with `"`, `` ` ``, `$` and `\` escaped by a backslash, per the freedesktop
 /// Desktop Entry specification. Without this, an executable path containing
 /// spaces (or those characters) would be misparsed by the session autostart.
-fn exec_quote(value: &str) -> String {
+pub(crate) fn exec_quote(value: &str) -> String {
     let mut out = String::with_capacity(value.len() + 2);
     out.push('"');
     for c in value.chars() {
@@ -34,6 +35,25 @@ fn exec_quote(value: &str) -> String {
     out
 }
 
+/// The `[Desktop Entry]` body shared by the autostart file and the AppImage
+/// menu entry, so their name and icon cannot drift apart.
+pub(crate) fn desktop_entry(exec: &str, no_display: bool) -> String {
+    format!(
+        "[Desktop Entry]\n\
+         Name=Cliptoo\n\
+         GenericName=Clipboard Manager\n\
+         Comment=Clipboard manager for KDE Plasma 6\n\
+         Exec={exec}\n\
+         Icon=cliptoo\n\
+         Type=Application\n\
+         Categories=Utility;Qt;KDE;\n\
+         Keywords=clipboard;paste;history;\n\
+         StartupNotify=false\n\
+         X-KDE-StartupNotify=false\n{}",
+        if no_display { "NoDisplay=true\n" } else { "" }
+    )
+}
+
 pub fn ensure_autostart() -> Result<()> {
     let path = autostart_path()?;
     // Inside an AppImage `current_exe()` is a path in the temporary mount, which
@@ -44,21 +64,7 @@ pub fn ensure_autostart() -> Result<()> {
         None => std::env::current_exe()?,
     };
 
-    let content = format!(
-        "[Desktop Entry]\n\
-         Name=Cliptoo\n\
-         GenericName=Clipboard Manager\n\
-         Comment=Clipboard manager for KDE Plasma 6\n\
-         Exec={}\n\
-         Icon=cliptoo\n\
-         Type=Application\n\
-         Categories=Utility;Qt;KDE;\n\
-         Keywords=clipboard;paste;history;\n\
-         StartupNotify=false\n\
-         NoDisplay=true\n\
-         X-KDE-StartupNotify=false\n",
-        exec_quote(&exe.to_string_lossy())
-    );
+    let content = desktop_entry(&exec_quote(&exe.to_string_lossy()), true);
 
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
