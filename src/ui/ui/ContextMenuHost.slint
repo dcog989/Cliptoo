@@ -182,7 +182,10 @@ export component ContextMenuHost {
                 multi-selection: root.multi-selection;
 
                 preview => {
-                    root.preview-requested(root.ctx-clip-id, main-popup.x / 1px, main-popup.y / 1px);
+                    // Anchor at the clip's row, not the menu: the menu is
+                    // clamped upward near the window bottom and would open the
+                    // preview away from the row that is being previewed.
+                    root.preview-requested(root.ctx-clip-id, root.ctx-menu-x / 1px, root.ctx-menu-anchor-y / 1px);
                     root.close-all();
                 }
                 edit => {
