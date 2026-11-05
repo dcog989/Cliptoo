@@ -21,6 +21,15 @@ const SUPPRESSION_TTL: Duration = Duration::from_secs(2);
 const FOCUS_LOSS_TIMEOUT: Duration = Duration::from_millis(500);
 const FOCUS_POLL_INTERVAL: Duration = Duration::from_millis(20);
 
+/// Extra wait after Cliptoo loses activation, before injecting Ctrl+V.
+///
+/// Focus moves asynchronously: our window letting go does not mean the
+/// compositor has focused the window underneath yet. A key injected in that
+/// gap is dropped, so the first paste silently does nothing and the next one
+/// lands. This restores the margin the old fixed sleep gave every paste while
+/// keeping the "don't paste into Cliptoo" check above.
+const FOCUS_SETTLE: Duration = Duration::from_millis(80);
+
 pub struct PasteSuppressionSet {
     inner: Mutex<HashMap<u64, Instant>>,
 }
@@ -99,6 +108,8 @@ pub async fn paste_content(
         }
         tokio::time::sleep(FOCUS_POLL_INTERVAL).await;
     }
+
+    tokio::time::sleep(FOCUS_SETTLE).await;
 
     // Key injection sleeps between press and release; keep it off the async
     // worker it would otherwise block.
