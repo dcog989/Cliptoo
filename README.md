@@ -17,15 +17,15 @@
 
 - **Capture:** text, rich text, HTML, images, and file paths.
 - **Paste:** Enter pastes via an `evdev` virtual keyboard; optional plain-text mode.
-- **Global Hotkey:** toggle the window via the XDG `GlobalShortcuts` portal (default `Ctrl+Alt+Q`).
+- **Global Hotkey:** toggle the window via keyboard shortcut (default `Ctrl+Alt+Q`).
 - **Quick Paste:** hold Right Alt and press `1`–`9`.
 
 ### Content
 
-- **Filters:** text, links, images, colors, bookmarks.
-- **Images:** hover previews for PNG, JPEG, GIF, WebP, AVIF, JXL, SVG, ICO, BMP, and TIFF.
-- **QR codes:** right-click an image clip to decode its payload; copy the text or open the URL.
-- **Colors:** `#hex`, `rgb()`, `hsl()`, `hwb()`, `lab()`/`lch()`, `oklab()`/`oklch()`/`okhsl()`, with transparency.
+- **Filters:** text, links, images, colors, bookmarks, ++.
+- **Images:** hover previews for all common image formats.
+- **QR codes:** decode QR images via right-click; copy the text or open the URL.
+- **Colors:** displays color swatch for all CSS formats.
 - **URLs and Files:** fetched titles and favicons; file size, mtime, and type.
 - **Tags:** `##`-prefixed search.
 - **Code:** monospace view toggle for code clips.
@@ -33,15 +33,16 @@
 ### Organization & Tools
 
 - **Bookmarks:** exempt from auto-cleanup.
-- **Multi-select & Merge:** Ctrl+click, Shift+click, or Ctrl+A selects clips; Delete removes the set after a second press, and Ctrl+M (or right-click → Merge Selected) joins it into one clip.
-- **Reordering:** move clips up/down or to the top/bottom.
-- **Transforms:** `upper`, `lower`, `camel`, `kebab`, `snake`, `trim`, `timestamp`, and more.
-- **Send To / Compare:** open clips in an external app or a diff tool.
+- **Multi-select:** Ctrl+click, Shift+click, Ctrl+A to select; Delete to remove (double click safeguard).
+- **Merge:** multi-select then Ctrl+M (or right-click → Merge Selected) joins into one clip.
+- **Reordering:** move clips up/down or top/bottom.
+- **Transforms:** `upper`, `lower`, `camel`, `kebab`, `snake`, `trim`, `timestamp`, ++.
+- **Send To / Compare:** specify external apps or a diff tool.
 
 ### Storage & Maintenance
 
 - **Cleanup:** prune by age and/or count, clear caches, remove dead file clips, reclassify.
-- **Backup:** JSON export/import, full history or bookmarks only (copied images are referenced by path, not embedded).
+- **Backup:** JSON export/import, full history or bookmarks only.
 - **Statistics:** DB size, clip count, copy/paste counts.
 
 ### Customisation
@@ -66,12 +67,10 @@ Download [GitHub Latest Release](https://github.com/dcog989/Cliptoo/releases/lat
 | Fedora / RHEL | `.rpm` | `sudo dnf install ./cliptoo-*.x86_64.rpm` |
 | Arch / CachyOS | `.pkg.tar.zst` | `sudo pacman -U cliptoo-*.pkg.tar.zst` |
 | Arch / CachyOS | `PKGBUILD` (local build) | `make package && sudo pacman -U .pkg/cliptoo-*.pkg.tar.zst` |
-| Any | source | `make install` (installs to `/usr/local`) |
+| Any | source | `make install` (installs to `/usr/local`; see [requirements](#requirements)) |
 
 > [!NOTE]
-> Cliptoo runs on Wayland only (KDE Plasma 6) and requires `xdg-desktop-portal-kde`. Source builds need the [requirements](#requirements); `make uninstall` removes them. The AppImage adds itself to the application menu, installs its icon, and repoints the entry when you move or rename it; Gear Lever and AppImageUpdate can update it in place.
-
-Data lives in `~/.local/share/Cliptoo/` (DB, images), config in `~/.config/Cliptoo/`, cache in `~/.cache/Cliptoo/`, logs in `~/.local/state/Cliptoo/Logs/`.
+> The AppImage adds itself to the application menu, installs its icon, and repoints the entry when you move or rename it.
 
 ---
 
@@ -79,33 +78,34 @@ Data lives in `~/.local/share/Cliptoo/` (DB, images), config in `~/.config/Clipt
 
 ### Tech Stack
 
-| Component           | Technology                                       |
-|---------------------|--------------------------------------------------|
-| Language            | Rust (edition 2024)                              |
-| UI Framework        | Slint (Qt 6 backend)                             |
-| Wayland             | `wl-clipboard-rs`, `wayland-client`, wlr/ext data-control |
-| Database            | SQLite + FTS5 (`rusqlite`)                       |
-| Async Runtime       | Tokio                                            |
-| Image Processing    | `image`, `resvg` (SVG), `jxl-oxide` (JXL), `rqrr` (QR) |
-| Colour Science      | `palette` (Oklab / Oklch / Okhsl)                |
-| D-Bus / Portals     | `zbus`, `ashpd` (portal hotkeys)                 |
-| System Tray         | Slint `SystemTrayIcon`                           |
-| Input Emulation     | `evdev` virtual keyboard                         |
-| HTTP Client         | `reqwest` (rustls)                               |
+| Component | Technology |
+|-----------|------------|
+| Language | Rust 2024 |
+| UI | Slint, Qt 6 backend |
+| Clipboard | `wl-clipboard-rs`, `wayland-client`, wlr/ext data-control |
+| Storage | SQLite + FTS5 (`rusqlite`) |
+| Runtime | Tokio |
+| Images | `image`, `resvg`, `jxl-oxide`, `rqrr` |
+| Colour | `palette` |
+| D-Bus / portals | `ashpd`, `zbus` |
+| Tray / input | Slint `SystemTrayIcon`, `evdev` |
+| HTTP | `reqwest` (rustls) |
+
+Data lives in `~/.local/share/Cliptoo/` (DB, images), config in `~/.config/Cliptoo/`, cache in `~/.cache/Cliptoo/`, logs in `~/.local/state/Cliptoo/Logs/`.
 
 ### Requirements
 
-- **Rust toolchain** (stable, edition 2024): `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
-- **Qt 6, Wayland, dav1d, and fontconfig dev headers, plus the `clang` and `mold` linkers**
-  (CI installs them and selects them with `CARGO_TARGET_*` env vars; for local
-  builds put `linker = "clang"` and `rustflags = ["-C", "link-arg=-fuse-ld=mold"]`
-  under `[target.x86_64-unknown-linux-gnu]` in `~/.cargo/config.toml`):
+Wayland with KDE Plasma 6. `xdg-desktop-portal-kde` provides the global hotkey portal and ships with Plasma.
 
-| Distro       | Command                                                                     |
-|--------------|-----------------------------------------------------------------------------|
-| Debian/Ubuntu| `sudo apt install qt6-base-dev qt6-wayland libwayland-dev libxkbcommon-dev libfontconfig1-dev libdav1d-dev pkg-config clang mold` |
-| Fedora       | `sudo dnf install qt6-qtbase-devel qt6-qtwayland libwayland-devel libxkbcommon-devel fontconfig-devel dav1d-devel clang mold pkgconfig` |
-| Arch         | `sudo pacman -S qt6-base qt6-wayland wayland wayland-protocols libxkbcommon fontconfig dav1d clang mold pkgconf` |
+Building needs Rust stable (2024 edition, [rustup](https://rustup.rs)) plus the Qt 6, Wayland, xkbcommon, fontconfig, and dav1d development headers, `clang`, and `mold`:
+
+| Distro        | Command |
+|---------------|---------|
+| Debian/Ubuntu | `sudo apt install qt6-base-dev qt6-wayland libwayland-dev libxkbcommon-dev libfontconfig1-dev libdav1d-dev pkg-config clang mold` |
+| Fedora        | `sudo dnf install qt6-qtbase-devel qt6-qtwayland libwayland-devel libxkbcommon-devel fontconfig-devel dav1d-devel clang mold pkgconfig` |
+| Arch          | `sudo pacman -S qt6-base qt6-wayland wayland wayland-protocols libxkbcommon fontconfig dav1d clang mold pkgconf` |
+
+Local builds must use those linkers: set `linker = "clang"` and `rustflags = ["-C", "link-arg=-fuse-ld=mold"]` under `[target.x86_64-unknown-linux-gnu]` in `~/.cargo/config.toml`. CI passes the same values through `CARGO_TARGET_*`.
 
 ### Build & Run
 
@@ -139,10 +139,6 @@ cog bump --auto               # bump version, sync manifests, write `CHANGELOG.m
 cog bump --version 1.23.4     # manual version
 cog changelog                 # changelog preview
 ```
-
-## LLM Use
-
-Large Language Models were used to assist with code generation and documentation. All output was subject to human review, automated testing, manual testing, and adversarial reviews.
 
 ---
 
