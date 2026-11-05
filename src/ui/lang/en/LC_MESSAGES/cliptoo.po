@@ -331,14 +331,14 @@ msgctxt "DatabasePage"
 msgid "Clear cached previews, thumbnails, and favicons"
 msgstr ""
 
-#: src/ui/ui/DatabasePage.slint:73
+#: src/ui/ui/DatabasePage.slint:96
 msgctxt "DatabasePage"
 msgid "Deadhead"
 msgstr ""
 
-#: src/ui/ui/DatabasePage.slint:75
+#: src/ui/ui/DatabasePage.slint:97
 msgctxt "DatabasePage"
-msgid "Confirm Deadhead!!"
+msgid "Confirm Deadhead?"
 msgstr ""
 
 #: src/ui/ui/DatabasePage.slint:72 src/ui/ui/DatabasePage.slint:74
@@ -1335,16 +1335,6 @@ msgstr ""
 #: src/ui/ui/DatabasePage.slint
 msgctxt "DatabasePage"
 msgid "Clear caches"
-msgstr ""
-
-#: src/ui/ui/DatabasePage.slint
-msgctxt "DatabasePage"
-msgid "Remove clips with missing files"
-msgstr ""
-
-#: src/ui/ui/DatabasePage.slint
-msgctxt "DatabasePage"
-msgid "Remove all?"
 msgstr ""
 
 #: src/ui/ui/DatabasePage.slint
