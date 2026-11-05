@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v2.24.1 - 2026-11-05
+
+#### Bug Fixes
+
+- (d70b60e) settle before Ctrl+V so the first paste is not dropped - dcog989
+
+- (6c43476) key favicon cache by page URL, not host - dcog989
+
+- (f8e02df) label the deadhead action "Deadhead" again - dcog989
+
+- - -
+
 ## v2.24.0 - 2026-11-05
 
 #### Features
