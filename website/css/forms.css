@@ -1,0 +1,119 @@
+/* --------------------------------------------------------------------------
+ * Forms — usable defaults for form controls, part of the base layer.
+ * The reset removes borders and backgrounds; these rules restore a
+ * consistent, accessible baseline that is still easy to theme.
+ */
+
+@layer base {
+  :root {
+    accent-color: var(--color-accent-soft, #7f1734);
+  }
+
+  /* Text entry fields (checkbox and radio are excluded so their native
+     widgets are not crushed by the padding/border box) */
+  :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea, optgroup) {
+    background-color: var(--color-surface, #fff);
+    border: var(--border-width, 1px) solid var(--color-border, currentColor);
+    border-radius: var(--radius-sm, 0.25rem);
+    padding: 0.375em 0.625em;
+  }
+
+  /* Buttons */
+  :where(button, input[type="button"], input[type="submit"], input[type="reset"]) {
+    background-color: var(--color-surface, #f5f6f7);
+    border: var(--border-width, 1px) solid var(--color-border, currentColor);
+    border-radius: var(--radius-sm, 0.25rem);
+    padding: 0.375em 0.75em;
+  }
+
+  /* Selects get a chevron so they read as expandable */
+  :where(select) {
+    -webkit-appearance: none;
+    appearance: none;
+    padding-inline-end: 2em;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23727c83' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.5em center;
+    background-size: 1em auto;
+  }
+
+  :where(select[multiple], select[size]:not([size="1"])) {
+    background-image: none;
+    padding-inline-end: 0.625em;
+  }
+
+  :where(optgroup) {
+    font-style: normal;
+    font-weight: 600;
+  }
+
+  /* Checkboxes and radios scale with font size and use the accent color */
+  :where(input[type="checkbox"], input[type="radio"]) {
+    width: 1em;
+    height: 1em;
+  }
+
+  :where(input[type="range"]) {
+    cursor: pointer;
+    padding: 0;
+    border: 0;
+  }
+
+  :where(input[type="color"]) {
+    padding: 0;
+    border: 0;
+    width: 2.5em;
+    height: 2.5em;
+  }
+
+  /* Remove WebKit's native search-field decorations so search inputs
+     match the reset applied to other text entry fields. */
+  ::-webkit-search-decoration,
+  ::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  /* Placeholders stay muted and fully opaque */
+  ::placeholder {
+    color: var(--color-text-muted, #727c83);
+    opacity: 1;
+  }
+
+  /* File buttons — match the scaffold's button defaults.
+     (Pseudo-elements cannot live inside :where()/:is().) */
+  input[type="file"]::file-selector-button {
+    margin-inline-end: 0.5em;
+    padding: 0.375em 0.75em;
+    color: var(--color-text, currentColor);
+    background-color: var(--color-surface, #f5f6f7);
+    border: var(--border-width, 1px) solid var(--color-border, currentColor);
+    border-radius: var(--radius-sm, 0.25rem);
+    cursor: pointer;
+  }
+
+  input[type="file"]::file-selector-button:hover {
+    background-color: var(--color-surface-raised, #fff);
+  }
+
+  /* Fieldset & legend */
+  :where(fieldset) {
+    border: var(--border-width, 1px) solid var(--color-border, currentColor);
+    border-radius: var(--radius-sm, 0.25rem);
+    margin: 0;
+    padding: var(--space-3, 0.75rem) var(--space-4, 1rem);
+  }
+
+  :where(legend) {
+    padding-inline: 0.5em;
+    font-weight: 600;
+  }
+
+  /* Checkbox/radio labels — align the control with its text. Options stay in
+     a row; group spacing is handled by .form-options. */
+  :where(label:has(> input[type="checkbox"], > input[type="radio"])) {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2, 0.5rem);
+  }
+}

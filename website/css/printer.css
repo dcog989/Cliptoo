@@ -1,0 +1,320 @@
+/* --------------------------------------------------------------------------
+ * Print — a comprehensive print stylesheet.
+ */
+
+@media print {
+  /* Variables
+     ---------------------------------------------------------------- */
+  :root {
+    --print-bg-color: #fff;
+    --print-border-color: #aaa;
+    --print-code-bg-color: #f8f8f8;
+    --print-code-font-size: 11pt;
+    --print-font-family: serif;
+    --print-font-size: 12pt;
+    --print-header-bg-color: #eee;
+    --print-line-height: 1.4;
+    --print-link-color: #555; /* subtle color for links */
+    --print-text-color: #000;
+  }
+
+  /* Basic reset — save ink and force a linear, high-contrast layout */
+  *,
+  *::before,
+  *::after {
+    background: transparent !important;
+    box-shadow: none !important;
+    color: var(--print-text-color) !important;
+    filter: none !important;
+    position: static !important; /* neutralize fixed/sticky elements */
+    text-shadow: none !important;
+    transition: none !important;
+  }
+
+  body {
+    background-color: var(--print-bg-color);
+    color: var(--print-text-color);
+    font-family: var(--print-font-family);
+    font-size: var(--print-font-size);
+    line-height: var(--print-line-height);
+    margin: 0; /* page margins handle spacing */
+    print-color-adjust: economy;
+    -webkit-print-color-adjust: economy;
+    width: 100% !important;
+  }
+
+  /* Page setup (@page rule)
+     ---------------------------------------------------------------- */
+  @page {
+    /* Page margins cannot use var(): custom properties do not inherit into
+       the @page context. Set the value directly. */
+    margin: 1.5cm;
+
+    /* Book-style per-page margins, for example:
+       @page :first { margin-top: 2cm; }
+       @page :left  { margin-left: 2cm; margin-right: 1.5cm; }
+       @page :right { margin-left: 1.5cm; margin-right: 2cm; }
+     */
+  }
+
+  /* Layout — aim for a single, linear column */
+  main,
+  article,
+  section {
+    width: 100% !important;
+    max-width: 100% !important;
+    float: none !important;
+  }
+
+  .container,
+  .row,
+  .grid-container {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  /* Hide unnecessary chrome */
+  header,
+  footer,
+  nav,
+  aside,
+  .sidebar,
+  .navigation,
+  .pagination,
+  .search-form,
+  .skip-link,
+  .back-to-top,
+  .cookie-consent,
+  .advertisement,
+  .modal,
+  .social-share-buttons,
+  dialog,
+  [popover] {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* Hide interactive and media elements */
+  form,
+  button,
+  input,
+  textarea,
+  select,
+  video,
+  audio,
+  iframe,
+  canvas,
+  object,
+  embed {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* Elements explicitly marked as no-print */
+  .no-print,
+  [data-print="false"] {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* Elements marked print-only */
+  .print-only,
+  [data-print="only"] {
+    display: block !important;
+    visibility: visible !important;
+  }
+
+  /* Force <details> elements to render fully expanded */
+  summary {
+    display: block !important;
+    font-weight: bold;
+    margin-bottom: 0.5em;
+  }
+
+  summary::-webkit-details-marker,
+  summary::marker {
+    content: "";
+  }
+
+  details:not([open]) > *:not(summary) {
+    display: block !important;
+  }
+
+  /* Typography & content
+     ---------------------------------------------------------------- */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--print-font-family);
+    color: var(--print-text-color);
+    break-after: avoid; /* prevent breaks directly after headings */
+    break-inside: avoid; /* prevent headings splitting across pages */
+  }
+
+  p,
+  blockquote,
+  ul,
+  ol,
+  dl,
+  li {
+    font-size: var(--print-font-size);
+    line-height: var(--print-line-height);
+    orphans: 3; /* minimum lines at the bottom of a page */
+    widows: 3; /* minimum lines at the top of a page */
+  }
+
+  li {
+    display: list-item !important;
+  }
+
+  ul,
+  ol {
+    margin-left: 0;
+    padding-left: 2em;
+  }
+
+  blockquote {
+    border-left: 2px solid var(--print-border-color);
+    padding-left: 1em;
+    margin-left: 0;
+    break-inside: avoid;
+  }
+
+  pre,
+  code,
+  kbd,
+  samp {
+    font-family: monospace;
+    font-size: var(--print-code-font-size);
+    background-color: var(--print-code-bg-color) !important;
+    border: 1px solid var(--print-border-color) !important;
+    padding: 0.5em 1em !important;
+    white-space: pre-wrap !important;
+    word-wrap: break-word !important;
+    break-inside: avoid;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  hr {
+    height: 1px;
+    border: 0;
+    border-top: 1px solid var(--print-border-color);
+    margin: 2em 0;
+    display: block !important;
+  }
+
+  /* Links
+     ---------------------------------------------------------------- */
+  a {
+    color: var(--print-link-color) !important;
+    text-decoration: underline;
+  }
+
+  /* Show the destination URL for external links */
+  a[href^="http"]::after,
+  a[href^="//"]::after {
+    content: " (" attr(href) ")";
+    font-size: 90%;
+    color: var(--print-link-color);
+    word-wrap: break-word;
+    display: inline-block;
+    max-width: 100%;
+  }
+
+  /* Never expand internal, script, or scheme links */
+  a[href^="#"]::after,
+  a[href^="javascript:"]::after,
+  a[href^="mailto:"]::after,
+  a[href^="tel:"]::after {
+    content: "";
+  }
+
+  /* Show the full title for abbreviations */
+  abbr[title]::after {
+    content: " (" attr(title) ")";
+    font-size: 90%;
+  }
+
+  /* Media — images, tables, figures
+     ---------------------------------------------------------------- */
+  img,
+  svg {
+    max-width: 100% !important;
+    height: auto !important;
+    break-inside: avoid;
+    vertical-align: middle;
+    image-rendering: auto;
+  }
+
+  figure {
+    break-inside: avoid;
+    margin: 1em 0;
+  }
+
+  figcaption {
+    font-size: var(--print-font-size) !important;
+    color: var(--print-link-color) !important;
+    margin-top: 0.5em;
+  }
+
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    margin: 1em 0;
+    font-size: var(--print-font-size);
+    break-inside: auto;
+  }
+
+  thead {
+    display: table-header-group; /* repeat headers on every page */
+  }
+
+  tbody,
+  tr,
+  td,
+  th {
+    break-inside: avoid;
+  }
+
+  th,
+  td {
+    border: 1px solid var(--print-border-color) !important;
+    padding: 0.4em 0.6em !important;
+    text-align: left;
+    vertical-align: top;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  th {
+    font-weight: bold;
+    background-color: var(--print-header-bg-color) !important;
+  }
+
+  /* Page-break control
+     ---------------------------------------------------------------- */
+  .page-break-before {
+    break-before: page;
+  }
+
+  .page-break-after {
+    break-after: page;
+  }
+
+  /* Keep common containers intact */
+  ul,
+  ol,
+  dl,
+  pre {
+    break-inside: avoid;
+  }
+}

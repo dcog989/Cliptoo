@@ -1,0 +1,528 @@
+/* --------------------------------------------------------------------------
+ * Components — opinionated, token-driven building blocks for a basic site:
+ * site header + nav, hero, card grid, buttons, form group, and footer.
+ *
+ * These are plain classes in the `components` layer, so unlayered project
+ * styles override them without !important. Every value is var(--token, ...).
+ */
+
+@layer components {
+  /* Page rhythm — space stacked sections inside <main>
+     ---------------------------------------------------------------- */
+  main > section + section {
+    margin-block-start: clamp(var(--space-12, 3rem), 8vw, var(--space-20, 5rem));
+  }
+
+  /* Offset in-page anchors so the sticky header never covers a target */
+  :where([id]) {
+    scroll-margin-block-start: var(--space-16, 4rem);
+  }
+
+  /* Site header & navigation
+     ---------------------------------------------------------------- */
+  .site-header {
+    position: sticky;
+    inset-block-start: 0;
+    z-index: var(--z-sticky, 100);
+    background-color: color-mix(in oklab, var(--color-bg, #fff) 88%, transparent);
+    backdrop-filter: blur(8px);
+    border-block-end: var(--border-width, 1px) solid var(--color-border, currentColor);
+  }
+
+  .site-header__inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4, 1rem);
+    padding-block: var(--space-3, 0.75rem);
+    transition: padding-block var(--duration-base, 250ms) var(--ease-out, ease);
+  }
+
+  .site-header__end {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3, 0.75rem);
+  }
+
+  .site-brand {
+    font-size: var(--text-lg, 1.125rem);
+    font-weight: 700;
+    color: var(--color-text, currentColor);
+    text-decoration: none;
+    transition: font-size var(--duration-base, 250ms) var(--ease-out, ease);
+  }
+
+  .site-nav__list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1, 0.25rem);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .site-nav__link {
+    display: inline-block;
+    padding: var(--space-2, 0.5rem) var(--space-3, 0.75rem);
+    border-radius: var(--radius-md, 0.5rem);
+    color: var(--color-text, currentColor);
+    text-decoration: none;
+    transition:
+      background-color var(--duration-fast, 150ms) var(--ease-out, ease),
+      padding var(--duration-base, 250ms) var(--ease-out, ease),
+      font-size var(--duration-base, 250ms) var(--ease-out, ease);
+  }
+
+  .site-nav__link:hover {
+    background-color: var(--color-surface, transparent);
+  }
+
+  /* Compact header — toggled by scroll direction (see index.html).
+     The `--compact` modifier shrinks the bar while scrolling down. */
+  .site-header--compact .site-header__inner {
+    padding-block: var(--space-1, 0.25rem);
+  }
+
+  .site-header--compact .site-brand {
+    font-size: var(--text-md, 1rem);
+  }
+
+  .site-header--compact .site-nav__link {
+    padding-block: var(--space-1, 0.25rem);
+    font-size: var(--text-sm, 0.875rem);
+  }
+
+  /* Theme toggle — cycles system → light → dark; the active mode's icon shows.
+     The tooltip/aria-label ("Click to apply …") is set in index.html. */
+  .theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    padding: 0;
+    color: var(--color-text, currentColor);
+    background-color: transparent;
+    border: var(--border-width, 1px) solid transparent;
+    border-radius: var(--radius-md, 0.5rem);
+    cursor: pointer;
+    transition:
+      background-color var(--duration-fast, 150ms) var(--ease-out, ease),
+      border-color var(--duration-fast, 150ms) var(--ease-out, ease);
+  }
+
+  .theme-toggle:hover {
+    background-color: var(--color-surface, #f5f6f7);
+  }
+
+  .theme-toggle__icon {
+    display: none;
+    width: 1.125rem;
+    height: 1.125rem;
+  }
+
+  .theme-toggle[data-mode="system"] .theme-toggle__icon--system,
+  .theme-toggle[data-mode="light"] .theme-toggle__icon--light,
+  .theme-toggle[data-mode="dark"] .theme-toggle__icon--dark {
+    display: block;
+  }
+
+  /* Hero
+     ---------------------------------------------------------------- */
+  .hero {
+    padding-block-start: clamp(var(--space-10, 2.5rem), 8vw, var(--space-20, 5rem));
+  }
+
+  .hero__title {
+    max-width: var(--measure-narrow, 24ch);
+    font-size: var(--text-5xl, 3rem);
+  }
+
+  .hero__lead {
+    max-width: var(--measure, 65ch);
+    color: var(--color-text-muted, currentColor);
+    font-size: var(--text-xl, 1.25rem);
+  }
+
+  .hero__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3, 0.75rem);
+  }
+
+  /* Card grid
+     ---------------------------------------------------------------- */
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(16rem, 100%), 1fr));
+    gap: var(--gutter, 2rem);
+    padding: 0;
+    list-style: none;
+  }
+
+  .card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3, 0.75rem);
+    padding: var(--space-6, 1.5rem);
+    background-color: var(--color-surface-raised, #fff);
+    border: var(--border-width, 1px) solid var(--color-border, currentColor);
+    border-radius: var(--radius-lg, 0.75rem);
+    box-shadow: var(--shadow-sm, 0 1px 2px rgb(0 0 0 / 0.06));
+  }
+
+  /* The card's flex gap owns spacing; neutralise inherited flow margins. */
+  .card > * {
+    margin-block: 0;
+  }
+
+  .card__title {
+    margin: 0;
+    font-size: var(--text-xl, 1.25rem);
+  }
+
+  .card__body {
+    margin: 0;
+    color: var(--color-text-muted, currentColor);
+  }
+
+  .card__footer {
+    margin-block-start: auto;
+  }
+
+  /* Buttons
+     ---------------------------------------------------------------- */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2, 0.5rem);
+    padding: 0.5em 1em;
+    font: inherit;
+    font-weight: 600;
+    line-height: var(--leading-tight, 1.25);
+    text-align: center;
+    text-decoration: none;
+    border: var(--border-width, 1px) solid transparent;
+    border-radius: var(--radius-md, 0.5rem);
+    cursor: pointer;
+    transition:
+      background-color var(--duration-fast, 150ms) var(--ease-out, ease),
+      border-color var(--duration-fast, 150ms) var(--ease-out, ease),
+      color var(--duration-fast, 150ms) var(--ease-out, ease);
+  }
+
+  .btn--primary {
+    background-color: var(--color-accent, #7f1734);
+    border-color: var(--color-accent, #7f1734);
+    color: var(--color-accent-contrast, #fff);
+  }
+
+  .btn--primary:hover {
+    background-color: var(--color-accent-hover, #8b2e48);
+    border-color: var(--color-accent-hover, #8b2e48);
+  }
+
+  .btn--secondary {
+    background-color: var(--color-surface, #f5f6f7);
+    border-color: var(--color-border, currentColor);
+    color: var(--color-text, currentColor);
+  }
+
+  .btn--secondary:hover {
+    background-color: var(--color-surface-raised, #fff);
+  }
+
+  .btn--ghost {
+    background-color: transparent;
+    border-color: transparent;
+    color: var(--color-text, currentColor);
+  }
+
+  .btn--ghost:hover {
+    background-color: var(--color-surface, #f5f6f7);
+  }
+
+  .btn--danger {
+    background-color: var(--color-danger, #b91c1c);
+    border-color: var(--color-danger, #b91c1c);
+    color: var(--color-danger-contrast, #fff);
+  }
+
+  .btn--sm {
+    padding: 0.25em 0.75em;
+    font-size: var(--text-sm, 0.875rem);
+  }
+
+  .btn--lg {
+    padding: 0.75em 1.5em;
+    font-size: var(--text-lg, 1.125rem);
+  }
+
+  .btn:disabled,
+  .btn[aria-disabled="true"] {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* Form group
+     ---------------------------------------------------------------- */
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2, 0.5rem);
+  }
+
+  /* The flex gap owns spacing inside a group; neutralise inherited flow margins. */
+  .form-group > * {
+    margin-block: 0;
+  }
+
+  .form-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-4, 1rem);
+  }
+
+  .form-label {
+    font-weight: 600;
+  }
+
+  .form-hint {
+    color: var(--color-text-muted, currentColor);
+    font-size: var(--text-sm, 0.875rem);
+  }
+
+  /* Carousel — centered slides with edge fades and hover-revealed controls
+     ---------------------------------------------------------------- */
+  .carousel {
+    --carousel-slide-size: min(78%, 44rem);
+  }
+
+  .carousel__viewport {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .carousel__track {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4, 1rem);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    transition: transform var(--duration-slow, 400ms) var(--ease-out, ease);
+    will-change: transform;
+  }
+
+  /* Dim and desaturate off-slides so the active (centered) image is the focus. */
+  .carousel__slide {
+    display: flex;
+    flex: 0 0 var(--carousel-slide-size, 78%);
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    opacity: 0.5;
+    filter: grayscale(1);
+    transition:
+      opacity var(--duration-base, 250ms) var(--ease-out, ease),
+      filter var(--duration-base, 250ms) var(--ease-out, ease);
+  }
+
+  .carousel__slide.is-active {
+    opacity: 1;
+    filter: none;
+  }
+
+  /* Screenshots have different aspect ratios: the carousel keeps the height of
+     the first one and any taller image shrinks to fit. Click opens the lightbox. */
+  .carousel__zoom {
+    display: block;
+    max-width: 100%;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-lg, 0.75rem);
+    background: transparent;
+    cursor: zoom-in;
+  }
+
+  .carousel__slide img,
+  .carousel__slide svg {
+    display: block;
+    width: auto;
+    max-width: 100%;
+    height: auto;
+    max-height: var(--carousel-cap, none);
+    border-radius: var(--radius-lg, 0.75rem);
+    box-shadow: var(--shadow-md, 0 4px 12px rgb(0 0 0 / 0.08));
+  }
+
+  /* Placeholder artwork — theme-aware via light-dark(), so each slide shifts to
+     deeper tones with the page's color scheme. Inline SVG is required because
+     light-dark()/custom properties do not reach an SVG loaded through <img>. */
+  .slide-art__label {
+    fill: var(--art-label);
+    font-family: var(--font-sans, sans-serif);
+    font-size: 40px;
+    font-weight: 600;
+  }
+
+  .slide-art--sun {
+    --art-start: light-dark(#ffb347, #5c2f00);
+    --art-end: light-dark(#e52e71, #5c1230);
+    --art-accent: light-dark(#fff3c4, #8a7448);
+    --art-shade: light-dark(#1a1020, #05080c);
+    --art-label: light-dark(#fff7ed, #f0e6d8);
+  }
+
+  .slide-art--ocean {
+    --art-start: light-dark(#00c6ff, #003a5c);
+    --art-end: light-dark(#0072ff, #001f4d);
+    --art-accent: light-dark(#e0f7ff, #6b7f8c);
+    --art-shade: light-dark(#003c8a, #00101f);
+    --art-label: light-dark(#eaf6ff, #cfe3ef);
+  }
+
+  .slide-art--forest {
+    --art-start: light-dark(#a8ff78, #1f5c2e);
+    --art-end: light-dark(#11998e, #0a3d35);
+    --art-accent: light-dark(#fffde7, #6b6a4a);
+    --art-shade: light-dark(#064e3b, #02170f);
+    --art-label: light-dark(#f0fff4, #d6ece0);
+  }
+
+  .carousel__controls {
+    position: absolute;
+    inset-block: 0;
+    inset-inline: 0;
+    z-index: 2;
+    pointer-events: none;
+    transition: opacity var(--duration-base, 250ms) var(--ease-out, ease);
+  }
+
+  .carousel__control {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: 0;
+    color: var(--color-text, currentColor);
+    background-color: color-mix(in oklab, var(--color-bg, #fff) 80%, transparent);
+    border: var(--border-width, 1px) solid var(--color-border, currentColor);
+    border-radius: var(--radius-full, 9999px);
+    box-shadow: var(--shadow-sm, 0 1px 2px rgb(0 0 0 / 0.06));
+    backdrop-filter: blur(8px);
+    cursor: pointer;
+    pointer-events: auto;
+    transition:
+      background-color var(--duration-fast, 150ms) var(--ease-out, ease),
+      border-color var(--duration-fast, 150ms) var(--ease-out, ease);
+  }
+
+  .carousel__control:hover {
+    background-color: var(--color-surface-raised, #fff);
+  }
+
+  .carousel__control--prev {
+    position: absolute;
+    inset-block-start: 50%;
+    inset-inline-start: var(--space-4, 1rem);
+    transform: translateY(-50%);
+  }
+
+  .carousel__control--next {
+    position: absolute;
+    inset-block-start: 50%;
+    inset-inline-end: var(--space-4, 1rem);
+    transform: translateY(-50%);
+  }
+
+  .carousel__toggle {
+    position: absolute;
+    inset-block-end: var(--space-4, 1rem);
+    inset-inline-start: 50%;
+    transform: translateX(-50%);
+  }
+
+  /* Show the pause glyph while playing, the play glyph while paused. */
+  .carousel__icon--play {
+    display: none;
+  }
+
+  .carousel.is-paused .carousel__icon--play {
+    display: block;
+  }
+
+  .carousel.is-paused .carousel__icon--pause {
+    display: none;
+  }
+
+  /* Reveal controls on hover/focus where a precise pointer exists; keep them
+     permanently visible on touch devices that cannot hover. */
+  @media (hover: hover) and (pointer: fine) {
+    .carousel__controls {
+      opacity: 0;
+    }
+
+    .carousel:hover .carousel__controls,
+    .carousel:focus-within .carousel__controls {
+      opacity: 1;
+    }
+  }
+
+  /* Lightbox — full-size view for screenshots the carousel constrains.
+     Uses the native dialog top layer; ::backdrop supplies the dimming. */
+  .lightbox {
+    max-width: none;
+    max-height: none;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    overflow: visible;
+  }
+
+  .lightbox::backdrop {
+    background-color: rgb(0 0 0 / 0.75);
+    backdrop-filter: blur(4px);
+  }
+
+  .lightbox__image {
+    display: block;
+    width: auto;
+    height: auto;
+    max-width: 92vw;
+    max-height: 92vh;
+    border-radius: var(--radius-lg, 0.75rem);
+    box-shadow: var(--shadow-lg, 0 12px 32px rgb(0 0 0 / 0.5));
+  }
+
+  .lightbox__close {
+    position: fixed;
+    inset-block-start: var(--space-4, 1rem);
+    inset-inline-end: var(--space-4, 1rem);
+    width: 2.75rem;
+    height: 2.75rem;
+    border: var(--border-width, 1px) solid var(--color-border, currentColor);
+    border-radius: var(--radius-full, 9999px);
+    background-color: color-mix(in oklab, var(--color-bg, #fff) 80%, transparent);
+    color: var(--color-text, currentColor);
+    font-size: var(--text-xl, 1.25rem);
+    line-height: 1;
+    cursor: pointer;
+    backdrop-filter: blur(8px);
+  }
+
+  /* Footer
+     ---------------------------------------------------------------- */
+  .site-footer {
+    margin-block-start: var(--space-20, 5rem);
+    padding-block: var(--space-8, 2rem);
+    background-color: var(--color-surface, #f5f6f7);
+    border-block-start: var(--border-width, 1px) solid var(--color-border, currentColor);
+    color: var(--color-text-muted, currentColor);
+    font-size: var(--text-sm, 0.875rem);
+  }
+}

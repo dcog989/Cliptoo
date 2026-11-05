@@ -1,0 +1,44 @@
+name: Deploy website to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths: ["website/**", "README.md", "bun.lock", "package.json"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install frontend dependencies
+        run: bun install --frozen-lockfile
+
+      # The README plugin resizes the screenshots with ImageMagick.
+      - name: Install ImageMagick
+        run: sudo apt-get install -y --no-install-recommends imagemagick
+
+      - name: Build website
+        run: bunx --bun vite build --config website/vite.config.js
+
+      - name: Upload website as Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: website/dist
+
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4

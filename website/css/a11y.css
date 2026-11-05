@@ -1,0 +1,57 @@
+/* --------------------------------------------------------------------------
+ * Accessibility — focus, motion, and assistive-technology helpers.
+ * Part of the base layer; the visually-hidden helpers live in utilities.css.
+ */
+
+@layer base {
+  /* Visible focus ring. Override in your theme, but never remove outlines. */
+  :where(:focus-visible) {
+    outline: var(--focus-ring-width, 2px) solid var(--focus-ring-color, Highlight);
+    outline-offset: var(--focus-ring-offset, 2px);
+  }
+
+  /* Restrict motion when the user requests it at the OS level. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      background-attachment: initial !important;
+      scroll-behavior: auto !important;
+      transition-delay: 0s !important;
+      transition-duration: 0s !important;
+    }
+
+    @view-transition {
+      navigation: none !important;
+    }
+  }
+
+  /* Visually hidden helpers (.visually-hidden / .visually-hidden-focusable)
+     are utilities so they win the cascade: see utilities.css. */
+
+  /* Cursor hints for ARIA states. */
+  :where([aria-busy="true"]) {
+    cursor: progress;
+  }
+
+  :where([aria-controls]) {
+    cursor: pointer;
+  }
+
+  :where([aria-disabled="true"]) {
+    cursor: default;
+  }
+
+  /* Restore visibility for content that is hidden from sight but exposed
+     to assistive technology via [aria-hidden="false"][hidden]. */
+  [aria-hidden="false"][hidden] {
+    display: initial !important;
+  }
+
+  [aria-hidden="false"][hidden]:not(:focus) {
+    clip: rect(0, 0, 0, 0) !important;
+    position: absolute !important;
+  }
+}

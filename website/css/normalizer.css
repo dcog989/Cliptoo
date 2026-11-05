@@ -1,0 +1,275 @@
+/* --------------------------------------------------------------------------
+ * Normalize Enhanced — a modern CSS baseline that combines normalization
+ * with opinionated resets for a clean slate.
+ *
+ * TECH NOTES:
+ * - :where() keeps selector specificity at 0, so overrides are easy without !important.
+ * - appearance: none strips native form styling for a consistent canvas
+ *   (usable defaults are restored in the base layer, forms.css).
+ * - Values are token-driven (see tokens.css) with inline fallbacks for
+ *   standalone use.
+ */
+
+@layer reset {
+  /* 1. Box model
+     ---------------------------------------------------------------- */
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  /* 2. Document
+     ---------------------------------------------------------------- */
+  :where(html) {
+    line-height: var(--leading-base, 1.5);
+    -webkit-text-size-adjust: 100%; /* prevent iOS font-size adjustments */
+    tab-size: 4; /* standardize tab size */
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    :where(html) {
+      scroll-behavior: smooth;
+    }
+  }
+
+  /* Elements hidden with [hidden] stay hidden, even when display is set
+     by another rule in this baseline. The [aria-hidden="false"] exception
+     must live here: !important inverts layer order, so a later-layer rule
+     could never override this. */
+  :where([hidden]:not([aria-hidden="false"])) {
+    display: none !important;
+  }
+
+  /* 3. Base & typography
+     ---------------------------------------------------------------- */
+  :where(body) {
+    margin: 0;
+    background-color: var(--color-bg, #ffffff);
+    color: var(--color-text, #36454f);
+    font-family: var(--font-sans, sans-serif);
+    overflow-wrap: break-word; /* prevent layout blowout from long unspaced text */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  :where(p) {
+    margin: 0;
+  }
+
+  /* Block margins are owned by the .flow utility; the reset only clears the
+     user-agent defaults so nothing competes with them. */
+  :where(dl, blockquote, figure, details) {
+    margin: 0;
+  }
+
+  :where(h1, h2, h3, h4, h5, h6) {
+    font-size: inherit; /* reset: an explicit scale is applied in typography.css */
+    font-weight: 700;
+    line-height: var(--leading-tight, 1.25);
+    margin: 0;
+  }
+
+  :where(small) {
+    font-size: 80%;
+  }
+
+  :where(b, strong) {
+    font-weight: bolder;
+  }
+
+  :where(a) {
+    color: inherit;
+    text-decoration: underline; /* keep links distinguishable from plain text */
+    text-decoration-skip-ink: auto; /* break underlines around descenders */
+  }
+
+  :where(abbr[title]) {
+    cursor: help;
+    text-decoration: underline dotted;
+  }
+
+  :where(code, kbd, samp, pre) {
+    font-family: var(--font-mono, monospace);
+    /* Absolute, not em/%: relative units on monospace resolve against the
+       browser's smaller "fixed" default (13px), shrinking the text. */
+    font-size: 1rem;
+  }
+
+  :where(pre) {
+    margin: 0;
+    overflow-wrap: break-word;
+    white-space: pre-wrap; /* wrap long lines in preformatted text */
+  }
+
+  :where(sub, sup) {
+    font-size: 75%;
+    line-height: 0;
+    position: relative;
+    vertical-align: baseline;
+  }
+
+  :where(sub) {
+    bottom: -0.25em;
+  }
+
+  :where(sup) {
+    top: -0.5em;
+  }
+
+  :where(hr) {
+    border: 0;
+    border-top: 1px solid currentColor;
+    margin: 0;
+    opacity: 0.25;
+  }
+
+  /* 4. Embedded content (responsive by default)
+     ---------------------------------------------------------------- */
+  :where(img, picture, video, canvas, svg, iframe) {
+    display: block;
+    max-width: 100%;
+  }
+
+  :where(iframe) {
+    border: 0;
+  }
+
+  :where(svg:not([fill])) {
+    fill: currentColor;
+  }
+
+  /* 5. Lists & tables (unstyled by default)
+     ---------------------------------------------------------------- */
+  :where(ul, ol, menu) {
+    list-style: none;
+    margin: 0;
+    padding-inline-start: 0;
+  }
+
+  :where(table) {
+    border-collapse: collapse;
+    border-spacing: 0;
+    text-indent: 0;
+    border-color: currentColor;
+  }
+
+  :where(td, th) {
+    padding: 0;
+    text-align: start;
+    vertical-align: top;
+  }
+
+  /* 6. Forms (reset for custom styling)
+     ---------------------------------------------------------------- */
+  :where(button, input, optgroup, select, textarea) {
+    color: inherit;
+    font: inherit;
+    margin: 0;
+    padding: 0;
+    vertical-align: middle;
+  }
+
+  /*
+   * "Nuclear" reset: remove borders, backgrounds, and native appearance.
+   * Checkbox, radio, range, and color are excluded so they stay usable.
+   * Sane defaults are re-applied in forms.css.
+   */
+  :where(
+    button,
+    select,
+    textarea,
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"])
+  ) {
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+  }
+
+  :where(button:disabled, input:disabled, select:disabled, textarea:disabled) {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
+  :where(textarea) {
+    resize: vertical;
+  }
+
+  /* Note: pseudo-elements cannot live inside :where()/:is() */
+  ::file-selector-button {
+    font: inherit;
+  }
+
+  :where(legend) {
+    padding: 0;
+  }
+
+  :where(fieldset) {
+    margin: 0;
+    min-inline-size: 0; /* let fieldset shrink inside flex/grid containers */
+  }
+
+  :where(progress) {
+    vertical-align: baseline;
+  }
+
+  /* 7. Interactive elements
+     ---------------------------------------------------------------- */
+  :where(summary) {
+    display: list-item; /* restore the marker that display:block removes */
+  }
+
+  :where(
+    button,
+    [role="button"],
+    a,
+    label[for],
+    select,
+    summary,
+    input[type="submit"],
+    input[type="reset"],
+    input[type="button"],
+    input[type="checkbox"],
+    input[type="radio"],
+    input[type="file"]
+  ) {
+    cursor: pointer;
+  }
+
+  /* 8. Opinionated stylistic defaults
+     ---------------------------------------------------------------- */
+  ::selection {
+    background-color: Highlight; /* system default, usually blue */
+    color: HighlightText;
+    text-shadow: none;
+  }
+
+  :where(mark) {
+    background-color: var(--color-mark-bg, #ff0);
+    color: var(--color-mark-text, #000);
+  }
+
+  :where(dialog) {
+    background: var(--color-bg, #fff);
+    color: inherit;
+    border: 1px solid currentColor;
+    border-radius: var(--radius-md, 0.5rem);
+    margin: auto;
+    padding: var(--space-6, 1.5rem);
+  }
+
+  :where(dialog)::backdrop {
+    background-color: rgb(0 0 0 / 0.4);
+  }
+
+  :where([popover]) {
+    background: var(--color-bg, #fff);
+    color: inherit;
+    border: 1px solid currentColor;
+    border-radius: var(--radius-md, 0.5rem);
+    margin: auto;
+    padding: var(--space-4, 1rem);
+  }
+}

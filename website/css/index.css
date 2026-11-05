@@ -1,0 +1,23 @@
+/* --------------------------------------------------------------------------
+ * CSS Scaffold — index
+ *
+ * Declares the cascade-layer order and imports every layer of the scaffold.
+ * Link this single file, or import the individual layers you need.
+ *
+ * Layer order: reset, tokens, base, components, utilities.
+ * Unlayered styles (including printer.css and your own CSS) always win.
+ *
+ * Optional print support (see the Print Stylesheet section of README.md):
+ *   @import url("./printer.css");
+ */
+
+@layer reset, tokens, base, components, utilities;
+
+@import url("./normalizer.css"); /* reset */
+@import url("./tokens.css"); /* tokens */
+@import url("./forms.css"); /* base */
+@import url("./media.css"); /* base */
+@import url("./typography.css"); /* base */
+@import url("./a11y.css"); /* base */
+@import url("./components.css"); /* components */
+@import url("./utilities.css"); /* utilities */

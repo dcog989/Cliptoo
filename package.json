@@ -1,0 +1,14 @@
+{
+  "name": "cliptoo-website",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "website": "vite --config website/vite.config.js",
+    "website:build": "vite build --config website/vite.config.js"
+  },
+  "devDependencies": {
+    "marked": "^16.4.2",
+    "vite": "^8.3.6",
+    "vite-plugin-singlefile": "^2.3.4"
+  }
+}

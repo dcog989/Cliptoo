@@ -1,0 +1,54 @@
+/* --------------------------------------------------------------------------
+ * Utilities — a small set of single-purpose helper classes. Extend as needed.
+ */
+
+@layer utilities {
+  .container {
+    width: min(100% - 2 * var(--gutter, 2rem), var(--container-max, 72rem));
+    margin-inline: auto;
+  }
+
+  .max-w-prose {
+    max-width: var(--measure, 65ch);
+  }
+
+  /* Flow — the single owner of vertical rhythm between stacked content.
+     Add to any container whose direct children should be spaced. Blocks get
+     --flow-space; headings get more, scaled to their own size (em), so the
+     space above a heading always outweighs the space below it. */
+  .flow > * + * {
+    margin-block-start: var(--flow-space, 1.5rem);
+  }
+
+  .flow > :where(h1, h2, h3, h4, h5, h6) {
+    margin-block-start: 1.5em;
+  }
+
+  .flow > :first-child {
+    margin-block-start: 0;
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .text-pretty {
+    text-wrap: pretty;
+  }
+
+  /* Visually hidden content stays available to assistive technology.
+     The -focusable variant reveals itself when focused (e.g. skip links). */
+  .visually-hidden,
+  .visually-hidden-focusable:not(:focus):not(:focus-within) {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    margin: -1px !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    clip-path: inset(50%) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+  }
+}

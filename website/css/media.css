@@ -1,0 +1,31 @@
+/* --------------------------------------------------------------------------
+ * Media — responsive embedded-content defaults, part of the base layer.
+ */
+
+@layer base {
+  :where(img, video, iframe, embed, object) {
+    height: auto; /* keep aspect ratio when only one dimension is set */
+  }
+
+  :where(img) {
+    font-style: italic; /* italicize alt text while images load or fail */
+  }
+
+  :where(picture) {
+    display: contents; /* let <img> participate in normal layout */
+  }
+
+  :where(figure) {
+    margin-inline: 0;
+  }
+
+  :where(figcaption) {
+    margin-top: var(--space-2, 0.5rem);
+    color: var(--color-text-muted, #727c83);
+    font-size: var(--text-sm, 0.875rem);
+  }
+
+  :where(audio) {
+    width: 100%;
+  }
+}

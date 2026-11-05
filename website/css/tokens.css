@@ -1,0 +1,160 @@
+/* --------------------------------------------------------------------------
+ * Tokens — design tokens for the scaffold.
+ *
+ * Colors use light-dark() and follow the declared color-scheme, so no
+ * @media (prefers-color-scheme) duplication is required. Every consumer
+ * references a token as var(--token, fallback) so files also work standalone.
+ */
+
+@layer tokens {
+  :root {
+    color-scheme: light dark;
+
+    /* Font families */
+    --font-sans: sans-serif;
+    --font-serif: serif;
+    --font-mono: monospace;
+
+    /* Type scale — fluid from --text-xl up so display text scales with the viewport */
+    --text-xs: 0.75rem;
+    --text-sm: 0.875rem;
+    --text-md: 1rem;
+    --text-lg: 1.125rem;
+    --text-xl: clamp(1.25rem, 1.11rem + 0.62vw, 1.5rem);
+    --text-2xl: clamp(1.5rem, 1.26rem + 1.09vw, 2rem);
+    --text-3xl: clamp(1.875rem, 1.5rem + 1.7vw, 2.5rem);
+    --text-4xl: clamp(2.25rem, 1.7rem + 2.5vw, 3.25rem);
+    --text-5xl: clamp(3rem, 2.2rem + 3.6vw, 4.5rem);
+    --text-6xl: clamp(3.75rem, 2.7rem + 4.7vw, 5.5rem);
+
+    /* Line heights */
+    --leading-tight: 1.25;
+    --leading-base: 1.5;
+    --leading-relaxed: 1.75;
+
+    /* Spacing scale */
+    --space-0: 0;
+    --space-1: 0.25rem;
+    --space-2: 0.5rem;
+    --space-3: 0.75rem;
+    --space-4: 1rem;
+    --space-5: 1.25rem;
+    --space-6: 1.5rem;
+    --space-8: 2rem;
+    --space-10: 2.5rem;
+    --space-12: 3rem;
+    --space-16: 4rem;
+    --space-20: 5rem;
+
+    /* Vertical rhythm — space between stacked flow content.
+       Single source of truth; consumed by the .flow utility. Headings scale
+       their own top space in em, so they are not tokenised here. */
+    --flow-space: var(--space-6);
+
+    /* Layout */
+    --container-max: 72rem;
+    --measure: 65ch;
+    --measure-narrow: 24ch;
+    --gutter: clamp(var(--space-4), 4vw, var(--space-8));
+
+    /* Radii */
+    --radius-sm: 0.25rem;
+    --radius-md: 0.5rem;
+    --radius-lg: 0.75rem;
+    --radius-xl: 1rem;
+    --radius-full: 9999px;
+
+    /* Borders */
+    --border-width: 1px;
+    --border-style: solid;
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px light-dark(rgb(0 0 0 / 0.06), rgb(0 0 0 / 0.4));
+    --shadow-md: 0 4px 12px light-dark(rgb(0 0 0 / 0.08), rgb(0 0 0 / 0.5));
+    --shadow-lg: 0 12px 32px light-dark(rgb(0 0 0 / 0.12), rgb(0 0 0 / 0.6));
+
+    /* Brand ramps
+       Blue is the logo's dome (#006aff), orange its beam (#ff9500). Every
+       step keeps chroma low so the whole scheme stays muted. */
+    --blue-1: #0a1f3d;
+    --blue-2: #123a6b;
+    --blue-3: #17549b;
+    --blue-4: #2f74c9;
+    --blue-5: #6aa6ee;
+
+    --orange-1: #3a2200;
+    --orange-2: #6b3d00;
+    --orange-3: #9a5a00;
+    --orange-4: #c97600;
+    --orange-5: #f0a24a;
+
+    /* Links take their own hue, a teal-leaning blue, kept at the same low chroma. */
+    --slate-1: #123a4a;
+    --slate-2: #245263;
+    --slate-3: #336f82;
+    --slate-4: #5a93a6;
+    --slate-5: #86b5c6;
+
+    /* Semantic colors (light-dark aware) */
+    --color-bg: light-dark(#f7faff, #12161d);
+    --color-surface: light-dark(#eef3fa, #1a2029);
+    --color-surface-raised: light-dark(#ffffff, #202836);
+    --color-text: light-dark(var(--blue-1), #e8eef7);
+    --color-text-muted: light-dark(#5a6473, #a7b0bd);
+    --color-text-inverse: light-dark(#ffffff, var(--blue-1));
+    --color-border: light-dark(#dbe2ec, #333c48);
+    /* The header sits a step below the page, not above it. */
+    --color-header-bg: light-dark(#e9eff8, #0d1117);
+    /* Solid brand surfaces (buttons) use the logo blue in both schemes; the
+       beam orange carries marks, so the two hues read as one family. */
+    --color-accent: light-dark(#0057d1, #6ea8ff);
+    --color-accent-hover: light-dark(#0046a8, #8dbcff);
+    --color-accent-soft: light-dark(#0057d1, #6ea8ff);
+    --color-accent-contrast: light-dark(#ffffff, #0a1f3d);
+    --color-complement: light-dark(var(--orange-3), var(--orange-4));
+    /* Link blue, a step more saturated than the muted ramp. */
+    --color-link: light-dark(#0b5cad, #7fb4ff);
+    /* The logo's own blue (the dome, #006aff); the dark scheme lightens it at
+       the same chroma so headings stay legible. */
+    --color-brand: light-dark(#006aff, #5c9bff);
+    --color-success: light-dark(#4a7350, #8fb894);
+    --color-warning: light-dark(#7d6335, #d6b87a);
+    --color-danger: light-dark(#8a4747, #d49a9a);
+    --color-danger-contrast: light-dark(#ffffff, #2a1010);
+    --color-info: light-dark(#46697d, #93b6c9);
+    --color-mark-bg: light-dark(#efeafa, #3b3446);
+    --color-mark-text: light-dark(var(--rose-1), #f0eaf6);
+
+    /* Focus */
+    --focus-ring-color: var(--color-accent-soft);
+    --focus-ring-width: 2px;
+    --focus-ring-offset: 2px;
+
+    /* Motion */
+    --duration-fast: 150ms;
+    --duration-base: 250ms;
+    --duration-slow: 400ms;
+    --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+    --ease-in: cubic-bezier(0.5, 0, 0.75, 0);
+    --ease-in-out: cubic-bezier(0.45, 0, 0.55, 1);
+
+    /* Z-index scale */
+    --z-base: 0;
+    --z-raised: 10;
+    --z-sticky: 100;
+    --z-overlay: 200;
+    --z-modal: 300;
+    --z-toast: 400;
+    --z-max: 9999;
+  }
+
+  /* Manual theme override — set data-theme="light" or "dark" on <html>.
+     When absent (or "system"), the :root color-scheme above follows the OS. */
+  :root[data-theme="light"] {
+    color-scheme: light;
+  }
+
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+  }
+}

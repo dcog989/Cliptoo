@@ -130,6 +130,12 @@ cargo sweep --time 14
 cargo clean
 ```
 
+```sh
+bun install                            # website build tools
+bun run website                        # live site rendered from README.md
+bun run website:build                  # static site in website/dist
+```
+
 ### Release
 
 Releases use [Cocogitto](https://docs.cocogitto.io/) (`cargo install cocogitto` / `sudo pacman -S cocogitto`) and [Conventional Commits](https://www.conventionalcommits.org/), configured in `cog.toml`.

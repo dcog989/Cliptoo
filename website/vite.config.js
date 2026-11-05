@@ -1,11 +1,13 @@
-import { defineConfig } from 'vite';
-import { viteSingleFile } from 'vite-plugin-singlefile';
+import { defineConfig } from "vite";
+import { viteSingleFile } from "vite-plugin-singlefile";
+import { readmePlugin } from "./readme.js";
 
 export default defineConfig({
-  root: 'website',
-  plugins: [viteSingleFile()],
+  root: "website",
+  base: "./",
+  plugins: [viteSingleFile(), readmePlugin()],
   build: {
-    outDir: 'dist',
+    outDir: "dist",
     emptyOutDir: true,
     assetsInlineLimit: 0,
   },

@@ -3,3 +3,6 @@
 *.pkg.tar.zst
 .docs/
 target/
+node_modules/
+website/dist/
+website/public/assets/
