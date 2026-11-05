@@ -3,6 +3,296 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v2.24.0 - 2026-11-05
+
+#### Features
+
+- (2fac74a) generate the site from README.md - dcog989
+
+- (d39056e) register the AppImage in the desktop menu on launch - dcog989
+
+- (3e9da73) add an update check button - dcog989
+
+- (1d7b97f) default the settings window to the main window height and persist user resizes - dcog989
+
+- (b21a378) move destructive confirmations onto the buttons with amber styling - dcog989
+
+- (caadd9d) restore clip multi-select with bulk delete and merge - dcog989
+
+- (72a6175) require a second activation to delete a clip - dcog989
+
+- (a2f9f26) raise the hover preview delay limit to 3000 ms - dcog989
+
+- (a470f5a) suppress hover preview for fully visible single-line text clips - dcog989
+
+- (3575440) decode QR codes from image clips - dcog989
+
+- (061ce5e) make settings, editor, toolbar, and filter grid keyboard-operable - dcog989
+
+- (53f941b) expose the clip list and menus to assistive tech - dcog989
+
+- (507765e) probe dark favicon siblings on any site - dcog989
+
+- (87372fa) page the clip list so history past 1000 rows is reachable - dcog989
+
+- (0c62f40) fill missing code, template, document, media and danger extensions - dcog989
+
+- (8c567a1) show file size and modified time in file and image previews - dcog989
+
+- (f5b8dab) jump clip list back to the first row on search change - dcog989
+
+#### Bug Fixes
+
+- (a1d2872) anchor the context-menu preview to the clip's row - dcog989
+
+- (881db5a) report the update check result in the button label - dcog989
+
+- (8f9a443) fill the toast layout so the Undo button sits at the right edge - dcog989
+
+- (591e933) reconnect the context menu delete, bulk delete and merge actions - dcog989
+
+- (408d747) stop the empty state flashing before the first clip query lands - dcog989
+
+- (c05d526) use the colored app logo for the tray icon - dcog989
+
+- (e465ce8) resolve KDE HIG review findings - dcog989
+
+- (a9ef8c4) rebuild cache entries for displayed clips - dcog989
+
+- (e264e4e) equal-width maintenance buttons - dcog989
+
+- (645bb91) clear live cache files instead of only orphans - dcog989
+
+- (9d0a627) fetch the new theme's icons on switch - dcog989
+
+- (05ce9b5) inset the stepper hover fill from the field border - dcog989
+
+- (4f38953) let settings rows follow their content height - dcog989
+
+- (419151b) drop the 1x1 resize hack from the close path - dcog989
+
+- (1b9050b) bound hover previews and release window buffers - dcog989
+
+- (62ca84a) restore the translation catalog and stop slint-tr-extractor exhausting memory - dcog989
+
+- (f5618e7) use the PascalCase member zbus dispatches on - dcog989
+
+- (8362d0e) serve the active-window callback as a real D-Bus interface - dcog989
+
+- (2e2a16e) keep the active-window tracker working across restarts - dcog989
+
+- (582a707) detect a tracker script that loads but never reports - dcog989
+
+- (42adf90) type an all-image multi-selection as file_image - dcog989
+
+- (b8898ed) only suppress hover previews for clips the row fully shows - dcog989
+
+- (1ac654c) select the clip on right-click - dcog989
+
+- (c98009f) let the content field fill the edit window - dcog989
+
+- (f6ce3c8) size the window to the tallest page so page switches do not move it - dcog989
+
+- (7b93c3b) fill the color preview popup with the swatch - dcog989
+
+- (690ef6c) stop in-app blurs from killing the hover preview and restore focus after child windows close - dcog989
+
+- (6ca6a30) hide accent "Clear" while following the OS accent - dcog989
+
+- (b175842) restore menu popup sizing after the accessibility refactor - dcog989
+
+- (030e049) raise muted-text and empty-state contrast - dcog989
+
+- (d18fdc6) stop pointer hover from moving keyboard selection in lists and menus - dcog989
+
+- (45193fb) keep probing favicon candidates after a non-image 200 - dcog989
+
+- (3258752) highlight search field focus with accent border - dcog989
+
+- (37a24d5) translate the About window and elide long paths - dcog989
+
+- (6121625) flush settings before quitting from the tray - dcog989
+
+- (bbf3938) re-theme an open editor on live theme changes - dcog989
+
+- (0790dcf) roll back the autostart toggle when the desktop file write fails - dcog989
+
+- (23fc8d4) apply text-field side effects after the save debounce - dcog989
+
+- (a7a5f2f) release hotkey focus after a capture - dcog989
+
+- (3988be5) allow retention limits to be disabled and fit the database action grid - dcog989
+
+- (d21fd60) keep the close guard armed after the hamburger popup closes - dcog989
+
+- (9e22c5d) give each context popup its own focus flag and keyboard selection - dcog989
+
+- (98d4f76) sync tags with the opened clip and keep a usable minimum size - dcog989
+
+- (f0f5a9f) confirm Delete and add keyboard access to the menus - dcog989
+
+- (6a53052) keep the hover preview on screen - dcog989
+
+- (1ba0059) install the icon on make install - dcog989
+
+- (d536e61) label the unique-clip counter correctly - dcog989
+
+- (379e077) time out the file chooser, skip export refreshes - dcog989
+
+- (19f8fcf) give a new lock time to write its pid - dcog989
+
+- (2190ce4) migrate files atomically across filesystems - dcog989
+
+- (6d0cedd) use the AppImage path and escape percent - dcog989
+
+- (b594b3c) keep tag syntax on background refreshes - dcog989
+
+- (a9592a7) repair portal detection and accent contrast - dcog989
+
+- (870589b) apply live preview changes and coalesce writes - dcog989
+
+- (4515734) apply retention changes promptly and refresh stats - dcog989
+
+- (2323dc3) check the instance lock before migrating previews - dcog989
+
+- (4a637c1) keep the loaded list and report failed clip actions - dcog989
+
+- (4903b47) remove the unused multi-selection from the clip list - dcog989
+
+- (133387b) harden link fetching and favicon caching - dcog989
+
+- (3daa835) bound image reads and write cache files atomically - dcog989
+
+- (fedcaad) reconnect the cached session bus connection - dcog989
+
+- (cfa06c5) refresh suppression deadlines, wait for focus, surface failures - dcog989
+
+- (fa59800) write edits through an exclusive temp file - dcog989
+
+- (378e4f1) keep the global hotkey working after a portal restart - dcog989
+
+- (3e2d506) bound clipboard reads and idle the poll with the watcher up - dcog989
+
+- (683fa79) warn when a blacklist drops clips with no known source - dcog989
+
+- (bec0613) keep a startup image's accessory text out of the history - dcog989
+
+- (f7a15bd) confirm destructive maintenance and refresh after it - dcog989
+
+- (102fccf) run the first scheduled pass after five minutes - dcog989
+
+- (1b3784b) spare unreadable paths and skip no-op deadhead writes - dcog989
+
+- (7c50e24) stop cache pruning from deleting live files - dcog989
+
+- (4d39597) keep the bottom-pin keep signal on the clip - dcog989
+
+- (bfa4ab2) harden persistence and default every field - dcog989
+
+- (0641667) make history backup atomic and restorable - dcog989
+
+- (f1e67a2) split case boundaries and keep text intact - dcog989
+
+- (d77447f) reject non-ASCII ARGB literals and drop the unused hex field - dcog989
+
+- (b8e425d) cap decoded images at 96 MiB (was 256 MiB) - dcog989
+
+- (ba0f25e) cap remote fetches and fetch each page once - dcog989
+
+- (5bc1c21) page reclassify, spare pins, prune favicon ledger - dcog989
+
+- (0c0b023) stamp images at copy time and skip idle re-probes - dcog989
+
+- (7f5586a) keep handoff files and reap launched processes - dcog989
+
+- (b03e430) fsync edited files and bound image decoding - dcog989
+
+- (c1c75e8) decode signed RTF unicode escapes - dcog989
+
+- (c1237ae) unique pins, clear edit collisions, no import ties - dcog989
+
+- (5d9a307) keep file clips from being downgraded to file_path on dedup - dcog989
+
+- (59046dd) store hover previews at 2x so they stay sharp on HiDPI - dcog989
+
+- (364613b) bound background work and unblock startup - dcog989
+
+- (69740f9) protect file clips when saving edits - dcog989
+
+- (bf9b8bd) keep the search view and bound captured payloads - dcog989
+
+- (3cf439f) preview and edit text contents of file clips with text content - dcog989
+
+- (208266e) stop path-looking text blocks from becoming file clips - dcog989
+
+- (a303b47) various focus issues with hover preview - dcog989
+
+- (80ecfd9) stop re-copies from downgrading file clips to file_path - dcog989
+
+- (f655706) cap retention at the visible list limit - dcog989
+
+- (a283527) serialise exports outside the database lock - dcog989
+
+- (ba8a143) correct html stripping, entity decoding and camel case - dcog989
+
+- (c2275d3) count pastes without reordering and handle empty searches - dcog989
+
+- (c523050) prune orphaned images and keep deleted clip data off disk - dcog989
+
+- (05ba94c) inset the clip row highlight from the list edges - dcog989
+
+- (6519889) ship the app icon in deb and rpm packages - dcog989
+
+- (3a643fb) wipe the .pkg tree before packaging - dcog989
+
+#### Performance Improvements
+
+- (429d2c9) skip clip-list rebuilds while the window is hidden - dcog989
+
+- (1e515ef) load the clip list in 100-row pages - dcog989
+
+- (7bae023) cut hover and list work - dcog989
+
+- (ea0bb28) write reclassified rows one page at a time - dcog989
+
+#### Refactoring
+
+- (531bace) build child windows on first use and trim idle memory - dcog989
+
+- (80b7b83) resize color picker swatch - dcog989
+
+- (790105b) lay out the editor scroll areas with padding instead of absolute insets - dcog989
+
+- (de3d962) centralize toast placement and anchor the hamburger menu to its button - dcog989
+
+- (6d642ba) share clip row and text geometry helpers - dcog989
+
+- (5c4d2c7) centralize menu metrics and size the Send To popup from content - dcog989
+
+- (e3d18d3) reorder log rows and add separators - dcog989
+
+- (e2b2f72) move hover preview delay to the General section - dcog989
+
+- (0d28f57) move log level and latest-log link to the About window - dcog989
+
+- (9d0bba8) share one InputBox component across every text field, consistent styling - dcog989
+
+- (5a50f23) drop unused stepper and menu-row API - dcog989
+
+- (0a3997e) drop unused clip-list data, offsets and callbacks - dcog989
+
+- (05c6c8c) reap xdg-open and reuse the package URL - dcog989
+
+- (8fa687d) one rendition reader, grouped hashes, no dead image hash - dcog989
+
+- (5d144ea) share the spawn-and-reap helper - dcog989
+
+- (af4ede5) remove the unused set_stat helper - dcog989
+
+- (43c88e2) drop unused settings fields and log without panicking - dcog989
+
+- - -
+
 ## v2.23.0 - 2026-10-25
 
 #### Features
