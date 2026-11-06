@@ -175,7 +175,7 @@ fn cached_favicon(fav_path: &Path) -> Option<PathBuf> {
 }
 
 /// Write the best available icon: the site's dark variant, its normal icon,
-/// then the DuckDuckGo proxy.
+/// then the conventional root icon, then the DuckDuckGo proxy.
 async fn store_favicon(
     client: &reqwest::Client,
     url: &str,
@@ -184,18 +184,26 @@ async fn store_favicon(
     dark: bool,
     html: Option<&str>,
 ) -> Option<PathBuf> {
-    // A page that could not be read says nothing about its icon, and the
-    // DuckDuckGo proxy is host-wide (light artwork only). Caching it here would
-    // freeze a guess as this page's icon — the wrong one in dark mode — and
-    // also let a failed fetch overwrite an icon another fetch just wrote.
-    // Leave the slot empty so a later attempt can fetch the real icon.
-    let html = html?;
     let mut fetched = false;
-    if dark && fetch_dark_favicon(client, url, fav_dir, fav_path, html).await {
-        fetched = true;
-    }
-    if !fetched && fetch_site_favicon(client, url, fav_dir, fav_path, html).await {
-        fetched = true;
+    match html {
+        Some(html) => {
+            if dark && fetch_dark_favicon(client, url, fav_dir, fav_path, html).await {
+                fetched = true;
+            }
+            if !fetched && fetch_site_favicon(client, url, fav_dir, fav_path, html).await {
+                fetched = true;
+            }
+        }
+        // No page, so no declarations to read. The conventional root icon costs
+        // one request and is the same path a browser falls back to; sites behind
+        // a bot filter that 404s their HTML (crates.io) still serve it.
+        None => {
+            if let Some(root) = root_favicon_url(url)
+                && fetch_icon(client, &root, fav_dir, fav_path).await
+            {
+                fetched = true;
+            }
+        }
     }
     if !fetched {
         let domain = extract_domain(url)?;
@@ -451,6 +459,16 @@ fn resolve_url(base_url: &str, href: &str) -> Option<String> {
     url::Url::parse(base_url)
         .ok()?
         .join(href)
+        .ok()
+        .map(|u| u.to_string())
+}
+
+/// The root icon a browser requests when a page declares none. Used when the
+/// page could not be read, so its own declarations are unknown.
+fn root_favicon_url(url: &str) -> Option<String> {
+    url::Url::parse(url)
+        .ok()?
+        .join("/favicon.ico")
         .ok()
         .map(|u| u.to_string())
 }
@@ -774,6 +792,19 @@ mod tests {
             resolve_url("https://example.com/page?x=1", "icon.png").unwrap(),
             "https://example.com/icon.png"
         );
+    }
+
+    #[test]
+    fn resolves_root_favicon_for_any_page_path() {
+        assert_eq!(
+            root_favicon_url("https://crates.io/crates/zbus").unwrap(),
+            "https://crates.io/favicon.ico"
+        );
+        assert_eq!(
+            root_favicon_url("http://localhost:8080/a/b?c=1#d").unwrap(),
+            "http://localhost:8080/favicon.ico"
+        );
+        assert_eq!(root_favicon_url("not a url"), None);
     }
 
     #[test]
