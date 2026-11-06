@@ -2,7 +2,7 @@
 //! from the XDG Desktop Portal, with a KDE Plasma 6 `kdeglobals` fallback.
 
 use std::time::Duration;
-use zbus::zvariant::{OwnedValue, Value};
+use zbus::{OwnedVariant, Variant};
 
 /// A portal that owns its bus name but never replies must not hang startup:
 /// the theme is resolved before the main window is shown.
@@ -14,7 +14,7 @@ const PORTAL_TIMEOUT: Duration = Duration::from_secs(2);
 /// value arrives wrapped once more (`v v u 1` on the wire). zbus will not
 /// deserialize the outer variant straight into the payload type, so take the
 /// inner `Value` first and return that in an owned form.
-async fn read_appearance(key: &str) -> Option<OwnedValue> {
+async fn read_appearance(key: &str) -> Option<OwnedVariant> {
     let conn = crate::dbus::session().await.ok()?;
     let msg = tokio::time::timeout(
         PORTAL_TIMEOUT,
@@ -30,8 +30,8 @@ async fn read_appearance(key: &str) -> Option<OwnedValue> {
     .ok()?
     .ok()?;
 
-    let raw: OwnedValue = msg.body().deserialize().ok()?;
-    raw.downcast_ref::<Value>().ok()?.try_to_owned().ok()
+    let raw: OwnedVariant = msg.body().deserialize().ok()?;
+    raw.downcast_ref::<Variant>().ok()?.try_to_owned().ok()
 }
 
 /// Detect the system color-scheme preference via xdg-desktop-portal.

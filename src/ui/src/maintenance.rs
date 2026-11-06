@@ -4,10 +4,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use futures::StreamExt;
 use slint::ComponentHandle;
-use zbus::{
-    Connection, MessageStream,
-    zvariant::{OwnedObjectPath, OwnedValue, Value},
-};
+use zbus::{Connection, MessageStream, OwnedObjectPath, OwnedVariant, Variant};
 
 const PORTAL_DEST: &str = "org.freedesktop.portal.Desktop";
 const PORTAL_PATH: &str = "/org/freedesktop/portal/desktop";
@@ -50,11 +47,11 @@ async fn pick_path(save: bool) -> anyhow::Result<Option<std::path::PathBuf>> {
         "Import Cliptoo history"
     };
 
-    let mut options = HashMap::<&str, Value>::new();
-    options.insert("handle_token", Value::from(next_handle_token()));
+    let mut options = HashMap::<&str, Variant>::new();
+    options.insert("handle_token", Variant::from(next_handle_token()));
     if save {
         // `current_name` is a save-dialog option; an Open dialog ignores it.
-        options.insert("current_name", Value::from("cliptoo-export.json"));
+        options.insert("current_name", Variant::from("cliptoo-export.json"));
     }
 
     let request_handle: OwnedObjectPath = conn
@@ -80,7 +77,7 @@ async fn pick_path(save: bool) -> anyhow::Result<Option<std::path::PathBuf>> {
                 continue;
             }
 
-            let (code, results): (u32, HashMap<String, OwnedValue>) = msg.body().deserialize()?;
+            let (code, results): (u32, HashMap<String, OwnedVariant>) = msg.body().deserialize()?;
             if code != 0 {
                 return Ok(None);
             }

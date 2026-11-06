@@ -161,15 +161,17 @@ pub(crate) fn watch_system_theme(
         let rule = zbus::MatchRule::builder()
             .msg_type(zbus::message::Type::Signal)
             .sender("org.freedesktop.portal.Desktop")
-            .and_then(|b| b.interface("org.freedesktop.portal.Settings"))
-            .and_then(|b| b.member("SettingChanged"))
-            .and_then(|b| b.path("/org/freedesktop/portal/desktop"))
-            .and_then(|b| b.add_arg("org.freedesktop.appearance"))
-            .map(|b| b.build());
+            .interface("org.freedesktop.portal.Settings")
+            .member("SettingChanged")
+            .path("/org/freedesktop/portal/desktop")
+            .add_arg("org.freedesktop.appearance")
+            .build();
         let Ok(rule) = rule else {
             return;
         };
-        let Ok(mut stream) = zbus::MessageStream::for_match_rule(rule, &conn, Some(1)).await else {
+        let Ok(mut stream) =
+            zbus::MessageStream::for_match_rule(rule, &conn, std::num::NonZeroUsize::new(1)).await
+        else {
             return;
         };
         // shortcut: the stream ends if the session bus restarts; live follow

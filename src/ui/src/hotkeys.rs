@@ -7,7 +7,7 @@ use std::time::Duration;
 use tokio::time::timeout;
 use tracing::info;
 use zbus::message::Type;
-use zbus::{Connection, MatchRule, MessageStream, zvariant::Value};
+use zbus::{Connection, MatchRule, MessageStream, Variant};
 
 const PORTAL_DEST: &str = "org.freedesktop.portal.Desktop";
 const PORTAL_PATH: &str = "/org/freedesktop/portal/desktop";
@@ -148,12 +148,12 @@ fn to_xdg_trigger(trigger: &str) -> String {
 async fn portal_owner_changes(conn: &Connection) -> Result<MessageStream> {
     let rule = MatchRule::builder()
         .msg_type(Type::Signal)
-        .sender("org.freedesktop.DBus")?
-        .path("/org/freedesktop/DBus")?
-        .interface("org.freedesktop.DBus")?
-        .member("NameOwnerChanged")?
-        .add_arg(PORTAL_DEST)?
-        .build();
+        .sender("org.freedesktop.DBus")
+        .path("/org/freedesktop/DBus")
+        .interface("org.freedesktop.DBus")
+        .member("NameOwnerChanged")
+        .add_arg(PORTAL_DEST)
+        .build()?;
     Ok(MessageStream::for_match_rule(rule, conn, None).await?)
 }
 
@@ -222,7 +222,7 @@ where
     // first portal call on this connection, so it is done before anything
     // else. Best-effort: if registration fails the request proceeds and the
     // portal will reject it on its own (same net effect, logged below).
-    let reg_options = HashMap::<&str, Value>::new();
+    let reg_options = HashMap::<&str, Variant>::new();
     match conn
         .call_method(
             Some(PORTAL_DEST),

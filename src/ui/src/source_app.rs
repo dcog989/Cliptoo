@@ -109,7 +109,7 @@ async fn install_tracker(cache: &ActiveWindowCache) -> anyhow::Result<()> {
     // reliably replace the resident script, and the connection's unique name
     // changes on every restart). Serve the callback interface before owning
     // the name: zbus warns that calls can be lost otherwise.
-    let conn = zbus::connection::Builder::session()?.build().await?;
+    let conn = zbus::connection::Builder::session().build().await?;
     conn.object_server()
         .at("/", Tracker(cache.clone()))
         .await
@@ -124,9 +124,7 @@ async fn install_tracker(cache: &ActiveWindowCache) -> anyhow::Result<()> {
     let rule = MatchRule::builder()
         .msg_type(Type::MethodCall)
         .member(SCRIPT_MEMBER)
-        .ok()
-        .ok_or_else(|| anyhow::anyhow!("failed to build match rule"))?
-        .build();
+        .build()?;
     let mut stream = MessageStream::for_match_rule(rule, &conn, None)
         .await
         .map_err(|e| anyhow::anyhow!("failed to subscribe to KWin callbacks: {e}"))?;
