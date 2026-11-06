@@ -590,6 +590,55 @@ async fn clear_history_keeps_bookmarked_and_pinned_clips() {
     clean_up(&dir);
 }
 
+/// Shared favicons are stored once and hardlinked into page cache files, so a
+/// store entry is live while any page still links to it. One that no page links
+/// to must go, even though its name matches no clip.
+#[tokio::test]
+async fn prune_cache_keeps_shared_icons_linked_from_a_live_page() {
+    let dir = std::env::temp_dir().join(format!("cliptoo_pruneicons_{}", std::process::id()));
+    clean_up(&dir);
+    let db = Arc::new(DbPool::open(&dir).unwrap());
+
+    let url = "https://example.com/page";
+    common::insert_clip(&db, url, "abcdefabcdefabcdef", "link").await;
+    let page_key = cliptoo_core::url::url_cache_key(url).unwrap();
+
+    let thumbs =
+        std::env::temp_dir().join(format!("cliptoo_pruneicons_thumbs_{}", std::process::id()));
+    let favicons =
+        std::env::temp_dir().join(format!("cliptoo_pruneicons_favs_{}", std::process::id()));
+    let images =
+        std::env::temp_dir().join(format!("cliptoo_pruneicons_images_{}", std::process::id()));
+    for d in [&thumbs, &favicons, &images] {
+        std::fs::create_dir_all(d).unwrap();
+    }
+    let store = favicons.join(".icons");
+    std::fs::create_dir_all(&store).unwrap();
+
+    let shared = store.join("1111111111111111.webp");
+    std::fs::write(&shared, b"icon").unwrap();
+    let page_file = favicons.join(format!("{page_key}.webp"));
+    std::fs::hard_link(&shared, &page_file).unwrap();
+    let orphan = store.join("2222222222222222.webp");
+    std::fs::write(&orphan, b"dead").unwrap();
+    backdate(&page_file);
+    backdate(&orphan);
+
+    let pruned = maintenance::prune_cache(&db, &thumbs, &favicons, &images)
+        .await
+        .unwrap();
+
+    assert_eq!(pruned, 1, "the orphan store entry goes");
+    assert!(page_file.exists(), "the live page's cache file stays");
+    assert!(shared.exists(), "an icon a live page links to stays");
+    assert!(!orphan.exists());
+
+    clean_up(&dir);
+    for d in [&thumbs, &favicons, &images] {
+        let _ = std::fs::remove_dir_all(d);
+    }
+}
+
 /// `prune_cache` must survive a DB row whose ContentHash is not valid UTF-8 on
 /// the 16-byte boundary (corrupt/legacy data written before import validation
 /// existed). The prefix derivation is a byte slice, so without an

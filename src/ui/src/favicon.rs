@@ -46,6 +46,12 @@ fn http_client() -> Option<&'static reqwest::Client> {
 /// this keeps a large link history from opening hundreds of connections.
 const FAVICON_FETCH_CONCURRENCY: usize = 4;
 
+/// Completed fetches between UI reloads. Icons then land in the list as they
+/// arrive instead of all at the end of a long batch, without paying a reload
+/// per icon. One wave of [`FAVICON_FETCH_CONCURRENCY`] is enough for the first
+/// icons to show up.
+const FAVICON_RELOAD_EVERY: usize = FAVICON_FETCH_CONCURRENCY;
+
 /// Cache-file suffixes for the two theme variants. Light and dark favicons
 /// are cached side-by-side (`{key}.webp` vs `{key}.dark.webp`) so
 /// switching themes never evicts the other variant.
@@ -61,10 +67,56 @@ pub fn favicon_file_name(key: &str, dark: bool) -> String {
     }
 }
 
+/// Shared icon store inside the favicon cache, named by the icon's own URL.
+/// A page's cache file is hardlinked to its icon here, so pages that declare
+/// the same icon share one download and one copy of the bytes.
+const ICON_STORE_DIR: &str = ".icons";
+
+fn icon_store_path(fav_dir: &Path, icon_url: &str) -> Option<PathBuf> {
+    let key = url_cache_key(icon_url)?;
+    Some(
+        fav_dir
+            .join(ICON_STORE_DIR)
+            .join(favicon_file_name(&key, false)),
+    )
+}
+
+/// Put `icon_url`'s icon in this page's cache slot. A store hit skips the
+/// request entirely: another page on this or any other host already fetched
+/// the same icon URL.
+async fn fetch_icon(
+    client: &reqwest::Client,
+    icon_url: &str,
+    fav_dir: &Path,
+    fav_path: &Path,
+) -> bool {
+    let Some(store_path) = icon_store_path(fav_dir, icon_url) else {
+        return false;
+    };
+    if cached_favicon(&store_path).is_some() {
+        return link_icon(&store_path, fav_path);
+    }
+    let Some(bytes) = download_bytes(client, icon_url).await else {
+        return false;
+    };
+    save_favicon(&store_path, &bytes) && link_icon(&store_path, fav_path)
+}
+
+/// Make this page's cache file share the stored icon's bytes. The cache is a
+/// plain directory, so a filesystem without hardlinks only pays a copy.
+fn link_icon(store_path: &Path, fav_path: &Path) -> bool {
+    let _ = std::fs::remove_file(fav_path);
+    std::fs::hard_link(store_path, fav_path)
+        .or_else(|_| std::fs::copy(store_path, fav_path).map(|_| ()))
+        .is_ok()
+}
+
 /// Fetch a link's favicon, honouring the active theme. In dark mode the
 /// site's own `prefers-color-scheme: dark` favicon is used when one is
 /// declared (matching what a browser tab would show), falling back to the
 /// DuckDuckGo icon so sites without a dark variant still get a cached icon.
+/// Icons are stored once per icon URL and hardlinked into the page's cache
+/// file, so pages that declare the same icon share one download.
 pub async fn fetch_favicon(url: &str, fav_dir: &Path, dark: bool) -> Option<PathBuf> {
     let key = url_cache_key(url)?;
     let fav_path = fav_dir.join(favicon_file_name(&key, dark));
@@ -75,7 +127,12 @@ pub async fn fetch_favicon(url: &str, fav_dir: &Path, dark: bool) -> Option<Path
     // The page is fetched at most once per call; its own icon declarations are
     // all read from this one response.
     let html = fetch_page(client, url).await;
-    store_favicon(client, url, &fav_path, dark, html.as_deref()).await
+    // The page download already carries the title; keep it so a later hover
+    // does not fetch the same page again just for the title.
+    if let Some(title) = html.as_deref().and_then(page_title) {
+        cache_page_title(url, &title, fav_dir);
+    }
+    store_favicon(client, url, fav_dir, &fav_path, dark, html.as_deref()).await
 }
 
 /// Fetch a link's page title and favicon from a single page download. Both
@@ -96,7 +153,7 @@ pub async fn fetch_link_meta(
             let fav_path = fav_dir.join(favicon_file_name(&key, dark));
             match cached_favicon(&fav_path) {
                 Some(path) => Some(path),
-                None => store_favicon(client, url, &fav_path, dark, html.as_deref()).await,
+                None => store_favicon(client, url, fav_dir, &fav_path, dark, html.as_deref()).await,
             }
         }
         None => None,
@@ -122,6 +179,7 @@ fn cached_favicon(fav_path: &Path) -> Option<PathBuf> {
 async fn store_favicon(
     client: &reqwest::Client,
     url: &str,
+    fav_dir: &Path,
     fav_path: &Path,
     dark: bool,
     html: Option<&str>,
@@ -132,20 +190,22 @@ async fn store_favicon(
     // also let a failed fetch overwrite an icon another fetch just wrote.
     // Leave the slot empty so a later attempt can fetch the real icon.
     let html = html?;
-    if dark && fetch_dark_favicon(client, url, fav_path, html).await {
-        return Some(fav_path.to_path_buf());
+    let mut fetched = false;
+    if dark && fetch_dark_favicon(client, url, fav_dir, fav_path, html).await {
+        fetched = true;
     }
-    if fetch_site_favicon(client, url, fav_path, html).await {
-        return Some(fav_path.to_path_buf());
+    if !fetched && fetch_site_favicon(client, url, fav_dir, fav_path, html).await {
+        fetched = true;
     }
-    let domain = extract_domain(url)?;
-    let fallback_url = format!("https://icons.duckduckgo.com/ip3/{domain}.ico");
-    if let Some(bytes) = download_bytes(client, &fallback_url).await
-        && save_favicon(fav_path, &bytes)
-    {
-        return Some(fav_path.to_path_buf());
+    if !fetched {
+        let domain = extract_domain(url)?;
+        let fallback_url = format!("https://icons.duckduckgo.com/ip3/{domain}.ico");
+        fetched = fetch_icon(client, &fallback_url, fav_dir, fav_path).await;
     }
-    None
+    if !fetched {
+        return None;
+    }
+    Some(fav_path.to_path_buf())
 }
 
 /// Download a page for its title and icon declarations. Local and private
@@ -211,14 +271,13 @@ type DarkFaviconCandidates = (Vec<String>, Vec<String>);
 async fn fetch_dark_favicon(
     client: &reqwest::Client,
     base_url: &str,
+    fav_dir: &Path,
     fav_path: &Path,
     html: &str,
 ) -> bool {
     let (direct, probes) = find_dark_favicon_candidates(html, base_url);
     for url in direct.into_iter().chain(probes) {
-        if let Some(bytes) = download_bytes(client, &url).await
-            && save_favicon(fav_path, &bytes)
-        {
+        if fetch_icon(client, &url, fav_dir, fav_path).await {
             return true;
         }
     }
@@ -342,6 +401,7 @@ fn parse_link_tags(html: &str) -> Vec<LinkAttrs> {
 async fn fetch_site_favicon(
     client: &reqwest::Client,
     base_url: &str,
+    fav_dir: &Path,
     fav_path: &Path,
     html: &str,
 ) -> bool {
@@ -349,9 +409,7 @@ async fn fetch_site_favicon(
     // attribute; try from the end so an overriding declaration wins, then work
     // backwards through the rest.
     for url in site_favicon_hrefs(html, base_url).into_iter().rev() {
-        if let Some(bytes) = download_bytes(client, &url).await
-            && save_favicon(fav_path, &bytes)
-        {
+        if fetch_icon(client, &url, fav_dir, fav_path).await {
             return true;
         }
     }
@@ -499,9 +557,9 @@ pub fn reset_attempted_favicons() {
 /// The ledger itself lives in `cliptoo_core::favicon_failures` so the
 /// maintenance pass can prune counts for clips it deletes.
 ///
-/// After populating the clip list, scan for link clips without cached
-/// favicons and fetch them in the background. The model is reloaded once
-/// after the batch finishes.
+/// After populating the clip list, scan for link clips without their own
+/// cached favicon and fetch them in the background. The model is reloaded as
+/// icons land, so a long batch fills in progressively.
 ///
 /// Must be called on the UI thread (e.g. inside `upgrade_in_event_loop`)
 /// because it accesses the Slint model synchronously to collect pending
@@ -520,20 +578,25 @@ pub fn check_pending_favicons(ui: &crate::AppWindow, db: &Arc<DbPool>, favicons_
     let mut failures: Option<HashMap<i64, u32>> = None;
     for i in 0..model.row_count() {
         if let Some(data) = model.row_data(i) {
-            let ct = data.clip_type.as_str();
-            if ct == "link" && data.favicon_image.size().width == 0 {
-                // Budget exhausted: never fetch this clip again (until caches
-                // are cleared) — the favicon has proven unobtainable.
-                let failures = failures.get_or_insert_with(|| favicon_failures::load(favicons_dir));
-                if favicon_failures::exhausted(failures, data.id as i64) {
-                    continue;
-                }
-                let Some(key) = url_cache_key(&data.preview_content) else {
-                    continue;
-                };
-                if attempted.insert(format!("{key}:{dark}")) {
-                    pending.push(data.id as i64);
-                }
+            if data.clip_type.as_str() != "link" {
+                continue;
+            }
+            let Some(key) = url_cache_key(&data.preview_content) else {
+                continue;
+            };
+            // The page's own cache file decides; a page never renders another
+            // page's icon.
+            if favicons_dir.join(favicon_file_name(&key, dark)).exists() {
+                continue;
+            }
+            // Budget exhausted: never fetch this clip again (until caches are
+            // cleared) — the favicon has proven unobtainable.
+            let failures = failures.get_or_insert_with(|| favicon_failures::load(favicons_dir));
+            if favicon_failures::exhausted(failures, data.id as i64) {
+                continue;
+            }
+            if attempted.insert(format!("{key}:{dark}")) {
+                pending.push(data.id as i64);
             }
         }
     }
@@ -553,41 +616,57 @@ pub fn check_pending_favicons(ui: &crate::AppWindow, db: &Arc<DbPool>, favicons_
     let fav_dir = favicons_dir.to_owned();
     tokio::spawn(async move {
         let fetch_dir = fav_dir.clone();
-        let results = futures::stream::iter(pending.into_iter().map(move |clip_id| {
-            let db = db.clone();
-            let fav_dir = fetch_dir.clone();
-            async move {
-                let content = db
-                    .with(|conn| cliptoo_core::db::queries::get_clip_content(conn, clip_id))
-                    .await
-                    .ok()?;
-                let key = url_cache_key(&content);
-                let fetched = fetch_favicon(&content, &fav_dir, dark).await.is_some();
-                Some((clip_id, key, fetched))
-            }
-        }))
-        .buffer_unordered(FAVICON_FETCH_CONCURRENCY)
-        .collect::<Vec<_>>()
-        .await;
+        let mut stream = std::pin::pin!(
+            futures::stream::iter(pending.into_iter().map(move |clip_id| {
+                let db = db.clone();
+                let fav_dir = fetch_dir.clone();
+                async move {
+                    let content = db
+                        .with(|conn| cliptoo_core::db::queries::get_clip_content(conn, clip_id))
+                        .await
+                        .ok()?;
+                    let key = url_cache_key(&content);
+                    let fetched = fetch_favicon(&content, &fav_dir, dark).await.is_some();
+                    Some((clip_id, key, fetched))
+                }
+            },))
+            .buffer_unordered(FAVICON_FETCH_CONCURRENCY)
+        );
 
-        let mut outcomes = Vec::with_capacity(results.len());
-        let mut reloaded_keys = HashSet::new();
-        for (clip_id, key, fetched) in results.into_iter().flatten() {
+        let mut outcomes = Vec::new();
+        let mut reload_keys = HashSet::new();
+        let mut completed = 0usize;
+        while let Some(Some((clip_id, key, fetched))) = stream.next().await {
             outcomes.push((clip_id, fetched));
-            // Remember the icons that arrived: only rows showing that icon are
-            // reloaded, not the whole list.
             if fetched && let Some(key) = key {
-                reloaded_keys.insert(key);
+                reload_keys.insert(key);
+            }
+            completed += 1;
+            if completed % FAVICON_RELOAD_EVERY == 0 {
+                flush_favicon_reload(&weak, &fav_dir, &mut reload_keys);
             }
         }
+        flush_favicon_reload(&weak, &fav_dir, &mut reload_keys);
         // One read-modify-write for the whole batch; a per-clip update would be
         // O(clips²) file writes.
         favicon_failures::record(&fav_dir, &outcomes);
-        if !reloaded_keys.is_empty() {
-            let _ = weak.upgrade_in_event_loop(move |ui| {
-                crate::thumbnail_cache::reload_favicons_for(&ui, &fav_dir, &reloaded_keys);
-            });
-        }
+    });
+}
+
+/// Send the icons that just landed to the UI, so rows switch to their page's
+/// icon as soon as it is fetched.
+fn flush_favicon_reload(
+    weak: &slint::Weak<crate::AppWindow>,
+    fav_dir: &Path,
+    keys: &mut HashSet<String>,
+) {
+    if keys.is_empty() {
+        return;
+    }
+    let keys = std::mem::take(keys);
+    let fav_dir = fav_dir.to_owned();
+    let _ = weak.upgrade_in_event_loop(move |ui| {
+        crate::thumbnail_cache::reload_favicons_for(&ui, &fav_dir, &keys);
     });
 }
 

@@ -4,6 +4,7 @@
 use anyhow::Result;
 use rusqlite::{Connection, params};
 use std::collections::HashSet;
+use std::os::unix::fs::MetadataExt;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
@@ -76,7 +77,8 @@ fn is_recent(entry: &std::fs::DirEntry, cutoff: SystemTime) -> bool {
 /// Thumbnails and full-size images are keyed by the first 16 chars of
 /// `ContentHash`; favicon and title files by the link's [`url_cache_key`] —
 /// each dir is matched against its own key, so a favicon for a still-present
-/// link is never pruned.
+/// link is never pruned. Icons shared by several pages live once in a
+/// subdirectory and are hardlinked into those page files.
 pub async fn prune_cache(
     db: &Arc<DbPool>,
     thumbnails_dir: &Path,
@@ -171,12 +173,40 @@ pub async fn prune_cache(
         }
     }
 
-    // Favicons and titles are keyed by the URL hash of a stored Link clip.
+    // Favicons and titles are keyed by the URL hash of a stored Link clip. A
+    // subdirectory is the shared icon store: page cache files are hardlinked
+    // to its files, so one with a single link is referenced by no page.
+    let mut icon_stores = Vec::new();
     if let Ok(entries) = std::fs::read_dir(favicons_dir) {
         for entry in entries.filter_map(|e| e.ok()) {
+            if entry.file_type().is_ok_and(|kind| kind.is_dir()) {
+                icon_stores.push(entry.path());
+                continue;
+            }
             let fname = entry.file_name();
             let name = fname.to_string_lossy();
             if !favicon_is_orphan(&name, &known_favicon_keys) || is_recent(&entry, cutoff) {
+                continue;
+            }
+            if let Err(e) = tokio::fs::remove_file(entry.path()).await {
+                warn!("prune_cache: failed to remove {:?}: {e}", entry.path());
+            } else {
+                pruned += 1;
+            }
+        }
+    }
+    for store in icon_stores {
+        let Ok(entries) = std::fs::read_dir(&store) else {
+            continue;
+        };
+        for entry in entries.filter_map(|e| e.ok()) {
+            if is_recent(&entry, cutoff) {
+                continue;
+            }
+            // One link is the store's own entry: no page cache file shares it.
+            // A filesystem without hardlink support copies instead, so the
+            // entry is dropped and the next page re-downloads the icon.
+            if entry.metadata().map(|m| m.nlink()).unwrap_or(1) > 1 {
                 continue;
             }
             if let Err(e) = tokio::fs::remove_file(entry.path()).await {
@@ -193,8 +223,9 @@ pub async fn prune_cache(
 /// those belonging to live clips, so the next render or fetch rebuilds them.
 /// Bookkeeping dotfiles (e.g. `.preview_ratio`) are kept: dropping the marker
 /// would make the next launch wipe the previews this clear is about to
-/// rebuild. The full-resolution image store is clip data, not cache, and is
-/// never touched. Returns the number of files removed.
+/// rebuild. The favicon dir's shared-icon subdirectory is cache too, so it is
+/// removed wholesale. The full-resolution image store is clip data, not cache,
+/// and is never touched. Returns the number of files removed.
 pub async fn clear_cache_files(thumbnails_dir: &Path, favicons_dir: &Path) -> u64 {
     let mut removed = 0;
     for dir in [thumbnails_dir, favicons_dir] {
@@ -202,6 +233,22 @@ pub async fn clear_cache_files(thumbnails_dir: &Path, favicons_dir: &Path) -> u6
             continue;
         };
         while let Ok(Some(entry)) = entries.next_entry().await {
+            let is_dir = entry
+                .file_type()
+                .await
+                .map(|kind| kind.is_dir())
+                .unwrap_or(false);
+            if is_dir {
+                if dir == favicons_dir {
+                    if let Ok(mut inner) = tokio::fs::read_dir(entry.path()).await {
+                        while let Ok(Some(_)) = inner.next_entry().await {
+                            removed += 1;
+                        }
+                    }
+                    let _ = tokio::fs::remove_dir_all(entry.path()).await;
+                }
+                continue;
+            }
             if entry.file_name().to_string_lossy().starts_with('.') {
                 continue;
             }
@@ -263,10 +310,12 @@ mod tests {
         }
         std::fs::write(fd.join("example.com.webp"), b"x").unwrap();
         std::fs::write(fd.join("0123456789abcdef.title"), b"x").unwrap();
+        std::fs::create_dir_all(fd.join(".icons")).unwrap();
+        std::fs::write(fd.join(".icons/1111111111111111.webp"), b"x").unwrap();
 
         let removed = clear_cache_files(&td, &fd).await;
 
-        assert_eq!(removed, 4);
+        assert_eq!(removed, 5);
         assert!(
             td.join(".preview_ratio").is_file(),
             "the ratio marker must survive"
@@ -274,6 +323,10 @@ mod tests {
         assert!(
             td.join("nested").is_dir(),
             "subdirectories are not cache files"
+        );
+        assert!(
+            !fd.join(".icons").exists(),
+            "the shared icon store is cache and must be cleared"
         );
         assert!(!td.join("0123456789abcdef.webp").exists());
         assert!(!fd.join("example.com.webp").exists());
