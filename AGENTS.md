@@ -75,44 +75,42 @@ Cocogitto is an external binary (`cargo install cocogitto` / `pacman -S cocogitt
 
 ### Code Changes
 
-- For non-trivial work, propose an approach and confirm before implementing.
-- Keep modifications minimal and scoped; prefer incremental improvements over rewrites. Ask before architectural changes.
+- For non-trivial work, propose an approach and confirm before implementing, including architectural changes.
+- Keep modifications minimal and scoped; prefer incremental improvements over rewrites.
 - Use explicit types and named constants (no magic numbers).
 - Return explicit error types; do not suppress exceptions.
 - Follow standard repository linting and formatting configs.
 - Decompose files over 400 lines if they mix concerns.
-- Use clear naming over comments; reserve comments for complex workarounds or non-obvious issues — why, not what.
+- Name things clearly; reserve comments for the non-obvious why (workarounds, edge cases).
 - Never run git mutations (commit, push, reset, rebase, amend) unless explicitly instructed.
 - Do not create documentation files unless explicitly requested.
 - Adhere to <https://develop.kde.org/hig/>.
 
 ### Author Environment
 
-- CachyOS, KDE Plasma 6, Wayland, Btrfs.
-- fish shell, Ghostty terminal, Fresh TUI editor, yay package manager, bun npm manager, Firefox, and Zed code editor.
+- Ryzen 5800X3D, Radeon RX 7900 XT, Display (AW3225QF); CachyOS, KDE, KWin / Wayland, Btrfs.
+- fish shell, Ghostty terminal, Fresh TUI editor, yay package manager, bun npm manager, Firefox, Zed code editor.
 
 ### Testing
 
-- Do not create test files for trivial changes, or for behavior that is not reliably unit-testable in the test environment (e.g. UI layout/click mapping). Prefer no new files; only add a test when the logic is genuinely testable and worth guarding.
+- Add tests only when the logic is genuinely testable and worth guarding. No test files for trivial changes or behavior the environment cannot test reliably (e.g. UI layout/click mapping).
 
 ### Definition of Done
 
 - Logic fully implemented.
 - Existing docs updated if public interfaces changed.
-- When required by the `Verification` rules, run the corresponding `Workflow` command.
+- Run the corresponding `Workflow` command when `Verification` requires it.
 
 ### Commit Messages
 
 - On completion of an update or fix, print a conventional commit message in a fenced code block.
 - Add a body only when the "why" isn't obvious.
-- Do not wrap lines. One physical line per paragraph however long it gets. Never hard-wrap the subject or the body.
+- Never hard-wrap: one physical line per paragraph, however long.
 
 ### Communication Style
 
-- Terse: short declarative sentences, one idea per line.
-- Fixes and instructions: numbered steps, one action each, exact command/path/code. No prose paragraphs or recap.
-- Questions and explanations: direct prose, only the reasoning needed.
-- Cut words, never facts — keep every command, flag, path, default and caveat.
-- No preamble, restating, hedging, disclaimers, meta-commentary, emotional framing, or closing offers; end when done unless a real decision is needed.
-- Ask when requirements are ambiguous; state risks and edge cases.
-- End answers to questions with a `TL;DR:` line: one sentence, the whole point. Skip it for acknowledgements, status updates, and completed work.
+- Format: short declarative sentences, one idea per line.
+- Instructions: numbered steps, one action each (exact command, path, or code); no prose recap.
+- Explanations: essential context only. End question answers with `TL;DR:`, one sentence; omit for status updates and completed work.
+- Tone: no preamble, restating, hedging, disclaimers, emotional framing, or closing offers. Keep every fact, command, flag, path, default, caveat.
+- Edge Cases: state risks explicitly; ask when requirements are ambiguous.
