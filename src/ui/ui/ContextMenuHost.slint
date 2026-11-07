@@ -54,6 +54,10 @@ export component ContextMenuHost {
     property <length> main-w: 0px;
     property <length> format-row-y: 0px;
     property <length> send-row-y: 0px;
+    // The flyouts are separate native windows, so fractional display scaling
+    // can round their edge away from the main menu and leave a hairline gap.
+    // Overlap by the border width to hide the seam.
+    property <length> flyout-overlap: 1px;
     // Armed by each show function just before its popup.show(); that popup's
     // focus-timer consumes its own flag once its key-handling scope has focus.
     in-out property <bool> main-focus-armed: false;
@@ -261,8 +265,10 @@ export component ContextMenuHost {
         // ── Format flyout ───────────────────────────────────────────────────
         format-flyout := PopupWindow {
             close-policy: PopupClosePolicy.close-on-click-outside;
-            x: root.main-w;
-            y: root.format-row-y;
+            x: root.main-w - root.flyout-overlap;
+            // The anchor is the row's offset inside the main menu; the flyout's
+            // own top padding would otherwise push its first row that far down.
+            y: root.format-row-y - Theme.menu-padding;
             width: fmt-menu.menu-width;
             height: fmt-menu.menu-height;
 
@@ -335,8 +341,10 @@ export component ContextMenuHost {
         // ── Send To flyout ──────────────────────────────────────────────────
         send-flyout := PopupWindow {
             close-policy: PopupClosePolicy.close-on-click-outside;
-            x: root.main-w;
-            y: root.send-row-y;
+            x: root.main-w - root.flyout-overlap;
+            // Same offset as the Format flyout: align the first row, not the
+            // boxes' top edges.
+            y: root.send-row-y - Theme.menu-padding;
             width: send-menu-root.preferred-width;
             height: send-menu-root.preferred-height;
 
