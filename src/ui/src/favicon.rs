@@ -660,7 +660,7 @@ pub fn check_pending_favicons(ui: &crate::AppWindow, db: &Arc<DbPool>, favicons_
                 reload_keys.insert(key);
             }
             completed += 1;
-            if completed % FAVICON_RELOAD_EVERY == 0 {
+            if completed.is_multiple_of(FAVICON_RELOAD_EVERY) {
                 flush_favicon_reload(&weak, &fav_dir, &mut reload_keys);
             }
         }
