@@ -45,6 +45,7 @@ evdev.workspace = true
 futures.workspace = true
 i-slint-backend-qt = "1.18"
 image.workspace = true
+libc.workspace = true
 lru.workspace = true
 regex.workspace = true
 reqwest.workspace = true

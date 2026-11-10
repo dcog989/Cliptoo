@@ -9,6 +9,7 @@ use tracing::info;
 
 mod about;
 mod actions;
+mod alloc;
 mod app_dirs;
 mod autostart;
 mod clipboard;
@@ -40,6 +41,8 @@ slint::include_modules!();
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    // Before any image-sized buffer: see alloc.rs.
+    alloc::tune();
     let dirs = app_dirs::AppDirs::resolve()?;
     // Checked before load(): load() writes a default settings file on first
     // launch, so afterwards every launch looks like a returning one.
