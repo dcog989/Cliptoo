@@ -23,6 +23,7 @@ evdev = "0.13"
 futures = "0.3"
 image = { version = "0.25", default-features = false, features = ["avif-native", "bmp", "gif", "ico", "jpeg", "png", "tiff", "webp"] }
 jxl-oxide = "0.12"
+libc = "0.2"
 lru = "0.19"
 palette = { version = "0.7", default-features = false, features = ["std"] }
 pkg-config = "0.3"

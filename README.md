@@ -60,14 +60,14 @@
 
 Download [GitHub Latest Release](https://github.com/dcog989/Cliptoo/releases/latest):
 
-| Platform | Format | Install |
-|----------|--------|---------|
-| Linux | AppImage | `chmod +x cliptoo-*-x86_64.AppImage && ./cliptoo-*-x86_64.AppImage` |
-| Debian / Ubuntu | `.deb` | `sudo apt install ./cliptoo_*_amd64.deb` |
-| Fedora / RHEL | `.rpm` | `sudo dnf install ./cliptoo-*.x86_64.rpm` |
-| Arch / CachyOS | `.pkg.tar.zst` | `sudo pacman -U cliptoo-*.pkg.tar.zst` |
-| Arch / CachyOS | `PKGBUILD` (local build) | `make package && sudo pacman -U .pkg/cliptoo-*.pkg.tar.zst` |
-| Any | source | `make install` (installs to `/usr/local`; see [requirements](#requirements)) |
+| Platform        | Format                   | Install                                                                      |
+| --------------- | ------------------------ | ---------------------------------------------------------------------------- |
+| Linux           | AppImage                 | `chmod +x cliptoo-*-x86_64.AppImage && ./cliptoo-*-x86_64.AppImage`          |
+| Debian / Ubuntu | `.deb`                   | `sudo apt install ./cliptoo_*_amd64.deb`                                     |
+| Fedora / RHEL   | `.rpm`                   | `sudo dnf install ./cliptoo-*.x86_64.rpm`                                    |
+| Arch / CachyOS  | `.pkg.tar.zst`           | `sudo pacman -U cliptoo-*.pkg.tar.zst`                                       |
+| Arch / CachyOS  | `PKGBUILD` (local build) | `make package && sudo pacman -U .pkg/cliptoo-*.pkg.tar.zst`                  |
+| Any             | source                   | `make install` (installs to `/usr/local`; see [requirements](#requirements)) |
 
 > [!NOTE]
 > The AppImage adds itself to the application menu, installs its icon, and repoints the entry when you move or rename it.
@@ -78,18 +78,18 @@ Download [GitHub Latest Release](https://github.com/dcog989/Cliptoo/releases/lat
 
 ### Tech Stack
 
-| Component | Technology |
-|-----------|------------|
-| Language | Rust 2024 |
-| UI | Slint, Qt 6 backend |
-| Clipboard | `wl-clipboard-rs`, `wayland-client`, wlr/ext data-control |
-| Storage | SQLite + FTS5 (`rusqlite`) |
-| Runtime | Tokio |
-| Images | `image`, `resvg`, `jxl-oxide`, `rqrr` |
-| Colour | `palette` |
-| D-Bus / portals | `ashpd`, `zbus` |
-| Tray / input | Slint `SystemTrayIcon`, `evdev` |
-| HTTP | `reqwest` (rustls) |
+| Component       | Technology                                                |
+| --------------- | --------------------------------------------------------- |
+| Language        | Rust 2024                                                 |
+| UI              | Slint, Qt 6 backend                                       |
+| Clipboard       | `wl-clipboard-rs`, `wayland-client`, wlr/ext data-control |
+| Storage         | SQLite + FTS5 (`rusqlite`)                                |
+| Runtime         | Tokio                                                     |
+| Images          | `image`, `resvg`, `jxl-oxide`, `rqrr`                     |
+| Colour          | `palette`                                                 |
+| D-Bus / portals | `ashpd`, `zbus`                                           |
+| Tray / input    | Slint `SystemTrayIcon`, `evdev`                           |
+| HTTP            | `reqwest` (rustls)                                        |
 
 Data lives in `~/.local/share/Cliptoo/` (DB, images), config in `~/.config/Cliptoo/`, cache in `~/.cache/Cliptoo/`, logs in `~/.local/state/Cliptoo/Logs/`.
 
@@ -99,11 +99,11 @@ Wayland with KDE Plasma 6. `xdg-desktop-portal-kde` provides the global hotkey p
 
 Building needs Rust stable (2024 edition, [rustup](https://rustup.rs)) plus the Qt 6, Wayland, xkbcommon, fontconfig, and dav1d development headers, `clang`, and `mold`:
 
-| Distro        | Command |
-|---------------|---------|
-| Debian/Ubuntu | `sudo apt install qt6-base-dev qt6-wayland libwayland-dev libxkbcommon-dev libfontconfig1-dev libdav1d-dev pkg-config clang mold` |
+| Distro        | Command                                                                                                                                 |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Debian/Ubuntu | `sudo apt install qt6-base-dev qt6-wayland libwayland-dev libxkbcommon-dev libfontconfig1-dev libdav1d-dev pkg-config clang mold`       |
 | Fedora        | `sudo dnf install qt6-qtbase-devel qt6-qtwayland libwayland-devel libxkbcommon-devel fontconfig-devel dav1d-devel clang mold pkgconfig` |
-| Arch          | `sudo pacman -S qt6-base qt6-wayland wayland wayland-protocols libxkbcommon fontconfig dav1d clang mold pkgconf` |
+| Arch          | `sudo pacman -S qt6-base qt6-wayland wayland wayland-protocols libxkbcommon fontconfig dav1d clang mold pkgconf`                        |
 
 Local builds must use those linkers: set `linker = "clang"` and `rustflags = ["-C", "link-arg=-fuse-ld=mold"]` under `[target.x86_64-unknown-linux-gnu]` in `~/.cargo/config.toml`. CI passes the same values through `CARGO_TARGET_*`.
 
