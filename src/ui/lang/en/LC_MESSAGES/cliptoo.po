@@ -1,7 +1,7 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: cliptoo 2.24.1\n"
+"Project-Id-Version: cliptoo 2.24.2\n"
 "POT-Creation-Date: 2026-11-02 10:32+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"

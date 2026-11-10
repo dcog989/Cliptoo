@@ -3,6 +3,26 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v2.24.2 - 2026-11-10
+
+#### Bug Fixes
+
+- (e895f4d) use is_multiple_of in the favicon reload batching - dcog989
+
+- (3bc8874) align context-menu flyouts with the row that opens them - dcog989
+
+- (758642a) fall back to the root icon when a page cannot be read - dcog989
+
+- (3fcccf8) migrate to the zbus 6 API - dcog989
+
+#### Performance Improvements
+
+- (48b0032) return freed image buffers to the OS - dcog989
+
+- (c126929) store each favicon once per icon URL and hardlink it into pages - dcog989
+
+- - -
+
 ## v2.24.1 - 2026-11-05
 
 #### Bug Fixes
