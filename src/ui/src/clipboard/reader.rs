@@ -98,8 +98,7 @@ async fn try_text_payload(
     };
 
     // Decode lossily: cutting the stream can split a UTF-8 character.
-    let raw = String::from_utf8(raw_bytes)
-        .unwrap_or_else(|e| String::from_utf8_lossy(e.as_bytes()).into_owned());
+    let raw = String::from_utf8_lossy_owned(raw_bytes);
 
     let normalized = normalize_line_endings(&raw);
     let (hash, sup_hash) = cliptoo_core::content::hash::sha256_hex_and_prefix(&normalized);

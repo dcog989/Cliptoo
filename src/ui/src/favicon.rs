@@ -227,7 +227,7 @@ async fn fetch_page(client: &reqwest::Client, url: &str) -> Option<String> {
         return None;
     }
     let bytes = read_body_capped(resp).await?;
-    Some(String::from_utf8_lossy(&bytes).into_owned())
+    Some(String::from_utf8_lossy_owned(bytes))
 }
 
 /// The page's `<title>`, trimmed to one line and with HTML entities decoded

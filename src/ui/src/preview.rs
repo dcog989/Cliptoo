@@ -551,7 +551,7 @@ fn read_text_file_preview(path: &str) -> std::io::Result<(String, bool)> {
             "binary content",
         ));
     }
-    Ok((String::from_utf8_lossy(&buf).into_owned(), truncated))
+    Ok((String::from_utf8_lossy_owned(buf), truncated))
 }
 
 /// Uniform signature for a per-clip-type preview handler, so handlers can be
