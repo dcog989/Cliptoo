@@ -168,7 +168,7 @@ impl ContentProcessor {
     /// "<not a tag>") never counts. A leading BOM is tolerated, matching
     /// `is_rtf`.
     fn is_html(s: &str) -> bool {
-        let body = s.strip_prefix('\u{feff}').unwrap_or(s).trim_start();
+        let body = s.trim_prefix('\u{feff}').trim_start();
         // SVG is markup-shaped but not HTML. Left to the HTML branch, it would
         // preview and paste as the empty result of stripping its tags.
         if crate::content::is_svg_markup(body) {
@@ -217,7 +217,7 @@ impl ContentProcessor {
         if !Self::looks_like_path(s) {
             return false;
         }
-        let without_scheme = s.strip_prefix("file://").unwrap_or(s);
+        let without_scheme = s.trim_prefix("file://");
         let decoded = crate::content::percent_decode_path(without_scheme);
         decoded
             .split_whitespace()
@@ -231,7 +231,7 @@ impl ContentProcessor {
     /// both `file:///home/foo%20bar` and `/home/foo bar` count. Also accepts a
     /// newline-joined list of paths (a multi-selection `text/uri-list` payload).
     pub fn looks_like_path(raw: &str) -> bool {
-        let without_scheme = raw.strip_prefix("file://").unwrap_or(raw);
+        let without_scheme = raw.trim_prefix("file://");
         let decoded = crate::content::percent_decode_path(without_scheme);
         decoded.starts_with('/')
             || decoded.starts_with("~/")

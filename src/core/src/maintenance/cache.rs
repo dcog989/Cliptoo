@@ -142,7 +142,7 @@ pub async fn prune_cache(
                 continue;
             }
             let stem = name.rsplit_once('.').map(|(s, _)| s).unwrap_or(&name);
-            let hash_prefix = stem.strip_suffix("_preview").unwrap_or(stem);
+            let hash_prefix = stem.trim_suffix("_preview");
             if known_prefixes.contains(hash_prefix) || is_recent(&entry, cutoff) {
                 continue;
             }

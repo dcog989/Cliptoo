@@ -20,7 +20,7 @@ pub use rtf::strip_rtf;
 /// before `is_html`: `strip_html` reduces an SVG source to empty plain text,
 /// which makes both the stored preview and any paste blank.
 pub fn is_svg_markup(s: &str) -> bool {
-    let mut body = s.strip_prefix('\u{feff}').unwrap_or(s).trim_start();
+    let mut body = s.trim_prefix('\u{feff}').trim_start();
     loop {
         if let Some(rest) = body.strip_prefix("<?xml") {
             match rest.find("?>") {

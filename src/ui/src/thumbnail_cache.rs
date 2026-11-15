@@ -129,7 +129,7 @@ pub fn reload_favicons_for(ui: &crate::AppWindow, favicons_dir: &Path, keys: &Ha
 fn reload_favicons_where(ui: &crate::AppWindow, favicons_dir: &Path, keep: &dyn Fn(&str) -> bool) {
     FAVICON_LRU.with(|lru| {
         lru.borrow_mut()
-            .evict_where(|key| keep(key.strip_suffix(":dark").unwrap_or(key)))
+            .evict_where(|key| keep(key.trim_suffix(":dark")))
     });
     let model = ui.get_clips();
     for i in 0..model.row_count() {
