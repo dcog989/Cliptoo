@@ -82,3 +82,8 @@ translations:
     awk '!(/^#: / && $0 == prev) { print } { prev = $0 }' "$po.tmp" > "$po.new"
     mv "$po.new" "$po"
     rm -f "$po.tmp"
+
+# Refresh dependencies to the latest allowed versions.
+update:
+    cargo upgrade && cargo update --verbose
+    bun update --latest
