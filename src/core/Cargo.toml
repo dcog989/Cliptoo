@@ -2,6 +2,7 @@
 name = "cliptoo-core"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 description = "Cliptoo clipboard manager — core backend library"
 license.workspace = true
 

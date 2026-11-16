@@ -2,6 +2,7 @@
 name = "cliptoo"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 description = "Cliptoo — a native Linux KDE clipboard manager"
 license.workspace = true
 
