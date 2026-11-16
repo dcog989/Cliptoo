@@ -197,6 +197,7 @@ export component AboutWindow inherits Window {
 
         Text {
             text: "Cliptoo";
+            font-family: "DejaVu Sans Mono";
             color: Theme.fg-primary;
             font-size: 24px;
             font-weight: 700;
@@ -212,9 +213,13 @@ export component AboutWindow inherits Window {
 
         Text {
             text: @tr("\"Klaatu barada nikto!\"");
+            // Mono family with a real italic face: Slint 1.19's Qt backend
+            // renders synthesized italics illegibly, and Noto Sans Mono has
+            // no italic face.
+            font-family: "DejaVu Sans Mono";
+            font-italic: true;
             color: Theme.brand-gold;
             font-size: 18px;
-            font-italic: true;
             horizontal-alignment: center;
         }
 
