@@ -32,8 +32,14 @@ jobs:
       - name: Install ImageMagick
         run: sudo apt-get install -y --no-install-recommends imagemagick
 
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just
+
+      # The justfile owns the build command; running it here keeps CI and
+      # `just website-build` from drifting.
       - name: Build website
-        run: bunx --bun vite build --config website/vite.config.js
+        run: just website-build
 
       - name: Upload website as Pages artifact
         uses: actions/upload-pages-artifact@v5

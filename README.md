@@ -66,8 +66,8 @@ Download [GitHub Latest Release](https://github.com/dcog989/Cliptoo/releases/lat
 | Debian / Ubuntu | `.deb`                   | `sudo apt install ./cliptoo_*_amd64.deb`                                     |
 | Fedora / RHEL   | `.rpm`                   | `sudo dnf install ./cliptoo-*.x86_64.rpm`                                    |
 | Arch / CachyOS  | `.pkg.tar.zst`           | `sudo pacman -U cliptoo-*.pkg.tar.zst`                                       |
-| Arch / CachyOS  | `PKGBUILD` (local build) | `make package && sudo pacman -U .pkg/cliptoo-*.pkg.tar.zst`                  |
-| Any             | source                   | `make install` (installs to `/usr/local`; see [requirements](#requirements)) |
+| Arch / CachyOS  | `PKGBUILD` (local build) | `just package && sudo pacman -U .pkg/cliptoo-*.pkg.tar.zst`                  |
+| Any             | source                   | `just install` (installs to `/usr/local`; see [requirements](#requirements)) |
 
 > [!NOTE]
 > The AppImage adds itself to the application menu, installs its icon, and repoints the entry when you move or rename it.
@@ -97,7 +97,7 @@ Data lives in `~/.local/share/Cliptoo/` (DB, images), config in `~/.config/Clipt
 
 Wayland with KDE Plasma 6. `xdg-desktop-portal-kde` provides the global hotkey portal and ships with Plasma.
 
-Building needs Rust stable (2024 edition, [rustup](https://rustup.rs)) plus the Qt 6, Wayland, xkbcommon, fontconfig, and dav1d development headers, `clang`, and `mold`:
+Building needs [just](https://github.com/casey/just) and Rust stable (2024 edition, [rustup](https://rustup.rs)) plus the Qt 6, Wayland, xkbcommon, fontconfig, and dav1d development headers, `clang`, and `mold`:
 
 | Distro        | Command                                                                                                                                 |
 | ------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
@@ -116,24 +116,21 @@ git clone https://github.com/dcog989/cliptoo.git && cd cliptoo
 ```sh
 cargo install cargo-edit cargo-outdated cargo-sweep   # optional
 
-cargo run                              # debug build and run
-cargo test --workspace
-cargo clippy --workspace --all-targets -- -D warnings
-cargo fmt --all -- --check
-cargo fmt --all                        # apply formatting
-slint-lsp format -i src/ui/ui/*.slint
-make translations                      # rebuild PO catalogs from @tr()
+just run                               # debug build and run
+just check                             # format check, clippy, tests
+just format                            # apply Rust and Slint formatting
+just build                             # release binary
 
 cargo outdated -w
 cargo upgrade && cargo update --verbose
 cargo sweep --time 14
-cargo clean
+just clean
 ```
 
 ```sh
 bun install                            # website build tools
-bun run website                        # live site rendered from README.md
-bun run website:build                  # static site in website/dist
+just website                           # live site rendered from README.md
+just website-build                     # static site in website/dist
 ```
 
 ### Release

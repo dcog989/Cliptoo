@@ -44,14 +44,12 @@ jobs:
       - name: Cache Cargo registry + build
         uses: Swatinem/rust-cache@v2
 
-      - name: Cargo fmt check
-        run: cargo fmt --all -- --check
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just
 
-      - name: Cargo clippy
-        run: cargo clippy --workspace --all-targets -- -D warnings
-
-      - name: Cargo test
-        run: cargo test --workspace
+      - name: Check
+        run: just check
 
   build-packages:
     name: Build Linux packages
