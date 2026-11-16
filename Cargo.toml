@@ -40,7 +40,7 @@ rustls = { version = "0.23", default-features = false, features = ["ring", "std"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.11"
-slint = { version = "1.19", features = ["backend-qt"] }
+slint = { version = "1.19", default-features = false, features = ["std", "backend-qt", "system-tray", "accessibility", "compat-1-18"] }
 slint-build = "1.19"
 tokio = { version = "1", features = ["full"] }
 tracing = "0.1"
