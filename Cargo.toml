@@ -8,8 +8,9 @@ members = [
 [workspace.package]
 version = "2.24.2"
 edition = "2024"
-# Highest MSRV in the dependency graph (Slint 1.19); a floor, not a pin.
-rust-version = "1.95"
+# Slint 1.19 needs 1.95, but the code uses str::trim_prefix/trim_suffix,
+# which stabilised in 1.100. A floor, not a pin.
+rust-version = "1.100"
 license = "GPL-3.0-only"
 
 [workspace.dependencies]
