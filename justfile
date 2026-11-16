@@ -111,3 +111,7 @@ deb: build
 # .rpm into target/generate-rpm/ (needs cargo-generate-rpm).
 rpm: build
     cargo generate-rpm -p src/ui
+
+# Verify a commit message file, as the commit-msg hook passes it.
+commit-check file:
+    cog verify --file {{file}}

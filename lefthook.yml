@@ -18,7 +18,7 @@ commit-msg:
       run: >-
         head -1 {1} |
         grep -qE '^(Merge |Revert )' ||
-        cog verify --file {1}
+        just commit-check {1}
 
 pre-push:
   parallel: true
