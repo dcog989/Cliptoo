@@ -87,3 +87,7 @@ translations:
 update:
     cargo upgrade && cargo update --verbose
     bun update --latest
+
+# Bump the version from conventional commits and tag it.
+release:
+    cog bump --auto
