@@ -4,7 +4,7 @@
 
 - Name: Cliptoo
 - Description: native background clipboard manager for Wayland / KDE Plasma 6.
-- Tech: Rust 2024 workspace — `cliptoo-core` (lib) + `cliptoo` (bin). SQLite/FTS5 (`rusqlite`, bundled), Slint 1.18 (Qt backend), Tokio, `wl-clipboard-rs` capture, `enigo` paste, `zbus` / `ashpd` for tray and portal hotkeys (`org.freedesktop.portal.GlobalShortcuts`).
+- Tech: Rust 2024 workspace — `cliptoo-core` (lib) + `cliptoo` (bin). SQLite/FTS5 (`rusqlite`, bundled), Slint (Qt backend), Tokio, `wl-clipboard-rs` capture, `enigo` paste, `zbus` / `ashpd` for tray and portal hotkeys (`org.freedesktop.portal.GlobalShortcuts`).
 
 ### Key files
 
@@ -67,7 +67,7 @@ Cocogitto is an external binary (`cargo install cocogitto` / `pacman -S cocogitt
 
 1. Before writing Slint, read `.docs/.slint-docs/slint-docs-flat/gotchas.md` → `language-and-layout.md` → `interop.md`; never guess syntax. Widget/element properties + callbacks: `INDEX.md`.
 2. Rust FFI: grep `interop.md` or fetch `https://docs.slint.dev/latest/docs/slint/<path>.md`. Child windows use `activate_window<C: slint::ComponentHandle>(ui: &C)`; soundness invariants in `src/ui/src/drag.rs`.
-3. Slint 1.18: `WindowMoveArea`, `FlexboxLayout`, dynamic `z`, `spring` easing, model `push`/`remove`/`insert`, `string.starts-with`/`ends-with`/`replace-all` available. `Flickable.viewport-*` renamed to `content-*` (old names deprecated). Changelog: `.docs/.slint-docs/slint.1.18.md`.
+3. Slint: `WindowMoveArea`, `FlexboxLayout`, dynamic `z`, `spring` easing, model `push`/`remove`/`insert`, `string.starts-with`/`ends-with`/`replace-all` available. `Flickable.viewport-*` renamed to `content-*` (old names deprecated). Changelog: <https://github.com/slint-ui/slint/blob/master/CHANGELOG.md>.
 
 ---
 

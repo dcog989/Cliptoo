@@ -81,7 +81,7 @@ Download [GitHub Latest Release](https://github.com/dcog989/Cliptoo/releases/lat
 | Component       | Technology                                                |
 | --------------- | --------------------------------------------------------- |
 | Language        | Rust 2024                                                 |
-| UI              | Slint, Qt 6 backend                                       |
+| UI              | Slint (Qt 6)                                              |
 | Clipboard       | `wl-clipboard-rs`, `wayland-client`, wlr/ext data-control |
 | Storage         | SQLite + FTS5 (`rusqlite`)                                |
 | Runtime         | Tokio                                                     |

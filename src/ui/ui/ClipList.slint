@@ -153,27 +153,21 @@ export component ClipList {
         }
     }
 
-    public function ensure-visible() {
-        let top = root.selected-index * Theme.row-height;
-        let bottom = top + Theme.row-height;
-        if (top < -list-view.content-y) {
-            list-view.content-y = -top;
-        } else if (bottom > -list-view.content-y + list-view.visible-height) {
-            list-view.content-y = -bottom + list-view.visible-height;
-        }
+    function scroll-selected-into-view() {
+        list-view.ensure-row-visible(root.selected-index, ScrollBehavior.instant);
     }
 
     public function nav-up() {
         if (root.clips.length > 0) {
             root.set-cursor(max(0, root.selected-index - 1));
-            root.ensure-visible();
+            root.scroll-selected-into-view();
         }
     }
 
     public function nav-down() {
         if (root.clips.length > 0) {
             root.set-cursor(min(root.clips.length - 1, root.selected-index + 1));
-            root.ensure-visible();
+            root.scroll-selected-into-view();
         }
     }
 
@@ -201,14 +195,14 @@ export component ClipList {
     public function nav-page-up() {
         if (root.clips.length > 0) {
             root.set-cursor(max(0, root.selected-index - root.page-rows));
-            root.ensure-visible();
+            root.scroll-selected-into-view();
         }
     }
 
     public function nav-page-down() {
         if (root.clips.length > 0) {
             root.set-cursor(min(root.clips.length - 1, root.selected-index + root.page-rows));
-            root.ensure-visible();
+            root.scroll-selected-into-view();
         }
     }
 
