@@ -12,10 +12,6 @@ use slint::{ComponentHandle, SharedString};
 
 use crate::paste::PasteSuppressionSet;
 
-const WINDOW_WIDTH: f32 = 460.0;
-const WINDOW_HEIGHT: f32 = 360.0;
-/// Delay before raising the result window; the context-menu popup closes right
-/// after the action and would otherwise land on top of it.
 const RAISE_DELAY: Duration = Duration::from_millis(100);
 
 pub fn setup_qr(
@@ -163,10 +159,6 @@ fn show_results(
         })
         .collect();
     qr_win.set_codes(slint::ModelRc::new(slint::VecModel::from(rows)));
-    qr_win.window().set_size(slint::LogicalSize {
-        width: WINDOW_WIDTH,
-        height: WINDOW_HEIGHT,
-    });
     ui.set_qr_open(true);
     if qr_win.show().is_err() {
         // A failed show must not leave the blur-to-tray guard stuck on.

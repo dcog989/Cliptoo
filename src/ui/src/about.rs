@@ -25,15 +25,6 @@ pub fn register_about(
 /// Show the About window from the hamburger menu.
 fn present_about(about_win: &crate::AboutWindow, main_ui: &crate::AppWindow) {
     main_ui.set_about_open(true);
-    // preferred-* alone doesn't size the window reliably on Wayland/Qt (same
-    // reason settings.rs uses set_size), so force the size measured from the
-    // content, paths included.
-    let w = about_win.get_content_width().max(340.0);
-    let h = about_win.get_content_height().max(280.0);
-    about_win.window().set_size(slint::LogicalSize {
-        width: w,
-        height: h,
-    });
     let _ = about_win.show();
     // Qt's show() doesn't raise; after the hamburger popup closes the About
     // window can land under the main window. Defer the raise so the popup has

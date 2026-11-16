@@ -217,8 +217,8 @@ fn present_settings(
     };
     win.set_stored_height(height);
     win.set_opened_height(height);
-    // preferred-height is shrunk by the WM decorations on Wayland, so size the
-    // window explicitly to open at the stored size.
+    // preferred-* is only read by the backend the first time a window is shown,
+    // so a reused window must be told the stored size explicitly.
     win.window().set_size(slint::LogicalSize {
         width: win.get_stored_width(),
         height,
