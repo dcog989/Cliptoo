@@ -121,8 +121,8 @@ just check                             # format check, clippy, tests
 just format                            # apply Rust and Slint formatting
 just build                             # release binary
 
-just update                            # latest allowed versions; cargo outdated -w to preview
-cargo sweep --time 14
+just update                            # latest allowed versions; just outdated to preview
+just sweep
 just clean
 ```
 

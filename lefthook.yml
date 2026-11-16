@@ -5,7 +5,7 @@ pre-commit:
       run: slint-lsp format -i {staged_files}
       glob: "*.slint"
     cargo-fmt-check:
-      run: cargo fmt --all -- --check
+      run: just format-check
       glob: "*.rs"
     biome-check:
       run: biome check {staged_files}
@@ -24,6 +24,6 @@ pre-push:
   parallel: true
   commands:
     cargo-test:
-      run: cargo test --workspace
+      run: just test
     cargo-clippy:
-      run: cargo clippy --workspace --all-targets -- -D warnings
+      run: just lint
