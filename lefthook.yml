@@ -2,13 +2,13 @@ pre-commit:
   parallel: true
   commands:
     slint-format:
-      run: slint-lsp format -i {staged_files}
+      run: just format-slint-staged {staged_files}
       glob: "*.slint"
     cargo-fmt-check:
       run: just format-check
       glob: "*.rs"
     biome-check:
-      run: biome check {staged_files}
+      run: just biome-staged {staged_files}
       glob: "website/**/*.{html,css,js}"
 
 commit-msg:

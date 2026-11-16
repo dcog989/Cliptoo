@@ -2,21 +2,32 @@
 default: check
 
 # Format check, clippy and the tests.
-check: lint test
-    cargo fmt --all -- --check
+check: lint format-check test
 
 # Clippy, warnings as errors.
 lint:
-    cargo clippy --workspace --all-targets -- -D warnings
+    cargo clippy --locked --workspace --all-targets -- -D warnings
+
+# Fail if anything needs formatting.
+format-check:
+    cargo fmt --all -- --check
 
 # Workspace tests.
 test:
-    cargo test --workspace
+    cargo test --locked --workspace
 
 # Rewrite Rust and Slint formatting.
 format:
     cargo fmt --all
     slint-lsp format -i src/ui/ui/*.slint
+
+# Slint formatting over a file list, as the pre-commit hook passes it.
+format-slint-staged *files:
+    slint-lsp format -i {{files}}
+
+# Biome over a file list, as the pre-commit hook passes it.
+biome-staged *files:
+    biome check --no-errors-on-unmatched --files-ignore-unknown=true {{files}}
 
 # Release binary.
 build:
