@@ -80,13 +80,13 @@ jobs:
         run: cargo install cargo-generate-rpm
 
       - name: Build release binary
-        run: cargo build --release -p cliptoo
+        run: just build
 
       - name: Build .deb package
-        run: cargo deb -p cliptoo --no-build
+        run: just deb
 
       - name: Build .rpm package
-        run: cargo generate-rpm -p src/ui
+        run: just rpm
 
       - name: Build AppImage
         env:

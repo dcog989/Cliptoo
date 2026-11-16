@@ -137,9 +137,9 @@ just website-build                     # static site in website/dist
 Releases use [Cocogitto](https://docs.cocogitto.io/) (`cargo install cocogitto` / `sudo pacman -S cocogitto`) and [Conventional Commits](https://www.conventionalcommits.org/), configured in `cog.toml`.
 
 ```sh
-cog bump --auto               # bump version, sync manifests, write `CHANGELOG.md`, commit, tag, push
-cog bump --version 1.23.4     # manual version
-cog changelog                 # changelog preview
+just release                  # bump version, sync manifests, write `CHANGELOG.md`, commit, tag, push
+just release-version 1.23.4   # manual version
+just changelog                # changelog preview
 ```
 
 ---

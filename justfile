@@ -99,3 +99,15 @@ outdated:
 # Remove build artifacts older than two weeks.
 sweep:
     cargo sweep --time 14
+
+# Bump to an explicit version (`just release-version 1.2.3`).
+release-version version:
+    cog bump --version {{version}}
+
+# .deb into target/debian/ (needs cargo-deb).
+deb: build
+    cargo deb -p cliptoo --no-build
+
+# .rpm into target/generate-rpm/ (needs cargo-generate-rpm).
+rpm: build
+    cargo generate-rpm -p src/ui
