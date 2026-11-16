@@ -1,5 +1,7 @@
 fn main() {
-    let config = slint_build::CompilerConfiguration::new().with_bundled_translations("lang");
+    let config = slint_build::CompilerConfiguration::new()
+        .with_edition((1, 19))
+        .with_bundled_translations("lang");
     slint_build::compile_with_config("ui/AppWindow.slint", config).unwrap();
 
     let mut build = cc::Build::new();
