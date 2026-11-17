@@ -36,7 +36,7 @@ jobs:
         run: bunx --bun vite build --config website/vite.config.js
 
       - name: Upload website as Pages artifact
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-pages-artifact@v5
         with:
           path: website/dist
 
