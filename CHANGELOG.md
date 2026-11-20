@@ -3,6 +3,26 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v2.24.3 - 2026-11-20
+
+#### Bug Fixes
+
+- (afde100) remove ambiguous whitespace repetition from screenshot-line regex - dcog989
+
+- (4b3d62b) add format-check recipe and call just from hooks - dcog989
+
+- (b403f51) render the About tagline italic via an explicit font family - dcog989
+
+#### Refactoring
+
+- (a52ecae) remove duplicate window sizes from About and QR - dcog989
+
+- (82d6376) replace strip_*().unwrap_or() with str::trim_prefix/trim_suffix - dcog989
+
+- (6db7b0f) decode owned byte buffers with String::from_utf8_lossy_owned - dcog989
+
+- - -
+
 ## v2.24.2 - 2026-11-10
 
 #### Bug Fixes
