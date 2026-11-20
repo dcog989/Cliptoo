@@ -95,7 +95,7 @@ Data lives in `~/.local/share/Cliptoo/` (DB, images), config in `~/.config/Clipt
 
 ### Requirements
 
-Wayland with KDE Plasma 6. `xdg-desktop-portal-kde` provides the global hotkey portal and ships with Plasma.
+Wayland with KDE Plasma; `xdg-desktop-portal-kde` provides the global hotkey portal.
 
 Building needs [just](https://github.com/casey/just) and Rust stable (2024 edition, [rustup](https://rustup.rs)) plus the Qt 6, Wayland, xkbcommon, fontconfig, and dav1d development headers, `clang`, and `mold`:
 
@@ -113,23 +113,18 @@ Local builds must use those linkers: set `linker = "clang"` and `rustflags = ["-
 git clone https://github.com/dcog989/cliptoo.git && cd cliptoo
 ```
 
-```sh
-cargo install cargo-edit cargo-outdated cargo-sweep   # optional
-
-just run                               # debug build and run
-just check                             # format check, clippy, tests
-just format                            # apply Rust and Slint formatting
-just build                             # release binary
-
-just update                            # latest allowed versions; just outdated to preview
-just sweep
-just clean
-```
+Requires: `cargo install cargo-edit cargo-outdated cargo-sweep`
 
 ```sh
-bun install                            # website build tools
-just website                           # live site rendered from README.md
-just website-build                     # static site in website/dist
+just                # Verify the repo: the same checks CI runs.
+just build          # release binary
+just format         # apply Rust and Slint formatting
+just install        # Install to /usr/local, where a later `pacman -U` cannot conflict.
+just run            # debug build and run
+just update         # update to latest allowed versions
+
+just sweep          # Remove build artifacts older than two weeks.
+just clean          # Remove this package's build output.
 ```
 
 ### Release
@@ -140,6 +135,14 @@ Releases use [Cocogitto](https://docs.cocogitto.io/) (`cargo install cocogitto` 
 just release                  # bump version, sync manifests, write `CHANGELOG.md`, commit, tag, push
 just release-version 1.23.4   # manual version
 just changelog                # changelog preview
+```
+
+### Website
+
+```sh
+bun install                            # website build tools
+just website                           # live site rendered from README.md
+just website-build                     # static site in website/dist
 ```
 
 ---
