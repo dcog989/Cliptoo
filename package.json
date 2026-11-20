@@ -7,8 +7,8 @@
     "website:build": "bunx --bun vite build --config website/vite.config.js"
   },
   "devDependencies": {
-    "marked": "^16.4.2",
-    "vite": "^8.3.6",
+    "marked": "^18.2.1",
+    "vite": "^8.3.8",
     "vite-plugin-singlefile": "^2.3.4"
   }
 }
